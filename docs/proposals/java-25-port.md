@@ -374,10 +374,10 @@ doesn't change.
 - **Not done:** stage 0's exit was never run in full against the Python API, which is gone; the
   black-box suite passes in full against the Java API (137 tests). CI has not run on GitHub
   since Actions stopped starting jobs on 5 Nov 2026; every CI command runs locally.
-- **For the owner, before anything is published:** when to build ADR-0065's
-  slices; `ARCHSIM_DATABASE_URL` keeps SQLAlchemy's form
-  ([ADR-0035](../adr/0035-read-the-python-apis-settings-unchanged.md)), which a plain
-  `postgresql://` or JDBC URL could replace now that no Python reads it.
+- **Decided by the owner on 12 Nov 2026, before anything is published:** ADR-0065's slices are
+  built first, and `ARCHSIM_DATABASE_URL` takes a plain `postgresql://` URL, the form the
+  documentation now shows, besides SQLAlchemy's and JDBC's
+  ([ADR-0035](../adr/0035-read-the-python-apis-settings-unchanged.md)'s note of that day).
 
 ## Accuracy work during the port
 

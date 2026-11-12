@@ -5,8 +5,22 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
-/** The database ARCHSIM_DATABASE_URL names, in the Python API's form or JDBC's. */
+/** The database ARCHSIM_DATABASE_URL names, as a plain URL, SQLAlchemy's or JDBC's. */
 class DatabaseUrlTests {
+
+	@Test
+	void parse_postgresqlUrl_givesTheJdbcUrlAndCredentials() {
+		DatabaseUrl url = DatabaseUrl.parse("postgresql://archsim:s3cret@postgres:5432/archsim");
+
+		assertThat(url).isEqualTo(new DatabaseUrl("jdbc:postgresql://postgres:5432/archsim", "archsim", "s3cret"));
+	}
+
+	@Test
+	void parse_postgresScheme_givesTheJdbcUrlAndCredentials() {
+		DatabaseUrl url = DatabaseUrl.parse("postgres://archsim:s3cret@postgres:5432/archsim");
+
+		assertThat(url).isEqualTo(new DatabaseUrl("jdbc:postgresql://postgres:5432/archsim", "archsim", "s3cret"));
+	}
 
 	@Test
 	void parse_sqlAlchemyUrl_givesTheJdbcUrlAndCredentials() {
@@ -75,6 +89,51 @@ class DatabaseUrlTests {
 		DatabaseUrl url = DatabaseUrl.parse("postgresql://u:100%zz@host/db");
 
 		assertThat(url.password()).isEqualTo("100%zz");
+	}
+
+	@Test
+	void parse_percentEncodedSocketDirectory_isRefused() {
+		assertThatIllegalArgumentException()
+			.isThrownBy(() -> DatabaseUrl.parse("postgresql://u:s3cret@%2Fvar%2Frun%2Fpostgresql/archsim"))
+			.withMessageContaining("host")
+			.withMessageNotContaining("s3cret");
+	}
+
+	@Test
+	void parse_urlWithoutHost_isRefused() {
+		assertThatIllegalArgumentException().isThrownBy(() -> DatabaseUrl.parse("postgresql://u:s3cret@/archsim"))
+			.withMessageContaining("host")
+			.withMessageNotContaining("s3cret");
+	}
+
+	@Test
+	void parse_emptyHostInAList_isRefused() {
+		assertThatIllegalArgumentException()
+			.isThrownBy(() -> DatabaseUrl.parse("postgresql://u:s3cret@primary,/archsim"))
+			.withMessageContaining("host")
+			.withMessageNotContaining("s3cret");
+	}
+
+	@Test
+	void parse_listOfIpv6Hosts_isRefused() {
+		assertThatIllegalArgumentException()
+			.isThrownBy(() -> DatabaseUrl.parse("postgresql://u:s3cret@[::1],[::2]:6543/archsim"))
+			.withMessageContaining("host")
+			.withMessageNotContaining("s3cret");
+	}
+
+	@Test
+	void parse_hostsWithoutPorts_areEachAHostOfTheJdbcUrl() {
+		DatabaseUrl url = DatabaseUrl.parse("postgresql://u:p@primary,standby/archsim");
+
+		assertThat(url.jdbcUrl()).isEqualTo("jdbc:postgresql://primary:5432,standby:5432/archsim");
+	}
+
+	@Test
+	void parse_hostsWithOnePort_giveEachHostThePort() {
+		DatabaseUrl url = DatabaseUrl.parse("postgresql://u:p@primary,standby:6543/archsim");
+
+		assertThat(url.jdbcUrl()).isEqualTo("jdbc:postgresql://primary:6543,standby:6543/archsim");
 	}
 
 	@Test

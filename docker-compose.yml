@@ -39,7 +39,7 @@ services:
     <<: *archsim-app
     command: ["migrate"]
     environment:
-      ARCHSIM_DATABASE_URL: postgresql+psycopg://archsim:archsim@postgres:5432/archsim
+      ARCHSIM_DATABASE_URL: postgresql://archsim:archsim@postgres:5432/archsim
     depends_on:
       postgres:
         condition: service_healthy
@@ -56,7 +56,7 @@ services:
       - path: .env.docker
         required: false
     environment:
-      ARCHSIM_DATABASE_URL: postgresql+psycopg://archsim:archsim@postgres:5432/archsim
+      ARCHSIM_DATABASE_URL: postgresql://archsim:archsim@postgres:5432/archsim
       ARCHSIM_AUTO_MIGRATE: "false" # the migrate service did it
       ARCHSIM_CORS_ORIGINS: '["http://localhost:3000"]'
     depends_on:
@@ -93,7 +93,7 @@ services:
       - path: .env.docker
         required: false
     environment:
-      ARCHSIM_DATABASE_URL: postgresql+psycopg://archsim:archsim@postgres:5432/archsim
+      ARCHSIM_DATABASE_URL: postgresql://archsim:archsim@postgres:5432/archsim
       ARCHSIM_MAX_CONCURRENT_RUNS: "3"
       JAVA_TOOL_OPTIONS: -Xmx2g
     depends_on:

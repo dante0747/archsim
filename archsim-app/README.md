@@ -46,8 +46,10 @@ API on `127.0.0.1` only.
 
 Settings are the Python API's `ARCHSIM_*` environment variables, in its formats
 ([ADR-0035](../docs/adr/0035-read-the-python-apis-settings-unchanged.md)): `ARCHSIM_DATABASE_URL`
-may be a SQLAlchemy URL (`postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim`, the
-default) or a JDBC one. The worker reads the Python worker's timings,
+is a `postgresql://` or `postgres://` URL (`postgresql://archsim:archsim@127.0.0.1:5432/archsim`,
+the default), the same with SQLAlchemy's driver name as the Python API took it
+(`postgresql+psycopg://`), or a JDBC one; a URL's query goes to the JDBC driver as its
+connection properties. The worker reads the Python worker's timings,
 `ARCHSIM_LEASE_SECONDS` (30), `ARCHSIM_HEARTBEAT_SECONDS` (2, at most half the lease),
 `ARCHSIM_REAP_SECONDS` (10) and `ARCHSIM_CANCEL_GRACE_SECONDS` (10), and takes
 `ARCHSIM_MAX_CONCURRENT_RUNS` runs at once (the cores less one). The OpenAPI document is at
@@ -195,8 +197,15 @@ schema Flyway builds with the one Alembic built at its revision 0008 (`parity/sc
 - A request body is read as JSON whatever its `Content-Type`; FastAPI read any other type as
   raw bytes and answered `422`.
 - A `405` that Tomcat answers itself (`TRACE`) lists Tomcat's methods in `Allow`.
-- A SQLAlchemy URL without a host (a Unix socket, `postgresql+psycopg:///archsim`) is refused;
-  the JDBC driver needs a host.
+- A database URL without a host, or with a socket directory for one (a Unix socket:
+  `postgresql:///archsim`, `postgresql://%2Fvar%2Frun%2Fpostgresql/archsim`), is refused; the
+  JDBC driver connects over TCP.
+- A database URL's query goes to the JDBC driver as its connection properties, where psycopg
+  gave it to libpq: a parameter the driver names differently (`connect_timeout`,
+  `application_name`, `target_session_attrs`) has no effect, so give the driver's
+  (`connectTimeout`, `ApplicationName`, `targetServerType`). `sslmode`, `sslrootcert`, `sslcert`,
+  `sslkey` and `options` keep their names, but the driver reads `sslkey` as a PKCS-8 (`.pk8`) or
+  PKCS-12 file, not libpq's PEM key.
 - The sign-in state cookie's expiry is written as Java writes a number (`1.79369E9`); Python
   wrote `1793690103.358`. Each API reads the other's.
 - An OAuth provider whose profile names no account id (`"id": null`) fails the sign-in

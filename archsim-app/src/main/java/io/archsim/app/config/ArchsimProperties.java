@@ -24,8 +24,9 @@ import org.springframework.validation.annotation.Validated;
  * Python API ({@code ARCHSIM_MAX_BODY_BYTES} is {@code maxBodyBytes}), so one compose
  * file serves either.
  *
- * @param databaseUrl the PostgreSQL database, as a SQLAlchemy URL
- * ({@code postgresql+psycopg://user:password@host:5432/db}) or a JDBC one
+ * @param databaseUrl the PostgreSQL database, as a URL
+ * ({@code postgresql://user:password@host:5432/db}, or SQLAlchemy's
+ * {@code postgresql+psycopg://}) or a JDBC one
  * @param examplesDir where the example designs are; empty to look for {@code examples/}
  * in the working directory and its parents
  * @param pricesDir more folders of price snapshots, separated by the platform's path

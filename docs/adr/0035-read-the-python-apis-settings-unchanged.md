@@ -54,6 +54,17 @@ existing environment configures the Java API as it is.
 `seed` still read the SQLAlchemy form of `ARCHSIM_DATABASE_URL`, so accepting only `jdbc:` URLs
 waits for stage 6.
 
+**Status (12 Nov 2026):** nothing in the repository written in Python reads
+`ARCHSIM_DATABASE_URL` any more, so the documentation, compose and the test launchers give it as
+a plain URL, `postgresql://user:password@host:5432/archsim` (or `postgres://`). `DatabaseUrl`
+converts it as it converts SQLAlchemy's form: SQLAlchemy's pattern reads both, its driver name
+being optional. The query goes to the JDBC driver as its connection properties, by the driver's
+names (archsim-app's README lists the libpq parameters it names differently). SQLAlchemy's
+`postgresql+psycopg://` and JDBC URLs keep working, so no deployment has to change.
+The refusal of a database below Alembic's revision 0008 still asks for the `+psycopg` form: the
+migrations at the tag `alembic-0008`
+([ADR-0063](0063-retire-alembic-older-databases-upgrade-from-a-tag.md)) read only that.
+
 ### Consequences
 
 - Good, because the environment compose and deployments give the API carries over unchanged.

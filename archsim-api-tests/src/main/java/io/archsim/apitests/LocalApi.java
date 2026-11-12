@@ -88,7 +88,7 @@ final class LocalApi {
 	 */
 	private static Map<String, String> settings(SuiteConfig config, Profile profile, String jdbcUrl, String database) {
 		Map<String, String> settings = new HashMap<>(profile.settings(config));
-		settings.put("ARCHSIM_DATABASE_URL", sqlAlchemyUrl(config, jdbcUrl, database));
+		settings.put("ARCHSIM_DATABASE_URL", databaseUrl(config, jdbcUrl, database));
 		settings.put("ARCHSIM_EXAMPLES_DIR", config.repoRoot().resolve("examples").toString());
 		return settings;
 	}
@@ -204,16 +204,17 @@ final class LocalApi {
 	}
 
 	/**
-	 * Returns the URL the API and the worker reach their database at, as the Python API's
-	 * setting took it (SQLAlchemy's), which the Java API and worker read (ADR-0035).
+	 * Returns the URL the API and the worker reach their database at, in the form the
+	 * documentation shows for {@code ARCHSIM_DATABASE_URL}: {@code postgresql://}
+	 * (ADR-0035).
 	 * @param config what the suite was told: the PostgreSQL user
 	 * @param jdbcUrl the database's JDBC URL
 	 * @param database the database's name
-	 * @return the database's SQLAlchemy URL, with the user and password in it
+	 * @return the database's {@code postgresql://} URL, with the user and password in it
 	 */
-	private static String sqlAlchemyUrl(SuiteConfig config, String jdbcUrl, String database) {
+	private static String databaseUrl(SuiteConfig config, String jdbcUrl, String database) {
 		URI postgres = URI.create(jdbcUrl.substring(JDBC_PREFIX.length()));
-		return "postgresql+psycopg://" + encode(config.postgresUser()) + ":" + encode(config.postgresPassword()) + "@"
+		return "postgresql://" + encode(config.postgresUser()) + ":" + encode(config.postgresPassword()) + "@"
 				+ postgres.getHost() + ":" + portOf(postgres) + "/" + database;
 	}
 
@@ -222,7 +223,9 @@ final class LocalApi {
 	}
 
 	private static String encode(String text) {
-		return URLEncoder.encode(text, StandardCharsets.UTF_8);
+		// URLEncoder encodes a form, a space as +, which a URL's user part reads as a
+		// plus
+		return URLEncoder.encode(text, StandardCharsets.UTF_8).replace("+", "%20");
 	}
 
 	/**

@@ -257,9 +257,9 @@ npm run dev
 Open <http://localhost:3000>, pick **Cache-aside web API (starter)**, and press **Run**.
 
 The parts find each other with their default: PostgreSQL at
-`postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim` (compose's). For another database,
+`postgresql://archsim:archsim@127.0.0.1:5432/archsim` (compose's). For another database,
 set `ARCHSIM_DATABASE_URL` for the API and the worker alike (on Windows PowerShell:
-`$env:ARCHSIM_DATABASE_URL = "postgresql+psycopg://..."`, and likewise
+`$env:ARCHSIM_DATABASE_URL = "postgresql://..."`, and likewise
 `$env:ARCHSIM_MAX_CONCURRENT_RUNS = "3"` before the worker's `java` command; `make worker` runs
 that command on a POSIX shell).
 Use `127.0.0.1` rather than `localhost`: with Docker Desktop on Windows, `localhost` may try

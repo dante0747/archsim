@@ -120,9 +120,8 @@ runJava(
   { env: { ...process.env, ...credentials } },
 );
 
-// E2E_POSTGRES_URL with the fresh database and SQLAlchemy's driver name, its user, host and query kept
+// E2E_POSTGRES_URL with the fresh database, its user, host and query kept
 const databaseUrl = new URL(postgres);
-databaseUrl.protocol = "postgresql+psycopg:";
 databaseUrl.pathname = `/${database}`;
 const children = [];
 

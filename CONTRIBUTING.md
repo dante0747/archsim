@@ -55,7 +55,7 @@ java -jar archsim-app/build/libs/archsim-app.jar seed  # optional: one project p
 ```
 
 The API and the worker both default to compose's PostgreSQL
-(`postgresql+psycopg://archsim:archsim@127.0.0.1:5432/archsim`); set `ARCHSIM_DATABASE_URL` for
+(`postgresql://archsim:archsim@127.0.0.1:5432/archsim`); set `ARCHSIM_DATABASE_URL` for
 both to use another. The `Makefile` wraps these commands (`make setup`, `make dev-db`,
 `make api`, `make worker`, `make web`, `make test`, ...). On Windows without
 `make`, run the underlying commands shown in the Makefile directly; nothing depends on a POSIX
