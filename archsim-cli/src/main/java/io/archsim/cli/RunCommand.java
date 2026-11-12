@@ -1,6 +1,7 @@
 package io.archsim.cli;
 
 import java.io.PrintWriter;
+import java.math.BigInteger;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.concurrent.Callable;
@@ -42,8 +43,8 @@ final class RunCommand implements Callable<Integer> {
 	@Option(names = "--scenario", description = "scenario id to apply")
 	private @Nullable String scenario;
 
-	@Option(names = "--seed", description = "override the workload seed")
-	private @Nullable Long seed;
+	@Option(names = "--seed", converter = PythonInt.class, description = "override the workload seed")
+	private @Nullable BigInteger seed;
 
 	@Option(names = "--out", description = "write the full JSON report to this file")
 	private @Nullable String out;

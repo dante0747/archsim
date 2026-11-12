@@ -5,6 +5,8 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import picocli.CommandLine.TypeConversionException;
 
+import io.archsim.model.text.PythonText;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
@@ -45,10 +47,10 @@ class PythonFloatTests {
 	@ParameterizedTest
 	@ValueSource(strings = { "", " ", "0x10", "0x1p3", "1d", "1f", "1D", "_1", "1_", "1__0", "1_.5", "1._5", "1e_1",
 			"in", "infinit", "infinityy", "nan1", "1e", "e5", ".", "--1", "+-1", "1 0", "1,5", "\u00bd", "1\u00b2",
-			"Infinity1", "+", "1e+", "1.5.2" })
+			"Infinity1", "+", "1e+", "1.5.2", "\u001c60", "60\u001f" })
 	void convert_textPythonsFloatRefuses_isATypeConversionError(String text) {
 		assertThatExceptionOfType(TypeConversionException.class).isThrownBy(() -> this.converter.convert(text))
-			.withMessage("invalid float value: '" + text + "'");
+			.withMessage("invalid float value: " + PythonText.repr(text));
 	}
 
 }
