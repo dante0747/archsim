@@ -5,6 +5,8 @@ import java.util.List;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -21,22 +23,22 @@ class AccessConfiguration implements WebMvcConfigurer {
 
 	private final Clock clock;
 
-	private final ObjectProvider<Credentials> credentials;
-
 	private final ObjectProvider<Csrf> csrf;
 
-	AccessConfiguration(ArchsimProperties properties, ObjectProvider<Clock> clock,
-			ObjectProvider<Credentials> credentials, ObjectProvider<Csrf> csrf) {
+	private final SecurityContextHolderStrategy contexts;
+
+	AccessConfiguration(ArchsimProperties properties, ObjectProvider<Clock> clock, ObjectProvider<Csrf> csrf,
+			ObjectProvider<SecurityContextHolderStrategy> contexts) {
 		this.properties = properties;
 		this.clock = clock.getIfAvailable(Clock::systemUTC);
-		this.credentials = credentials;
 		this.csrf = csrf;
+		this.contexts = contexts.getIfAvailable(SecurityContextHolder::getContextHolderStrategy);
 	}
 
 	@Override
 	public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
 		ClientIps clientIps = new ClientIps(new TrustedProxies(this.properties.trustedProxies().hosts(), this.clock));
-		resolvers.add(new PrincipalResolver(this.properties, clientIps, this.credentials, this.csrf));
+		resolvers.add(new PrincipalResolver(clientIps, this.csrf, this.contexts));
 		resolvers.add(new VisitorResolver(clientIps));
 		resolvers.add(new RequestedWorkspaceResolver());
 	}
