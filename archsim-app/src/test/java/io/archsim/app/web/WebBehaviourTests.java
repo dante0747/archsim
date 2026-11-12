@@ -160,14 +160,14 @@ class WebBehaviourTests {
 	@Test
 	void post_apiBodyWithALoneSurrogateInAValueItChecks_isRefusedWithTheValueWrittenAsAnEscape() {
 		String body = "{\"name\": \"" + LONE_SURROGATE + "\", \"count\": 1}";
+		String refusal = "{\"detail\":[{\"type\":\"string_unicode\",\"loc\":[\"body\",\"name\"],"
+				+ "\"msg\":\"Input should be a valid string, unable to parse raw data as a unicode string\","
+				+ "\"input\":\"" + LONE_SURROGATE_WRITTEN + "\"}]}";
 
 		assertThat(this.mvc.post().uri("/api/v1/echo").contentType(MediaType.APPLICATION_JSON).content(body))
 			.hasStatus(422)
 			.bodyText()
-			.isEqualTo(
-					"{\"detail\":[{\"type\":\"string_unicode\",\"loc\":[\"body\",\"name\"],\"msg\":\"Input should be a valid "
-							+ "string, unable to parse raw data as a unicode string\",\"input\":\""
-							+ LONE_SURROGATE_WRITTEN + "\"}]}");
+			.isEqualTo(refusal);
 	}
 
 	@Test
