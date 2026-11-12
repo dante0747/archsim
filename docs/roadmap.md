@@ -31,10 +31,10 @@ Planned approach:
 - A validation step replays the observed traffic through the calibrated model and reports the
   error against observed latency and throughput, so users see how far to trust it.
 
-Seams, in the Python engine this was planned on: the `ui(assumption=True)` flag already
-distinguishes asserted inputs; distributions are
-a tagged union in `distributions.py` (add an `empirical` kind); the workload `pattern` union
-can gain a `trace` kind.
+Seams this was planned on, which calibration now uses: the `@Ui(assumption = true)` hint
+distinguishes asserted inputs; distributions are a tagged union in archsim-model's
+`distribution` package (it gained an `empirical` kind); the workload `pattern` union gained a
+`trace` kind.
 
 ## 2. Grafana export
 
@@ -104,7 +104,8 @@ workspace under its cap of runs at once. Next, if a single database becomes the 
 
 ## 8. Engine performance
 
-The SimPy engine processes roughly 5,000-10,000 simulated requests per second. Options if
-larger models are needed: a custom event core for hot paths, running independent scenarios in
-parallel processes, or variance-reduction techniques (common random numbers) to need fewer
-simulated requests per comparison.
+The Java engine simulates 27,000 to 316,000 requests per second on one core, 64,000 at the
+templates' median ([performance.md](performance.md)), about 14 times the Python SimPy engine it
+replaced (the custom event core this section once proposed). Options if larger models are
+needed: running independent scenarios or replications on several threads, or variance-reduction
+techniques (common random numbers) to need fewer simulated requests per comparison.

@@ -1,11 +1,11 @@
 # Simulation model
 
 This page describes exactly what the ArchSim engine simulates, how metrics are defined, and
-what it leaves out. If the code and this page disagree, that is a bug; please report it. Python
-names in it (`cost.py`, `run_simulation`, ...) are the Python engine's, which the Java engine
-replays figure for figure and which stage 5 of the Java port deleted (the tag `engine-0.16.0`
-keeps it); the Java engine's packages are listed in
-[archsim-engine/README.md](../archsim-engine/README.md#packages).
+what it leaves out. If the code and this page disagree, that is a bug; please report it. The
+classes it names are the Java engine's (`archsim-engine`) and design model's (`archsim-model`),
+whose packages are listed in [archsim-engine/README.md](../archsim-engine/README.md#packages);
+the engine replays, figure for figure, the Python engine 0.16.0 it was ported from, which the tag
+`engine-0.16.0` keeps.
 
 > **Results are estimates, not production guarantees.** The engine faithfully simulates the
 > *model you drew* with the *assumptions you entered* (service times, hit ratios, latencies,
@@ -16,9 +16,10 @@ keeps it); the Java engine's packages are listed in
 
 ## Clock, units and randomness
 
-- **Simulated time is in milliseconds** (`env.now` in SimPy). Workload durations are given in
-  seconds and converted. Rates are requests per second.
-- **Distributions** (`distributions.py`), all in ms: `constant {value}`,
+- **Simulated time is in milliseconds** (`Simulation.now()` in the engine's event kernel, which
+  keeps SimPy's order of events). Workload durations are given in seconds and converted. Rates are
+  requests per second.
+- **Distributions** (archsim-model's `distribution` package), all in ms: `constant {value}`,
   `exponential {mean}`, `uniform {min, max}`, `lognormal {median, p95}` with
   `sigma = ln(p95 / median) / 1.645`. Every sample is capped at 600,000 ms so a heavy tail
   cannot stall a run.
@@ -436,7 +437,7 @@ judged by its pods, not by requests.
 
 `costPerHour` (per instance: replica, database instance, cache node, broker, load balancer)
 and `costPerMillionRequests` (third-party APIs) never affect the simulation. The engine
-(`cost.py`) turns them into a monthly estimate (730 hours) and a cost per million successful
+(`CostEstimator`) turns them into a monthly estimate (730 hours) and a cost per million successful
 requests; every report carries it as `cost`, and `POST /analyze` prices a design before it runs.
 A month is priced at the workload's steady **base** load (`load.base_rps`: a constant rate, the
 rate outside a burst, a ramp's low end, a trace's median), not at a burst's peak: per-request
@@ -527,7 +528,7 @@ divided out by the machine's speed during that pass (`run.py machine_inputs`). T
 with `BENCH_HOST=on`: on in-sample re-simulation it did not yet clear the accuracy gate
 (IMPLEMENTATION_STATUS.md, W27).
 
-**Auto-sizing.** An empty spec is *Auto*: before a run the engine (`sizing.py`) gives the part
+**Auto-sizing.** An empty spec is *Auto*: before a run the engine (`AutoSizer`) gives the part
 the size it needs for the design's own peak load, so the CLI, the API and the web app simulate
 the same document identically (same result digest). The report's `sizing` section says, per
 part, the value simulated and whether it was set, auto-sized or set by a scenario, with how each
@@ -593,12 +594,12 @@ Specs also feed the calculations around a run:
   the design has a host or the part a `siblingSpeed`) and, for services, the memory (requests
   that fit x replicas / `meanHoldMs`); `capacityLimit` says which (`slots`, `cpu`, `memory`) and
   bottleneck findings name it. `serviceOnlyCapacityRps` also respects the CPU ceiling.
-- **Cost estimate (`cost.py`)**: a part's price per instance-hour is the price set on it; without one,
+- **Cost estimate (`CostEstimator`)**: a part's price per instance-hour is the price set on it; without one,
   its size at illustrative on-demand rates ($0.037 per vCPU-hour, $0.0028 per GiB-hour, $0.08 per
   GiB-month of storage); without a size, the catalog default. A price equal to the catalog
   default counts as not set (saved runs store every default). The cost table marks size-priced
   parts.
-- **Design review (`review.py`, before a run)**: a static estimate of the peak load at each part (peak
+- **Design review (`DesignReview`, before a run)**: a static estimate of the peak load at each part (peak
   rate split by read/write mix and client share, spread over load-balancer targets by replicas,
   cache misses at the fixed hit ratio) is compared with its CPU: high when the CPU would be over
   100% busy, medium above 80%. It also flags a database working set that does not fit in memory
@@ -611,7 +612,7 @@ Specs also feed the calculations around a run:
 
 ## Validation rules
 
-Documents are validated before simulation (`validation.py`); errors block the run and carry
+Documents are validated before simulation (archsim-model's `DocumentValidator`); errors block the run and carry
 a stable code, the node or edge involved and a hint. Highlights:
 
 - unique ids; known component types; config values in range (`node.config_invalid` with the
@@ -834,32 +835,32 @@ versions differ.
 
 ## Sampled mode (opt-in)
 
-`run_simulation(mode="sampled")` (`archsim run --sampled`) answers a long steady run (a constant
-rate, no scheduled faults) from its warm-up plus a steady sample of at least 10 s and 50,000
-arrivals, when the sample is no more than half of the run. The sample must be stationary: the
-measured window's two halves agree on throughput (within 3%) and p95 (within 15%), the system
-keeps up with at least 97% of the offered load, and no queue, backlog or replica count is still
-growing. Otherwise the whole run is simulated. A sampled report carries `simulationMode` (the
-requested and simulated durations, the checks, a note); its counts and time series cover the
-sample, and its rates, success and percentiles stand for the whole run. It is deterministic like
-any run. Validation against full runs: [performance.md](performance.md).
+A sampled run (`SimulationMode.SAMPLED`, `archsim run --sampled`) answers a long steady run (a
+constant rate, no scheduled faults) from its warm-up plus a steady sample of at least 10 s and
+50,000 arrivals, when the sample is no more than half of the run. The sample must be stationary: the
+measured window's two halves agree on throughput (within 3%) and p95 (within 15%), the system keeps
+up with at least 97% of the offered load, and no queue, backlog or replica count is still growing.
+Otherwise the whole run is simulated. A sampled report carries `simulationMode` (the requested and
+simulated durations, the checks, a note); its counts and time series cover the sample, and its
+rates, success and percentiles stand for the whole run. It is deterministic like any run. Validation
+against full runs: [performance.md](performance.md).
 
 The API and the web app call it a *quick check* (`mode: "sampled"`, Simulate menu → "Quick check
-(estimated)"). It is offered only when `quick_check(workload)` (in `/analyze` as `quickCheck`) says
+(estimated)"). It is offered only when `QuickCheck.of(workload)` (in `/analyze` as `quickCheck`) says
 the design qualifies, and otherwise says why. When a sample turns out not steady, the whole run is
 simulated and `simulationMode` is `{kind: "full", requestedMode: "sampled", note}`. The web app
 labels a sampled report "Estimated" and its charts say they cover only the sample.
 
 ## Seeds and seed groups
 
-One run answers for one random sequence. `run_simulation(..., seed=N)` replaces the workload's seed
-(after the scenario is applied), so a run of seed N reproduces exactly: the report's input, and so
-its `inputDigest`, carries the seed used. The API's seed groups run one document with seeds base
-to base + N - 1, and `SeedSummary` (in the engine's `seeds` package) reads them together: the
-verdict split ("Meets the objectives in 4 of 5 runs"), p50/p95/p99, success and throughput ranges
-with their medians. Runs that disagree on the verdict are *borderline*; the web app shows an amber
-Borderline and caps the confidence at medium, and offers "Check 5 seeds" whenever a single run's
-p95 is within 15% of its objective.
+One run answers for one random sequence. A run with a seed of its own (`RunRequest.withSeed`)
+replaces the workload's seed (after the scenario is applied), so a run of seed N reproduces exactly:
+the report's input, and so its `inputDigest`, carries the seed used. The API's seed groups run one
+document with seeds base to base + N - 1, and `SeedSummary` (in the engine's `seeds` package) reads
+them together: the verdict split ("Meets the objectives in 4 of 5 runs"), p50/p95/p99, success and
+throughput ranges with their medians. Runs that disagree on the verdict are *borderline*; the web
+app shows an amber Borderline and caps the confidence at medium, and offers "Check 5 seeds" whenever
+a single run's p95 is within 15% of its objective.
 
 ## Validation against queueing theory
 
@@ -938,7 +939,7 @@ report keeps about 30: evenly spread ones, the 8 slowest, the median and up to 8
   that load's cost up to saturation, although measured stacks often keep getting cheaper (the
   cache-aside benchmark's Node.js service: 0.21 ms at 1,335 req/s, the top of its calibration,
   and 0.16 ms at 4,850). Calibrating to a higher load is the remedy: the benchmarks' protocol
-  v6 (W26) climbs to about two thirds of the core. W26's `extend_load_curve` can also add a last
+  v6 (W26) climbs to about two thirds of the core. W26's curve extension (`CurveExtensions`) can also add a last
   point along a clear measured fall (experimental, off by default;
   [calibration.md](calibration.md#cpu-and-memory)); the engine itself never extrapolates a
   table. Without the setting a request costs `cpuShare` x its service time at any rate. CPU

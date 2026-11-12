@@ -195,9 +195,10 @@ a later revision would make Flyway refuse the database.
 New components (message broker, CDN, circuit breaker, ...) are added in the model and the
 engine only: a config record, ports and validation in `archsim-model` (a `ComponentSpec`
 registered in `StandardComponents`, with its catalog entry), and runtime behaviour in
-`archsim-engine`. The API exposes it and the web UI renders its palette entry and inspector form
-automatically. [`docs/extending-components.md`](docs/extending-components.md) walks through the
-parts, as the Python engine had them.
+`archsim-engine` (a `RuntimeComponent`, built in `Parts`). The API exposes it and the web UI
+renders its palette entry and inspector form automatically.
+[`docs/extending-components.md`](docs/extending-components.md) walks through the parts, on the
+external API's.
 
 ## Questions
 

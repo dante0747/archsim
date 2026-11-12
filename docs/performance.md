@@ -1,23 +1,83 @@
 # Performance
 
 How fast the engine answers, measured on one laptop (11th Gen Intel Core i7-1165G7, 8 logical
-CPUs, Windows 11, Python 3.12, and Java 25 for the Java simulator), and what was done about it.
-The Python engine's numbers come from `scripts/perf.py` (`benchmarks/perf/baseline.json`,
-`after.json`, and `python-0.16.0.json` for the Java port's comparison) and
-`scripts/validate_sampled.py` (`benchmarks/perf/sampled-validation.json`), which went with that
-engine at stage 5 of the Java port; the files stay as they were measured. The Java engine's come
-from `./gradlew :archsim-engine:speed`, which times every template as shipped
+CPUs, Windows 11, Java 25), and what was done about it. The engine's figures come from
+`./gradlew :archsim-engine:speed`, which times every template as shipped
 (`-Parchsim.speed.out=benchmarks/perf/java-port.json` writes the committed file; see
 [archsim-engine's README](../archsim-engine/README.md#tests)): rerun it on your machine before
-quoting.
+quoting. The second part of this page is the Python engine's, which the Java one replaced at
+stages 4 and 5 of the [Java port](proposals/java-25-port.md).
 
-> The tables before the last section were measured with engine 0.10.0. Engine 0.11.0 runs the
-> templates on AWS instance types and rounds generic sizes to standard shapes
-> ([pricing.md](pricing.md)), which changes some parts' CPU and memory and so their latencies
-> (the starter's p95 at 400 req/s, for example). Engine 0.16.0's templates were timed again for
-> the Java port ([the last section](#the-java-simulator-stage-4-of-the-port)).
+## The Java engine (engine 1.0.0)
 
-## Baseline: full simulation
+Every template as shipped (its own traffic shape and duration, no scenarios), best of 5 runs after
+a warm-up run in the same JVM, on 2026-11-09 (`benchmarks/perf/java-port.json`):
+
+<!-- the table below is filled from benchmarks/perf/java-port.json -->
+| Template | Wall time | Requests | Simulated requests per second |
+| --- | --- | --- | --- |
+| auth-token-introspection | 1.9 s | 112,701 | 58,165 |
+| black-friday-kubernetes | 1.6 s | 107,990 | 66,896 |
+| cache-aside-starter | 0.3 s | 23,980 | 88,510 |
+| cdn-video-streaming | 1.1 s | 149,940 | 132,568 |
+| cqrs-kafka-read-model | 2.2 s | 102,483 | 47,426 |
+| flash-sale-order-flow | 1.8 s | 107,976 | 60,138 |
+| iot-cassandra-quorum | 1.3 s | 99,869 | 78,058 |
+| kafka-order-pipeline | 0.5 s | 54,106 | 110,021 |
+| kubernetes-pods-pending | 1.3 s | 108,476 | 82,986 |
+| kubernetes-shared-pool | 2.1 s | 110,391 | 53,749 |
+| llm-rag-assistant | 0.1 s | 5,975 | 40,365 |
+| microservices-call-chain | 1.3 s | 60,115 | 47,274 |
+| mongodb-hot-shard | 2.2 s | 111,811 | 50,046 |
+| mysql-replica-lag | 1.2 s | 89,666 | 73,159 |
+| nats-live-telemetry | 2.0 s | 99,869 | 50,290 |
+| notification-fanout-quotas | 0.2 s | 4,875 | 27,462 |
+| public-api-slow-dependency | 2.0 s | 134,825 | 66,449 |
+| queueing-lab | 0.1 s | 24,154 | 315,962 |
+| retry-storm-ttl-cache | 1.2 s | 103,083 | 84,616 |
+| right-size-catalog-api | 1.5 s | 107,845 | 73,957 |
+| search-opensearch-catalog | 2.5 s | 111,811 | 43,957 |
+| serverless-burst | 1.0 s | 95,689 | 92,869 |
+| serverless-image-pipeline | 1.0 s | 43,761 | 42,704 |
+| social-feed-hot-key | 1.9 s | 119,888 | 64,793 |
+| sqlserver-saas-blocking | 2.1 s | 134,462 | 64,281 |
+
+All 25 templates take 34 s together. The engine is single-threaded per run (an event kernel that
+keeps SimPy's order of events, [ADR-0013](adr/0013-event-driven-simulation-kernel.md)); a worker
+runs `ARCHSIM_MAX_CONCURRENT_RUNS` runs at once, each on a thread of its own
+([ADR-0053](adr/0053-simulate-runs-in-the-java-apps-worker-role.md)). Sampled mode
+([below](#what-changed)) still answers a long steady run from a sample, and `/analyze` gives an
+instant estimate in about a millisecond.
+
+The Java engine replays the frozen Python engine 0.16.0's runs figure for figure
+([java-parity.md](validation/java-parity.md)) and runs the templates about 14 times faster:
+13.9 times at the median of the 25 templates, and 12 to 17 times on each template's best of 5
+runs. All 25 templates once take 34 s in Java against 484 s in Python, on the best of 5 runs.
+
+Each template was timed 5 times on each engine, the Java runs after a warm-up run in the same
+JVM; [the parity page](validation/java-parity.md#speed) gives each template's median. The
+engines were timed one after the other on this laptop on 2026-11-09, with no other heavy work
+and the CPU 10 to 12% busy before, between and after. Some runs were still disturbed: a
+template's 5 runs spread by up to 68% in Python and 51% in Java, so the extremes of the medians'
+ratios (9.4 and 20.6 times) say less than the best of 5. The figures are in
+`benchmarks/perf/python-0.16.0.json` (`scripts/perf.py`, before stage 5 deleted it) and
+`benchmarks/perf/java-port.json` (`./gradlew :archsim-engine:speed`). The target design has not
+been timed in Java yet.
+
+## Before the port: the Python engine
+
+The rest of this page is the Python engine's, measured with `scripts/perf.py`
+(`benchmarks/perf/baseline.json`, `after.json`, and `python-0.16.0.json` for the Java port's
+comparison) and `scripts/validate_sampled.py` (`benchmarks/perf/sampled-validation.json`), which
+went with that engine at stage 5 of the Java port; the files stay as they were measured. The
+Java engine is the compiled core [its last section](#what-would-close-the-remaining-gap) names.
+
+> The tables below were measured with engine 0.10.0. Engine 0.11.0 runs the templates on AWS
+> instance types and rounds generic sizes to standard shapes ([pricing.md](pricing.md)), which
+> changes some parts' CPU and memory and so their latencies (the starter's p95 at 400 req/s, for
+> example).
+
+### Baseline: full simulation
 
 Every template as shipped (its own traffic shape and duration, no scenarios), best of three runs:
 
@@ -44,7 +104,7 @@ carries the load (99.98% success, no part saturated in a 12 s check). A first at
 replicas and was overloaded (22% success); its 1,508 s full run is not a valid baseline and is
 not quoted below.
 
-## Where the time goes
+### Where the time goes
 
 A profile of the slowest template (`kubernetes-shared-pool`, under cProfile; the top functions
 are in `baseline.json`) shows no single hot spot: SimPy's own loop (`step`, the event heap,
@@ -59,7 +119,7 @@ to 30%, not the order of magnitude the target needs. A compiled core (Rust or Cy
 replacing SimPy and every component's process code: not attempted (it would put determinism and
 every accuracy check at risk for a speed-up that sampling gives without touching the model).
 
-## What changed
+### What changed
 
 1. **A process per run** (the API's default; see [architecture.md](architecture.md#run-lifecycle)).
    A simulation no longer shares the API's interpreter: it uses its own core, the API answers
@@ -92,7 +152,7 @@ every accuracy check at risk for a speed-up that sampling gives without touching
 4. **Load balancer pick.** Least-connections routing stops at the first idle replica (the same
    pick as a full scan), which matters for pools of hundreds of replicas.
 
-## After
+### After
 
 **The target design** (6 million requests requested):
 
@@ -143,7 +203,7 @@ here). Sampled mode stays **opt-in**: the web app offers it as "Quick check (est
 labels its reports "Estimated", with charts that say they cover only the sample; full runs stay
 the default.
 
-## What-if questions: the instant estimate, not a faster core
+### What-if questions: the instant estimate, not a faster core
 
 The profile above has no single hot spot, so tuning the Python engine would gain 20 to 30% at
 best, and a compiled core is out of scope. Quick what-if answers come from elsewhere: every
@@ -152,7 +212,7 @@ best, and a compiled core is out of scope. Quick what-if answers come from elsew
 a run is queued or running and then sets against the simulation; and runs go to a queue with one
 process each, so several run in parallel ([api.md](api.md)).
 
-## What would close the remaining gap
+### What would close the remaining gap
 
 - A faster event loop: profile-guided work on SimPy's hot path and ArchSim's metrics (20-30% at
   best in Python), or a compiled core (a large rewrite).
@@ -160,24 +220,3 @@ process each, so several run in parallel ([api.md](api.md)).
   processes and merge their histograms (each needs its own warm-up).
 - A shorter warm-up for designs that settle in seconds (the target design's 10 s is the
   document's own choice).
-
-## The Java simulator (stage 4 of the port)
-
-Stage 4 of the Java port is the compiled core the list above names: the whole simulator,
-rewritten in Java. The sections above describe the Python engine, which stage 5 deleted (the
-tag `engine-0.16.0` keeps it).
-
-The Java simulator replays the frozen engine 0.16.0's runs figure for figure
-([java-parity.md](validation/java-parity.md)) and runs the templates about 14 times faster:
-13.9 times at the median of the 25 templates, and 12 to 17 times on each template's best of 5
-runs. All 25 templates once take 34 s in Java against 484 s in Python, on the best of 5 runs.
-
-Each template was timed 5 times on each engine, the Java runs after a warm-up run in the same
-JVM; [the parity page](validation/java-parity.md#speed) gives each template's median. The
-engines were timed one after the other on this laptop on 2026-11-09, with no other heavy work
-and the CPU 10 to 12% busy before, between and after. Some runs were still disturbed: a
-template's 5 runs spread by up to 68% in Python and 51% in Java, so the extremes of the medians'
-ratios (9.4 and 20.6 times) say less than the best of 5. The figures are in
-`benchmarks/perf/python-0.16.0.json` (`scripts/perf.py`, before stage 5 deleted it) and
-`benchmarks/perf/java-port.json` (`./gradlew :archsim-engine:speed`). The target design has not
-been timed in Java yet.
