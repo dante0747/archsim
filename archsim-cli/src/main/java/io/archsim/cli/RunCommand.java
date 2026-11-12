@@ -85,9 +85,10 @@ final class RunCommand implements Callable<Integer> {
 			return 1;
 		}
 		RunText.lines(report).forEach(stdout::println);
-		if (this.out != null) {
-			CommandFiles.write(this.out, JsonOutput.text(report));
-			stdout.println("report written to " + this.out);
+		String reportFile = PythonOptions.given(this.out);
+		if (reportFile != null) {
+			CommandFiles.write(reportFile, JsonOutput.text(report));
+			stdout.println("report written to " + reportFile);
 		}
 		return 0;
 	}

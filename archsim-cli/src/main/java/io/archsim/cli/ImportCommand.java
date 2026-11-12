@@ -81,9 +81,7 @@ final class ImportCommand implements Callable<Integer> {
 		}
 		ObjectNode document = imported.document();
 		describe(document, imported.report());
-		if (this.reportFile != null) {
-			CommandFiles.write(this.reportFile, JsonOutput.file(imported.report().toJson()));
-		}
+		writeReport(imported.report());
 		write(document);
 		return 0;
 	}
@@ -120,13 +118,21 @@ final class ImportCommand implements Callable<Integer> {
 				architecture.get("nodes").size(), architecture.get("edges").size(), report.guessed().size(), errors));
 	}
 
+	private void writeReport(ImportReport report) {
+		String outputFile = PythonOptions.given(this.reportFile);
+		if (outputFile != null) {
+			CommandFiles.write(outputFile, JsonOutput.file(report.toJson()));
+		}
+	}
+
 	private void write(ObjectNode document) {
-		if (this.out == null) {
+		String outputFile = PythonOptions.given(this.out);
+		if (outputFile == null) {
 			JsonOutput.print(this.spec.commandLine().getOut(), document);
 			return;
 		}
-		CommandFiles.write(this.out, JsonOutput.file(document));
-		this.spec.commandLine().getErr().println("wrote " + this.out);
+		CommandFiles.write(outputFile, JsonOutput.file(document));
+		this.spec.commandLine().getErr().println("wrote " + outputFile);
 	}
 
 }

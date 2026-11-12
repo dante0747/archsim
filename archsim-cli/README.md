@@ -43,7 +43,9 @@ same values (ADR-0055). Help and usage errors are picocli's words; a usage error
 
 `--seed` replaces the design's seed before its scenario applies, as the Python CLI did, so a
 scenario that sets its own seed keeps it; a workload that is not an object is left for validation
-to refuse (the Python CLI raised `TypeError`). An invalid design's issues go to standard output and
+to refuse (the Python CLI raised `TypeError`). `run --out ""` and `import --report ""` write no
+report, and `import -o ""` and `export -o ""` print instead of writing: an option given empty is
+not given, as Python tested each by its truth. An invalid design's issues go to standard output and
 the refusal to standard error, with exit code 1, as does a run over its limits.
 
 Two flags the Python `run` did not have set the run's limits: `--max-requests` and
@@ -276,7 +278,8 @@ Elsewhere:
   rest. `TextDecodingTests` checks text that decodes, at the edges of each codec.
 - `RunOptionsTests` checks what the recordings cannot: the two limits the Python `run` did not
   have, a seed for a workload that is not an object, an option named by the start of its name, a
-  report that cannot be written, and `archsim` without a command.
+  report that cannot be written, and `archsim` without a command. `EmptyOptionsTests` checks what
+  `run`, `import` and `export` write when a file option is given empty.
 - `RunTextTests` checks the lines a report skips when its quick check, confidence or estimate is
   empty or missing.
 - `FunctionsCommandTests` checks each function `archsim functions` answers against the Python

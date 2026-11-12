@@ -59,12 +59,13 @@ final class ExportCommand implements Callable<Integer> {
 			IssueLines.of(ex.issues()).forEach(stdout::println);
 			return 1;
 		}
-		if (this.out == null) {
+		String outputFile = PythonOptions.given(this.out);
+		if (outputFile == null) {
 			TextOutput.write(stdout, text);
 			return 0;
 		}
-		CommandFiles.write(this.out, text);
-		this.spec.commandLine().getErr().println("wrote " + this.out);
+		CommandFiles.write(outputFile, text);
+		this.spec.commandLine().getErr().println("wrote " + outputFile);
 		return 0;
 	}
 
