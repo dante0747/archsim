@@ -11,10 +11,10 @@ import io.archsim.engine.kernel.Resource.Request;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Resources and stores in SimPy's order: each test runs the Java twin of a program of
- * {@code scripts/export_kernel_cases.py} (named after it) and expects the lines SimPy
- * recorded and as many events processed. Each step of a program is a method, named after
- * what the Python does there.
+ * Resources and stores in SimPy's order: each test runs the Java twin of a program of the
+ * since-deleted {@code scripts/export_kernel_cases.py} (named after it) and expects the
+ * lines SimPy recorded and as many events processed. Each step of a program is a method,
+ * named after what the Python did there.
  */
 class QueueCasesTests {
 

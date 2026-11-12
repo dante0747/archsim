@@ -3,8 +3,9 @@
 ArchSim's [MCP](https://modelcontextprotocol.io) server, on the Java engine: the tools an AI coding
 agent (Claude Code, Claude Desktop, Cursor and others) starts over stdio to list part types and
 templates, validate, analyze, simulate, compare, find the breaking point, export, import and
-calibrate designs. Stage 5 of the [Java port](../docs/proposals/java-25-port.md) brings it in place
-of the Python server (`packages/mcp`), on the official MCP Java SDK
+calibrate designs. Stage 5 of the [Java port](../docs/proposals/java-25-port.md) brought it in
+place of the Python server (`packages/mcp`, which stage 5 deleted and the tag `engine-0.16.0`
+keeps), on the official MCP Java SDK
 ([ADR-0058](../docs/adr/0058-serve-mcp-with-the-official-mcp-java-sdk.md)).
 
 ```bash
@@ -65,9 +66,10 @@ is not JSON, the schema's key order, and an export Python crashed on.
 ./gradlew :archsim-mcp:test
 ```
 
-- `scripts/export_mcp_cases.py` records one stdio session of the frozen Python server in
-  `src/test/resources/io/archsim/mcp/session.json.gz`, 55 requests: the handshake, the listings,
-  every resource and calls of every tool (among them a run answered from a sample, one with more
+- `scripts/export_mcp_cases.py`, which went with the Python server at stage 5's exit, recorded
+  one stdio session of it in `src/test/resources/io/archsim/mcp/session.json.gz`, data now and
+  not recorded again: 55 requests, the handshake, the listings, every resource and calls of
+  every tool (among them a run answered from a sample, one with more
   findings than a summary keeps, compares with a label left out or empty, a calibration echoing
   floats below 1e-4), refusals included (files that are not there, arguments the input schema
   does not allow), with the files the calibrations read and the templates and page the server

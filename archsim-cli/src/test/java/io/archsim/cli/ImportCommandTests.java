@@ -20,10 +20,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * {@code archsim import} against the frozen engine's CLI: each case of
- * {@code import-cases.json.gz} ({@code scripts/export_cli_cases.py}) exits with the code
- * Python's did and prints, or writes, what it did, word for word: from a file, standard
- * input, UTF-16 or UTF-8 with a byte order mark, and the codec's words for bytes that are
- * neither.
+ * {@code import-cases.json.gz} (recorded by {@code scripts/export_cli_cases.py}, since
+ * deleted) exits with the code Python's did and prints, or writes, what it did, word for
+ * word: from a file, standard input, UTF-16 or UTF-8 with a byte order mark, and the
+ * codec's words for bytes that are neither.
  */
 class ImportCommandTests {
 

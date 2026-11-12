@@ -18,10 +18,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * {@code archsim run} against the frozen engine's CLI: each run of
- * {@code run-cases.json.gz} ({@code scripts/export_cli_cases.py}) exits with the code
- * Python's did and prints what it printed, word for word, on standard output and standard
- * error; a report written to a file holds what Python's held, compared as the simulator's
- * recorded runs are ({@link ReportComparison}).
+ * {@code run-cases.json.gz} (recorded by {@code scripts/export_cli_cases.py}, since
+ * deleted) exits with the code Python's did and prints what it printed, word for word, on
+ * standard output and standard error; a report written to a file holds what Python's
+ * held, compared as the simulator's recorded runs are ({@link ReportComparison}).
  */
 class RunCommandTests {
 

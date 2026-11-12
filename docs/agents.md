@@ -80,9 +80,9 @@ claude mcp add archsim -- /path/to/archsim/archsim-mcp/build/install/archsim-mcp
 
 For Claude Desktop, Cursor and other clients, configure a stdio server with that command
 (`archsim-mcp.bat` on Windows). It serves the checkout's templates, from `examples/`;
-`ARCHSIM_EXAMPLES_DIR` names another folder. The Python server it replaces
-(`uv run --directory /path/to/archsim archsim-mcp`) gives the same tools until the Java port's
-stage 5 removes it.
+`ARCHSIM_EXAMPLES_DIR` names another folder. It replaced the Python server, with the same tools,
+which stage 5 of the Java port deleted: a client still set up with
+`uv run --directory /path/to/archsim archsim-mcp` needs the command above instead.
 
 | Tool | What it does |
 | --- | --- |

@@ -3,8 +3,9 @@
 An ArchSim project is one human-readable JSON document. It is what the editor saves, what
 `GET /api/v1/projects/{id}/export` downloads and what `POST /api/v1/projects/import` accepts.
 The machine-readable JSON Schema is served at `GET /api/v1/schema/architecture` (and printed by
-`uv run archsim schema`). The Pydantic models are in
-`packages/engine/src/archsim_engine/schema.py`.
+`archsim schema`, the Java CLI's). The records are in `archsim-model`'s
+`io.archsim.model.document` ([archsim-model/README.md](../archsim-model/README.md)); they were
+first the Python engine's Pydantic models, whose JSON they read and write.
 
 Conventions: keys are camelCase; unknown keys are rejected; times in component and link
 settings are **milliseconds** (`...Ms`), workload times are **seconds** (`...S`), rates are
@@ -84,10 +85,10 @@ materialised and the fully resolved document is stored in the report's `input`.
 | Field | Type | Notes |
 | --- | --- | --- |
 | `id` | string | Unique; letters, digits, `_`, `.`, `-`; max 64 chars; starts with a letter or digit. |
-| `type` | string | A registered component type: client groups `traffic_source`, `mobile_app`, `web_client` and `api_consumer`; `load_balancer`, `service`, `cache`, `database`, `message_queue`, `external_api` (or a plugin). A design needs at least one client group; several split the workload by their `trafficShare`. |
+| `type` | string | A registered component type: client groups `traffic_source`, `mobile_app`, `web_client` and `api_consumer`; `load_balancer`, `service`, `cache`, `database`, `message_queue`, `external_api`. A design needs at least one client group; several split the workload by their `trafficShare`. |
 | `label` | string | Display name, max 120. |
 | `description` | string? | |
-| `config` | object | Validated by the component type. The full list of fields, units, ranges and defaults for each type is returned by `GET /api/v1/components` (`uv run archsim catalog`). |
+| `config` | object | Validated by the component type. The full list of fields, units, ranges and defaults for each type is returned by `GET /api/v1/components` (`archsim catalog`). |
 
 ## Edges (links)
 
@@ -233,12 +234,12 @@ overrides in `provenance`.
   input again reproduces the same types and cost; a scenario that changes a part's CPU or memory
   gets the type that fits its new size. The Terraform importer fills it from `instance_type`,
   `instance_class` and `node_type`.
-- On load, `migrate_document()` (`packages/engine/src/archsim_engine/migrations.py`) applies
-  registered migrations one step at a time (`1.0 -> 1.1 -> ...`) and records notes. A document
-  without `schemaVersion`, from a newer schema, or with no migration path is rejected with a
-  clear message instead of being guessed at.
-- Policy for schema changes: bump `SCHEMA_VERSION`, update `ArchitectureDocument`, register a
-  `@migration("old", "new")` function that upgrades raw JSON, and add a test that an old
-  document still loads and simulates. Never change the meaning of an existing field without a
-  migration.
+- On load, `Upgrades.toCurrent` (`archsim-model`'s `io.archsim.model.upgrade`,
+  [ADR-0023](adr/0023-upgrade-chain-on-the-json.md)) applies the upgrade steps one at a time
+  (`1.0 -> 1.1 -> ...`) and records notes. A document without `schemaVersion`, from a newer
+  schema, or with no upgrade path is rejected with a clear message instead of being guessed at.
+- Policy for schema changes: bump `ArchitectureDocument.SCHEMA_VERSION`, update the records, add
+  an `Upgrade` step at the end of `Upgrades.CHAIN` that upgrades the raw JSON, and add a test that
+  an old document still loads and simulates. Never change the meaning of an existing field
+  without an upgrade step.
 - Import always migrates; export always writes the current version.

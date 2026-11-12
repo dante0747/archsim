@@ -85,7 +85,15 @@ def machines(prices: dict[tuple[str, str], float]) -> list[dict[str, Any]]:
                 per = 2  # c3-highcpu has 2 GiB per vCPU
             for vcpu in SIZES[(prefix, shape)]:
                 mem = vcpu * per
-                out.append(sku(f"{prefix}-{shape}-{vcpu}", f"{prefix}-{shape}", vcpu, mem, vcpu * core + mem * ram))
+                out.append(
+                    sku(
+                        f"{prefix}-{shape}-{vcpu}",
+                        f"{prefix}-{shape}",
+                        vcpu,
+                        mem,
+                        vcpu * core + mem * ram,
+                    )
+                )
     return out
 
 
@@ -103,7 +111,9 @@ def _items(key: str) -> Iterable[dict[str, Any]]:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--region", required=True, help="e.g. us-central1")
     ap.add_argument("--out", help="output file (default: among archsim-model's snapshots)")
     args = ap.parse_args()

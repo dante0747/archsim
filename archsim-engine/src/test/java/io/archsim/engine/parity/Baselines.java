@@ -30,14 +30,15 @@ final class Baselines {
 	 * @param only the templates to read; empty for all of them
 	 * @return each template case and its runs
 	 * @throws IOException when a file cannot be read
-	 * @throws IllegalStateException when the folder holds no baselines
+	 * @throws IllegalStateException when the folder holds no baselines: the frozen engine
+	 * recorded them, and nothing records them again
 	 * @throws IllegalArgumentException when a template asked for was not recorded
 	 */
 	static List<RecordedCase> read(Path folder, List<String> only) throws IOException {
 		Path manifest = folder.resolve("manifest.json");
 		if (!Files.isRegularFile(manifest)) {
 			throw new IllegalStateException("no simulation baselines in " + folder
-					+ ": record them first with scripts/export_simulation_baselines.py");
+					+ ": the frozen engine's are in parity/simulation (git checkout HEAD -- parity/simulation)");
 		}
 		List<RecordedCase> cases = new ArrayList<>();
 		Set<String> recorded = new LinkedHashSet<>();

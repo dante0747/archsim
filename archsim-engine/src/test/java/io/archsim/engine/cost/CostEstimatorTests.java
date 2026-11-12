@@ -35,11 +35,12 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
  * parts on AWS, Kubernetes clusters and implied nodes, surplus CPU credits, prices set by
  * a person or a preset, a snapshot this machine does not have, a design without a price,
  * sizes no type covers, specs set by a scenario, and settings read leniently. Each case
- * in {@code cases.json} (written by {@code scripts/export_cost_cases.py}) holds the
- * design, the design as simulated, and the cost and sizing summary the Python engine
- * 0.16.0 gives, worked out as its {@code analyze_document} does; the Java must match them
- * as the golden files do. {@code SizingSummariesTests} checks the summaries. A cost after
- * a run is checked with the report functions; here only what it refuses.
+ * in {@code cases.json} (recorded from the frozen engine by
+ * {@code scripts/export_cost_cases.py}, since deleted) holds the design, the design as
+ * simulated, and the cost and sizing summary the Python engine 0.16.0 gives, worked out
+ * as its {@code analyze_document} does; the Java must match them as the golden files do.
+ * {@code SizingSummariesTests} checks the summaries. A cost after a run is checked with
+ * the report functions; here only what it refuses.
  */
 class CostEstimatorTests {
 

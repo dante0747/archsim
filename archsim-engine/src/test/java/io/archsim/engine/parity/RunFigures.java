@@ -8,8 +8,8 @@ import tools.jackson.databind.node.ObjectNode;
 
 /**
  * What the simulation baselines keep of a run ({@code figures} in
- * {@code scripts/export_simulation_baselines.py}): its counts and digests, the summary's
- * values and latencies, and each part's summary values, by its id.
+ * {@code scripts/export_simulation_baselines.py}, since deleted): its counts and digests,
+ * the summary's values and latencies, and each part's summary values, by its id.
  */
 final class RunFigures {
 

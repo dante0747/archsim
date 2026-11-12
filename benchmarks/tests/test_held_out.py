@@ -82,24 +82,10 @@ def test_engine_0_16_0_is_frozen_for_the_held_out_campaign() -> None:
         assert e["tunedOn"] == TUNED_ON
     assert not any(set(e["tunedOn"]) & set(HELD_OUT) for e in entries)
     (frozen,) = run.frozen_engines()
-    assert (frozen["version"], frozen["tag"]) == ("0.16.0", "engine-0.16.0")
+    assert (frozen["version"], frozen["tag"]) == (FROZEN_VERSION, f"engine-{FROZEN_VERSION}")
     tagged = run.git("rev-parse", f"{frozen['tag']}:packages/engine")
     if tagged is not None:  # the tag is in this clone
         assert tagged == frozen["engineTree"]
-
-
-def test_the_python_engines_entry_is_the_engine_in_this_tree() -> None:
-    """A commit under packages/engine changes its tree. It then needs a new engine version and a
-    new entry in engines.json (and a new freeze before it predicts a held-out experiment), never
-    an edit of a frozen one. The frozen engine keeps its entry until the Java port deletes it."""
-    head = run.git("rev-parse", "HEAD:packages/engine")
-    if head is None:
-        pytest.skip("not a git checkout")
-    (entry,) = [e for e in report.engines() if e["version"] == FROZEN_VERSION]
-    assert entry["engineTree"] == head, (
-        f"packages/engine has changed since engine {FROZEN_VERSION} was recorded in "
-        "benchmarks/engines.json: give it a new version and a new entry"
-    )
 
 
 def test_the_last_engine_entry_is_the_java_engine_not_frozen_yet(

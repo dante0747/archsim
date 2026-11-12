@@ -466,16 +466,21 @@ def test_a_page_with_speed_not_yet_measured_is_written_and_passes_the_check(
 
 
 @pytest.mark.parametrize(
-    ("engine", "name", "command"),
+    ("engine", "name", "remedy"),
     [
-        ("PYTHON_SPEED", "python-0.16.0.json", PYTHON_SPEED_COMMAND),
-        ("JAVA_SPEED", "java-port.json", JAVA_SPEED_COMMAND),
+        # no engine times the frozen engine again: its script was deleted with it
+        (
+            "PYTHON_SPEED",
+            "python-0.16.0.json",
+            "restore it with git checkout HEAD -- benchmarks/perf/python-0.16.0.json",
+        ),
+        ("JAVA_SPEED", "java-port.json", f"run {JAVA_SPEED_COMMAND}"),
     ],
 )
-def test_one_engines_speed_without_the_others_is_named_with_the_command_that_writes_it(
+def test_one_engines_speed_without_the_others_is_named_with_how_to_get_it(
     engine: str,
     name: str,
-    command: str,
+    remedy: str,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -484,7 +489,7 @@ def test_one_engines_speed_without_the_others_is_named_with_the_command_that_wri
     monkeypatch.setattr(report, engine, tmp_path / name)
 
     assert report.main([]) == 1
-    assert f"{name} is missing: run {command}" in capsys.readouterr().err
+    assert f"{name} is missing: {remedy}" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("knees", [JAVA_KNEES, PYTHON_KNEES])

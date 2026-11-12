@@ -15,8 +15,9 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The frozen engine's {@code metrics} module on recorded operations, read from
- * {@code metrics/cases.json} ({@code scripts/export_metrics_cases.py}), and how the tests
- * read its values: floats as Python's hex, a missing figure as not a number.
+ * {@code metrics/cases.json} (recorded by {@code scripts/export_metrics_cases.py}, since
+ * deleted), and how the tests read its values: floats as Python's hex, a missing figure
+ * as not a number.
  */
 final class MetricsCases {
 

@@ -1,6 +1,7 @@
 /**
  * The workload's peak rate, for template cards. The static load estimate behind auto-sizing and
- * the design review lives in the engine (archsim_engine/load.py).
+ * the design review lives in the engine (`LoadEstimator`, in archsim-engine's
+ * `io.archsim.engine.load`).
  */
 import type { Workload } from "./types";
 

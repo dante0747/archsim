@@ -18,8 +18,8 @@ variety of architecture ([below](#ten-more-architectures-28-october-2026)).
 
 How the numbers were made: engine 0.12.0 (0.11.0 plus the analysis changes below), prices from the AWS
 us-east-1 snapshot of 2026-10-27, each template's own seed. Every scenario was simulated with
-`uv run archsim run examples/<template>.json --scenario <scenario>`; the tables come straight from
-those reports. Rerun them to check any number here.
+the Python engine's `archsim run examples/<template>.json --scenario <scenario>`; the tables come
+straight from those reports, a record of that engine.
 
 ## How to review a template
 

@@ -14,8 +14,8 @@ import io.archsim.parity.GoldenEntry;
 
 /**
  * The engine's extra parity cases: files of calls with the frozen engine's output, which
- * scripts in {@code scripts/} record for what the golden files do not reach, read from
- * the test resources.
+ * scripts in {@code scripts/}, since deleted, recorded for what the golden files do not
+ * reach, read from the test resources.
  */
 final class CaseFiles {
 

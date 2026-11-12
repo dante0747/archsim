@@ -52,6 +52,12 @@ What they are ([`parity/README.md`](../../parity/README.md)):
 - **Guard.** `export_golden.py --check` regenerates the files and compares them: text exactly,
   numbers to 1e-9. It runs in the Python CI job.
 
+**Status (12 Nov 2026):** the frozen engine is deleted at stage 5's exit of the port, not stage
+4's, and its exporter with it (`scripts/export_golden.py`, `scripts/golden/` and their tests),
+so the CI guard is gone too; the tag `engine-0.16.0` keeps the engine, and git history the
+exporter. The golden files stay as the Java tests' data, unchanged and not recorded again
+([`parity/README.md`](../../parity/README.md)).
+
 ### Consequences
 
 - Good, because stage 1 and 3 tests read plain files, and a mismatch names the function and the

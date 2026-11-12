@@ -7,9 +7,10 @@
  * medium. A quick check (`mode: "sampled"`) answers a long steady run from a sample; its report
  * is an estimate, and its charts cover only the sample.
  *
- * The API's `GET /run-groups/{id}` answers ranges from the engine (`summarize_seeds`) against the
+ * The API's `GET /run-groups/{id}` answers ranges from the engine (`SeedSummary`) against the
  * objectives the runs were made with; the web app recomputes the split with the objectives as they
- * are now, as the scorecard does for a single run. `seedRange` mirrors `archsim_engine.seeds`.
+ * are now, as the scorecard does for a single run. `seedRange` mirrors the engine's `SeedSummary`
+ * (archsim-engine's `io.archsim.engine.seeds`).
  */
 import { request } from "./api";
 import { evaluateSlo } from "./slo";
@@ -28,7 +29,7 @@ export interface ValueRange {
   median: number;
 }
 
-/** `summarize_seeds` (engine), as `GET /run-groups/{id}` answers it. */
+/** `SeedSummary` (engine), as `GET /run-groups/{id}` answers it. */
 export interface SeedSummary {
   runs: number;
   finished: number;

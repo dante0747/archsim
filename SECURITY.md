@@ -135,14 +135,12 @@ bounded by the limits above, not prevented.
 ### Both modes
 
 - **No code execution over the API.** Documents are data: they are parsed strictly, unknown
-  fields refused (the API's document model, and the engine's Pydantic models with
-  `extra="forbid"`), and component types must already be registered in the engine. There is no
-  endpoint that evaluates expressions, templates or user code.
-- **Plugins are local only.** Third-party component models are loaded from Python packages
-  installed in the Python engine's environment (its CLI and MCP server; the Java API and
-  workers load none) via the `archsim.components` entry point group, and only when
-  `ARCHSIM_ENABLE_PLUGINS=1`. Plugins run with those processes' privileges, so install only
-  packages you trust. Plugins can never be uploaded through the API.
+  fields refused (the document model), and component types must already be registered in the
+  engine. There is no endpoint that evaluates expressions, templates or user code.
+- **No plugins.** ArchSim loads no third-party component models: the Python engine's plugin
+  entry points (`archsim.components`, behind `ARCHSIM_ENABLE_PLUGINS=1`) went with it at stage 5
+  of the Java port, and the Java API, workers, CLI and MCP server load none. Component types can
+  never be uploaded through the API.
 - **Bounded resource use.** Each request body is capped (`ARCHSIM_MAX_BODY_BYTES`, default
   5 MB). Documents are limited to 200 nodes, 1,000 edges and 50 scenarios. Every simulation is
   bounded by an expected-request limit (`ARCHSIM_MAX_REQUESTS`, default 2,000,000) checked

@@ -24,11 +24,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * {@code archsim check} against the frozen engine's CLI: each case of
- * {@code check-cases.json.gz} ({@code scripts/export_cli_cases.py}) exits with the code
- * Python's did, 0 for a pass, 1 for a failure and 2 for anything else, and prints, or
- * writes, what it did, word for word, but for the engine it names, its own: against a
- * baseline file, at a git ref, with its breaking point, and each refusal in Python's
- * words.
+ * {@code check-cases.json.gz} (recorded by {@code scripts/export_cli_cases.py}, since
+ * deleted) exits with the code Python's did, 0 for a pass, 1 for a failure and 2 for
+ * anything else, and prints, or writes, what it did, word for word, but for the engine it
+ * names, its own: against a baseline file, at a git ref, with its breaking point, and
+ * each refusal in Python's words.
  */
 class CheckCommandTests {
 

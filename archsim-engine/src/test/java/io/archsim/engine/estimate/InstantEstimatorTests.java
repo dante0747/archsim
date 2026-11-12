@@ -25,11 +25,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  * machine or on hyperthreads, load curves, serverless functions, limited and metered
  * databases, a read-through cache, rate limits, overloaded parts and queues, TTL caches
  * with little memory, burst patterns, cycles, and every kind of distribution. Each case
- * in {@code cases.json} (written by {@code scripts/export_estimate_cases.py}) holds the
- * resolved design and the estimate the Python engine 0.16.0 gives for it; the estimate
- * must match it as the golden files do. Two cases the Python engine fails on are the
- * Java's own: a link to a part that does not exist, and a rate limit first among parts
- * that use none of their limits.
+ * in {@code cases.json} (recorded from the frozen engine by
+ * {@code scripts/export_estimate_cases.py}, since deleted) holds the resolved design and
+ * the estimate the Python engine 0.16.0 gives for it; the estimate must match it as the
+ * golden files do. Two cases the Python engine fails on are the Java's own: a link to a
+ * part that does not exist, and a rate limit first among parts that use none of their
+ * limits.
  */
 class InstantEstimatorTests {
 

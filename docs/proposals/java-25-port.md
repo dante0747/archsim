@@ -272,6 +272,43 @@ doesn't change.
   `packages/engine`, and the harness takes the fits, the machine speed and the versions it
   imports from the Python engine from the Java CLI
   ([ADR-0015](../adr/0015-benchmark-harness-stays-python-until-port-completes.md)).
+- **Built (12 Nov 2026):** [`archsim-cli/`](../../archsim-cli/README.md) and
+  [`archsim-mcp/`](../../archsim-mcp/README.md), then the exit, in slices S5-1 to S5-10. Every
+  item of the exit is met.
+  - The CLI has every command of the Python CLI, with its flags, lines, exit codes and JSON
+    values, checked against 307 cases recorded from it
+    ([ADR-0055](../adr/0055-the-java-clis-output-contract.md),
+    [ADR-0056](../adr/0056-the-java-cli-takes-options-by-their-full-names.md)); where Python
+    crashed, the Java answers in one line, as its README lists. `calibrate prometheus --url`
+    calls the app's Prometheus client, moved into the engine
+    ([ADR-0057](../adr/0057-move-the-prometheus-client-into-the-engine.md)), and the CLI and the
+    MCP server read files as Python did
+    ([ADR-0059](../adr/0059-read-files-as-python-did-in-the-engine.md)).
+  - The MCP server serves the Python server's tools, resources and instructions word for word,
+    on the official MCP Java SDK, checked against a recorded session of 55 requests
+    ([ADR-0058](../adr/0058-serve-mcp-with-the-official-mcp-java-sdk.md)).
+  - The `archsim-check` action runs the CLI in an image each job builds from the repository and
+    never pushes; it needs a Linux runner with Docker
+    ([ADR-0060](../adr/0060-run-the-check-action-in-an-image-the-job-builds.md)). No native
+    binary was built.
+  - The price snapshots are `archsim-model`'s resources, and the test fixtures are in
+    `parity/fixtures/`.
+  - The harness takes its fits, machine speeds, means and the report's version from one
+    long-lived Java process, `archsim functions`
+    ([ADR-0061](../adr/0061-answer-the-harnesss-engine-calls-from-one-java-process.md)), and
+    simulates on the Java engine only
+    ([ADR-0062](../adr/0062-make-the-java-engine-the-harnesss-default.md)).
+  - What else needed the Python engine moved to Java: the sizing audit and the checks against
+    queueing theory (M/M/c, Little's law, the starter's reference ranges, the estimate against
+    the simulation) are tests of `archsim-engine`, `archsim-app`'s `seed` role seeds the
+    examples, and `./gradlew :archsim-engine:generate` writes the web app's engine fixtures and
+    `docs/assumptions.md`, which a test holds to the Java engine's output.
+  - The Python engine (`packages/engine`) and the Python MCP server (`packages/mcp`) are
+    deleted, with the scripts that recorded the engine's oracles and the scripts only it ran; the
+    tag `engine-0.16.0` keeps the engine as it was frozen, and git history the scripts. What they
+    recorded stays as the Java tests' data and is not recorded again: the golden files, the
+    simulation baselines and the recorded cases, beside the fixtures they were made from
+    ([`parity/README.md`](../../parity/README.md)).
 
 ### Stage 6 · Clean-up (2–3 days)
 - **Remove Python:** everything except the benchmark harness.

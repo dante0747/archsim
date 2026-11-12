@@ -23,8 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Python's random draws, as the frozen engine makes them, against the Java generator: the
- * cases of {@code random/cases.json}, which {@code scripts/export_random_cases.py}
- * records. Python's names map to Java's: {@code random()} to
+ * cases of {@code random/cases.json}, which {@code scripts/export_random_cases.py}, since
+ * deleted, recorded. Python's names map to Java's: {@code random()} to
  * {@link PythonRandom#nextDouble}, {@code getrandbits} to {@link PythonRandom#nextBits},
  * {@code randrange} to {@link PythonRandom#below}, {@code expovariate} to
  * {@link PythonRandom#exponential}, {@code normalvariate} to {@link PythonRandom#normal}

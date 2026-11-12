@@ -19,7 +19,6 @@ _spec.loader.exec_module(ci)
 
 EVERY_JOB = {
     "python",
-    "engine_tests",
     "benchmark_tests",
     "migrations",
     "java",
@@ -105,8 +104,8 @@ EVERY_JOB = {
             ["archsim-model/src/main/java/io/archsim/model/distribution/LogNormal.java"],
             {"java", "e2e", "archsim_check", "python", "benchmark_tests"},
         ),
-        # the exporter reads the fixtures in the Python job, the API and app tests in the Java job
-        (["parity/fixtures/calibration/starter-mapping.yaml"], {"python", "java"}),
+        # the API and app tests read the fixtures, in the Java job
+        (["parity/fixtures/calibration/starter-mapping.yaml"], {"java"}),
         (["config/checkstyle/checkstyle.xml", "gradlew.bat"], {"java", "e2e"}),
         # the Python job checks the table repr reads against Python
         (
@@ -115,20 +114,10 @@ EVERY_JOB = {
         ),
         (["apps/web/src/app/page.tsx", "apps/web/package-lock.json"], {"web", "e2e"}),
         (["apps/web/src/data/accuracy.json"], {"python", "benchmark_tests", "web", "e2e"}),
-        # the Java engine's tests (and the frozen engine's) check the web fixtures; the Java
-        # model's tests read the starter
-        (
-            ["apps/web/src/test/fixtures/starter.json"],
-            {"python", "engine_tests", "web", "java", "e2e"},
-        ),
-        (
-            ["apps/web/src/test/fixtures/catalog.json"],
-            {"python", "engine_tests", "web", "java", "e2e"},
-        ),
-        (
-            ["apps/web/src/test/fixtures/analysis-starter.json"],
-            {"python", "engine_tests", "web", "java", "e2e"},
-        ),
+        # the Java engine's tests check the web fixtures; the Java model's tests read the starter
+        (["apps/web/src/test/fixtures/starter.json"], {"web", "java", "e2e"}),
+        (["apps/web/src/test/fixtures/catalog.json"], {"web", "java", "e2e"}),
+        (["apps/web/src/test/fixtures/analysis-starter.json"], {"web", "java", "e2e"}),
         (["apps/web/src/test/fixtures/share.ts"], {"web", "e2e"}),
         # the end-to-end launcher starts the worker, whose command line the Java tests check
         (["apps/web/e2e/api-server.mjs"], {"web", "java", "e2e"}),
@@ -136,18 +125,16 @@ EVERY_JOB = {
         # the environment their project declares
         (["services/api/src/archsim_api/db.py"], {"python", "migrations"}),
         (["services/api/pyproject.toml"], {"python", "migrations", "e2e"}),
-        (["packages/mcp/src/archsim_mcp/server.py"], {"python"}),
-        (["scripts/check_commits.py", "packages/mcp/tests/test_server.py"], {"python"}),
+        (["scripts/check_commits.py", "scripts/tests/test_check_commits.py"], {"python"}),
         (
             ["benchmarks/report.py", "benchmarks/results/pg-mixed/run-5/measured.json"],
             {"python", "benchmark_tests"},
         ),
-        (["scripts/prices/aws.py", "scripts/sizing_audit.py"], {"python", "engine_tests"}),
-        # the exporters write the Java tests' resources and the golden files
-        (["scripts/export_report_cases.py"], {"python", "java"}),
-        (["scripts/export_golden.py", "scripts/golden/codec.py"], {"python", "java"}),
-        (["scripts/export_web_fixtures.py"], {"python", "engine_tests"}),
-        (["parity/golden/manifest.json"], {"python", "java", "e2e"}),
+        (["scripts/prices/aws.py", "scripts/tests/test_price_refresh_scripts.py"], {"python"}),
+        # the exporters write the Java tests' resources, and the Python job checks them
+        (["scripts/export_casefold.py", "scripts/export_erfc_points.py"], {"python", "java"}),
+        # the frozen engine's golden files and simulation baselines, which the Java tests read
+        (["parity/golden/manifest.json", "parity/simulation/manifest.json"], {"java", "e2e"}),
         (["docs/validation.md", "docs/validation/accuracy.json"], {"python", "benchmark_tests"}),
         # stage 4's parity page and its runs: the page check in the Python job reads them, no
         # benchmark test does
@@ -156,11 +143,9 @@ EVERY_JOB = {
         # nothing does
         (["benchmarks/perf/java-port.json", "benchmarks/perf/python-0.16.0.json"], {"python"}),
         (["benchmarks/perf/baseline.json"], {"python"}),
-        (["docs/assumptions.md"], {"python", "engine_tests"}),
-        (
-            [".github/actions/archsim-check/action.yml"],
-            {"python", "engine_tests", "archsim_check"},
-        ),
+        # the Java engine generates the page, and its tests check it
+        (["docs/assumptions.md"], {"java"}),
+        ([".github/actions/archsim-check/action.yml"], {"python", "archsim_check"}),
         ([".github/workflows/benchmark.yml"], {"python", "benchmark_tests"}),
     ],
 )
@@ -168,11 +153,9 @@ def test_a_change_runs_the_jobs_that_read_its_files(files: list[str], jobs: set[
     assert ci.jobs(files) == jobs
 
 
-@pytest.mark.parametrize(
-    "path", ["uv.lock", "pyproject.toml", "packages/engine/src/archsim_engine/cli.py"]
-)
-def test_the_python_environment_or_the_engine_runs_every_job_but_web(path: str) -> None:
-    assert ci.jobs([path]) == EVERY_JOB - {"web"}
+@pytest.mark.parametrize("path", ["uv.lock", "pyproject.toml"])
+def test_the_python_environment_runs_the_jobs_that_run_python(path: str) -> None:
+    assert ci.jobs([path]) == {"python", "benchmark_tests", "migrations", "e2e"}
 
 
 @pytest.mark.parametrize(
@@ -210,15 +193,13 @@ def test_ci_itself_the_examples_or_a_path_no_rule_names_run_every_job(path: str)
 
 
 def test_files_from_several_parts_run_what_any_of_them_needs() -> None:
-    files = ["apps/web/src/app/page.tsx", "packages/mcp/src/archsim_mcp/server.py"]
+    files = ["apps/web/src/app/page.tsx", "scripts/check_commits.py"]
 
     assert ci.jobs(files) == {"web", "e2e", "python"}
 
 
-def test_the_python_steps_run_only_with_the_python_job_they_are_part_of() -> None:
-    steps = {"engine_tests", "benchmark_tests"}
-
-    alone = [path for path, jobs in ci.RULES if jobs & steps and "python" not in jobs]
+def test_the_benchmark_tests_run_only_with_the_python_job_they_are_part_of() -> None:
+    alone = [path for path, jobs in ci.RULES if "benchmark_tests" in jobs and "python" not in jobs]
 
     assert alone == []
 

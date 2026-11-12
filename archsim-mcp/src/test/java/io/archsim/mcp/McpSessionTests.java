@@ -27,11 +27,11 @@ import io.archsim.model.text.PythonText;
 
 /**
  * The Java server against the frozen Python server: each request of
- * {@code session.json.gz} ({@code scripts/export_mcp_cases.py}) sent, in order, to one
- * Java server, serving the files the Python server served, and its answer compared with
- * Python's ({@link Answers}): the same tools, resources and instructions, the same
- * results, the same refusals, but for the engine a result names, its own, and the
- * departures ADR-0058 lists, checked here as they are.
+ * {@code session.json.gz} ({@code scripts/export_mcp_cases.py}, since deleted) sent, in
+ * order, to one Java server, serving the files the Python server served, and its answer
+ * compared with Python's ({@link Answers}): the same tools, resources and instructions,
+ * the same results, the same refusals, but for the engine a result names, its own, and
+ * the departures ADR-0058 lists, checked here as they are.
  */
 class McpSessionTests {
 

@@ -1,1 +1,0 @@
-"""ArchSim MCP server."""

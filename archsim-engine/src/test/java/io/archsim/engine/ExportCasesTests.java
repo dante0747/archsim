@@ -20,9 +20,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * as DNS or Mermaid names, strings YAML would read as something else, numbers JavaScript
  * writes differently, a client's settings with nested lists and empty maps, text outside
  * ASCII, and a link to a part the design does not have. Each case
- * ({@code export/cases.json}, which {@code scripts/export_export_cases.py} writes from
- * the frozen engine) is a call with the Python engine's output, checked as the golden
- * files are.
+ * ({@code export/cases.json}, which {@code scripts/export_export_cases.py}, since
+ * deleted, recorded from the frozen engine) is a call with the Python engine's output,
+ * checked as the golden files are.
  */
 @DisplayName("The exports match the frozen Python engine where the golden files do not reach")
 class ExportCasesTests {

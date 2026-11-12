@@ -17,10 +17,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * {@code archsim calibrate} against the frozen engine's CLI: each case of
- * {@code calibrate-cases.json.gz} ({@code scripts/export_cli_cases.py}) exits with the
- * code Python's did and prints, or writes, what it did, word for word: from recorded
- * responses, a Prometheus server (a stub the case describes) and OpenTelemetry traces,
- * each refusal in Python's words.
+ * {@code calibrate-cases.json.gz} (recorded by {@code scripts/export_cli_cases.py}, since
+ * deleted) exits with the code Python's did and prints, or writes, what it did, word for
+ * word: from recorded responses, a Prometheus server (a stub the case describes) and
+ * OpenTelemetry traces, each refusal in Python's words.
  */
 class CalibrateCommandTests {
 

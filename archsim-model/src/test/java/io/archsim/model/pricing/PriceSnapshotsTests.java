@@ -1,7 +1,6 @@
 package io.archsim.model.pricing;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -69,20 +68,6 @@ class PriceSnapshotsTests {
 	void shippedNames_everySnapshotFileOfTheResources_isShippedInFileOrder() throws IOException {
 		// a refreshed snapshot ships by adding its file: the build lists the folder
 		assertThat(SnapshotFiles.shippedNames()).containsExactlyElementsOf(jsonFiles(RESOURCES));
-	}
-
-	@Test
-	void shipped_pythonEngineSnapshots_areShippedAsTheyAre() throws IOException {
-		// the frozen engine's copy, until it is deleted: in the jar, byte for byte
-		Path engine = Repository.root().resolve("packages/engine/src/archsim_engine/pricing");
-
-		assertThat(jsonFiles(engine)).isNotEmpty().allSatisfy((name) -> {
-			assertThat(SnapshotFiles.shippedNames()).contains(name);
-			try (InputStream shipped = SnapshotFiles.class.getResourceAsStream("snapshots/" + name);
-					InputStream copy = Files.newInputStream(engine.resolve(name))) {
-				assertThat(shipped).hasSameContentAs(copy);
-			}
-		});
 	}
 
 	@Test

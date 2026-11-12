@@ -10,8 +10,9 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * SimPy's traces of the small programs {@code scripts/export_kernel_cases.py} runs, read
- * from {@code kernel/cases.json}, and a recorder for the Java twins of those programs.
+ * SimPy's traces of the small programs {@code scripts/export_kernel_cases.py} ran before
+ * it was deleted, read from {@code kernel/cases.json}, and a recorder for the Java twins
+ * of those programs.
  */
 final class KernelCases {
 

@@ -15,9 +15,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Whole simulations against the frozen engine's: each design of
- * {@code simulator/cases.json.gz} ({@code scripts/export_simulation_cases.py}), simulated
- * in Java with the scenario, seed and mode Python simulated, gives the report Python
- * gave, compared as {@link ReportComparison} compares.
+ * {@code simulator/cases.json.gz} ({@code scripts/export_simulation_cases.py}, since
+ * deleted), simulated in Java with the scenario, seed and mode Python simulated, gives
+ * the report Python gave, compared as {@link ReportComparison} compares.
  */
 class SimulationCasesTests {
 

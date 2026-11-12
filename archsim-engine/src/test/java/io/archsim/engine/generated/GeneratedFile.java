@@ -9,6 +9,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import io.archsim.engine.analysis.DesignAnalyzer;
+import io.archsim.engine.assumptions.AssumptionsPage;
+import io.archsim.engine.version.EngineVersions;
 import io.archsim.model.catalog.ComponentCatalog;
 import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.model.pricing.PriceSnapshots;
@@ -18,9 +20,9 @@ import io.archsim.parity.Repository;
 /**
  * The repository's files the engine generates, so that what reads them reads the engine's
  * own output: the web app's engine fixtures, each written as Python's
- * {@code json.dumps(value, indent=2)} wrote it. {@link GeneratedFileTests} holds the
- * committed files to them; {@code ./gradlew :archsim-engine:generate} writes them
- * ({@link #main()}).
+ * {@code json.dumps(value, indent=2)} wrote it, and the assumptions page.
+ * {@link GeneratedFileTests} holds the committed files to them;
+ * {@code ./gradlew :archsim-engine:generate} writes them ({@link #main()}).
  */
 enum GeneratedFile {
 
@@ -28,8 +30,8 @@ enum GeneratedFile {
 	CATALOG("apps/web/src/test/fixtures/catalog.json") {
 
 		@Override
-		JsonNode content() {
-			return ComponentCatalog.of(StandardComponents.registry());
+		String text() {
+			return json(ComponentCatalog.of(StandardComponents.registry()));
 		}
 
 	},
@@ -38,10 +40,23 @@ enum GeneratedFile {
 	STARTER_ANALYSIS("apps/web/src/test/fixtures/analysis-starter.json") {
 
 		@Override
-		JsonNode content() {
+		String text() {
 			JsonNode starter = JSON.readTree(Repository.root().resolve(STARTER).toFile());
-			return new DesignAnalyzer(StandardComponents.registry(), PriceSnapshots.shipped()).analyze(starter, null)
-				.toJson();
+			return json(
+					new DesignAnalyzer(StandardComponents.registry(), PriceSnapshots.shipped()).analyze(starter, null)
+						.toJson());
+		}
+
+	},
+
+	/**
+	 * Every number the engine uses without the user typing it, and where each comes from.
+	 */
+	ASSUMPTIONS("docs/assumptions.md") {
+
+		@Override
+		String text() {
+			return AssumptionsPage.render(StandardComponents.registry(), EngineVersions.ENGINE);
 		}
 
 	};
@@ -86,17 +101,18 @@ enum GeneratedFile {
 
 	/**
 	 * What the file holds.
-	 * @return the engine's output, written as Python's {@code json.dumps} with an indent
-	 * of 2, and a final newline
+	 * @return the engine's output, ending with one newline
 	 */
-	String text() {
-		return PythonJson.writeIndented(content(), INDENT) + "\n";
-	}
+	abstract String text();
 
 	/**
-	 * What the file holds, as JSON.
-	 * @return the engine's output
+	 * A fixture's text.
+	 * @param content the engine's output
+	 * @return it written as Python's {@code json.dumps} with an indent of 2, and a final
+	 * newline
 	 */
-	abstract JsonNode content();
+	private static String json(JsonNode content) {
+		return PythonJson.writeIndented(content, INDENT) + "\n";
+	}
 
 }

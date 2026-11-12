@@ -21,9 +21,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * {@code archsim export} against the frozen engine's CLI: each case of
- * {@code export-cases.json.gz} ({@code scripts/export_cli_cases.py}) exits with the code
- * Python's did and prints, or writes, what it did, word for word; where Python crashed,
- * the departure.
+ * {@code export-cases.json.gz} (recorded by {@code scripts/export_cli_cases.py}, since
+ * deleted) exits with the code Python's did and prints, or writes, what it did, word for
+ * word; where Python crashed, the departure.
  */
 class ExportCommandTests {
 

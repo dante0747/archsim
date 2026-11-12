@@ -23,11 +23,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * The design review in the cases the golden files do not reach: retries without backoff,
  * autoscaling ranges, queues without a downstream link, third-party errors, CPU on shared
  * cores, a walk past its step budget, titles that sort differently folded, settings read
- * leniently, and divisions by zero. Each case ({@code review/cases.json}, written by
- * {@code scripts/export_review_cases.py}) has the findings the Python engine 0.16.0
- * gives, or the error it raises. Where it divides by zero, the Java review skips the
- * check that would, and gives the Python engine's review of the design without the
- * setting whose removal skips only that check.
+ * leniently, and divisions by zero. Each case ({@code review/cases.json}, recorded from
+ * the frozen engine by {@code scripts/export_review_cases.py}, since deleted) has the
+ * findings the Python engine 0.16.0 gives, or the error it raises. Where it divides by
+ * zero, the Java review skips the check that would, and gives the Python engine's review
+ * of the design without the setting whose removal skips only that check.
  */
 class DesignReviewTests {
 

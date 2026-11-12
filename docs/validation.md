@@ -517,10 +517,13 @@ test ArchSim on stacks it was never tuned on. They were **sealed** until an engi
 measured three times on 3-4 Nov 2026, the three runs rotating through the five stacks. The
 results, misses included, lead the [headline](#headline):
 
-- `run.py` refuses to calibrate or measure one unless the engine's source tree
-  (`git rev-parse HEAD:packages/engine`) matches a frozen entry and nothing in the engine or the
-  harness is uncommitted. Its predictions are then saved before the first measured step, as for
-  every experiment, so no model change can be tuned on its results first.
+- `run.py` refuses to calibrate or measure one unless the engine is one frozen in
+  `benchmarks/engines.json` and nothing in the engine or the harness is uncommitted. Its
+  predictions are then saved before the first measured step, as for every experiment, so no
+  model change can be tuned on its results first. Engine 0.16.0 was known by its source tree
+  (`git rev-parse HEAD:packages/engine`); since stage 5 of the Java port deleted it, the harness
+  runs the Java engine only, which keeps them sealed until its freeze says what identifies it
+  ([ADR-0062](adr/0062-make-the-java-engine-the-harnesss-default.md)).
 - Before the freeze, `run.py smoke <experiment>` was the only way to start their stacks: 20
   req/s for 10 s, checking that every request succeeded and that the services counted it. It
   keeps no latency and no results.

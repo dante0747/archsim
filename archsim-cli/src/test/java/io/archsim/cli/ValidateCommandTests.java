@@ -9,8 +9,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * {@code archsim validate} against the frozen engine's CLI: each case of
- * {@code validate-cases.json.gz} ({@code scripts/export_cli_cases.py}) exits with the
- * code Python's did and prints what it printed, word for word.
+ * {@code validate-cases.json.gz} (recorded by {@code scripts/export_cli_cases.py}, since
+ * deleted) exits with the code Python's did and prints what it printed, word for word.
  */
 class ValidateCommandTests {
 

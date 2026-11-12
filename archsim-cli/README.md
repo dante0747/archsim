@@ -3,9 +3,10 @@
 The `archsim` command line, on the Java engine. Stage 4 of the
 [Java port](../docs/proposals/java-25-port.md) brought `archsim run`, which the benchmark harness
 runs to simulate on the Java engine
-([ADR-0051](../docs/adr/0051-start-the-java-cli-in-stage-4-with-archsim-run.md)); stage 5 brings
+([ADR-0051](../docs/adr/0051-start-the-java-cli-in-stage-4-with-archsim-run.md)); stage 5 brought
 the rest of the Python CLI's commands, with the same flags, lines and exit codes
-([ADR-0055](../docs/adr/0055-the-java-clis-output-contract.md)).
+([ADR-0055](../docs/adr/0055-the-java-clis-output-contract.md)), and deleted the Python CLI with
+its engine.
 
 ```bash
 ./gradlew :archsim-cli:installDist                    # archsim-cli/build/install/archsim/bin/archsim
@@ -19,9 +20,10 @@ lines did: a Windows console on a legacy code page shows `→` garbled.
 ## Commands
 
 Each prints what the Python engine's CLI (`packages/engine/src/archsim_engine/cli.py`, engine
-0.16.0) printed, word for word, on the same stream, with the same exit code. JSON is written as
-Python's `json.dumps(value, indent=2)` writes it, with the same values (ADR-0055). Help and usage
-errors are picocli's words; a usage error exits with code 2, as argparse's did.
+0.16.0, which the tag `engine-0.16.0` keeps) printed, word for word, on the same stream, with the
+same exit code. JSON is written as Python's `json.dumps(value, indent=2)` writes it, with the
+same values (ADR-0055). Help and usage errors are picocli's words; a usage error exits with code
+2, as argparse's did.
 
 | Command | What it does |
 | --- | --- |
@@ -198,12 +200,14 @@ Elsewhere:
 ./gradlew :archsim-cli:test
 ```
 
-- `scripts/export_cli_cases.py` records the frozen engine's CLI, one file per command under
-  `src/test/resources/io/archsim/cli/` (`<command>-cases.json.gz`): the arguments, the files read,
-  the exit code, standard output and error, and the files written. Each design is recorded in the
-  order of its keys, as Python read it. `RecordedCases` runs each case in Java, and `Replays`
-  makes tests of them: the same exit code and the same text, word for word, or for JSON printed or
-  written the same values (`JsonDiff`, the golden files' comparison), laid out as
+- The frozen engine's CLI was recorded by `scripts/export_cli_cases.py`, which went with the
+  engine at stage 5's exit: the recordings are data now, not recorded again. There is one file
+  per command under `src/test/resources/io/archsim/cli/` (`<command>-cases.json.gz`): the
+  arguments, the files read, the exit code, standard output and error, and the files written.
+  Each design is recorded in the order of its keys, as Python read it. `RecordedCases` runs each
+  case in Java, and `Replays` makes tests of them: the same exit code and the same text, word for
+  word, or for JSON printed or written the same values (`JsonDiff`, the golden files'
+  comparison), laid out as
   `json.dumps(value, indent=2)` lays them out. A usage error is checked by its exit code. The
   cases:
   - `run`: a run, one without failures, one whose every call fails, a scenario with a seed of its

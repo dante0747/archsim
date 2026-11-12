@@ -2,10 +2,14 @@
 
 How fast the engine answers, measured on one laptop (11th Gen Intel Core i7-1165G7, 8 logical
 CPUs, Windows 11, Python 3.12, and Java 25 for the Java simulator), and what was done about it.
-Numbers come from `scripts/perf.py` (`benchmarks/perf/baseline.json`, `after.json`, and
-`python-0.16.0.json` for the Java port's comparison), `scripts/validate_sampled.py`
-(`benchmarks/perf/sampled-validation.json`) and `./gradlew :archsim-engine:speed`
-(`benchmarks/perf/java-port.json`); rerun them on your machine before quoting.
+The Python engine's numbers come from `scripts/perf.py` (`benchmarks/perf/baseline.json`,
+`after.json`, and `python-0.16.0.json` for the Java port's comparison) and
+`scripts/validate_sampled.py` (`benchmarks/perf/sampled-validation.json`), which went with that
+engine at stage 5 of the Java port; the files stay as they were measured. The Java engine's come
+from `./gradlew :archsim-engine:speed`, which times every template as shipped
+(`-Parchsim.speed.out=benchmarks/perf/java-port.json` writes the committed file; see
+[archsim-engine's README](../archsim-engine/README.md#tests)): rerun it on your machine before
+quoting.
 
 > The tables before the last section were measured with engine 0.10.0. Engine 0.11.0 runs the
 > templates on AWS instance types and rounds generic sizes to standard shapes
@@ -33,7 +37,8 @@ Every template as shipped (its own traffic shape and duration, no scenarios), be
 
 **The target** (Phase 8 of docs/prompts/how-to-win.md): a 10,000 req/s, 10-minute run of a
 six-part design, about 6 million requests, answered in under 60 s. The design
-(`scripts/perf.py`, `target_design`): clients, a load balancer, 320 API replicas, a Redis cache,
+(`target_design` in `scripts/perf.py`, deleted with the Python engine): clients, a load
+balancer, 320 API replicas, a Redis cache,
 PostgreSQL in 4 shards with 2 read replicas each, and a third-party email API on writes; it
 carries the load (99.98% success, no part saturated in a 12 s check). A first attempt used 40
 replicas and was overloaded (22% success); its 1,508 s full run is not a valid baseline and is
@@ -159,7 +164,8 @@ process each, so several run in parallel ([api.md](api.md)).
 ## The Java simulator (stage 4 of the port)
 
 Stage 4 of the Java port is the compiled core the list above names: the whole simulator,
-rewritten in Java. The sections above describe the Python engine.
+rewritten in Java. The sections above describe the Python engine, which stage 5 deleted (the
+tag `engine-0.16.0` keeps it).
 
 The Java simulator replays the frozen engine 0.16.0's runs figure for figure
 ([java-parity.md](validation/java-parity.md)) and runs the templates about 14 times faster:
@@ -172,5 +178,6 @@ engines were timed one after the other on this laptop on 2026-11-09, with no oth
 and the CPU 10 to 12% busy before, between and after. Some runs were still disturbed: a
 template's 5 runs spread by up to 68% in Python and 51% in Java, so the extremes of the medians'
 ratios (9.4 and 20.6 times) say less than the best of 5. The figures are in
-`benchmarks/perf/python-0.16.0.json` (`scripts/perf.py`) and `benchmarks/perf/java-port.json`
-(`./gradlew :archsim-engine:speed`). The target design has not been timed in Java yet.
+`benchmarks/perf/python-0.16.0.json` (`scripts/perf.py`, before stage 5 deleted it) and
+`benchmarks/perf/java-port.json` (`./gradlew :archsim-engine:speed`). The target design has not
+been timed in Java yet.

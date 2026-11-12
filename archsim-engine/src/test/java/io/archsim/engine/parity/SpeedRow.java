@@ -9,9 +9,9 @@ import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * A template's timing as {@code scripts/perf.py} writes one, so the frozen engine's and
- * the Java simulator's files read alike: the requests and events of the run, each wall
- * time, the best, the rates at the best and the result's digest.
+ * A template's timing as the since-deleted {@code scripts/perf.py} wrote one, so the
+ * frozen engine's and the Java simulator's files read alike: the requests and events of
+ * the run, each wall time, the best, the rates at the best and the result's digest.
  */
 final class SpeedRow {
 

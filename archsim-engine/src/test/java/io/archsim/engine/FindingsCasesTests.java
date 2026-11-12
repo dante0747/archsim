@@ -27,10 +27,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * do not reach (no traffic, wasted work, autoscaling, replication lag, pending pods,
  * memory and downstream bottlenecks, client timeouts, throttled stores and balancers,
  * faults in the warm-up, after the run or not recovered, and more), each case
- * ({@code findings/cases.json}, which {@code scripts/export_findings_cases.py} writes
- * from the frozen engine's reports, changed) checked as the golden files are. Each part's
- * status and why: on those cases, and on every run of the golden files, whose reports
- * carry the status the analysis set.
+ * ({@code findings/cases.json}, which {@code scripts/export_findings_cases.py}, since
+ * deleted, recorded from the frozen engine's reports, changed) checked as the golden
+ * files are. Each part's status and why: on those cases, and on every run of the golden
+ * files, whose reports carry the status the analysis set.
  */
 @DisplayName("A run's findings and each part's status match the frozen Python engine's")
 class FindingsCasesTests {

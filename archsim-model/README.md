@@ -15,7 +15,7 @@ ObjectNode schema = DesignDocuments.jsonSchema();                  // what GET /
 
 `load` throws `DocumentInvalidException` with a `document.version` issue when the document cannot
 be upgraded, or one `document.schema` issue per thing wrong with it; `validate` returns every
-other issue, errors and warnings, as the Python engine's `validate_document` does.
+other issue, errors and warnings, as the Python engine's `validate_document` did.
 
 ## Packages
 
@@ -41,8 +41,8 @@ The price snapshots ArchSim ships are this module's resources,
 in an index `PriceSnapshots` reads, so the model ships what the folder holds. A refreshed snapshot
 (`scripts/prices`) is a file added there, but the golden pricing entries and some sizing tests
 still expect 0.16.0's two snapshots to be the only ones, so a refresh fails them until they stop
-assuming it. Until the frozen Python engine is deleted, a test checks its snapshots are shipped
-byte for byte.
+assuming it. Until stage 5 deleted the frozen Python engine, a test checked its snapshots were
+shipped byte for byte.
 
 ## Tests
 

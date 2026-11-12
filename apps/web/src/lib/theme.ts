@@ -45,7 +45,7 @@ export function kindOf(type: string, category?: string): Kind {
   return BY_TYPE[type] ?? (category ? BY_CATEGORY[category] : undefined) ?? "other";
 }
 
-/** True for client parts (Clients, Mobile app, Web browser, API consumers, or a plugin's client). */
+/** True for client parts (Clients, Mobile app, Web browser, API consumers). */
 export function isClientType(type: string, catalog?: Catalog | null): boolean {
   const c = catalog?.components.find((x) => x.type === type);
   return c?.isTrafficSource ?? kindOf(type, c?.category) === "traffic";

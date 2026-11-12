@@ -46,7 +46,7 @@ this folder is the record, kept in git."""
 REPEATS = 5
 """How many times each engine runs each template for the speed comparison."""
 PYTHON_SPEED_LABEL = f"python-{PYTHON_ENGINE}"
-"""The frozen engine's speed, as `scripts/perf.py --label` names its file in benchmarks/perf/."""
+"""The frozen engine's speed, as `scripts/perf.py --label` named its file in benchmarks/perf/."""
 JAVA_SPEED_FILE = "benchmarks/perf/java-port.json"
 """The Java engine's speed, where `./gradlew :archsim-engine:speed` is told to write it."""
 PYTHON_SPEED = ROOT / "benchmarks" / "perf" / f"{PYTHON_SPEED_LABEL}.json"
@@ -65,7 +65,9 @@ JAVA_KNEES_RESTORE = f"git checkout HEAD -- benchmarks/results/dev/{JAVA_KNEES}"
 PYTHON_SPEED_COMMAND = (
     f"uv run python scripts/perf.py --label {PYTHON_SPEED_LABEL} --repeats {REPEATS}"
 )
-"""Writes the frozen engine's speed."""
+"""Wrote the frozen engine's speed; the script was deleted with the engine at stage 5's exit."""
+PYTHON_SPEED_RESTORE = f"git checkout HEAD -- benchmarks/perf/{PYTHON_SPEED_LABEL}.json"
+"""Brings the frozen engine's speed back: nothing times that engine any more."""
 JAVA_SPEED_COMMAND = (
     f"./gradlew :archsim-engine:speed -Parchsim.speed.out={JAVA_SPEED_FILE} "
     f"-Parchsim.speed.repeats={REPEATS}"
@@ -450,8 +452,8 @@ def _load(path: Path) -> Json:
 
 def _missing() -> list[str]:
     """The inputs not there yet, each with the command that writes it, or for the two engines'
-    knees the one that restores them. Speed is optional while neither engine is measured, never
-    with one engine's measurement and not the other's."""
+    knees and the frozen engine's speed the one that restores them. Speed is optional while
+    neither engine is measured, never with one engine's measurement and not the other's."""
     inputs = {
         DEV / PYTHON_KNEES: f"restore it with {PYTHON_KNEES_RESTORE}",
         DEV / JAVA_KNEES: f"restore it with {JAVA_KNEES_RESTORE}",
@@ -459,7 +461,7 @@ def _missing() -> list[str]:
     }
     if _speed_started():
         inputs |= {
-            PYTHON_SPEED: f"run {PYTHON_SPEED_COMMAND}",
+            PYTHON_SPEED: f"restore it with {PYTHON_SPEED_RESTORE}",
             JAVA_SPEED: f"run {JAVA_SPEED_COMMAND}",
         }
     return [f"{path.name} is missing: {what}" for path, what in inputs.items() if not path.exists()]

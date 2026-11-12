@@ -222,14 +222,14 @@ summaries are not.
 
 ## Quick start
 
-Prerequisites: **Java 25** (a JDK), **Python 3.11+** with [uv](https://docs.astral.sh/uv/),
-**Node.js 20.9+** (24 recommended) with npm, and **PostgreSQL 16**, which Docker Compose can
-start for you.
+Prerequisites: **Java 25** (a JDK), **Node.js 20.9+** (24 recommended) with npm, and
+**PostgreSQL 16**, which Docker Compose can start for you. Python 3.11+ with
+[uv](https://docs.astral.sh/uv/) is needed only for development: the migrations' tests, the
+end-to-end tests, the benchmarks and the scripts ([CONTRIBUTING.md](CONTRIBUTING.md)).
 
 ```bash
 git clone <your-fork-url> archsim
 cd archsim
-uv sync
 docker compose up -d postgres
 ./gradlew :archsim-app:bootJar
 ```
@@ -334,20 +334,24 @@ The numbers come from the shipped examples with seed 42 and are illustrative ass
 
 ## Command line
 
-The engine works without the web stack, with the same answers as the web app:
+The engine works without the web stack, with the same answers as the web app. The `archsim`
+command is built with Gradle into `archsim-cli/build/install/archsim/bin/` (put that folder on
+your `PATH`; it runs on the Java 25 that `JAVA_HOME` names, else the one on the `PATH`; see
+[archsim-cli/README.md](archsim-cli/README.md)):
 
 ```bash
-uv run archsim validate examples/cache-aside-starter.json
-uv run archsim analyze examples/cache-aside-starter.json
-uv run archsim run examples/cache-aside-starter.json --scenario one-api-replica --out report.json
-uv run archsim run long-steady-design.json --sampled   # answer a long steady run from a sample
-uv run archsim compare examples/cache-aside-starter.json --a baseline --b three-api-replicas
-uv run archsim calibrate prometheus examples/cache-aside-starter.json \
+./gradlew :archsim-cli:installDist
+archsim validate examples/cache-aside-starter.json
+archsim analyze examples/cache-aside-starter.json
+archsim run examples/cache-aside-starter.json --scenario one-api-replica --out report.json
+archsim run long-steady-design.json --sampled   # answer a long steady run from a sample
+archsim compare examples/cache-aside-starter.json --a baseline --b three-api-replicas
+archsim calibrate prometheus examples/cache-aside-starter.json \
   --map parity/fixtures/calibration/starter-mapping.yaml \
   --recorded parity/fixtures/calibration/starter-prometheus.json -o calibrated.json
-uv run archsim import compose docker-compose.yml -o design.json --report import-report.json
-uv run archsim export k8s examples/cache-aside-starter.json -o manifests.yaml
-uv run archsim check examples/cache-aside-starter.json --baseline-ref origin/main --fail-on regression
+archsim import compose docker-compose.yml -o design.json --report import-report.json
+archsim export k8s examples/cache-aside-starter.json -o manifests.yaml
+archsim check examples/cache-aside-starter.json --baseline-ref origin/main --fail-on regression
 ```
 
 `analyze` prints the auto sizes, the cost estimate, the design review and each part's
@@ -359,30 +363,37 @@ loop, and a design whose one request would fan out into more than 10,000 calls i
 ## Tests and checks
 
 ```bash
-uv run pytest                                   # the engine, its tools and the migrations
-uv run ruff check packages services benchmarks
-uv run ruff format --check packages services benchmarks
-uv run mypy packages/engine/src services/api/src packages/mcp/src
 ./gradlew build                                 # the Java code: format, Checkstyle, tests
+./gradlew :archsim-cli:installDist              # the benchmarks' tests call the CLI
+uv run pytest                                   # the migrations, the benchmarks, the scripts
+uv run ruff check services benchmarks scripts
+uv run ruff format --check services benchmarks scripts
+uv run mypy services/api/src
+uv run mypy benchmarks
 cd apps/web && npm test && npm run lint && npm run typecheck && npm run build
 ```
 
-The engine suite includes analytic checks against M/M/1 and M/M/c (Erlang C) queues, request
-accounting invariants, determinism, and a directional reference benchmark on the starter
-example. CI (GitHub Actions) also runs the migrations against PostgreSQL and the black-box
-API tests against the Java API and its worker. `make` targets wrap
+The Java engine's tests replay the runs the frozen Python engine 0.16.0 recorded, figure for
+figure, and match its golden files ([parity/README.md](parity/README.md)). They also check the
+simulator against M/M/1 and M/M/c (Erlang C) queues and Little's law, the instant estimate
+against the simulation, and the starter example's scenarios against a directional reference
+benchmark, as that engine's own suite did. CI (GitHub Actions) also runs the migrations against
+PostgreSQL and the black-box API tests against the Java API and its worker. `make` targets wrap
 these commands (see the [Makefile](Makefile)).
 
 ## Repository layout
 
 ```
-packages/engine/   Python simulation engine and domain model (no web dependencies)
 archsim-app/       Java API (Spring Boot): projects, runs, workspaces, reviews, sharing, sign-in
 archsim-model/     Java design model: the document's records, upgrades and validation
 archsim-engine/    Java engine: the simulator and its deterministic parts (sizing, cost, ...)
+archsim-cli/       Java command line, `archsim`
+archsim-mcp/       Java MCP server for AI coding agents
 services/api/      Python Alembic migrations, until stage 6 of the Java port
+benchmarks/        Python accuracy benchmarks (k6 against real stacks), on the Java engine
 apps/web/          Next.js editor: canvas, inspector, results and comparison
 examples/          Example architectures (versioned JSON) with scenarios
+parity/            What the Python engine 0.16.0 recorded: the Java tests' reference data
 docs/              Architecture, simulation model, schema, API, extension guide, roadmap
 scripts/           Developer scripts (e.g. which CI jobs a change needs, the commit message check)
 ```

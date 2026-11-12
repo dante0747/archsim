@@ -9,8 +9,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * {@code archsim schema} against the frozen engine's CLI: each case of
- * {@code schema-cases.json.gz} ({@code scripts/export_cli_cases.py}) exits with the code
- * Python's did and prints what it printed, word for word.
+ * {@code schema-cases.json.gz} (recorded by {@code scripts/export_cli_cases.py}, since
+ * deleted) exits with the code Python's did and prints what it printed, word for word.
  */
 class SchemaCommandTests {
 

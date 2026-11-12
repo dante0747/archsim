@@ -38,10 +38,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Load sweeps and checks against the frozen engine's: each case of
- * {@code sweep/cases.json.gz} ({@code scripts/export_sweep_cases.py}), run in Java, gives
- * what Python gave (a breaking point's rows, digests and verdict; breaking points on one
- * grid; a measurement with its knee; whole checks): text and digests exactly, numbers to
- * a relative 1e-9, and the engine's own version wherever Python named its own.
+ * {@code sweep/cases.json.gz} ({@code scripts/export_sweep_cases.py}, since deleted), run
+ * in Java, gives what Python gave (a breaking point's rows, digests and verdict; breaking
+ * points on one grid; a measurement with its knee; whole checks): text and digests
+ * exactly, numbers to a relative 1e-9, and the engine's own version wherever Python named
+ * its own.
  */
 class SweepCasesTests {
 

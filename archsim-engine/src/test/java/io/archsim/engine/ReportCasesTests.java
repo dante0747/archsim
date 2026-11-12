@@ -22,8 +22,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * or with a base load of zero, a comparison of identical inputs or of a bottleneck that
  * moved, went or came, a check of breaking points, without a baseline or objectives, or
  * of design text with markup, and more. Each case ({@code report/cases.json}, which
- * {@code scripts/export_report_cases.py} writes from the frozen engine) is a call with
- * the Python engine's output, checked as the golden files are.
+ * {@code scripts/export_report_cases.py}, since deleted, recorded from the frozen engine)
+ * is a call with the Python engine's output, checked as the golden files are.
  */
 @DisplayName("The report functions match the frozen Python engine where the golden files do not reach")
 class ReportCasesTests {

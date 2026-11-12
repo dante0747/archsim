@@ -9,10 +9,10 @@ import io.archsim.engine.run.SimulationLimitException;
 import io.archsim.model.issue.DocumentInvalidException;
 
 /**
- * A failed run as {@code scripts/export_simulation_baselines.py} records one:
- * {@code {"error": "<type>: <message>"}}, with the frozen engine's name for the engine's
- * own refusals ({@code SimulationLimitError}, {@code DocumentInvalidError}) and the Java
- * type's for anything else, which no Python run gave.
+ * A failed run as the since-deleted {@code scripts/export_simulation_baselines.py}
+ * recorded one: {@code {"error": "<type>: <message>"}}, with the frozen engine's name for
+ * the engine's own refusals ({@code SimulationLimitError}, {@code DocumentInvalidError})
+ * and the Java type's for anything else, which no Python run gave.
  */
 final class RunError {
 

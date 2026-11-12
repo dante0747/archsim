@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * The docker-compose and Kubernetes importers on what the frozen engine imported for
  * {@code scripts/export_import_cases.py}: its fixtures, every template's compose file and
- * manifests as the exports write them, what its tests import (tools and look-alike
+ * manifests as the exports write them, what its tests imported (tools and look-alike
  * images, infrastructure images by their full name, entry points, placeholder requests,
  * autoscalers, cache misses, memory limits, ArchSim's own parts written badly), YAML as
  * PyYAML reads it, and the refusals the importers raise themselves. Each case

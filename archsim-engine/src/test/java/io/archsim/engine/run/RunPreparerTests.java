@@ -28,8 +28,8 @@ import static org.assertj.core.api.Assertions.catchThrowableOfType;
  * Preparing a run, against the Python engine 0.16.0's {@code prepare_run} as the engine
  * service answered with it: the design to store, its scenario, the seed and the quick
  * check; or the refusal of a seed out of range, a run over its limit, and a design that
- * cannot be read or simulated ({@code analysis/cases.json}, written by
- * {@code scripts/export_analysis_cases.py}).
+ * cannot be read or simulated ({@code analysis/cases.json}, recorded from the frozen
+ * engine by {@code scripts/export_analysis_cases.py}, since deleted).
  */
 class RunPreparerTests {
 

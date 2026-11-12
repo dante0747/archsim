@@ -29,8 +29,8 @@ import io.archsim.parity.Repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The Java simulator's speed on every template as shipped (no scenarios), timed as
- * {@code scripts/perf.py} times the frozen engine's: several runs (five, or
+ * The Java simulator's speed on every template as shipped (no scenarios), timed as the
+ * since-deleted {@code scripts/perf.py} timed the frozen engine's: several runs (five, or
  * {@code -Parchsim.speed.repeats}), with the same limits, after one run that warms the
  * JVM, written in the same shape ({@link SpeedRow}). Minutes of simulation, on a quiet
  * machine: {@code ./gradlew :archsim-engine:speed}, not part of {@code check}.

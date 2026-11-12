@@ -40,9 +40,13 @@ counts such as "7 measured, 2 assumed, 31 illustrative".
 ## Prometheus
 
 ```bash
-uv run archsim calibrate prometheus design.json --map mapping.yaml \
+archsim calibrate prometheus design.json --map mapping.yaml \
   --url http://localhost:9090 --range 2026-10-01T00:00:00Z/2026-10-08T00:00:00Z -o calibrated.json
 ```
+
+`archsim` is the Java CLI (`./gradlew :archsim-cli:installDist`, then
+`archsim-cli/build/install/archsim/bin/archsim`; see
+[archsim-cli/README.md](../archsim-cli/README.md#archsim-calibrate)).
 
 In the web app: Ctrl/⌘ K → **Calibrate from telemetry** (or ⋯ → Calibrate from telemetry…),
 which shows every change, its fit error and the replay check before you apply it (undoable).
@@ -163,9 +167,9 @@ median rate.
   pg-mixed, the share alone predicts the CPU at the knee within 12% (before calibration ArchSim
   predicted a full core where 0.46 was used, +116%) and is 51% low at 560 req/s; with the curve
   every step below the knee is within 15%. The simulation keeps the last bin's factor above the
-  range, so pick a range that reaches the load you size for. `extend_load_curve` (in
-  `archsim_engine.calibration.resources`, W26, experimental) can carry a measured fall past the
-  top of the range: when the busiest rate kept the replica's CPUs at least 45% busy and the cost
+  range, so pick a range that reaches the load you size for. `extend_load_curve` (the engine's
+  `CurveExtensions`, W26, experimental) can carry a measured fall past the top of the range:
+  when the busiest rate kept the replica's CPUs at least 45% busy and the cost
   over the rates that kept them at least 30% busy fell by more than twice the fall's standard
   error (from the scatter of repeated measurements at each rate), it continues that fall
   linearly in log(rate), at most as far above the top as those rates span below it and never
@@ -240,7 +244,7 @@ error (422 in the API; the CLI says so and suggests `--no-replay`), never a cras
 ## OpenTelemetry traces
 
 ```bash
-uv run archsim calibrate otlp design.json --traces traces.json --map otlp-mapping.yaml -o calibrated.json
+archsim calibrate otlp design.json --traces traces.json --map otlp-mapping.yaml -o calibrated.json
 ```
 
 The input is an OTLP JSON export (`resourceSpans`, as the collector's file exporter writes it).
@@ -277,10 +281,11 @@ notes.
 
 `parity/fixtures/calibration/` holds a calibration of the cache-aside starter:
 a mapping and Prometheus responses **generated** from known parameters
-(`scripts/make_calibration_fixture.py`), plus an OTLP export generated the same way
-(`scripts/make_otlp_fixture.py`). Calibrating the starter from them recovers the parameters
-(median and p95 within 5%, hit ratio, memory and the database's working set exactly, CPU shares
-within 2%; the OTLP spans' CPU share exactly).
+(`scripts/make_calibration_fixture.py`, which simulated them on the Python engine and went with
+it at stage 5 of the Java port: the files are data now), plus an OTLP export generated from known
+parameters too (`scripts/make_otlp_fixture.py`). Calibrating the starter from them recovers the
+parameters (median and p95 within 5%, hit ratio, memory and the database's working set exactly,
+CPU shares within 2%; the OTLP spans' CPU share exactly).
 
 The replay check on this fixture is **circular** and proves less than it seems: the "observed"
 end-to-end and database latencies it compares against were produced by simulating the true
@@ -293,7 +298,7 @@ committed results (`benchmarks/tests/test_resource_fit.py`). Only a calibration
 against your own telemetry says how well the model fits your system.
 
 ```bash
-uv run archsim calibrate prometheus examples/cache-aside-starter.json \
+archsim calibrate prometheus examples/cache-aside-starter.json \
   --map parity/fixtures/calibration/starter-mapping.yaml \
   --recorded parity/fixtures/calibration/starter-prometheus.json -o calibrated.json
 ```

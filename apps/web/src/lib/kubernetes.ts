@@ -1,7 +1,7 @@
 /**
  * Kubernetes on the canvas: which services run on which cluster, and what their pods ask for.
- * Mirrors the engine's rules (components/kubernetes.py: cluster_for, pod_request) so the design
- * view agrees with what a run will do.
+ * Mirrors the engine's rules (the cluster a service runs on, and archsim-model's `PodRequest.of`
+ * for what its pods ask for) so the design view agrees with what a run will do.
  */
 
 export const CLUSTER_TYPE = "kubernetes_cluster";

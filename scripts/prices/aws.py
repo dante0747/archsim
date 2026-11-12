@@ -54,11 +54,24 @@ OFFERS = [
 ]
 RDS_ENGINES = {"PostgreSQL": "postgresql", "MySQL": "mysql", "MariaDB": "mariadb"}
 CACHE_ENGINES = {"Redis": "redis", "Valkey": "valkey", "Memcached": "memcached"}
-ACCELERATED = {"GPU instance", "Machine Learning ASIC Instances", "FPGA Instances", "Media Accelerator Instances"}
+ACCELERATED = {
+    "GPU instance",
+    "Machine Learning ASIC Instances",
+    "FPGA Instances",
+    "Media Accelerator Instances",
+}
 """EC2 instance categories ("Instance Family" column) left out of the snapshot."""
 BURSTABLE = re.compile(r"(db\.|cache\.|kafka\.)?t\d")
 """Burstable types (t3, t4g, db.t4g, cache.t4g, kafka.t3): they run on CPU credits, not full cores."""
-BASELINE_CPU = {"nano": 0.05, "micro": 0.10, "small": 0.20, "medium": 0.20, "large": 0.30, "xlarge": 0.40, "2xlarge": 0.40}
+BASELINE_CPU = {
+    "nano": 0.05,
+    "micro": 0.10,
+    "small": 0.20,
+    "medium": 0.20,
+    "large": 0.30,
+    "xlarge": 0.40,
+    "2xlarge": 0.40,
+}
 """Baseline CPU per vCPU of the t3, t3a and t4g sizes (EC2, and the same sizes as db. and cache.
 types), from AWS's burstable performance instance tables: a t4g.large's two vCPUs can each run at
 30% for ever, and above that they spend CPU credits. Other burstable families (t2, newer ones) get
@@ -95,7 +108,9 @@ def _on_demand(r: dict[str, str]) -> bool:
 def _regional(r: dict[str, str]) -> bool:
     """A price for the region itself, not an Outposts rack, Local Zone or Wavelength Zone (their
     rows can sit in the region's file, at other prices), and not a previous-generation type."""
-    return r.get("Location Type", "") in ("AWS Region", "") and r.get("Current Generation", "") != "No"
+    return (
+        r.get("Location Type", "") in ("AWS Region", "") and r.get("Current Generation", "") != "No"
+    )
 
 
 def _burstable(instance_type: str) -> bool:
@@ -119,7 +134,9 @@ def _credit_family(r: dict[str, str]) -> str:
     return _usage(r).partition(":")[2].removeprefix("db.").removeprefix("cache.")
 
 
-def _with_credits(items: list[dict[str, Any]], credits: dict[Any, float], key: Any) -> list[dict[str, Any]]:
+def _with_credits(
+    items: list[dict[str, Any]], credits: dict[Any, float], key: Any
+) -> list[dict[str, Any]]:
     for s in items:
         price = credits.get(key(s))
         if s.get("burstable") and price:
@@ -127,7 +144,9 @@ def _with_credits(items: list[dict[str, Any]], credits: dict[Any, float], key: A
     return items
 
 
-def ec2(lines: Iterable[str]) -> tuple[list[dict[str, Any]], dict[str, tuple[float, float]], float | None]:
+def ec2(
+    lines: Iterable[str],
+) -> tuple[list[dict[str, Any]], dict[str, tuple[float, float]], float | None]:
     """Linux, shared tenancy, no preinstalled software, on-demand instance-hours; EBS gp3; and the
     price of surplus CPU credits of the burstable families (Linux, unlimited mode)."""
     out, shapes, gp3 = [], {}, None
@@ -136,14 +155,20 @@ def ec2(lines: Iterable[str]) -> tuple[list[dict[str, Any]], dict[str, tuple[flo
         if not _on_demand(r):
             continue
         family = r.get("Product Family")
-        if family == "CPU Credits" and r.get("Operating System") == "Linux" and r.get("Unit") == "vCPU-Hours":
+        if (
+            family == "CPU Credits"
+            and r.get("Operating System") == "Linux"
+            and r.get("Unit") == "vCPU-Hours"
+        ):
             if _regional(r) and (_price(r) or 0) > 0:
                 credits[_credit_family(r)] = _price(r) or 0.0
             continue
         if family == "Storage" and r.get("Volume API Name") == "gp3" and r.get("Unit") == "GB-Mo":
             if _regional(r) and (_price(r) or 0) > 0:
                 if gp3 is not None and gp3 != _price(r):
-                    raise ValueError(f"AmazonEC2: two gp3 prices, {gp3} and {_price(r)}; the price list format may have changed")
+                    raise ValueError(
+                        f"AmazonEC2: two gp3 prices, {gp3} and {_price(r)}; the price list format may have changed"
+                    )
                 gp3 = _price(r)
             continue
         if (
@@ -159,11 +184,26 @@ def ec2(lines: Iterable[str]) -> tuple[list[dict[str, Any]], dict[str, tuple[flo
             or r.get("Unit") != "Hrs"
         ):
             continue
-        it, vcpu, mem, price = r.get("Instance Type", ""), r.get("vCPU", ""), gib(r.get("Memory", "")), _price(r)
+        it, vcpu, mem, price = (
+            r.get("Instance Type", ""),
+            r.get("vCPU", ""),
+            gib(r.get("Memory", "")),
+            _price(r),
+        )
         if not it or not vcpu.isdigit() or mem is None or not price:
             continue
         shapes[it] = (float(vcpu), mem)
-        out.append(sku(it, it.split(".")[0], float(vcpu), mem, price, burstable=_burstable(it), baseline_cpu=baseline_cpu(it)))
+        out.append(
+            sku(
+                it,
+                it.split(".")[0],
+                float(vcpu),
+                mem,
+                price,
+                burstable=_burstable(it),
+                baseline_cpu=baseline_cpu(it),
+            )
+        )
     return _with_credits(out, credits, lambda s: s["family"]), shapes, gp3
 
 
@@ -174,7 +214,13 @@ def rds(lines: Iterable[str]) -> list[dict[str, Any]]:
     credits: dict[tuple[str, str], float] = {}
     for r in rows(lines):
         engine = RDS_ENGINES.get(r.get("Database Engine", ""))
-        if engine and _on_demand(r) and _regional(r) and r.get("Product Family") == "CPU Credits" and (_price(r) or 0) > 0:
+        if (
+            engine
+            and _on_demand(r)
+            and _regional(r)
+            and r.get("Product Family") == "CPU Credits"
+            and (_price(r) or 0) > 0
+        ):
             credits[(_credit_family(r), engine)] = _price(r) or 0.0
             continue
         if (
@@ -186,9 +232,25 @@ def rds(lines: Iterable[str]) -> list[dict[str, Any]]:
             or r.get("Unit") != "Hrs"
         ):
             continue
-        it, vcpu, mem, price = r.get("Instance Type", ""), r.get("vCPU", ""), gib(r.get("Memory", "")), _price(r)
+        it, vcpu, mem, price = (
+            r.get("Instance Type", ""),
+            r.get("vCPU", ""),
+            gib(r.get("Memory", "")),
+            _price(r),
+        )
         if it and vcpu.isdigit() and mem and price:
-            out.append(sku(it, it.split(".")[1], float(vcpu), mem, price, [engine], _burstable(it), baseline_cpu(it)))
+            out.append(
+                sku(
+                    it,
+                    it.split(".")[1],
+                    float(vcpu),
+                    mem,
+                    price,
+                    [engine],
+                    _burstable(it),
+                    baseline_cpu(it),
+                )
+            )
     return _with_credits(out, credits, lambda s: (s["family"], s["engines"][0]))
 
 
@@ -205,9 +267,25 @@ def elasticache(lines: Iterable[str]) -> list[dict[str, Any]]:
             or "ExtendedSupport" in r.get("usageType", "")  # a surcharge on top of the node price
         ):
             continue
-        it, vcpu, mem, price = r.get("Instance Type", ""), r.get("vCPU", ""), gib(r.get("Memory", "")), _price(r)
+        it, vcpu, mem, price = (
+            r.get("Instance Type", ""),
+            r.get("vCPU", ""),
+            gib(r.get("Memory", "")),
+            _price(r),
+        )
         if it and vcpu.isdigit() and mem and price:
-            out.append(sku(it, it.split(".")[1], float(vcpu), mem, price, [engine], _burstable(it), baseline_cpu(it)))
+            out.append(
+                sku(
+                    it,
+                    it.split(".")[1],
+                    float(vcpu),
+                    mem,
+                    price,
+                    [engine],
+                    _burstable(it),
+                    baseline_cpu(it),
+                )
+            )
     return out
 
 
@@ -218,7 +296,11 @@ def msk(lines: Iterable[str], shapes: dict[str, tuple[float, float]]) -> list[di
     throughput included) and are left out, as are serverless, connectivity and replicator hours."""
     out = []
     for r in rows(lines):
-        if not _on_demand(r) or not _regional(r) or r.get("Unit", "").lower() not in ("hrs", "hours"):
+        if (
+            not _on_demand(r)
+            or not _regional(r)
+            or r.get("Unit", "").lower() not in ("hrs", "hours")
+        ):
             continue
         name = (r.get("Instance Type") or r.get("Compute Family") or "").removeprefix("kafka.")
         usage = r.get("usageType", "")
@@ -229,40 +311,68 @@ def msk(lines: Iterable[str], shapes: dict[str, tuple[float, float]]) -> list[di
         price = _price(r)
         if shape and price:
             it = f"kafka.{name}"
-            out.append(sku(it, name.split(".")[0], shape[0], shape[1], price, ["kafka"], _burstable(it), baseline_cpu(it)))
+            out.append(
+                sku(
+                    it,
+                    name.split(".")[0],
+                    shape[0],
+                    shape[1],
+                    price,
+                    ["kafka"],
+                    _burstable(it),
+                    baseline_cpu(it),
+                )
+            )
     return out
 
 
 def _first_paid_tier(r: dict[str, str]) -> bool:
     """The first priced tier: the free tier (price 0) and the cheaper high-volume tiers (which
     start past 0) are not what a typical design pays."""
-    return _on_demand(r) and _regional(r) and (r.get("StartingRange") or "0") == "0" and (_price(r) or 0) > 0
+    return (
+        _on_demand(r)
+        and _regional(r)
+        and (r.get("StartingRange") or "0") == "0"
+        and (_price(r) or 0) > 0
+    )
 
 
 def _usage(r: dict[str, str]) -> str:
     """The usage type without its region prefix ("USE1-", "EU-"): us-east-1 rows usually have
     none, other regions' rows do."""
     usage = r.get("usageType", r.get("Usage Type", ""))
-    return re.sub(r"^(USE1|[A-Z]{2,3}\d?)-(?=[A-Z])", "", usage) if not usage.startswith("IA-") else usage
+    return (
+        re.sub(r"^(USE1|[A-Z]{2,3}\d?)-(?=[A-Z])", "", usage)
+        if not usage.startswith("IA-")
+        else usage
+    )
 
 
 def _only(prices: set[float], what: str) -> float | None:
     if len(prices) > 1:
-        raise ValueError(f"{what}: several prices {sorted(prices)}; the price list format may have changed")
+        raise ValueError(
+            f"{what}: several prices {sorted(prices)}; the price list format may have changed"
+        )
     return prices.pop() if prices else None
 
 
 def _paid_tier(candidates: list[dict[str, str]], what: str) -> float | None:
     """The first priced tier of one rate: the lowest starting range with a price above zero (a
     free allowance can be a row of its own from 0, with the paid tier starting where it ends)."""
-    priced = [(float(r.get("StartingRange") or 0), _price(r) or 0.0) for r in candidates if (_price(r) or 0) > 0]
+    priced = [
+        (float(r.get("StartingRange") or 0), _price(r) or 0.0)
+        for r in candidates
+        if (_price(r) or 0) > 0
+    ]
     if not priced:
         return None
     start = min(s for s, _ in priced)
     return _only({p for s, p in priced if s == start}, what)
 
 
-def rates(lambda_lines: Iterable[str], sqs_lines: Iterable[str], elb_lines: Iterable[str]) -> dict[str, float]:
+def rates(
+    lambda_lines: Iterable[str], sqs_lines: Iterable[str], elb_lines: Iterable[str]
+) -> dict[str, float]:
     out: dict[str, float] = {}
     for r in rows(lambda_lines):
         if not _first_paid_tier(r):
@@ -272,7 +382,11 @@ def rates(lambda_lines: Iterable[str], sqs_lines: Iterable[str], elb_lines: Iter
         elif r.get("Group") == "AWS-Lambda-Requests" and r.get("Unit") == "Requests":
             out["serverlessPerMillionRequests"] = round((_price(r) or 0.0) * 1e6, 6)
     for r in rows(sqs_lines):
-        if _first_paid_tier(r) and r.get("Queue Type") == "Standard" and r.get("Unit") == "Requests":
+        if (
+            _first_paid_tier(r)
+            and r.get("Queue Type") == "Standard"
+            and r.get("Unit") == "Requests"
+        ):
             out["queuePerMillionRequests"] = round((_price(r) or 0.0) * 1e6, 6)
     # the load balancer-hour itself ("LoadBalancerUsage", "USW2-LoadBalancerUsage"), not a trust
     # store unit-hour ("TS-LoadBalancerUsage") or an Outposts one; and the capacity unit-hour
@@ -287,7 +401,13 @@ def rates(lambda_lines: Iterable[str], sqs_lines: Iterable[str], elb_lines: Iter
     for r in rows(elb_lines):
         usage = r.get("usageType", r.get("Usage Type", "")).split("-")
         key = wanted.get((r.get("Product Family", ""), usage[-1], r.get("Unit", "")))
-        if key and _on_demand(r) and _regional(r) and (_price(r) or 0) > 0 and not {"TS", "Outposts"} & set(usage):
+        if (
+            key
+            and _on_demand(r)
+            and _regional(r)
+            and (_price(r) or 0) > 0
+            and not {"TS", "Outposts"} & set(usage)
+        ):
             found.setdefault(key, set()).add(_price(r) or 0.0)
     for key, prices in found.items():
         price = _only(prices, f"AWSELB {key}")
@@ -310,7 +430,12 @@ def dynamodb(lines: Iterable[str]) -> dict[str, float]:
         if not _on_demand(r) or not _regional(r):
             continue
         key = wanted.get((r.get("Group", ""), r.get("Unit", "")))
-        if key is None and r.get("Product Family") == "Database Storage" and _usage(r) == "TimedStorage-ByteHrs" and r.get("Unit") == "GB-Mo":
+        if (
+            key is None
+            and r.get("Product Family") == "Database Storage"
+            and _usage(r) == "TimedStorage-ByteHrs"
+            and r.get("Unit") == "GB-Mo"
+        ):
             key = "dynamodbStorageGibMonth"
         if key:
             found.setdefault(key, []).append(r)
@@ -328,7 +453,11 @@ def api_gateway(lines: Iterable[str]) -> dict[str, float]:
     candidates = [
         r
         for r in rows(lines)
-        if _on_demand(r) and _regional(r) and r.get("Product Family") == "API Calls" and _usage(r) == "ApiGatewayRequest" and r.get("Unit") == "Requests"
+        if _on_demand(r)
+        and _regional(r)
+        and r.get("Product Family") == "API Calls"
+        and _usage(r) == "ApiGatewayRequest"
+        and r.get("Unit") == "Requests"
     ]
     price = _paid_tier(candidates, "AmazonApiGateway REST API requests")
     return {"apiGatewayPerMillion": round(price * 1e6, 6)} if price is not None else {}
@@ -340,7 +469,10 @@ def eks(lines: Iterable[str]) -> dict[str, float]:
     prices = {
         _price(r) or 0.0
         for r in rows(lines)
-        if _on_demand(r) and _regional(r) and _usage(r) == "AmazonEKS-Hours:perCluster" and (_price(r) or 0) > 0
+        if _on_demand(r)
+        and _regional(r)
+        and _usage(r) == "AmazonEKS-Hours:perCluster"
+        and (_price(r) or 0) > 0
     }
     price = _only(prices, "AmazonEKS cluster-hour")
     return {"kubernetesControlPlaneHour": price} if price is not None else {}
@@ -369,9 +501,15 @@ def download(offer: str, region: str, cache: Path) -> Path:
     entry = (index.get("regions") or {}).get(region)
     if not entry:
         raise SystemExit(f"{offer} has no price list for region {region}")
-    version_url = entry["currentVersionUrl"]  # /offers/v1.0/aws/<offer>/<version>/<region>/index.json
+    version_url = entry[
+        "currentVersionUrl"
+    ]  # /offers/v1.0/aws/<offer>/<version>/<region>/index.json
     version = next((p for p in version_url.split("/") if p.isdigit()), "current")
-    return Path(fetch(BASE + version_url.replace(".json", ".csv"), cache / f"{offer}-{region}-{version}.csv"))  # type: ignore[arg-type]
+    return Path(
+        fetch(
+            BASE + version_url.replace(".json", ".csv"), cache / f"{offer}-{region}-{version}.csv"
+        )
+    )  # type: ignore[arg-type]
 
 
 def lines_of(path: Path) -> Iterator[str]:
@@ -400,9 +538,13 @@ def provenance(headers: dict[str, dict[str, str]]) -> str:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--region", required=True, help="e.g. us-east-1")
-    ap.add_argument("--cache", default=".cache/aws-prices", help="where the downloaded CSVs are kept")
+    ap.add_argument(
+        "--cache", default=".cache/aws-prices", help="where the downloaded CSVs are kept"
+    )
     ap.add_argument("--out", help="output file (default: among archsim-model's snapshots)")
     args = ap.parse_args()
     cache = Path(args.cache)
@@ -411,7 +553,9 @@ def main() -> None:
     snapshot: dict[str, Any] = {
         "provider": "aws",
         "region": args.region,
-        "sources": [{"name": "AWS Price List bulk API", "url": f"{BASE}/offers/v1.0/aws/index.json"}],
+        "sources": [
+            {"name": "AWS Price List bulk API", "url": f"{BASE}/offers/v1.0/aws/index.json"}
+        ],
         "note": provenance({offer: header(path) for offer, path in files.items()}),
         "compute": compute,
         "databases": rds(lines_of(files["AmazonRDS"])),
@@ -419,7 +563,11 @@ def main() -> None:
         "streams": msk(lines_of(files["AmazonMSK"]), shapes),
         "rates": {
             **({"storageGibMonth": gp3} if gp3 is not None else {}),
-            **rates(lines_of(files["AWSLambda"]), lines_of(files["AWSQueueService"]), lines_of(files["AWSELB"])),
+            **rates(
+                lines_of(files["AWSLambda"]),
+                lines_of(files["AWSQueueService"]),
+                lines_of(files["AWSELB"]),
+            ),
             **rds_storage(lines_of(files["AmazonRDS"])),
             **dynamodb(lines_of(files["AmazonDynamoDB"])),
             **api_gateway(lines_of(files["AmazonApiGateway"])),
@@ -431,4 +579,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

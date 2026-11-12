@@ -6,9 +6,9 @@ no rule names runs every job, so a new folder is tested until it has a rule. So 
 CI itself, a run started by hand, and a push without a usable base (a new branch, or history
 that was rewritten). `Commit messages` always runs and is not decided here.
 
-When a test starts reading a file outside its own part of the repository (the Python tests read
-docs/assumptions.md, the Java tests read parity/fixtures and examples/), add that
-file or its folder to RULES, or a change to it alone will not run the test.
+When a test starts reading a file outside its own part of the repository (the Java tests read
+docs/assumptions.md, parity/fixtures and examples/), add that file or its folder to RULES, or a
+change to it alone will not run the test.
 
     python3 scripts/ci_changes.py --base BASE_SHA --head HEAD_SHA        # what runs, and why
     python3 scripts/ci_changes.py --base BASE_SHA --head HEAD_SHA --github-output "$GITHUB_OUTPUT"
@@ -24,14 +24,12 @@ from collections.abc import Iterable
 from fnmatch import fnmatchcase
 from pathlib import Path
 
-# The jobs of .github/workflows/ci.yml that run only when a change needs them. `engine_tests` and
-# `benchmark_tests` are steps of the Python job, about 7 and 9 of its minutes on a hosted
-# runner: the frozen engine's tests, and the accuracy benchmarks' (which calibrate, simulate and
-# render docs/validation.md with the Java engine, ADR-0062). Only a change to an engine or to a
-# file they read can change their result.
+# The jobs of .github/workflows/ci.yml that run only when a change needs them. `benchmark_tests`
+# is a step of the Python job, about 9 of its minutes on a hosted runner: the accuracy
+# benchmarks' tests, which calibrate, simulate and render docs/validation.md with the Java engine
+# (ADR-0062). Only a change to the engine or to a file they read can change their result.
 JOBS = (
     "python",
-    "engine_tests",
     "benchmark_tests",
     "migrations",
     "java",
@@ -43,16 +41,17 @@ JOBS = (
 EVERY = frozenset(JOBS)
 NONE: frozenset[str] = frozenset()
 PYTHON = frozenset({"python"})
-ENGINE_TESTS = frozenset({"python", "engine_tests"})
 BENCHMARK_TESTS = frozenset({"python", "benchmark_tests"})
 JAVA = frozenset({"java", "e2e"})
 # The archsim-check action builds the Java CLI into its image from these modules and the Gradle
 # build (ADR-0060), so its job checks a change to any of them.
 CHECK_ACTION = frozenset({"archsim_check"})
-# The frozen engine and the Python environment: every Python process imports them (the archsim
-# CLI, the MCP server, the migrations, the end-to-end launcher's database maker), and
-# PriceSnapshotsTests checks the model ships the engine's snapshots as they are.
-PYTHON_RUNTIME = EVERY - {"web"}
+# The Python environment, which the jobs that run Python sync: the Python job's tests, the
+# benchmarks' harness, the migrations and the end-to-end launcher's database maker.
+PYTHON_RUNTIME = BENCHMARK_TESTS | {"migrations", "e2e"}
+# The web app's engine fixtures: archsim-engine's GeneratedFileTests checks them against the
+# engine's output, and the web app's tests read them.
+WEB_FIXTURES = frozenset({"web", "java", "e2e"})
 
 # (path, jobs). A path ending in "/" is a folder and covers everything in it, a path with a "*"
 # covers the paths it matches, and any other path is one file. The first rule that covers a
@@ -61,21 +60,19 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     # CI itself
     (".github/workflows/ci.yml", EVERY),
     ("scripts/ci_changes.py", EVERY),
-    # scripts/tests/test_sticky_comment.py (and the frozen engine's test_check.py) tests its comment,
-    # scripts/tests/test_archsim_check_action.py runs its check step, and the archsim-check job
-    # runs it
-    (".github/actions/", frozenset({"python", "engine_tests", "archsim_check"})),
+    # scripts/tests/test_sticky_comment.py tests its comment, scripts/tests/
+    # test_archsim_check_action.py runs its check step, and the archsim-check job runs it
+    (".github/actions/", frozenset({"python", "archsim_check"})),
     # benchmarks/tests/test_held_out.py reads its cpuset loop
     (".github/workflows/benchmark.yml", BENCHMARK_TESTS),
     (".github/", NONE),
     # The web app. The benchmarks' tests compare the accuracy page's copy with docs/validation/.
-    # archsim-engine's GeneratedFileTests (and the frozen engine's tests) check the fixtures
-    # `./gradlew :archsim-engine:generate` writes from the starter. archsim-model's
-    # DesignDocumentsTests reads the starter too.
+    # archsim-engine's GeneratedFileTests checks the fixtures `./gradlew :archsim-engine:generate`
+    # writes from the starter. archsim-model's DesignDocumentsTests reads the starter too.
     ("apps/web/src/data/accuracy.json", BENCHMARK_TESTS | {"web", "e2e"}),
-    ("apps/web/src/test/fixtures/starter.json", ENGINE_TESTS | {"web", "java", "e2e"}),
-    ("apps/web/src/test/fixtures/catalog.json", ENGINE_TESTS | {"web", "java", "e2e"}),
-    ("apps/web/src/test/fixtures/analysis-starter.json", ENGINE_TESTS | {"web", "java", "e2e"}),
+    ("apps/web/src/test/fixtures/starter.json", WEB_FIXTURES),
+    ("apps/web/src/test/fixtures/catalog.json", WEB_FIXTURES),
+    ("apps/web/src/test/fixtures/analysis-starter.json", WEB_FIXTURES),
     # the end-to-end launcher: the Java tests check the worker's command line in it
     ("apps/web/e2e/api-server.mjs", frozenset({"web", "java", "e2e"})),
     ("apps/web/", frozenset({"web", "e2e"})),
@@ -108,36 +105,31 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     ("gradlew.bat", JAVA),
     ("settings.gradle.kts", JAVA | CHECK_ACTION | BENCHMARK_TESTS),
     # Python
-    ("packages/engine/", PYTHON_RUNTIME),
     ("pyproject.toml", PYTHON_RUNTIME),
     ("uv.lock", PYTHON_RUNTIME),
     # the Alembic migrations, until stage 6; the end-to-end launcher makes its database
     # through the environment their project declares (psycopg)
     ("services/api/pyproject.toml", frozenset({"python", "migrations", "e2e"})),
     ("services/api/", frozenset({"python", "migrations"})),
-    ("packages/mcp/", PYTHON),
-    # The exporters write the Java tests' resources (archsim-engine/src/test/resources) and the
-    # golden files (scripts/golden/, which export_golden.py --check compares in the Python job);
-    # the engine's tests run export_web_fixtures.py, price and audit scripts.
-    ("scripts/export_web_fixtures.py", ENGINE_TESTS),
+    # The exporters write tables of Python's own answers (casefold, erfc, isprintable) that the
+    # Java tests, and the model for export_printable.py, read; scripts/tests checks the printable
+    # table against Python in the Python job.
     ("scripts/export_*", frozenset({"python", "java"})),
-    ("scripts/golden/", frozenset({"python", "java"})),
-    ("scripts/prices/", ENGINE_TESTS),
-    ("scripts/sizing_audit.py", ENGINE_TESTS),
     ("scripts/", PYTHON),
-    # the engines' speed (scripts/perf.py, the speed task): the Python job's parity page check
-    # reads two of these files, and no benchmark test reads any
+    # the engines' speed (the frozen engine's, and the Java speed task's): the Python job's
+    # parity page check reads two of these files, and no benchmark test reads any
     ("benchmarks/perf/", PYTHON),
     ("benchmarks/", BENCHMARK_TESTS),
-    # The fixtures the golden files and recordings were made from: the exporter reads them in the
-    # Python job, the API and app tests in the Java job.
-    ("parity/fixtures/", frozenset({"python", "java"})),
-    # The golden files: export_golden.py --check writes them, the Java parity tests read them.
-    ("parity/", frozenset({"python", "java", "e2e"})),
+    # The fixtures the golden files and recordings were made from, which the API and app tests
+    # read.
+    ("parity/fixtures/", frozenset({"java"})),
+    # The frozen engine's golden files and simulation baselines, which the Java tests read.
+    ("parity/", JAVA),
     # The templates: every part loads them.
     ("examples/", EVERY),
-    # The documents the Python tests compare with what the scripts generate; no job reads the rest.
-    ("docs/assumptions.md", ENGINE_TESTS),
+    # The documents the tests compare with what the engine or the scripts generate; no job reads
+    # the rest.
+    ("docs/assumptions.md", frozenset({"java"})),
     ("docs/validation.md", BENCHMARK_TESTS),
     # stage 4's parity page and its runs, which the Python job's page check reads
     ("docs/validation/java-parity.md", PYTHON),

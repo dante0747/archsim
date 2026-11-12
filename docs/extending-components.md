@@ -8,6 +8,17 @@ form from that catalog, so **no API or frontend changes are needed**.
 Read [`simulation-model.md`](simulation-model.md) first; your component must keep request
 accounting exact.
 
+> **This guide describes the Python engine**, `archsim_engine`, which stage 5 of the
+> [Java port](proposals/java-25-port.md) deleted on 12 Nov 2026; the tag `engine-0.16.0` keeps
+> it, with the files and tests named below. It has not been rewritten for the Java engine yet,
+> which has the same parts in other places: a type's config record and its `ComponentSpec`
+> (ports, request-type routing, validation) in `archsim-model`'s `io.archsim.model.component`,
+> registered in `StandardComponents`; its description, presets and what it models in
+> `archsim-model`'s `catalog/<type>.json`; and its behaviour during a run in `archsim-engine`'s
+> `components` package, a `RuntimeComponent` the simulator builds for each part (see
+> [archsim-model's](../archsim-model/README.md) and [archsim-engine's](../archsim-engine/README.md)
+> READMEs). The Java engine loads no plugins.
+
 ## Anatomy
 
 ```
@@ -25,7 +36,7 @@ ComponentModel (registry.py)          RuntimeComponent (runtime.py)
 ## Worked example: a fixed-delay component
 
 This is adapted from the component in `test_custom_component_can_be_registered_and_simulated`
-(`packages/engine/tests/test_schema_registry.py`). It adds a constant delay with unlimited
+(the Python engine's `tests/test_schema_registry.py`). It adds a constant delay with unlimited
 concurrency (think of a network hop or an external API with a fixed response time).
 
 ### 1. Config model
@@ -125,9 +136,9 @@ min_edges=0, max_edges=None)`:
 
 ### 4. Register it
 
-Built-in components are listed in `BUILTIN_MODELS` in
-`packages/engine/src/archsim_engine/components/__init__.py`. Add your class there and the
-default registry (used by the API and CLI) includes it.
+Built-in components are listed in `BUILTIN_MODELS` in the Python engine's
+`src/archsim_engine/components/__init__.py`. Add your class there and the default registry
+(used by its CLI and MCP server) includes it.
 
 For an external package, expose the model through an entry point instead:
 
@@ -137,8 +148,8 @@ For an external package, expose the model through an entry point instead:
 fixed_delay = "my_package.delay:FixedDelayModel"
 ```
 
-Install the package into the API's environment and start the API with
-`ARCHSIM_ENABLE_PLUGINS=1`. Entry points are only read from locally installed packages;
+Install the package into the Python engine's environment and set `ARCHSIM_ENABLE_PLUGINS=1`
+for its CLI and MCP server. Entry points are only read from locally installed packages;
 nothing can be uploaded through the API (see [SECURITY.md](../SECURITY.md)).
 
 In tests, use a private registry so you do not depend on global state:
@@ -208,8 +219,8 @@ Preset numbers are illustrative unless `sources` links the documentation that st
 is documented when one of its traits lists it in `covers` and has a `source`. Each profile has a
 `tier`, `experimental` unless you set `core`; the web app badges experimental technologies.
 After changing presets or profiles, regenerate the table of assumptions with
-`uv run python scripts/gen_assumptions.py` (a test fails when `docs/assumptions.md` is out of
-date).
+`./gradlew :archsim-engine:generate` (archsim-engine's `GeneratedFileTests` fails when
+`docs/assumptions.md` is out of date).
 
 Built-in examples: `database` (PostgreSQL, MongoDB sharded, Cassandra...), `service` (VM,
 Docker, Kubernetes HPA, serverless), `message_queue` (Kafka, RabbitMQ...), `external_api`
@@ -225,7 +236,8 @@ called, and link latency faults are applied by `ctx.call`.
 
 ## Testing checklist
 
-Put tests next to the engine tests (`packages/engine/tests/`):
+Put tests next to the engine tests (the Python engine's `tests/`; the Java engine's are in
+`archsim-engine/src/test/java`):
 
 - the catalog entry: fields, kinds, units, ports (`registry.catalog()`);
 - validation: each new rule produces the expected `code`, node/edge id and a hint;

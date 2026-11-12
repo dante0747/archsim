@@ -1,20 +1,18 @@
 [project]
 name = "archsim-workspace"
 version = "0.2.0"
-description = "Development workspace for ArchSim's Python parts (the frozen engine, its tools, the Alembic migrations). Not published."
+description = "Development workspace for ArchSim's Python parts (the Alembic migrations, the benchmark harness, the scripts). Not published."
 requires-python = ">=3.11"
-dependencies = ["archsim-engine", "archsim-api", "archsim-mcp"]
+dependencies = ["archsim-api"]
 
 [tool.uv]
 package = false
 
 [tool.uv.workspace]
-members = ["packages/engine", "services/api", "packages/mcp"]
+members = ["services/api"]
 
 [tool.uv.sources]
-archsim-engine = { workspace = true }
 archsim-api = { workspace = true }
-archsim-mcp = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -36,16 +34,10 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
 ignore = ["E501", "RUF012"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["archsim_engine", "archsim_api", "archsim_mcp", "engine_builders", "golden"]
+known-first-party = ["archsim_api"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["B011"]
-# Formulas shown to users use real math symbols (x, minus, divide, lambda, ceiling brackets).
-"packages/engine/src/archsim_engine/{explain,report}.py" = ["RUF001"]
-"packages/engine/src/archsim_engine/components/*.py" = ["RUF001"]
-"packages/engine/src/archsim_engine/export/*.py" = ["RUF001"]
-"packages/engine/src/archsim_engine/{sizing,cost,review,validation,assumptions}.py" = ["RUF001"]
-"packages/engine/tests/test_{analysis_rules,limits}.py" = ["RUF001"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -58,11 +50,5 @@ ignore_missing_imports = true
 plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
-testpaths = [
-  "packages/engine/tests",
-  "services/api/tests",
-  "packages/mcp/tests",
-  "benchmarks/tests",
-  "scripts/tests",
-]
+testpaths = ["services/api/tests", "benchmarks/tests", "scripts/tests"]
 addopts = "-q"

@@ -4,9 +4,13 @@
 still meet its objectives, and is it worse than the base branch?
 
 ```bash
-uv run archsim check archsim/design.json --baseline-ref origin/main \
+archsim check archsim/design.json --baseline-ref origin/main \
   --fail-on objectives --fail-on regression --format markdown --out check.md
 ```
+
+`archsim` is the Java CLI (`./gradlew :archsim-cli:installDist`, then
+`archsim-cli/build/install/archsim/bin/archsim`; see
+[archsim-cli/README.md](../archsim-cli/README.md#archsim-check)).
 
 | Exit code | Meaning |
 | --- | --- |
@@ -120,9 +124,9 @@ With [import](import.md), a change to Kubernetes manifests, a compose file or a 
 can be checked by regenerating the design on both sides and comparing them:
 
 ```bash
-git show origin/main:k8s/app.yaml | uv run archsim import k8s - -o /tmp/base.json
-uv run archsim import k8s k8s/app.yaml -o /tmp/head.json
-uv run archsim check /tmp/head.json --baseline /tmp/base.json --fail-on regression
+git show origin/main:k8s/app.yaml | archsim import k8s - -o /tmp/base.json
+archsim import k8s k8s/app.yaml -o /tmp/head.json
+archsim check /tmp/head.json --baseline /tmp/base.json --fail-on regression
 ```
 
 An imported design has default traffic and no objectives (infrastructure files state neither),
@@ -153,17 +157,16 @@ each, used the month's minutes in five days. So:
   itself, a push that starts a branch or rewrites history, and a run started by hand (Actions > CI >
   Run workflow). When a test starts reading a file from another part of the repository, add it to
   the script's `RULES`.
-- **The engine's and the benchmarks' tests run only when they can fail.** They are about 7 and
-  9 of the Python job's minutes. The Python engine is frozen at 0.16.0, and the benchmarks'
-  tests calibrate, simulate and render `docs/validation.md` with the Java engine
+- **The benchmarks' tests run only when they can fail.** They are most of the Python job's
+  minutes. They calibrate, simulate and render `docs/validation.md` with the Java engine
   ([ADR-0062](adr/0062-make-the-java-engine-the-harnesss-default.md)), so the Python job runs
-  them (steps `Engine tests` and `Benchmark tests`) only on a change to an engine (for the Java
-  engine, what its CLI is built from), the Python environment, the templates or a file they
-  read (`engine_tests` and `benchmark_tests` in the script's `RULES`). The benchmarks' tests
-  also ask the Java engine for the engine's functions
+  them (step `Benchmark tests`) only on a change to the Java engine (what its CLI is built
+  from), the Python environment, the templates or a file they read (`benchmark_tests` in the
+  script's `RULES`). They also ask the Java engine for the engine's functions
   ([ADR-0061](adr/0061-answer-the-harnesss-engine-calls-from-one-java-process.md)), so the job
-  installs a Java 25 and the CLI before them. A change to the migrations (`services/api`), the
-  MCP server or a script runs the rest of the Python tests, about a minute.
+  installs a Java 25 and the CLI before them. A change to the migrations (`services/api`) or a
+  script runs the rest of the Python tests, about a minute. The Python engine's tests went with
+  it at stage 5 of the Java port.
 - **Pushes to main never cancel one another**, since each push's run tests only what that push
   changed. A pull request's new commits still cancel its older run. A later push that skips a
   job does not retest it: when a job fails, its failure is in that push's run, and the job only

@@ -11,24 +11,26 @@ through [SECURITY.md](SECURITY.md), not public issues.
 ## Repository layout
 
 ```
-packages/engine/   Python package `archsim_engine`: schema, component registry, simulator,
-                   analysis, comparison, CLI (`archsim`). No web dependencies.
 services/api/      Python package `archsim_api`: the SQLAlchemy models and Alembic migrations
-                   the schema started from, and their CLI (`archsim-api migrate`, `seed`),
-                   until stage 6 of the Java port.
+                   the schema started from, and their CLI (`archsim-api migrate`), until
+                   stage 6 of the Java port.
+benchmarks/        Python: the accuracy benchmarks' harness, on the Java engine's CLI.
+scripts/           Python: developer scripts (CI's changed parts, commit messages, prices).
 apps/web/          Next.js 16 + React Flow editor and results UI.
 examples/          Example architecture documents (served by the API, used by tests).
 docs/              Design and reference documentation.
 
 archsim-model/     Java: the design document's records, upgrades, JSON Schema and validation
                    (the Java 25 port, see docs/proposals/java-25-port.md).
-archsim-engine/    Java: the engine's deterministic parts (stage 3 of the port).
+archsim-engine/    Java: the engine, the simulator and its deterministic parts.
 archsim-app/       Java: the HTTP API on Spring Boot 4 (stage 2 of the port); Flyway owns
                    the database schema.
 archsim-api-tests/ Java: black-box tests of the HTTP API.
-archsim-cli/       Java: the `archsim` command line (`archsim run` from stage 4 of the port).
+archsim-cli/       Java: the `archsim` command line.
+archsim-mcp/       Java: the MCP server for AI coding agents.
                    build-logic/ and gradle/ hold the build.
-parity/golden/     The Python engine's golden files, the reference for the Java port.
+parity/            What the Python engine 0.16.0 recorded before stage 5 deleted it (golden
+                   files, simulation baselines, test fixtures): the Java tests' reference.
 ```
 
 ## Development setup
@@ -37,7 +39,7 @@ Prerequisites: a JDK 25, Python 3.11+ (3.12 recommended), [uv](https://docs.astr
 Node.js 24 with npm, and PostgreSQL 16 (Docker Compose starts one).
 
 ```bash
-# Python workspace (the frozen engine, its tools, the migrations, dev tools) into .venv
+# Python workspace (the migrations, and the dev tools the harness and scripts use) into .venv
 uv sync
 
 # Web app
@@ -73,11 +75,12 @@ Run everything CI runs before opening a pull request:
 
 ```bash
 # Python
-uv run ruff check packages services
-uv run ruff format --check packages services
-uv run mypy packages/engine/src services/api/src packages/mcp/src
+uv run ruff check services benchmarks scripts
+uv run ruff format --check services benchmarks scripts
+uv run mypy services/api/src
+uv run mypy benchmarks
 ./gradlew :archsim-cli:installDist             # the benchmarks' tests call it: a Java 25 on JAVA_HOME or the PATH
-uv run pytest                                   # the engine, its tools and the migrations (SQLite)
+uv run pytest                                   # the migrations (SQLite), the benchmarks and the scripts
 
 # The migration tests against PostgreSQL (drops all tables in the target database!)
 docker compose up -d postgres
@@ -120,8 +123,9 @@ needs `uv` on PATH, the API's jar (`./gradlew :archsim-app:bootJar`) and a fresh
 replays it step by step. `npm run e2e:capture` retakes the README images in `docs/images/` and
 records the demo GIF (it needs ffmpeg for the GIF and takes a few minutes).
 
-`uv run ruff format packages services` fixes formatting. Tests must not depend on wall-clock
-speed beyond generous limits, and simulations in tests should use short durations.
+`uv run ruff format services benchmarks scripts` fixes the Python formatting. Tests must not
+depend on wall-clock speed beyond generous limits, and simulations in tests should use short
+durations.
 
 ## Working with AI assistants
 
@@ -165,18 +169,21 @@ Users compare runs and rely on reproducibility, so engine changes are held to a 
 1. Any change that can alter results for the same document and seed (event ordering, RNG
    stream usage, distributions, metric definitions, analysis thresholds) **must bump the engine's
    version**, `EngineVersions.ENGINE` in
-   `archsim-engine/src/main/java/io/archsim/engine/version/EngineVersions.java` (the Python
-   engine is frozen at 0.16.0). Every report records the engine version, and comparisons warn
-   when two runs used different versions.
-2. Update the reference benchmark in `packages/engine/tests/test_reference_benchmark.py`
-   if expectations legitimately change, and explain why in the PR. The analytic M/M/c checks
-   must keep passing.
+   `archsim-engine/src/main/java/io/archsim/engine/version/EngineVersions.java`. Every report
+   records the engine version, and comparisons warn when two runs used different versions.
+2. The Java engine's tests replay the runs and golden files the Python engine 0.16.0 recorded
+   ([parity/README.md](parity/README.md)), so a change to simulated results fails them; if
+   expectations legitimately change, explain why in the PR. The analytic checks must keep
+   passing: `QueueingTheoryTests` (M/M/c against Erlang C, Little's law),
+   `StarterReferenceTests` (the starter's documented ranges) and `EstimateAgreementTests` (the
+   instant estimate against the simulation), in archsim-engine's `simulator` tests.
 3. Keep request accounting exact: every request ends in exactly one outcome, and the per-node
    invariant `arrivals == completed + failedDownstream + rejected + inProgress` must hold.
 4. Update `docs/simulation-model.md` so the documented model matches the code.
 
-Changing the document schema requires bumping `SCHEMA_VERSION`, adding a migration in
-`packages/engine/src/archsim_engine/migrations.py`, and a test that an old document still
+Changing the document schema requires bumping `ArchitectureDocument.SCHEMA_VERSION`, adding an
+upgrade step at the end of `Upgrades.CHAIN` (archsim-model's `io.archsim.model.upgrade`,
+[ADR-0023](docs/adr/0023-upgrade-chain-on-the-json.md)), and a test that an old document still
 loads. Changing the database schema requires a new Flyway migration in
 `archsim-app/src/main/resources/db/migration/` (Flyway owns the schema,
 [ADR-0032](docs/adr/0032-flyway-takes-over-from-alembic.md)), and a change to `services/api`'s
@@ -185,10 +192,12 @@ a later revision would make Flyway refuse the database.
 
 ## Adding a component type
 
-New components (message broker, CDN, circuit breaker, ...) are added in the engine only: a
-config model, ports, validation, and runtime behaviour, registered with the component registry.
-The API exposes it and the web UI renders its palette entry and inspector form automatically.
-Follow [`docs/extending-components.md`](docs/extending-components.md).
+New components (message broker, CDN, circuit breaker, ...) are added in the model and the
+engine only: a config record, ports and validation in `archsim-model` (a `ComponentSpec`
+registered in `StandardComponents`, with its catalog entry), and runtime behaviour in
+`archsim-engine`. The API exposes it and the web UI renders its palette entry and inspector form
+automatically. [`docs/extending-components.md`](docs/extending-components.md) walks through the
+parts, as the Python engine had them.
 
 ## Questions
 

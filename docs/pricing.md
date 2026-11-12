@@ -91,8 +91,10 @@ base rate, so a design is priced before it runs.
 100 RCU and 60 WCU provisioned is 100 × $0.00013 × 730 + 60 × $0.00065 × 730 = $37.96 a month;
 the function at 150 invocations/s, 1,769 MB (1 vCPU) and about 40 ms each at the base load is
 394.2 M invocations × $0.20/M + 394.2 M × 0.04 s × 1.7275 GB × $0.0000166667 ≈ $530 a month, and
-the cost line agrees within a few percent (it uses the measured duration and rate);
-`test_cost_managed.py` keeps it within 10%.
+the cost line agrees within a few percent (it uses the measured duration and rate). The Python
+engine's `test_cost_managed.py` kept it within 10% until stage 5 of the Java port deleted that
+engine; the Java cost estimate gives that engine's figures on every golden entry
+([parity/README.md](../parity/README.md)).
 
 ## Which price a part gets
 
@@ -240,9 +242,8 @@ After the merge, **new projects** pin the new snapshot (the API pins the newest 
 snapshot the model ships). **Templates** keep the date they name, because a new snapshot can
 snap parts to other types and so change results. To move them: set `pricing.snapshotDate` in
 `examples/*.json` to the new date, then regenerate what depends on their results (as for any
-change to simulated results): delete `packages/engine/tests/snapshots/check-regression.md` and
-run `uv run pytest packages/engine/tests/test_check.py`, copy `examples/cache-aside-starter.json`
-to `apps/web/src/test/fixtures/starter.json`, run `./gradlew :archsim-engine:generate` (which
+change to simulated results): copy `examples/cache-aside-starter.json` to
+`apps/web/src/test/fixtures/starter.json`, run `./gradlew :archsim-engine:generate` (which
 analyzes that starter), and run the whole test suite.
 
 By hand:
@@ -272,7 +273,7 @@ GOOGLE_API_KEY=... uv run python scripts/prices/gcp.py --region us-central1   # 
   written anywhere.
 
 Their parsers are tested on small samples in each API's layout
-(`packages/engine/tests/test_price_scripts.py`); the AWS samples include the rows that tripped
+(`scripts/tests/test_price_refresh_scripts.py`); the AWS samples include the rows that tripped
 the first run against the live price lists. The AWS script has been run against the live lists
 (the snapshot above); **the Azure and GCP scripts have not**, so their first real refresh should
 be checked by hand (a few well-known prices against the provider's pricing page) before the

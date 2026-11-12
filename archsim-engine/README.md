@@ -19,7 +19,7 @@ on a shared host or a part's own hyperthreads, Kubernetes clusters, caches, data
 message queues: every part of the frozen engine, with the whole report. Each is checked by
 replaying the frozen engine's runs
 ([ADR-0049](../docs/adr/0049-measure-the-simulator-by-replaying-the-frozen-engines-runs.md)): the
-designs `scripts/export_simulation_cases.py` records and the golden files' 50 template runs. A
+designs the frozen engine's simulation cases recorded and the golden files' 50 template runs. A
 report repeats itself on every platform: every transcendental function goes through `StrictMath`,
 which an ArchUnit rule checks, and the digests keep the Python engine's definitions
 ([ADR-0050](../docs/adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)).
@@ -97,9 +97,9 @@ design the run simulated, as a part's settings are: a run's confidence takes its
 technologies and its links' names from the design, not from the report's
 `assumptions.technologies` and `input`.
 
-The Java departs from the Python engine in a few places (the Python engine stays frozen), and
-its tests say which. Where the Python engine fails, the Java gives a result instead (the owner's
-decision):
+The Java departs from the Python engine in a few places (the Python engine stayed frozen at
+0.16.0 until stage 5 deleted it), and its tests say which. Where the Python engine fails, the
+Java gives a result instead (the owner's decision):
 
 - A link to a part that does not exist: the Python estimate raises `KeyError`; the Java estimate
   leaves the calling part and the latency unestimated, so a half-drawn design still gets an
@@ -130,7 +130,9 @@ A report differs from the Python engine's in five ways, none in a digest
 
 - it names engine 1.0.0, where Python's named 0.16.0, so the golden files' `ENGINE_VERSION` is
   not checked (the assumptions page names the engine too, and the golden page is checked
-  rendered for 0.16.0, the version its file records);
+  rendered for 0.16.0, the version its file records; the page also names the command that writes
+  it, `./gradlew :archsim-engine:generate` where Python's named `scripts/gen_assumptions.py`, and
+  the golden page is checked with those two lines put back to Python's);
 - it is report 1.15, where Python's were 1.14, so the golden files' `REPORT_VERSION` is not
   checked;
 - its provenance names the Java runtime (`java`, the `java.version` property) where Python's
@@ -213,6 +215,10 @@ baseline: the conventions never catch `Exception` or `RuntimeException`
 ./gradlew :archsim-engine:test
 ```
 
+The golden files and the `cases.json` files below hold what the frozen Python engine 0.16.0
+gave, recorded by scripts that went with it at stage 5's exit (git history keeps them): they are
+data now, not recorded again.
+
 - `GoldenParityTests` runs every recorded call of each Python function this module ports, in
   every golden file, and expects the same output: text exactly, numbers to a relative 1e-9.
   `EngineFunctions` maps each Python name to its Java call, through one table per area
@@ -272,10 +278,11 @@ baseline: the conventions never catch `Exception` or `RuntimeException`
   - importing the engine's fixtures, every template's compose file and manifests as the exports
     write them, and the text the importers refuse (`importers.import_design`); one entry departs,
     `compose-bad-yaml`, whose description of the YAML is SnakeYAML's (ADR-0043);
-  - the assumptions page (`assumptions.render`, which `scripts/gen_assumptions.py` writes to
-    `docs/assumptions.md` until the Python engine goes), rendered for the version its golden
-    file records, and the constants it lists (`assumptions.constants`); the engine's versions
-    (`version.ENGINE_VERSION`, `REPORT_VERSION`) are the Java engine's own;
+  - the assumptions page (`assumptions.render`), rendered for the version its golden file
+    records, its two lines that name the command that writes it put back to the Python script's
+    (`docs/assumptions.md` is the page for the Java engine's own version, which
+    `GeneratedFileTests` checks, below), and the constants it lists (`assumptions.constants`);
+    the engine's versions (`version.ENGINE_VERSION`, `REPORT_VERSION`) are the Java engine's own;
   - calibration's mapping (`calibration.mapping.load_mapping`), ranges (`apply.parse_range`),
     the recorded Prometheus results read as histograms and figures (`prometheus.histogram`,
     `reduce`), the latency fits (`fit.fit_histogram`, `fit_samples`) and the replay summary of
@@ -300,29 +307,29 @@ baseline: the conventions never catch `Exception` or `RuntimeException`
     `sweep.suggest_range`, `rps_cap`, `levels`; `report.canonical_digest`).
 - Where the golden files do not reach a branch (a design on a host machine, a pod bigger than
   its node, an instance type set on the part, a size no type covers, an input measured before,
-  and more), the unit tests expect the values and words the Python engine gives. The instant
+  and more), the unit tests expect the values and words the Python engine gave. The instant
   estimate's such cases are in `estimate/cases.json`, each a resolved design with the Python
-  engine's estimate, which `scripts/export_estimate_cases.py` writes (`--check` compares a fresh
-  export); `numeric/erfc.csv` holds Python's `math.erfc` at points over every interval of the
-  approximation, from `scripts/export_erfc_points.py`. The cost estimate's and the sizing
-  summary's cases are in `cost/cases.json`, from `scripts/export_cost_cases.py`, which
-  `CostEstimatorTests` and `SizingSummariesTests` check. The analysis's, the prepared runs' and
-  the technology names' are in `analysis/cases.json`, from `scripts/export_analysis_cases.py`,
-  which `DesignAnalyzerTests`, `RunPreparerTests` and `TechnologyNamesTests` check. The design
-  review's are in `review/cases.json`, from `scripts/export_review_cases.py`, which
+  engine's estimate, recorded by `scripts/export_estimate_cases.py`; `numeric/erfc.csv` holds
+  Python's `math.erfc` at points over every interval of the approximation, from
+  `scripts/export_erfc_points.py`. The cost estimate's and the sizing summary's cases are in
+  `cost/cases.json`, recorded by `scripts/export_cost_cases.py`, which `CostEstimatorTests` and
+  `SizingSummariesTests` check. The analysis's, the prepared runs' and the technology names' are
+  in `analysis/cases.json`, recorded by `scripts/export_analysis_cases.py`, which
+  `DesignAnalyzerTests`, `RunPreparerTests` and `TechnologyNamesTests` check. The design review's
+  are in `review/cases.json`, recorded by `scripts/export_review_cases.py`, which
   `DesignReviewTests` checks. The report functions' are in `report/cases.json`, each a call with
-  the Python engine's output in the golden files' own format, from
+  the Python engine's output in the golden files' own format, recorded by
   `scripts/export_report_cases.py`, which `ReportCasesTests` replays through `EngineFunctions`.
   The run analysis's are in `findings/cases.json`: golden reports with the figures (or settings)
   changed that reach each branch, cut to what the analysis reads, with the Python engine's
-  findings and each part's status, from `scripts/export_findings_cases.py`, which
+  findings and each part's status, recorded by `scripts/export_findings_cases.py`, which
   `FindingsCasesTests` checks.
-- Whole simulations are in `simulator/cases.json.gz`, from `scripts/export_simulation_cases.py`:
-  small designs, each reaching a feature of the simulator (clients' timeouts and retries, client
-  groups, traffic patterns, faults, a set drain, a calibrated scenario of a priced API, services
-  with queues, retrying links, event loops on contended cores, garbage collection, memory limits,
-  load curves, a CPU ceiling just above the slots' and calls in order, autoscaling up and down
-  on handlers or CPU, load balancers by each
+- Whole simulations are in `simulator/cases.json.gz`, recorded by
+  `scripts/export_simulation_cases.py`: small designs, each reaching a feature of the simulator
+  (clients' timeouts and retries, client groups, traffic patterns, faults, a set drain, a
+  calibrated scenario of a priced API, services with queues, retrying links, event loops on
+  contended cores, garbage collection, memory limits, load curves, a CPU ceiling just above the
+  slots' and calls in order, autoscaling up and down on handlers or CPU, load balancers by each
   policy with retries, circuit breakers, upstream timeouts and rate limits, or none of them;
   services sharing a host or on their own hyperthreads; caches with a fixed hit ratio or TTL
   keys over the workload's keyspace, sharded, evicting or refusing keys when full,
@@ -352,18 +359,30 @@ baseline: the conventions never catch `Exception` or `RuntimeException`
   the report the frozen engine recorded: each replay gives that report, and the calibration its
   recorded outcome.
 - `SizingAuditTests` checks auto-sizing against what the simulation then does, on every
-  template's run compressed to 15 seconds: the port of `scripts/sizing_audit.py` (in
-  `sizing.audit`: `SizingAudit` runs `CpuCheck`, `ResourceChecks`, `ScaleChecks` and
-  `PerRequestCheck`, which read the Java engine's report as the script read Python's). Each
-  auto-sized part's p95 CPU is 25% to 75% of its vCPU or has a stated reason, no auto-sized part
-  is the bottleneck by its CPU or memory, memory peak ≤ need ≤ instance, a re-run gives the same
-  types and cost, 1.5 and 2 times the rate never give a cheaper type, per-request lines are within
-  10% of a hand calculation, and the monthly cost is at most 1.15 times a hand-picked reference.
-  On every template its checks are the script's on the frozen engine, part for part (301 checks).
+  template's run compressed to 15 seconds: the port of `scripts/sizing_audit.py`, which went
+  with the Python engine at stage 5's exit (in `sizing.audit`: `SizingAudit` runs `CpuCheck`,
+  `ResourceChecks`, `ScaleChecks` and `PerRequestCheck`, which read the Java engine's report as
+  the script read Python's). Each auto-sized part's p95 CPU is 25% to 75% of its vCPU or has a
+  stated reason, no auto-sized part is the bottleneck by its CPU or memory, memory peak ≤ need ≤
+  instance, a re-run gives the same types and cost, 1.5 and 2 times the rate never give a
+  cheaper type, per-request lines are within 10% of a hand calculation, and the monthly cost is
+  at most 1.15 times a hand-picked reference. On every template its checks are the script's on
+  the frozen engine, part for part (301 checks).
+- `QueueingTheoryTests`, `StarterReferenceTests` and `EstimateAgreementTests` (in `simulator`)
+  hold the simulator to queueing theory, which does not move with the engine, as the frozen
+  engine's `test_reference_benchmark.py` and `test_estimate.py` did, with their tolerances: one
+  service with Poisson arrivals and exponential service is an M/M/c queue whose mean response is
+  Erlang C's within 8% (M/M/1 at 50% and 80% load, M/M/4 at 80%), its utilization the offered
+  load within 5% and an M/M/1's median `ln 2 / (mu - lambda)` within 8%; Little's law holds
+  within 10% at the starter's API and database; the starter's scenarios stay in their documented
+  ranges and directions; and the instant estimate's mean and p95 are within 15% of the
+  simulated ones on the starter and the queueing lab, its busiest part's utilization within 5
+  points.
 - `GeneratedFileTests` holds the repository's files the engine generates to its output: the
   web app's engine fixtures (`apps/web/src/test/fixtures/catalog.json`, the component catalog
   as `GET /api/v1/components` answers it, and `analysis-starter.json`, the starter's analysis
-  as `POST /api/v1/analyze` answers it), one `GeneratedFile` each.
+  as `POST /api/v1/analyze` answers it) and `docs/assumptions.md` (`AssumptionsPage`, for this
+  engine's version), one `GeneratedFile` each.
   `./gradlew :archsim-engine:generate` writes them (`GeneratedFile.main`); the test task declares
   them as inputs, so an edit to one runs the check again.
 - `./gradlew :archsim-engine:parity` runs `SimulationParityTests` (tagged `parity`, left out of
@@ -379,36 +398,38 @@ baseline: the conventions never catch `Exception` or `RuntimeException`
   `.threads=N` and `.only=TEMPLATE,...` choose how; hours of simulation, under a six-hour
   timeout.
 - `./gradlew :archsim-engine:speed` runs `SimulationSpeedTests` (tagged `speed`, left out of
-  `test`): every template as shipped, timed as `scripts/perf.py` times the frozen engine's
-  (five runs, or `-Parchsim.speed.repeats=N`, with its limits, after one that warms the JVM)
-  and written in its shape (`SpeedRow`) to `build/parity/speed.json`, or
+  `test`): every template as shipped, timed as `scripts/perf.py` timed the frozen engine's
+  before both went (five runs, or `-Parchsim.speed.repeats=N`, with its limits, after one that
+  warms the JVM) and written in its shape (`SpeedRow`) to `build/parity/speed.json`, or
   `-Parchsim.speed.out=FILE`. Minutes, on a quiet machine. Both measured tasks run without the
   coverage agent.
-- Load sweeps and checks are in `sweep/cases.json.gz`, from `scripts/export_sweep_cases.py`:
-  breaking points over a range found from the load or asked for (one capped by the request
-  limit, one capped below the lowest load a step runs, steps too short for their warm-up), a
-  scenario's, a design's swept without its outage, a design that misses its objectives at the
-  lightest load; a design's and its baseline's breaking points on one grid, with and without the
-  finer second sweep; a scenario measured with its knee; and whole checks, against a baseline
-  with knees, against one over the request limit, and against one without the check's scenario.
-  `SweepCasesTests` runs each in Java (several steps at once, which it checks gives the sweep run
-  one step at a time): text and every step's digest exactly, numbers to a relative 1e-9.
-- The kernel's order of events is in `kernel/cases.json`, from `scripts/export_kernel_cases.py`:
-  small SimPy programs (timeouts and process starts at equal times, processes waiting on
-  processes, resource contention, a request granting the oldest waiter, queue timeouts, stores,
-  conditions, a condition nested in another, a chunked run), each with what it saw, when, and
-  how many events SimPy processed; `TimingCasesTests` and `QueueCasesTests` run each program's
-  Java twin and expect the same.
-- The metric primitives' cases are in `metrics/cases.json`, from `scripts/export_metrics_cases.py`:
-  recorded increments, level changes (some at one moment), latencies and values on timelines of
-  several lengths, with every series, total and summary the frozen engine's `metrics` module
-  gives, which `SeriesCasesTests` and `HistogramCasesTests` check: bit for bit, except a
-  histogram's percentiles before they are rounded, to a relative 1e-14 (they go through `pow`).
-- The simulator's random draws are in `random/cases.json`, from `scripts/export_random_cases.py`
-  (the frozen engine's `derive_rng`, `random.Random` on edge seeds, `getrandbits`, `randrange`,
-  the samplers, each distribution and the Zipf sampler), which `RandomCasesTests` checks: draws
-  that are arithmetic bit for bit, those through `log` or `exp` to a relative 1e-14 (the file
-  marks them).
+- Load sweeps and checks are in `sweep/cases.json.gz`, recorded by
+  `scripts/export_sweep_cases.py`: breaking points over a range found from the load or asked for
+  (one capped by the request limit, one capped below the lowest load a step runs, steps too
+  short for their warm-up), a scenario's, a design's swept without its outage, a design that
+  misses its objectives at the lightest load; a design's and its baseline's breaking points on
+  one grid, with and without the finer second sweep; a scenario measured with its knee; and
+  whole checks, against a baseline with knees, against one over the request limit, and against
+  one without the check's scenario. `SweepCasesTests` runs each in Java (several steps at once,
+  which it checks gives the sweep run one step at a time): text and every step's digest exactly,
+  numbers to a relative 1e-9.
+- The kernel's order of events is in `kernel/cases.json`, recorded by
+  `scripts/export_kernel_cases.py`: small SimPy programs (timeouts and process starts at equal
+  times, processes waiting on processes, resource contention, a request granting the oldest
+  waiter, queue timeouts, stores, conditions, a condition nested in another, a chunked run), each
+  with what it saw, when, and how many events SimPy processed; `TimingCasesTests` and
+  `QueueCasesTests` run each program's Java twin and expect the same.
+- The metric primitives' cases are in `metrics/cases.json`, recorded by
+  `scripts/export_metrics_cases.py`: recorded increments, level changes (some at one moment),
+  latencies and values on timelines of several lengths, with every series, total and summary the
+  frozen engine's `metrics` module gave, which `SeriesCasesTests` and `HistogramCasesTests`
+  check: bit for bit, except a histogram's percentiles before they are rounded, to a relative
+  1e-14 (they go through `pow`).
+- The simulator's random draws are in `random/cases.json`, recorded by
+  `scripts/export_random_cases.py` (the frozen engine's `derive_rng`, `random.Random` on edge
+  seeds, `getrandbits`, `randrange`, the samplers, each distribution and the Zipf sampler), which
+  `RandomCasesTests` checks: draws that are arithmetic bit for bit, those through `log` or `exp`
+  to a relative 1e-14 (the file marks them).
 - The other tests specify each class.
 - `ArchitectureTests` checks that the engine uses no framework or database class, and that its
   packages have no cycles.

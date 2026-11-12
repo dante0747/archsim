@@ -62,6 +62,16 @@ Chosen option: "Freeze the engine, and run the held-out campaign before stage 4"
   - retry budgets and circuit breakers;
   - right-sizing from a run (W15).
 
+**Status (12 Nov 2026):** the frozen engine is deleted at stage 5's exit of the port, with its
+MCP server (`packages/engine`, `packages/mcp`); the tag `engine-0.16.0` keeps it as it was
+frozen, and `benchmarks/engines.json` keeps its entry. The Java engine, 1.0.0, replays it figure
+for figure, and what it recorded stays as the Java tests' data, not recorded again: the golden
+files, the simulation baselines and the recorded cases
+([`parity/README.md`](../../parity/README.md)). With the directory gone, no test holds a commit
+under `packages/engine` to the frozen tree;
+`test_engine_0_16_0_is_frozen_for_the_held_out_campaign` still checks the entry against its
+tag's tree where the tag is in the clone.
+
 ### Consequences
 
 - Good, because the parity checks compare against an engine that doesn't move.

@@ -109,7 +109,9 @@ The import finishes the design so it validates and simulates, and lists each ste
   container, a 128 MB function) would leave no room for a single request, so memory at idle is
   set to half the limit, noted, and listed.
 
-A test imports every fixture and checks that the design validates without errors and runs.
+The Python engine's tests imported every fixture and checked that the design validates without
+errors and runs, until stage 5 of the Java port deleted that engine; the Java importers give its
+designs and reports on every fixture (the golden files, [parity/README.md](../parity/README.md)).
 
 ## Round trip
 
@@ -122,9 +124,10 @@ as Compose labels (`archsim.node`, `archsim.technology`, `archsim.calls`, `archs
 `archsim.dev/calls`, `archsim.dev/runtime`, `archsim.dev/platform`, `archsim.dev/type`; a
 Knative Service's replicas as `autoscaling.knative.dev/initial-scale`), and an `x-archsim` block
 (Compose) or a `<name>-archsim` ConfigMap (Kubernetes, safe to delete). `archsim.calls` lists
-`target[/port][:types]`, for example `db/miss:read,queue:write`. A test exports every template to
-both formats and imports it back: the same parts, types, technologies, replicas, autoscaling and
-links, with no guesses.
+`target[/port][:types]`, for example `db/miss:read,queue:write`. The Python engine's tests
+exported every template to both formats and imported it back: the same parts, types,
+technologies, replicas, autoscaling and links, with no guesses. The Java engine gives that
+engine's imports of the same exports (the golden files).
 
 It is not the same design, and it does not simulate the same. Not carried: service times, cache
 hit ratios and TTLs, link timeouts and retries, workers per replica and queue sizes, connection

@@ -26,8 +26,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * The sizing summary in the cases the golden files do not reach: specs set on the design
  * or by a scenario, managed and per-use parts, sizes no instance type covers, and
  * settings read leniently. The cases are the cost estimate's ({@code cost/cases.json},
- * written by {@code scripts/export_cost_cases.py}), each with the summary the Python
- * engine 0.16.0 gives.
+ * recorded from the frozen engine by {@code scripts/export_cost_cases.py}, since
+ * deleted), each with the summary the Python engine 0.16.0 gives.
  */
 class SizingSummariesTests {
 

@@ -14,10 +14,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * {@code archsim compare} against the frozen engine's CLI: each case of
- * {@code compare-cases.json.gz} ({@code scripts/export_cli_cases.py}) exits with the code
- * Python's did and prints what it printed, word for word. Python's {@code compare} caught
- * nothing: where it crashed, on a design or scenario it could not simulate, the Java
- * command refuses it as {@code run} does, with exit code 1.
+ * {@code compare-cases.json.gz} (recorded by {@code scripts/export_cli_cases.py}, since
+ * deleted) exits with the code Python's did and prints what it printed, word for word.
+ * Python's {@code compare} caught nothing: where it crashed, on a design or scenario it
+ * could not simulate, the Java command refuses it as {@code run} does, with exit code 1.
  */
 class CompareCommandTests {
 

@@ -33,64 +33,27 @@ flowchart LR
 
 ## Layers
 
-### Engine (`packages/engine`, import name `archsim_engine`)
+### CLI (`archsim-cli`, Java)
 
-Pure Python, depends only on SimPy, Pydantic and PyYAML, and frozen at 0.16.0 during the Java
-port ([ADR-0017](adr/0017-freeze-python-engine-during-port.md)). Since stage 4 the API and the
-workers run none of it: the Java engine, `archsim-engine` (below), simulates every run and
-replay, checked against this engine's recorded runs. It serves the `archsim` CLI, the MCP server
-and the benchmark harness, and the golden files and baselines the Java parity tests compare
-with. It owns:
-
-| Module | Responsibility |
-| --- | --- |
-| `schema.py` | Versioned document model (Pydantic, camelCase JSON). |
-| `migrations.py` | Upgrades older documents; rejects newer ones. |
-| `distributions.py` | Constant, exponential, uniform and lognormal (median/p95) distributions in ms. |
-| `registry.py` | `ComponentModel`, `PortSpec`, `ComponentRegistry`, UI field descriptors, entry-point plugin loading. |
-| `components/` | Built-in models: traffic source, load balancer, service, cache, database. |
-| `validation.py` | Structural, port, request-type routing, cycle and amplification checks with actionable issues. |
-| `scenarios.py` | Loading, default materialisation, scenario override resolution. |
-| `runtime.py` | Requests, outcomes, worker pools, call/timeout/retry protocol, seeded RNG streams. |
-| `metrics.py` | Bounded-memory counters, time-weighted gauges, log-bucketed histograms. |
-| `engine.py` | `run_simulation`: arrivals, chunked execution, progress, cancellation, limits. |
-| `report.py` | Builds the JSON report (summary, time series, per-node metrics, provenance). |
-| `analysis.py` | Node status classification and bottleneck findings. |
-| `load.py` | Static peak-load estimate per part (no simulation). |
-| `sizing.py` | Auto-sizing: CPU, memory and storage for empty specs, applied before every run. |
-| `cost.py` | Monthly cost estimate (per run in the report, per design in `analyze.py`). |
-| `review.py` | Design review: the architecture linter (single points of failure, timeouts, retries...). |
-| `analyze.py` | `analyze_document`: sizes, cost, review and technology tiers of a design without simulating. |
-| `technology.py` | Technology profiles: "auto" defaults, traits with documentation links, tier (core or experimental). |
-| `provenance.py` | Where every input came from: measured (with source and fit), assumed or illustrative. |
-| `calibration/` | Calibration from Prometheus (`prometheus.py`, `mapping.py`, `apply.py`) and OpenTelemetry (`otlp.py`), fitting (`fit.py`) and the replay check. |
-| `assumptions.py` | Renders docs/assumptions.md: every default, preset number and constant, documented or illustrative. |
-| `export/` | docker-compose, Kubernetes and Mermaid scaffolding (`export_document`; `archsim export` and the MCP server; the API's `POST /export` uses its Java port). |
-| `importers/` | docker-compose, Kubernetes and Terraform to a design plus an import report (`import_design`; `archsim import`; the API's `POST /import` uses its Java port). |
-| `pricing/` | Price snapshots (`archsim.prices/1`), the generic illustrative rates, and choosing the cheapest instance type that covers a part (used by sizing and cost). |
-| `roundtrip.py` | What exports carry so an import gives the design's structure back (part ids, technologies, links, clients and clusters; not service times or the workload), shared by both sides. |
-| `sweep.py` | Breaking point: constant-load steps, the knee and the highest load within the objectives. |
-| `slo.py` | Objectives: the verdict of a run (p95, p99, availability, throughput). |
-| `compare.py` | Two-report comparison with input diff and explanations. |
-| `check.py` | The CI gate: objectives and regressions against a baseline, the Markdown comment (`archsim check`, `.github/actions/archsim-check`). |
-| `cli.py` | The `archsim` command: `validate`, `run`, `analyze`, `compare`, `calibrate`, `import`, `export`, `check`, `catalog`, `schema`. |
-
-The engine can be used directly:
-
-```python
-from archsim_engine import run_simulation, compare_reports
-report = run_simulation(document_dict, scenario_id="three-api-replicas")
-```
+The `archsim` command ([`archsim-cli/README.md`](../archsim-cli/README.md)) on the Java engine,
+without the API or a database: `validate`, `run`, `analyze`, `compare`, `calibrate`, `import`,
+`export`, `check` (the CI gate, which the `archsim-check` action runs from an image the job
+builds; see [`ci.md`](ci.md)), `catalog` and `schema`. It replaced the Python engine's CLI with
+the same flags, lines and exit codes
+([ADR-0055](adr/0055-the-java-clis-output-contract.md)). The benchmark harness calls it too,
+for its simulations and, through a hidden `archsim functions`, for the engine's fits, machine
+speeds and means
+([ADR-0061](adr/0061-answer-the-harnesss-engine-calls-from-one-java-process.md)).
 
 ### MCP server (`archsim-mcp`, Java)
 
 A stdio [MCP](https://modelcontextprotocol.io) server on the official MCP Java SDK
 ([`archsim-mcp/README.md`](../archsim-mcp/README.md)) that calls the Java engine directly: tools
 to list, validate, analyze, simulate, compare, sweep, export, import and calibrate, plus
-resources for the templates, the JSON Schema and the simulation model. It replaces the Python
-server (`packages/mcp`) tool for tool, with the same schemas and values
-([ADR-0058](adr/0058-serve-mcp-with-the-official-mcp-java-sdk.md)), until the Java port's stage 5
-removes it. See [`agents.md`](agents.md).
+resources for the templates, the JSON Schema and the simulation model. It replaced the Python
+server (`packages/mcp`, deleted at the end of the Java port's stage 5) tool for tool, with the
+same schemas and values ([ADR-0058](adr/0058-serve-mcp-with-the-official-mcp-java-sdk.md)). See
+[`agents.md`](agents.md).
 
 ### API (`archsim-app`, Java)
 
@@ -120,6 +83,14 @@ the worker role simulates the runs it claims
 ([ADR-0053](adr/0053-simulate-runs-in-the-java-apps-worker-role.md)). It is engine 1.0.0, which
 replays the frozen engine 0.16.0's runs figure for figure
 ([java-parity.md](validation/java-parity.md)).
+
+That frozen engine was the Python package `archsim_engine` (`packages/engine`, on SimPy and
+Pydantic), frozen at 0.16.0 for the port
+([ADR-0017](adr/0017-freeze-python-engine-during-port.md)). Until stage 5 it served the CLI, the
+MCP server and the benchmark harness; at stage 5's exit it was deleted, and the tag
+`engine-0.16.0` keeps it. What it recorded stays as the Java tests' data, not recorded again:
+the golden files, the simulation baselines and the recorded cases
+([parity/README.md](../parity/README.md)).
 
 ### Workers (`archsim-app`'s `worker` role)
 
@@ -152,8 +123,8 @@ golden files): auto sizes, cost estimates and the design review come from
 `POST /api/v1/analyze` (called with live validation) and from each run's report, so the CLI, the
 API and the web app give the same answers; the docker-compose / Kubernetes / Mermaid exports
 come from `POST /api/v1/export`. SLO evaluation, replay events and load sweep
-analysis still have TypeScript modules in `apps/web/src/lib/` (the engine has its own
-`slo.py` and `sweep.py` for the CLI and the MCP server; moving the web app onto them is open)
+analysis still have TypeScript modules in `apps/web/src/lib/` (the engine has its own, `slo`
+and `sweep`, for the CLI and the MCP server; moving the web app onto them is open)
 with unit tests (web tests use engine fixtures written by
 `./gradlew :archsim-engine:generate`); the simulation itself only ever runs in the engine.
 
@@ -173,19 +144,22 @@ so the document schema itself does not depend on the component catalog.
 
 ## Component registry
 
-Every component type is a `ComponentModel` subclass registered in a `ComponentRegistry`:
+Every component type is a `ComponentSpec` (`archsim-model`'s `io.archsim.model.component`)
+registered in a `ComponentRegistry`; `StandardComponents.registry()` holds ArchSim's own:
 
-- **ports** (`PortSpec`): direction, accepted/emitted request types (`read`, `write`), min and
-  max number of links;
-- **config model**: a Pydantic model whose fields carry UI metadata via `ui(...)` (unit, group,
-  assumption flag, conditional visibility);
-- **validation**: `emitted_types()` for request-type routing and `validate()` for type-specific
+- **ports** (`Port`): direction, accepted/emitted request types (`read`, `write`), min and max
+  number of links;
+- **config**: a record whose fields carry UI metadata in `@Ui` hints (unit, group, assumption
+  flag, conditional visibility), with the type's description, presets and what it models in its
+  `catalog/<type>.json` ([ADR-0031](adr/0031-component-catalog-facts-and-presentation.md));
+- **validation**: `emittedTypes()` for request-type routing and `validate()` for type-specific
   rules;
-- **runtime**: `build()` returns a `RuntimeComponent` that implements `handle(request)` as a
-  SimPy generator.
+- **runtime**: `archsim-engine`'s `components` package, whose `RuntimeComponent` the simulator
+  builds for each part from its config, its steps run by the event kernel.
 
-`registry.catalog()` turns all of this into JSON for the UI. Adding a component therefore needs
-no API or frontend changes; see [`extending-components.md`](extending-components.md).
+`ComponentCatalog` turns all of this into JSON for the UI (`GET /api/v1/components`). Adding a
+component therefore needs no API or frontend changes; see
+[`extending-components.md`](extending-components.md).
 
 ## Run lifecycle
 
@@ -287,7 +261,7 @@ Documents are `JSONB`. The Alembic migrations' tests also run on SQLite, as CI d
 Every report carries `provenance`: engine, schema and report versions, seed, scenario id and
 name, the exact overrides applied, `inputDigest` (SHA-256 of the canonical resolved input) and
 `resultDigest` (SHA-256 of the canonical results). The same input, scenario, seed and engine
-version produce the same `resultDigest`: on every platform with the Java simulator, which takes
-its transcendental functions from `StrictMath`, and on the same platform with the frozen Python
-engine ([ADR-0050](adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)). See
+version produce the same `resultDigest` on every platform with the Java simulator, which takes
+its transcendental functions from `StrictMath`; the frozen Python engine gave it on the same
+platform only ([ADR-0050](adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)). See
 [`simulation-model.md`](simulation-model.md#determinism).

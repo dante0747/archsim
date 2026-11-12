@@ -3,32 +3,15 @@
 `parity/golden/` holds the inputs and outputs of every deterministic function of the Python
 engine **0.16.0**, the frozen parity reference of the [Java port](../docs/proposals/java-25-port.md).
 A Java test reads an entry, feeds the function the recorded input and compares its output with the
-recorded one: text exactly, numbers to a relative 1e-9. No Python is needed, so the files stay
-after the Python engine is deleted (stage 4).
+recorded one: text exactly, numbers to a relative 1e-9. No Python is needed, so the files stayed
+when stage 5 deleted the Python engine (the tag `engine-0.16.0` keeps it).
 
-They are written by [`scripts/export_golden.py`](../scripts/export_golden.py), the command line of
-the exporter package [`scripts/golden/`](../scripts/golden/__init__.py):
-
-```sh
-uv run python scripts/export_golden.py                     # write parity/golden/ (~40 s; ~95 s in one process)
-uv run python scripts/export_golden.py --check             # exit 1, naming what differs
-uv run python scripts/export_golden.py --only queueing-lab # one template (or e.g. catalog/pricing)
-uv run python scripts/export_golden.py --jobs 1            # one process (default: up to 8)
-```
-
-`--check` is the CI guard of the engine freeze: the committed files must be what the engine gives.
-It compares content, not bytes: text and structure exactly, numbers to a relative 1e-9, because
-another platform's math library (`log`, `exp`, `pow`) may round the last digit of a float
-differently; a file that differs only there is noted, not failed. If a change to the files is
-intended, regenerate and say why in the commit.
-`scripts/tests/test_export_golden.py` checks one template against its file, replays its entries, and
-checks the manifest and the format of every file; `scripts/tests/test_golden_codec.py` checks the
-JSON conventions below.
-
-The exporter's modules, from the bottom up: `paths` (where it reads and writes), `codec` (the JSON
-conventions), `adapters` (the engine functions an entry may name, one module per engine area),
-`file` (one file under construction: its entries and references), `files` (what each file records),
-`build`, `store` and `compare` (building, writing and `--check`), and `cli`.
+They were written by `scripts/export_golden.py`, the command line of the exporter package
+`scripts/golden/`, from the frozen engine. Both went with the engine at stage 5's exit, with
+their tests (git history keeps them): the files are data now, not recorded again. Until then
+`export_golden.py --check` was the CI guard of the engine freeze: the committed files had to be
+what the engine gave, compared by content (text and structure exactly, numbers to a relative
+1e-9), not by bytes.
 
 In all: 34 files and about 6,000 entries, 4.5 MB compressed (30 MB of JSON).
 
@@ -63,8 +46,8 @@ ports.
 
 Each `.json.gz` is gzip (`mtime` 0) of **canonical JSON**: keys sorted, no whitespace (`,` and
 `:`), UTF-8 with non-ASCII characters as they are, no NaN. Compare decompressed content: another
-zlib may compress the same JSON to other bytes (the exporter leaves a file alone when its content
-has not changed).
+zlib may compress the same JSON to other bytes (the exporter left a file alone when its content
+had not changed).
 
 ## Entries
 
@@ -138,7 +121,7 @@ comparison               the two runs compared: compare_reports, input_diff, sum
 ```
 
 The case entries follow `analyze_document` step by step, so each function can be tested alone and
-the composition checked against `analyze_document`; the exporter fails if they disagree.
+the composition checked against `analyze_document`; the exporter failed if they disagreed.
 
 ### Recorded runs
 
@@ -162,8 +145,8 @@ measured apart.
   template's. The compressed document is recorded.
 - The report's machine-dependent provenance is blanked: `wallSeconds` is 0 and `python` is
   `"normalized"`.
-- The exporter checks that each function fed the finished report reproduces what the report holds
-  (findings, confidence, cost, each node's generic formulas, both digests), so the report is
+- The exporter checked that each function fed the finished report reproduced what the report
+  holds (findings, confidence, cost, each node's generic formulas, both digests), so the report is
   enough input. `explain.generic`'s `poolBased`, which a report does not show, was captured from the
   run. Component-specific formulas follow the generic ones in each node's `explain`.
 - `summarize_seeds` gets the two runs' summaries as seeds *n* and *n*+1 and an unfinished run *n*+2;
@@ -185,25 +168,18 @@ Calibration records the time it ran (`fittedAt`, `calibration.at`): it is fixed 
 
 ## The simulation baselines
 
-`parity/simulation/` is for the frozen engine's runs of every template case (the 25 templates'
+`parity/simulation/` holds the frozen engine's runs of every template case (the 25 templates'
 designs and their scenarios, 149 cases) with 20 seeds each, the workload's seed and the 19 after
-it, simulated in full: the Python side of stage 4's statistical bar. They land there with the
-parity report once recorded
+it, simulated in full: the Python side of stage 4's statistical bar, recorded once
 ([ADR-0052](../docs/adr/0052-record-the-frozen-engines-simulation-baselines-once.md)). Each run
 keeps its figures, not its whole report: the events processed, the requests generated, both
 digests, the summary's values and latencies, and each part's summary values; a run that failed
 keeps its error. `<template>.json.gz` holds a template's cases, each its runs by seed; the
 manifest has each file's SHA-256 and size (uncompressed) and its count of runs and failures.
 
-They are recorded once, by
-[`scripts/export_simulation_baselines.py`](../scripts/export_simulation_baselines.py), in about
-twenty hours on four cores; a stopped recording resumes from its log under
-`build/simulation-baselines/`. `--check` simulates chosen runs again:
-
-```sh
-uv run python scripts/export_simulation_baselines.py --jobs 4          # record, resuming
-uv run python scripts/export_simulation_baselines.py --only queueing-lab --seeds 2 --check
-```
+They were recorded by `scripts/export_simulation_baselines.py`, in about twenty hours on four
+cores; the script went with the engine at stage 5's exit (git history keeps it), and the
+baselines are data now, not recorded again.
 
 `./gradlew :archsim-engine:parity` simulates the same runs in Java, judges each case by the bar
 (the Java median p50, p95, throughput and each part's utilization inside Python's range and
@@ -216,13 +192,13 @@ missed. `-Parchsim.parity.baselines=DIR` judges another recording, a partial one
 report, `docs/validation/java-parity.md`, from that file (written to `docs/validation/` with
 `-Parchsim.parity.out=docs/validation`), the kept calibrations' knees re-simulated on both
 engines by the same harness over every kept run with a two-pass calibration
-(`benchmarks/results/dev/0.16.0-port/`, from `uv run python benchmarks/run.py resimulate --label
-0.16.0-port`, and `0.16.0-java/`, which the Java engine wrote before it was 1.0.0, paired over
-both folders, with whether each pair derived the same inputs) and both engines' speed, the
-median of several runs each with no other heavy work running (`benchmarks/perf/`, from
-`scripts/perf.py` and `./gradlew :archsim-engine:speed`; while neither is there, the page says
-speed is not yet measured, and with only one the script fails and names the other); `--check`
-fails when the page is stale.
+(`benchmarks/results/dev/0.16.0-port/`, which `uv run python benchmarks/run.py resimulate --label
+0.16.0-port` wrote while the frozen engine was the harness's, and `0.16.0-java/`, which the Java
+engine wrote before it was 1.0.0, paired over both folders, with whether each pair derived the
+same inputs; no engine writes either folder now, and git restores them) and both engines'
+speed, the median of several runs each with no other heavy work running (`benchmarks/perf/`:
+the frozen engine's from `scripts/perf.py`, which went with it, and the Java engine's from
+`./gradlew :archsim-engine:speed`); `--check` fails when the page is stale.
 
 ## What is left out
 
@@ -237,11 +213,12 @@ fails when the page is stale.
 - **Component-specific explain formulas** (`RuntimeComponent.explain`) need a live runtime component;
   they are in the recorded reports.
 - **Reports of every scenario**: two runs per template (above).
-- **The Prometheus HTTP client and outbound checks** (network), the CLI and MCP server (stage 5) and
-  the HTTP API (stage 2's black-box tests). Plugins: the default registry has none.
-- **Inline test documents** in `packages/engine/tests`: built by test code, not fixture files. The
-  invalid documents here are mutations of templates instead, one per validation code or schema
-  error the tests cover and more.
+- **The Prometheus HTTP client and outbound checks** (network), the CLI and MCP server (recorded
+  apart in stage 5, in `archsim-cli`'s and `archsim-mcp`'s tests) and the HTTP API (stage 2's
+  black-box tests). Plugins: the default registry has none.
+- **Inline test documents** in the Python engine's tests: built by test code, not fixture files.
+  The invalid documents here are mutations of templates instead, one per validation code or
+  schema error the tests covered and more.
 - **The benchmark harness's fits** (`benchmarks/run.py`): it stays Python until stage 7.
   `fit_load_curve` and `extend_load_curve` are recorded on synthetic points, and every fit a
   calibration makes on its real inputs.
@@ -264,12 +241,12 @@ the same document.
 ## The test fixtures
 
 `parity/fixtures/` holds the files the golden files and recordings were made from, copied from the
-frozen engine's `packages/engine/tests/fixtures/` in stage 5 so they stay when the engine goes:
+frozen engine's `packages/engine/tests/fixtures/` in stage 5 so they stayed when the engine went:
 `calibration/` (a mapping and Prometheus responses generated for the cache-aside starter by
-[`scripts/make_calibration_fixture.py`](../scripts/make_calibration_fixture.py), an OTLP trace
-export and its mapping by [`scripts/make_otlp_fixture.py`](../scripts/make_otlp_fixture.py)),
-`import/` (a compose file, Kubernetes manifests and a Terraform plan written for the importers'
-tests) and `pricing/` (a snapshot of a made-up provider). Unlike `golden/fixtures/`, a category of
-golden files, they are inputs. The golden exporter (`scripts/golden/paths.py`), the CLI, import
-and MCP recorders (`scripts/export_*_cases.py`), the API and app tests (`Examples.fixture`) and the
-API tests' local profile (its `ARCHSIM_PRICES_DIR`) read them.
+`scripts/make_calibration_fixture.py`, which went with the engine, and an OTLP trace export and
+its mapping by [`scripts/make_otlp_fixture.py`](../scripts/make_otlp_fixture.py)), `import/` (a
+compose file, Kubernetes manifests and a Terraform plan written for the importers' tests) and
+`pricing/` (a snapshot of a made-up provider). Unlike `golden/fixtures/`, a category of golden
+files, they are inputs. The golden exporter and the CLI, import and MCP recorders read them
+before stage 5's exit deleted them; the API and app tests (`Examples.fixture`) and the API tests'
+local profile (its `ARCHSIM_PRICES_DIR`) read them now.

@@ -31,7 +31,8 @@ Planned approach:
 - A validation step replays the observed traffic through the calibrated model and reports the
   error against observed latency and throughput, so users see how far to trust it.
 
-Seams: the `ui(assumption=True)` flag already distinguishes asserted inputs; distributions are
+Seams, in the Python engine this was planned on: the `ui(assumption=True)` flag already
+distinguishes asserted inputs; distributions are
 a tagged union in `distributions.py` (add an `empirical` kind); the workload `pattern` union
 can gain a `trace` kind.
 
@@ -56,13 +57,14 @@ Constraints that any such surface must keep:
   which is what a tool-using model needs to fix a document.
 
 Done (2026-10-26): WebMCP tools in the web app, for agents in the browser, and an MCP server
-over stdio for desktop and coding agents (`packages/mcp`, using the engine directly), both in
+over stdio for desktop and coding agents (first in Python, `packages/mcp`; in Java,
+`archsim-mcp`, since stage 5 of the Java port), using the engine directly, both in
 [agents.md](agents.md); results carry the run id and result digest. Still open: an HTTP
 transport for the MCP server, which needs authentication before it is exposed beyond localhost.
 
 ## 4. More component types
 
-Each is a new `ComponentModel` (see [`extending-components.md`](extending-components.md)).
+Each is a new component type (see [`extending-components.md`](extending-components.md)).
 
 Shipped: message queues with asynchronous consumers (Kafka, RabbitMQ, SQS-style and others), a
 CDN edge cache, an API gateway rate limit (token bucket on the load balancer), object storage as

@@ -1,8 +1,8 @@
 /**
  * Money formatting and the cost-vs-latency frontier. Prices and cost estimates are computed by
- * the engine (archsim_engine/cost.py): reports carry `cost`, and POST /analyze prices a design
- * before it runs. The two helpers below mirror the engine's rules so the inspector can word a
- * price before the next analysis arrives.
+ * the engine (`CostEstimator`, in archsim-engine's `io.archsim.engine.cost`): reports carry
+ * `cost`, and POST /analyze prices a design before it runs. The two helpers below mirror the
+ * engine's rules so the inspector can word a price before the next analysis arrives.
  */
 import type { PricingSource } from "@/lib/api";
 import type { ComponentType, CostEstimate, InputProvenance, NodeConfig, Pricing } from "@/lib/types";
@@ -57,7 +57,7 @@ export function priceSource(cost: Pick<CostEstimate, "rates" | "pricing" | "byNo
 }
 
 /**
- * Where a part's `costPerHour` came from (engine: `cost.price_origin`): "set" by the user, "preset"
+ * Where a part's `costPerHour` came from (engine: its `PriceBasis`): "set" by the user, "preset"
  * (the illustrative price of a preset of the part's technology: a price snapshot reprices it),
  * "default" (the catalog default), or null (none). Provenance measured or assumed means the user's.
  */
@@ -72,7 +72,7 @@ export function priceOrigin(comp: ComponentType, config: NodeConfig, provenance?
 }
 
 /**
- * The snapshot the engine prices a design with (engine: `pricing.snapshot_for`): the pinned one
+ * The snapshot the engine prices a design with (model: `PriceSnapshots.forPricing`): the pinned one
  * (`snapshotDate`, `snapshotSha256`), else the newest of the provider (in its region when set).
  * null for generic rates, or when this machine has no matching snapshot.
  */

@@ -17,8 +17,8 @@ import io.archsim.model.pricing.PriceSnapshots;
 /**
  * The designs the frozen engine simulated, each with the scenario, seed and mode it
  * simulated and its report: {@code simulator/cases.json.gz}, from
- * {@code scripts/export_simulation_cases.py}; and the Java simulator that replays them
- * and the golden files' runs.
+ * {@code scripts/export_simulation_cases.py}, since deleted; and the Java simulator that
+ * replays them and the golden files' runs.
  */
 public final class SimulationCases {
 

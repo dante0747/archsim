@@ -1,7 +1,11 @@
 # Simulation model
 
 This page describes exactly what the ArchSim engine simulates, how metrics are defined, and
-what it leaves out. If the code and this page disagree, that is a bug; please report it.
+what it leaves out. If the code and this page disagree, that is a bug; please report it. Python
+names in it (`cost.py`, `run_simulation`, ...) are the Python engine's, which the Java engine
+replays figure for figure and which stage 5 of the Java port deleted (the tag `engine-0.16.0`
+keeps it); the Java engine's packages are listed in
+[archsim-engine/README.md](../archsim-engine/README.md#packages).
 
 > **Results are estimates, not production guarantees.** The engine faithfully simulates the
 > *model you drew* with the *assumptions you entered* (service times, hit ratios, latencies,
@@ -125,8 +129,8 @@ value, or set to the same number, is classified **documented**, with `source` th
 and `illustrative`. It is derived each time: documents still store only the three kinds of the
 schema (1.4), and a record in the document (a calibration) always wins.
 [assumptions.md](assumptions.md) lists every such value, preset number, assumption default and
-engine constant with its basis; `scripts/gen_assumptions.py` writes it from the code and a test
-fails when it is out of date.
+engine constant with its basis; `./gradlew :archsim-engine:generate` writes it from the code, and
+archsim-engine's `GeneratedFileTests` fails when it is out of date.
 
 ### Worker pools (shared building block)
 
@@ -324,7 +328,7 @@ writes `writeServiceTimeMs` (before the log flush and replica acknowledgements).
 
 **Technology behaviour.** The `technology` decides the mechanisms below; each is a setting in
 the "Technology behaviour" group whose default `auto` takes the technology's value (see
-`archsim_engine/technology.py`, which lists every default with its documentation link):
+[assumptions.md](assumptions.md), which lists every default with its documentation link):
 
 | Mechanism | What happens | On by default for |
 | --- | --- | --- |
@@ -568,8 +572,8 @@ its TTL and the key popularity (`load.ttl_miss_shares`; a cache whose memory hol
 than the keyspace keeps the most popular ones).
 
 **The sizing audit** (`SizingAuditTests` in `archsim-engine`, on every template; the port of
-`scripts/sizing_audit.py`, which the frozen engine's `test_sizing_audit.py` runs until stage 5
-deletes it) checks auto sizes against what the simulation then does: each auto-sized part's p95
+`scripts/sizing_audit.py`, which the frozen engine's `test_sizing_audit.py` ran until stage 5
+deleted both) checks auto sizes against what the simulation then does: each auto-sized part's p95
 busy cores per instance (from the per-bucket `cpuBusyCores` series of services, databases and
 caches) between 25% and 75% of its vCPU, unless it is on the smallest type its need allows,
 capped by its workers or connections, on a bigger type for its memory, or behind a part that
@@ -757,7 +761,9 @@ the time until the key expires or is next written):
 Not included: retries, timeouts, faults, row-lock waits, buffer-cache misses, cold starts, GC
 pauses, autoscaling delays and the memory model. On the starter the estimate is within 7% of the
 simulated mean and p95 and within a point of its busiest part's utilization; on the queueing lab
-(an M/M/4 queue) within 5%. `test_estimate.py` keeps both within 15%.
+(an M/M/4 queue) within 5%. archsim-engine's `EstimateAgreementTests` keeps both within 15%,
+as the Python engine's `test_estimate.py` did, and the Java estimate gives that engine's figures
+on every golden entry and recorded case.
 
 ## Accounting invariants
 
@@ -816,8 +822,9 @@ versions differ.
   simulator, which every run and replay uses since stage 4 of the port, gives it **on every
   platform**: it takes its logarithms, exponentials and powers from `StrictMath`
   ([ADR-0050](adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)). The frozen Python
-  engine gives it on the same platform and Python version; across platforms its floating-point
-  library could change low-order digits, and results then agree within statistical noise.
+  engine, deleted at stage 5, gave it on the same platform and Python version; across platforms
+  its floating-point library could change low-order digits, and results then agreed within
+  statistical noise.
 - Changing one parameter can change random samples elsewhere, because events are processed in
   a different order and streams are consumed in that order. Scenario comparisons are therefore
   not perfectly paired. Differences of a few percent may be noise; re-run with other seeds to
@@ -848,7 +855,7 @@ labels a sampled report "Estimated" and its charts say they cover only the sampl
 One run answers for one random sequence. `run_simulation(..., seed=N)` replaces the workload's seed
 (after the scenario is applied), so a run of seed N reproduces exactly: the report's input, and so
 its `inputDigest`, carries the seed used. The API's seed groups run one document with seeds base
-to base + N - 1, and `summarize_seeds` (in `archsim_engine.seeds`) reads them together: the
+to base + N - 1, and `SeedSummary` (in the engine's `seeds` package) reads them together: the
 verdict split ("Meets the objectives in 4 of 5 runs"), p50/p95/p99, success and throughput ranges
 with their medians. Runs that disagree on the verdict are *borderline*; the web app shows an amber
 Borderline and caps the confidence at medium, and offers "Check 5 seeds" whenever a single run's
@@ -856,7 +863,9 @@ p95 is within 15% of its objective.
 
 ## Validation against queueing theory
 
-`packages/engine/tests/test_reference_benchmark.py` checks the engine against exact results:
+archsim-engine's `QueueingTheoryTests` and `StarterReferenceTests` (in `simulator`) check the
+simulator against exact results, as the Python engine's `tests/test_reference_benchmark.py` did,
+with its tolerances:
 
 - A service with Poisson arrivals and exponential service is an M/M/c queue. The simulated
   mean response time matches the Erlang C formula within 8% for M/M/1 at 50% and 80% load and
@@ -866,8 +875,9 @@ p95 is within 15% of its objective.
 - The starter example's scenarios stay inside documented ranges and directions (fewer
   replicas ⇒ rejections and higher latency; more replicas ⇒ lower utilization).
 
-These checks pin down the queueing core. They say nothing about whether your service-time
-assumptions match your production system.
+The Java simulator replays that engine's runs figure for figure
+([java-parity.md](validation/java-parity.md)). These checks pin down the queueing core. They say
+nothing about whether your service-time assumptions match your production system.
 
 ## Limits
 

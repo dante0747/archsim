@@ -66,7 +66,9 @@ def _items(region: str) -> Iterable[dict[str, Any]]:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--region", required=True, help="an ARM region name, e.g. eastus")
     ap.add_argument("--out", help="output file (default: among archsim-model's snapshots)")
     args = ap.parse_args()

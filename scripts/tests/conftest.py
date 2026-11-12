@@ -1,5 +1,5 @@
-"""The scripts' tests import the script packages (``golden``) as the scripts do: from
-``scripts/``, the folder a script runs from."""
+"""The scripts' tests import a script as a module (``export_printable``) from ``scripts/``, the
+folder a script runs from."""
 
 from __future__ import annotations
 

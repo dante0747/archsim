@@ -18,8 +18,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * A technology's name, as the Python engine gives it: every technology it knows, and the
- * other ways it names one ({@code analysis/cases.json}, written by
- * {@code scripts/export_analysis_cases.py}).
+ * other ways it names one ({@code analysis/cases.json}, recorded from the frozen engine
+ * by {@code scripts/export_analysis_cases.py}, since deleted).
  */
 class TechnologyNamesTests {
 

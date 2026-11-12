@@ -9,8 +9,8 @@ import tools.jackson.databind.json.JsonMapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * A template's timing, in {@code scripts/perf.py}'s shape, so the two engines' files read
- * alike.
+ * A template's timing, in the shape the since-deleted {@code scripts/perf.py} wrote, so
+ * the two engines' files read alike.
  */
 class SpeedRowTests {
 

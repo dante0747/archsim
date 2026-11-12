@@ -38,17 +38,18 @@ tasks.test {
     inputs.files(
         listOf("catalog.json", "analysis-starter.json", "starter.json").map {
             rootDir.resolve("apps/web/src/test/fixtures/$it")
-        },
-    ).withPropertyName("engineFixtures").withPathSensitivity(PathSensitivity.RELATIVE)
+        } + rootDir.resolve("docs/assumptions.md"),
+    ).withPropertyName("generatedFiles").withPathSensitivity(PathSensitivity.RELATIVE)
     mustRunAfter("generate")
 }
 
 // Writes the repository's files the engine generates (the web app's engine fixtures, the
-// catalog and the starter's analysis), which GeneratedFileTests holds the committed files to.
+// catalog and the starter's analysis, and docs/assumptions.md), which GeneratedFileTests holds
+// the committed files to.
 //
 //   ./gradlew :archsim-engine:generate
 tasks.register<JavaExec>("generate") {
-    description = "Writes the repository's files the engine generates: the web app's engine fixtures."
+    description = "Writes the repository's files the engine generates: the web app's engine fixtures and the assumptions page."
     group = LifecycleBasePlugin.BUILD_GROUP
     classpath = sourceSets.test.get().runtimeClasspath
     mainClass = "io.archsim.engine.generated.GeneratedFile"
@@ -87,14 +88,14 @@ val parity by tasks.registering(Test::class) {
     timeout = Duration.ofHours(6)
 }
 
-// The Java simulator's speed on every template as shipped, timed as scripts/perf.py times the
+// The Java simulator's speed on every template as shipped, timed as scripts/perf.py timed the
 // frozen engine's (docs/performance.md); it writes build/parity/speed.json. .out=FILE writes
 // it elsewhere (a relative one from the repository's root), .repeats=N times N runs (five)
 // and .label=NAME names the run.
 //
 //   ./gradlew :archsim-engine:speed -Parchsim.speed.out=benchmarks/perf/java-port.json
 val speed by tasks.registering(Test::class) {
-    description = "Times the Java simulator on every template, as scripts/perf.py times the frozen engine."
+    description = "Times the Java simulator on every template, as scripts/perf.py timed the frozen engine."
     measuredRun("speed", mapOf("archsim.speed.out" to layout.buildDirectory.file("parity/speed.json").get().asFile.absolutePath))
     timeout = Duration.ofHours(1)
 }

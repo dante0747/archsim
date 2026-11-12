@@ -26,21 +26,23 @@ Ask the owner instead.
 ## The repository
 
 - `archsim-model/`, `archsim-engine/`, `archsim-app/`, `archsim-api-tests/`, `archsim-cli/`,
-  `build-logic/`: Java 25, one Gradle build (`./gradlew build`). The Java port's plan is
-  `docs/proposals/java-25-port.md`.
-- `packages/engine/`: the Python engine, **frozen at 0.16.0**: don't change it; report its bugs.
-- `services/api/`: the Alembic schema Flyway took over from, with `archsim-api migrate` and
-  `seed`, until stage 6; the Java app replaced its FastAPI app and its workers. `apps/web/`: the
-  Next.js app.
+  `archsim-mcp/`, `build-logic/`: Java 25, one Gradle build (`./gradlew build`). The Java port's
+  plan is `docs/proposals/java-25-port.md`.
+- `parity/`: what the Python engine, frozen at 0.16.0, recorded for the Java tests (golden files,
+  simulation baselines, test fixtures). It is data now, never recorded again: stage 5 deleted
+  that engine and its MCP server (`packages/`; the tag `engine-0.16.0` keeps them).
+- `services/api/`: the Alembic schema Flyway took over from, with `archsim-api migrate`, until
+  stage 6; the Java app replaced its FastAPI app and its workers. `benchmarks/`: the Python
+  benchmark harness, on the Java engine. `apps/web/`: the Next.js app.
 - `docs/adr/`: architecture decisions. A significant decision gets a new ADR with
   `status: proposed`; never mark one accepted, that is the owner's call.
 
 ## Before saying a change is done
 
 ```bash
-./gradlew format && ./gradlew build          # Java: format, Checkstyle, Error Prone, tests
-uv run ruff check packages services scripts  # Python
-./gradlew :archsim-cli:installDist           # the benchmarks' tests ask the installed CLI
+./gradlew format && ./gradlew build            # Java: format, Checkstyle, Error Prone, tests
+uv run ruff check services benchmarks scripts  # Python
+./gradlew :archsim-cli:installDist             # the benchmarks' tests ask the installed CLI
 uv run pytest
 uv run python scripts/check_commits.py --range main..HEAD
 ```

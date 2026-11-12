@@ -63,9 +63,10 @@ class BaselinesTests {
 	}
 
 	@Test
-	void read_aFolderWithoutBaselines_saysToRecordThem() {
+	void read_aFolderWithoutBaselines_saysToRestoreThem() {
 		assertThatIllegalStateException().isThrownBy(() -> Baselines.read(this.folder, List.of()))
-			.withMessageEndingWith(": record them first with scripts/export_simulation_baselines.py");
+			.withMessageEndingWith(
+					": the frozen engine's are in parity/simulation (git checkout HEAD -- parity/simulation)");
 	}
 
 	private void writeBaselines() throws IOException {

@@ -26,9 +26,9 @@ import static org.assertj.core.api.Assertions.catchThrowableOfType;
  * The analysis of a design in the cases the golden files do not reach: confidence that is
  * high or medium, held down by a bad calibration fit or an experimental technology, or
  * weighed by the inputs alone; quick checks of every kind; a scenario with a calibration
- * record; a document that cannot be read. Each case ({@code analysis/cases.json}, written
- * by {@code scripts/export_analysis_cases.py}) has the analysis the Python engine 0.16.0
- * gives, or the error it raises.
+ * record; a document that cannot be read. Each case ({@code analysis/cases.json},
+ * recorded from the frozen engine by {@code scripts/export_analysis_cases.py}, since
+ * deleted) has the analysis the Python engine 0.16.0 gives, or the error it raises.
  */
 class DesignAnalyzerTests {
 

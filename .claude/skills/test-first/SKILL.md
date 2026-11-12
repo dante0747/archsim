@@ -26,7 +26,7 @@ what the code must do before the code exists, and it proves the code does it.
 | The HTTP contract (routes, JSON, status codes, cookies) | a black-box test in `archsim-api-tests` (`src/apiTest`), which runs against the running API |
 | Parity with the Python engine | the golden-file entry (`parity/golden/`) through the module's parity test |
 | A bug | a test that reproduces it and fails, before any fix |
-| Python code (`packages/`, `services/`) | a pytest test; the engine is frozen, so its bugs are reported, not fixed |
+| Python code (`services/`, `benchmarks/`, `scripts/`) | a pytest test |
 | The web app | a Vitest test, or a Playwright test for a user path |
 
 ## Writing the test

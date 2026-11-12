@@ -1,13 +1,71 @@
 # Implementation status
 
-State as of 2026-11-10 (engine 1.0.0, the Java engine, which reproduces the frozen engine 0.16.0
-measured on the held-out experiments; schema 1.7, report 1.15; the API, the engine's
-deterministic parts and the simulator in Java). This file separates what is implemented, how it
-was verified, what is known to be limited, and what comes next. Nothing listed under
+State as of 2026-11-12 (engine 1.0.0, the Java engine, which reproduces the frozen engine 0.16.0
+measured on the held-out experiments; schema 1.7, report 1.15; the API, the engine, the CLI and
+the MCP server in Java, and the Python engine deleted). This file separates what is implemented,
+how it was verified, what is known to be limited, and what comes next. Nothing listed under
 "Implemented" is a stub or a mock. The product and UX brief for v2 is
 [docs/product-spec-v2.md](docs/product-spec-v2.md).
 
 ## Implemented and covered by automated tests
+
+**The CLI, the MCP server and the action in Java, and the Python engine deleted: stage 5 of the
+Java port (2026-11-12).**
+
+- `archsim-cli` has every command of the frozen Python CLI: `validate`, `run`, `compare`,
+  `analyze`, `calibrate prometheus` and `otlp`, `import`, `export`, `check`, `catalog` and
+  `schema`, with the same flags, the same lines on the same streams, the same exit codes and JSON
+  with the same values ([ADR 0055](docs/adr/0055-the-java-clis-output-contract.md)), options
+  taken by their full names ([ADR 0056](docs/adr/0056-the-java-cli-takes-options-by-their-full-names.md)).
+  It is checked against 307 cases recorded from the Python CLI (S5-1 to S5-4: `cbfa02b`,
+  `14af55e`, `198aabf`, `ec2e6d8`). Where Python crashed with a traceback, the Java answers in
+  one line; the departures are listed in [archsim-cli/README.md](archsim-cli/README.md).
+- `calibrate prometheus --url` calls the app's Prometheus client, moved into the engine
+  ([ADR 0057](docs/adr/0057-move-the-prometheus-client-into-the-engine.md), `27bf9ae`), and the
+  CLI and the MCP server read and write files as Python did, through the engine's `files`
+  package ([ADR 0059](docs/adr/0059-read-files-as-python-did-in-the-engine.md), `2c31888`).
+- `archsim-mcp` serves the Python MCP server's 12 tools, its resources and its instructions,
+  word for word, on the official MCP Java SDK 2.1.0
+  ([ADR 0058](docs/adr/0058-serve-mcp-with-the-official-mcp-java-sdk.md), `74250f6`): a recorded
+  session of 55 requests to the Python server gets the same answers from the Java one.
+- The `archsim-check` action builds the Java CLI into an image in the job and runs the check in
+  it, without a network; it needs a Linux runner with Docker
+  ([ADR 0060](docs/adr/0060-run-the-check-action-in-an-image-the-job-builds.md), `d2c0998`, a
+  breaking change). Its job's steps ran in Docker on Linux (WSL) on seven cases, with the Python
+  action's comment but for the engine's version.
+- The price snapshots are `archsim-model`'s own resources, and the test fixtures moved to
+  `parity/fixtures/` (`f278483`).
+- The benchmark harness asks one long-lived `archsim functions` process for the engine functions
+  it imported from Python (fits, machine speeds, means;
+  [ADR 0061](docs/adr/0061-answer-the-harnesss-engine-calls-from-one-java-process.md),
+  `0325b13`): the old and the new harness derive the same 2,468 values from all 67 kept runs. It
+  runs on the Java engine by default since `98b3ba8`
+  ([ADR 0062](docs/adr/0062-make-the-java-engine-the-harnesss-default.md)), and on it only since
+  `24baae6`. On the way, a load curve's factor at a rate that is not a number no longer throws:
+  it is the last point's, as in Python (`6da5f1c`).
+- What the Python engine still did moved to Java: the sizing audit is archsim-engine's
+  `SizingAuditTests`, whose 301 checks on the 25 templates are `scripts/sizing_audit.py`'s
+  (`c74c12b`); `archsim-app`'s `seed` role seeds the examples, and `archsim-api seed` is gone
+  (`f9af362`); `./gradlew :archsim-engine:generate` writes the web app's engine fixtures
+  (`2704646`) and `docs/assumptions.md` (S5-10d), which `GeneratedFileTests` holds to the Java
+  engine's output; the tests of the price scripts and the action's sticky comment moved to
+  `scripts/tests` (`3b07629`); and the checks against queueing theory are archsim-engine's
+  `QueueingTheoryTests`, `StarterReferenceTests` and `EstimateAgreementTests`, with the
+  tolerances of the Python engine's reference benchmark and estimate tests (S5-10d).
+- Deleted at the exit (S5-10d; git history keeps them, and the tag `engine-0.16.0` the engine as
+  it was frozen): `packages/engine` (the Python engine 0.16.0, its CLI and its tests),
+  `packages/mcp` (the Python MCP server), the scripts that recorded the frozen engine's answers
+  for the Java tests (`export_golden.py` with `scripts/golden/`, the `export_*_cases.py` scripts
+  and `export_simulation_baselines.py`) and their tests, and the scripts only that engine ran
+  (`perf.py`, `validate_sampled.py`, `make_calibration_fixture.py`, `sizing_audit.py`,
+  `gen_assumptions.py`, `export_web_fixtures.py`). What they recorded stays as data, not
+  recorded again: `parity/golden/`, `parity/simulation/` and the case files under
+  `archsim-*/src/test/resources`, which the Java tests read, and the speeds in
+  `benchmarks/perf/` and runs in `benchmarks/results/`; the fixtures stay in `parity/fixtures/`.
+  The uv workspace keeps `services/api`, and CI's Python job no longer runs the engine's tests or
+  the golden-file check.
+- Not run during stage 5: CI on GitHub, which has started no job since 2026-11-05. Every slice
+  passed CI's steps locally.
 
 **The simulator in Java, engine 1.0.0: stage 4 of the Java port (2026-11-10).**
 
@@ -121,7 +179,8 @@ was verified, what is known to be limited, and what comes next. Nothing listed u
     3-4 Nov (above).
   - Model and accuracy work waits until the Java port is complete.
   - `test_the_last_engine_entry_is_the_engine_in_this_tree` fails on any commit under
-    `packages/engine` until it has a new version and entry.
+    `packages/engine` until it has a new version and entry (until stage 5 of the port deleted
+    `packages/engine` on 12 Nov; the tag keeps the frozen tree).
 - **Criterion 2 is symmetric** ([ADR 0018](docs/adr/0018-p95-within-a-factor-of-two.md)): a
   step's p95 must be within a factor of two either way, or within 3 ms. Before, a prediction that
   was too low always passed.
@@ -1139,7 +1198,7 @@ before it.
   generic rates), and runs record the snapshot used (date and content hash) in
   `input.pricing`. Documents without `pricing` keep identical results.
 
-**Engine** (`packages/engine`, 187 tests)
+**Engine** (`packages/engine`, 187 tests; the Python engine, deleted at stage 5 of the Java port)
 
 v2 additions:
 
@@ -1897,7 +1956,8 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
   command time).
 - Still open after the review fixes: sampled mode checks the
   2M request limit against the full run, so the CLI and MCP refuse the 6M-request design
-  (`scripts/perf.py` runs it with the limit raised). A price someone types that equals a
+  (`scripts/perf.py` ran it on the Python engine with the limit raised; it has not been run on
+  the Java engine). A price someone types that equals a
   preset's value counts as illustrative. Terraform target groups and listeners are not read
   (load balancer targets are guesses).
 - Client groups share one workload (one read/write mix and pattern); a group cannot have its
@@ -1934,9 +1994,9 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
   so).
 - Replay resolution is the report bucket (1 s); playback is throttled by the browser when the
   tab is in the background.
-- Heavy designs take a while: the frozen Python engine simulates about 2,000-5,000 requests per
-  second per core on a laptop (the Black Friday template takes 35-45 s; a 10k req/s, 10-minute
-  design about 55 minutes), and the Java simulator the workers run is about 14 times faster on
+- Heavy designs take a while: the frozen Python engine simulated about 2,000-5,000 requests per
+  second per core on a laptop (the Black Friday template took 35-45 s; a 10k req/s, 10-minute
+  design about 55 minutes), and the Java simulator, the only one now, is about 14 times faster on
   the templates (the 10k req/s design has not been timed in Java). Sampled mode answers long
   steady runs much faster but is opt-in. "Run all & compare" runs at most
   `ARCHSIM_MAX_CONCURRENT_RUNS` (default: the cores less one) simulations at a time per worker.
@@ -1981,9 +2041,11 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 ## Next steps
 
-1. The Java 25 port ([proposal](docs/proposals/java-25-port.md), ADRs 0005–0016): stages 0–4
-   are built (engine 1.0.0). Stage 5 is next: the CLI, the MCP server and the GitHub Action,
-   then the harness on the Java CLI and the Python engine deleted.
+1. The Java 25 port ([proposal](docs/proposals/java-25-port.md), ADRs 0005–0016): stages 0–5
+   are built (engine 1.0.0; the CLI, the MCP server and the action in Java, and the Python
+   engine deleted). Stage 6 is next: the Python code other than the benchmark harness removed
+   (the Alembic migrations, the scripts), the docs rewritten for the Java build, and sign-in on
+   Spring Security weighed.
 2. W25 (accuracy over time on /accuracy). Engine 0.14.0 did not predict the held-out
    experiments before they were measured (the harness can't predict with a second engine), so a
    before-and-after on them can only re-simulate 0.14.0, labelled as such.
