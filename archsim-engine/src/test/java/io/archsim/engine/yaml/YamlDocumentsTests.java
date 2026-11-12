@@ -67,6 +67,21 @@ class YamlDocumentsTests {
 		assertThat(document.get("a").stringValue()).isEqualTo("2001-12-14 21:59:43.111111");
 	}
 
+	/** Past SnakeYAML's own 1,024 characters, which no longer stop the resolvers. */
+	@ParameterizedTest
+	@MethodSource("longScalarsThatAreNoNumbers")
+	void one_longScalarThatIsNoNumber_staysText(String scalar) {
+		JsonNode document = YamlDocuments.one("a: " + scalar);
+
+		assertThat(document.get("a").stringValue()).isEqualTo(scalar);
+	}
+
+	static Stream<Arguments> longScalarsThatAreNoNumbers() {
+		return Stream.of(Arguments.argumentSet("digits ending in a letter", "1".repeat(2_000) + "x"),
+				Arguments.argumentSet("base-60 groups ending in :60", "1" + ":00".repeat(2_000) + ":60"),
+				Arguments.argumentSet("an exponent without its sign", "1." + "0".repeat(2_000) + "e5"));
+	}
+
 	@Test
 	void one_baseSixtyIntOfTwentyThousandDigits_isItsValue() {
 		JsonNode document = YamlDocuments.one("a: 1" + ":00".repeat(20_000));
