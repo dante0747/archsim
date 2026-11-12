@@ -9,8 +9,9 @@
 FROM eclipse-temurin:25-jdk-noble AS build
 WORKDIR /archsim
 COPY . .
-# the CLI alone: no tests, which the repository's own CI runs
-RUN --mount=type=cache,target=/root/.gradle \
+# the CLI alone: no tests, which the repository's own CI runs. Builds on one Docker take turns with
+# Gradle's cache (sharing=locked): two Gradles sharing it would wait on each other's lock and fail.
+RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
     ./gradlew --no-daemon --quiet :archsim-cli:installDist
 
 FROM eclipse-temurin:25-jre-noble

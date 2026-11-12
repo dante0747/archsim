@@ -55,7 +55,9 @@ leaves the caller's job untouched, and builds the CLI exactly as the repository'
   **Since 12 Nov 2026** the image has a tag of the check's own (`archsim-check:<a UUID>`) and is
   run and removed by it, not by its ID: two jobs on one Docker that build the same commit get the
   same image, and removing it by its ID could take it from the other job before its run. Removing
-  a tag removes the image only once no other tag names it.
+  a tag removes the image only once no other tag names it. The two builds also take turns with
+  BuildKit's cache of Gradle's files (`sharing=locked`): sharing it at once, the second Gradle
+  waited a minute for the first's lock and failed, as two jobs run at once on one Docker showed.
 - A runner that is not Linux, an image that does not build, or a container Docker cannot run (its
   own exit codes, 125 to 127, or a kill's) is a check that could not run: exit code 2, an error in
   the log, and a comment that says which, as a check that fails to start was.
