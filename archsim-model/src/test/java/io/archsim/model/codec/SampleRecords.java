@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Small records for the codec's tests: one of each kind of field, union, check and layout
@@ -43,6 +45,9 @@ final class SampleRecords {
 	}
 
 	record Part(String id, int size, @Default("0.5") double readRatio) {
+	}
+
+	record Loose(JsonNode anything, ObjectNode settings, List<Double> ratios) {
 	}
 
 	@Tagged("kind")

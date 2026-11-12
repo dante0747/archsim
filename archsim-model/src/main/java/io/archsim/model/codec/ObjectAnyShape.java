@@ -6,7 +6,10 @@ import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
-/** Python's {@code dict[str, Any]}: any JSON object, kept as an {@link ObjectNode}. */
+/**
+ * Python's {@code dict[str, Any]}: any JSON object, kept as an {@link ObjectNode}, and
+ * written as an {@code Any} value is ({@link AnyShape#jsonModeCopy}).
+ */
 record ObjectAnyShape() implements Shape {
 
 	@Override
@@ -20,7 +23,7 @@ record ObjectAnyShape() implements Shape {
 
 	@Override
 	public JsonNode write(@Nullable Object value) {
-		return ((ObjectNode) Objects.requireNonNull(value)).deepCopy();
+		return AnyShape.jsonModeCopy((ObjectNode) Objects.requireNonNull(value));
 	}
 
 	@Override
