@@ -3,16 +3,39 @@ Copyright 2026 The ArchSim contributors
 
 This product is licensed under the GNU Affero General Public License, version 3 only (see LICENSE).
 
-It depends on third-party open-source software, including SimPy (MIT), Pydantic (MIT), Starlette
-(BSD-3-Clause), SQLAlchemy (MIT), Alembic (MIT), psycopg (LGPL-3.0, used as an unmodified
-dependency), Spring Boot and Spring Framework (Apache-2.0), Jackson (Apache-2.0), Flyway
-(Apache-2.0), the PostgreSQL JDBC driver (BSD-2-Clause), Next.js (MIT), React (MIT), React Flow /
-@xyflow/react (MIT), elkjs (EPL-2.0), Zustand (MIT), Recharts (MIT), Tailwind CSS (MIT), Radix UI
-(MIT), lucide-react (ISC) and Simple Icons (CC0-1.0). Those packages are distributed under their own
-licenses and are not included in this repository's source.
+This repository holds ArchSim's own source only. What it builds bundles third-party open-source
+software, each under its own license, which is not part of this repository's source:
 
-The web UI uses the Geist and Geist Mono typefaces (SIL Open Font License 1.1), downloaded at
-build time and served by the app itself.
+- The API image (archsim-app, built with Jib), the command line (archsim-cli) and the MCP server
+  (archsim-mcp) bundle these Java libraries:
+  - under the Apache License 2.0: Spring Framework and Spring Boot, Apache Tomcat (embedded),
+    Jackson, Flyway, HikariCP, Hibernate Validator, Micrometer, springdoc-openapi and Swagger
+    UI, SnakeYAML, Apache HttpComponents (HttpClient 5), picocli, Project Reactor, the networknt
+    JSON Schema validator, JSpecify, Apache Commons Lang and Logging, JBoss Logging, ClassMate
+    and ethlo ITU;
+  - under the MIT License: the Model Context Protocol Java SDK, SLF4J, the Checker Framework's
+    qualifiers and WebJars Locator Lite; Reactive Streams under MIT-0;
+  - the PostgreSQL JDBC driver, under the BSD 2-Clause License;
+  - Logback, under the Eclipse Public License 2.0 (it is dual-licensed EPL-2.0 or LGPL-2.1);
+  - the Jakarta Annotations API, under the Eclipse Public License 2.0 (or GPL-2.0 with the
+    Classpath Exception), and the Jakarta Activation and XML Binding APIs, under the Eclipse
+    Distribution License 1.0 (BSD 3-Clause).
+  The NOTICE and license files these libraries carry are kept, unchanged, inside their jars.
+- The web image (apps/web, Next.js's standalone output) bundles Next.js, React, React Flow
+  (@xyflow/react), Zustand, Recharts, Radix UI, Sonner, clsx, class-variance-authority,
+  tailwind-merge and their dependencies (MIT, ISC, Apache-2.0 and BSD licenses), styles built with
+  Tailwind CSS (MIT), lucide-react (ISC), elkjs (Eclipse Public License 2.0, of its EPL-2.0 or
+  GPL-3.0-or-later choice) and Simple Icons (CC0-1.0). It also bundles sharp (Apache-2.0) with
+  its prebuilt libvips for Linux, which is licensed under the GNU Lesser General Public License
+  3.0 or later and loaded as a separate shared library; its source is at
+  https://github.com/libvips/libvips.
+- The web UI uses the Geist and Geist Mono typefaces (SIL Open Font License 1.1), downloaded at
+  build time and served by the app itself.
+
+The repository's Python (the accuracy benchmark harness in benchmarks/, the scripts in scripts/,
+and their development tools) is not part of ArchSim's product and ships in no image; the
+benchmarked services the harness builds (benchmarks/service-*) install their own dependencies at
+build time.
 
 Technology logos in the web UI come from Simple Icons (https://simpleicons.org, CC0-1.0). The
 logos are trademarks of their respective owners. ArchSim uses them only to identify the
