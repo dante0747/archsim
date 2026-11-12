@@ -82,7 +82,7 @@ fun Test.measuredRun(tag: String, defaults: Map<String, String>) {
 // N at once and .only=TEMPLATE,... judges those templates alone.
 //
 //   ./gradlew :archsim-engine:parity -Parchsim.parity.threads=4 -Parchsim.parity.only=queueing-lab
-val parity by tasks.registering(Test::class) {
+tasks.register<Test>("parity") {
     description = "Simulates the frozen engine's simulation baselines in Java and judges them (hours)."
     measuredRun("parity", mapOf("archsim.parity.out" to layout.buildDirectory.dir("parity").get().asFile.absolutePath))
     timeout = Duration.ofHours(6)
@@ -94,7 +94,7 @@ val parity by tasks.registering(Test::class) {
 // and .label=NAME names the run.
 //
 //   ./gradlew :archsim-engine:speed -Parchsim.speed.out=benchmarks/perf/java-port.json
-val speed by tasks.registering(Test::class) {
+tasks.register<Test>("speed") {
     description = "Times the Java simulator on every template, as scripts/perf.py timed the frozen engine."
     measuredRun("speed", mapOf("archsim.speed.out" to layout.buildDirectory.file("parity/speed.json").get().asFile.absolutePath))
     timeout = Duration.ofHours(1)
