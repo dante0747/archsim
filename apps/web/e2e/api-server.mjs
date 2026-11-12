@@ -16,7 +16,7 @@
  *   postgresql://archsim:archsim@127.0.0.1:5432/archsim, the compose stack's:
  *   docker compose up -d postgres);
  * - E2E_DATABASE;
- * - JAVA_HOME, else `java` on PATH.
+ * - JAVA_HOME, else `java` on PATH; it must be Java 25, or the launcher stops and says so.
  *
  * Needs the API's jar (./gradlew :archsim-app:bootJar) and a JDK 25. The database is made with
  * the PostgreSQL driver in that jar, which Spring Boot's jar mode extracts, and a short Java
@@ -86,6 +86,25 @@ for (const name of readdirSync(path.join(repo, "examples")).filter((f) => f.ends
 }
 
 const java = process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, "bin", "java") : "java";
+
+/** The Java the API's jar is built for: an older `java` cannot run it, or FreshDatabase.java. */
+const JAVA_NEEDED = 25;
+
+/** The major version of `java`, from its own settings; 0 when it does not say. */
+function javaVersion() {
+  const result = spawnSync(java, ["-XshowSettings:properties", "-version"], { encoding: "utf8" });
+  if (result.error) throw new Error(`cannot run ${java}: ${result.error.message}; set JAVA_HOME to a JDK ${JAVA_NEEDED}`);
+  const version = /java\.specification\.version = (\d+)/.exec(result.stderr);
+  return version ? Number(version[1]) : 0;
+}
+
+const javaFound = javaVersion();
+if (javaFound < JAVA_NEEDED) {
+  throw new Error(
+    `the API needs Java ${JAVA_NEEDED}, but ${java} is Java ${javaFound || "of an unknown version"}: ` +
+      `set JAVA_HOME to a JDK ${JAVA_NEEDED}`,
+  );
+}
 
 /** Runs `java` to its end; if it does not succeed, throws `failure`, with why. */
 function runJava(failure, args, options = {}) {
