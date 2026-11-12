@@ -69,12 +69,13 @@ server at `https://<host>/api/v1`.
   refused on their next request.
 - **CSRF.** Every request that changes something with the session cookie must carry
   `X-ArchSim-CSRF` with the value of the `__Host-archsim_csrf` cookie, a random token Spring
-  Security's CSRF filter checks (a double-submit cookie), wherever the request goes. What makes
-  that safe is that no one else can read or plant the cookie: only this site's pages read it
-  (and `GET /auth/me` returns it), and as a `__Host-` cookie (Secure, path `/`, no domain) no
-  subdomain can set or overwrite it. SameSite=Strict keeps other sites' requests from carrying it
-  at all, and SameSite=Lax on the session is a second layer. Bearer-token requests need no CSRF
-  token (browsers never add them on their own).
+  Security's CSRF filter checks (a double-submit cookie), wherever the request goes. Only the
+  header counts, never a form or query parameter, so the token stays out of URLs and logs.
+  What makes that safe is that no one else can read or plant the cookie: only this site's pages
+  read it (and `GET /auth/me` returns it), and as a `__Host-` cookie (Secure, path `/`, no
+  domain) no subdomain can set or overwrite it. SameSite=Strict keeps other sites' requests from
+  carrying it at all, and SameSite=Lax on the session is a second layer. Bearer-token requests
+  need no CSRF token (browsers never add them on their own).
 - **API tokens.** `asim_pat_` plus 256 random bits, shown once, stored as SHA-256. A token acts
   as its owner; `read` tokens are viewers everywhere; a token can be limited to one workspace
   and can expire. Tokens cannot create tokens, workspaces or invitations, or accept

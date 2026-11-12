@@ -8,7 +8,6 @@ import org.springframework.security.web.context.DelegatingSecurityContextReposit
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.context.SecurityContextRepository;
-import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import tools.jackson.databind.json.JsonMapper;
 
 import io.archsim.app.access.BrowserCsrf;
@@ -52,7 +51,7 @@ final class RequestAuthentication extends AbstractHttpConfigurer<RequestAuthenti
 		http.oauth2ResourceServer(
 				new ApiTokens(this.properties, context.getBeanProvider(OpaqueTokenIntrospector.class), responses));
 		http.csrf((csrf) -> csrf.csrfTokenRepository(BrowserCsrf.tokens())
-			.csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
+			.csrfTokenRequestHandler(BrowserCsrf.headerOnlyHandler())
 			.requireCsrfProtectionMatcher(new SessionChanges(getSecurityContextHolderStrategy())));
 		http.exceptionHandling((exceptions) -> exceptions.accessDeniedHandler(new CsrfRefusal(responses)));
 	}

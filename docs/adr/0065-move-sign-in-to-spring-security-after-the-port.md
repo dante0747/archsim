@@ -68,7 +68,10 @@ black-box suite's `TokensTests`. As planned, the token is a random value in the
 `__Host-archsim_csrf` cookie, returned in `X-ArchSim-CSRF` (a double-submit cookie), so a change
 sends the cookie with the header. A browser signed in before keeps its cookie's old value as its
 token, rather than getting a new one at its next `/auth/me` as the plan expected: the filter
-compares the header with the cookie, and nothing has to change for it.
+compares the header with the cookie, and nothing has to change for it. The handler is the plain
+one, reading the token from the header only: the `_csrf` form or query parameter the plain one
+also takes would put the token in URLs, logs and `Referer` headers, and the web app sends the
+header.
 
 ## Decision Drivers
 

@@ -189,10 +189,10 @@ cookie `__Host-archsim_csrf`, then redirects to `next` (a path on this site), or
 `/signin?error=state|denied|provider|disabled`. `POST /auth/logout` ends the session
 (`?everywhere=true`: all of yours). Every request that changes something with the session
 cookie must send `X-ArchSim-CSRF: <csrfToken>` (from `GET /auth/me` or the CSRF cookie) along
-with the CSRF cookie itself, or it gets 403, before the API looks at the path (Spring Security
-also takes the token as a `_csrf` form or query parameter in place of the header). The token
-is a random value in the cookie, which signing in sets for as long as the session lasts; when
-it is gone, `GET /auth/me` sets a new one, for the browser's session.
+with the CSRF cookie itself, or it gets 403, before the API looks at the path; the header is
+the only place the token is taken from, never a form or query parameter. The token is a random
+value in the cookie, which signing in sets for as long as the session lasts; when it is gone,
+`GET /auth/me` sets a new one, for the browser's session.
 
 **API tokens (CLI, CI, MCP).** Send `Authorization: Bearer asim_pat_...`; no cookie and no CSRF
 header. A token acts as you, as a viewer if its scope is `read`, and only in its workspace if

@@ -67,6 +67,40 @@ class CsrfProtectionTests extends HostedTestSupport {
 	}
 
 	@Test
+	void post_withTokenInQueryOnly_isForbidden() {
+		SignedIn ada = signedIn("Ada");
+
+		MvcTestResult result = ada.cookie(this.mvc().post().uri(PROJECTS + "?_csrf=" + ada.csrf()))
+			.cookie(new Cookie(BrowserCsrf.COOKIE, ada.csrf()))
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{}")
+			.exchange();
+
+		assertThat(result).hasStatus(403)
+			.bodyJson()
+			.extractingPath("$.detail.message")
+			.asString()
+			.contains(BrowserCsrf.HEADER);
+	}
+
+	@Test
+	void post_withTokenInFormBodyOnly_isForbidden() {
+		SignedIn ada = signedIn("Ada");
+
+		MvcTestResult result = ada.cookie(this.mvc().post().uri(PROJECTS))
+			.cookie(new Cookie(BrowserCsrf.COOKIE, ada.csrf()))
+			.contentType(MediaType.APPLICATION_FORM_URLENCODED)
+			.content("_csrf=" + ada.csrf())
+			.exchange();
+
+		assertThat(result).hasStatus(403)
+			.bodyJson()
+			.extractingPath("$.detail.message")
+			.asString()
+			.contains(BrowserCsrf.HEADER);
+	}
+
+	@Test
 	void post_withTokenAndSessionButNoCsrfHeader_isCreated() {
 		SignedIn ada = signedIn("Ada");
 		String token = token(ada.userId(), null, "write");
