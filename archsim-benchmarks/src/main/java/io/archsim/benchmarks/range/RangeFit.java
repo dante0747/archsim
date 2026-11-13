@@ -17,6 +17,7 @@ import io.archsim.benchmarks.designs.Simulations;
 import io.archsim.benchmarks.experiments.Experiment;
 import io.archsim.benchmarks.experiments.Experiments;
 import io.archsim.benchmarks.inputs.ModelInputs;
+import io.archsim.benchmarks.machine.MachineFit;
 import io.archsim.benchmarks.resimulation.CheckStamp;
 import io.archsim.benchmarks.resimulation.DevCheck;
 import io.archsim.benchmarks.results.ResultFiles;
@@ -38,9 +39,11 @@ public final class RangeFit {
 
 	private static final JsonNodeFactory NODES = JsonNodeFactory.instance;
 
+	private static final String JSON = ".json";
+
 	private final Path results;
 
-	private final Simulations simulations;
+	private final ModelInputs inputs;
 
 	private final CheckStamp stamp;
 
@@ -49,13 +52,13 @@ public final class RangeFit {
 	/**
 	 * A fit of the kept runs under a results folder.
 	 * @param results the results folder
-	 * @param simulations the engine's simulations
+	 * @param inputs the inputs' derivation, and the engine's simulations it runs on
 	 * @param stamp the engine's label, the provenance and the clock that dates the fit
 	 * @param log the log
 	 */
-	public RangeFit(Path results, Simulations simulations, CheckStamp stamp, HarnessLog log) {
+	public RangeFit(Path results, ModelInputs inputs, CheckStamp stamp, HarnessLog log) {
 		this.results = results;
-		this.simulations = simulations;
+		this.inputs = inputs;
 		this.stamp = stamp;
 		this.log = log;
 	}
@@ -75,7 +78,7 @@ public final class RangeFit {
 		this.log.line("range fit, engine " + this.stamp.label() + ": " + sources.all().size() + " calibrations, "
 				+ sources.checked() + " with engine " + label + "'s development checks, "
 				+ (sources.all().size() - sources.checked()) + " to derive (or in the cache)");
-		Work work = new Work(this.results, this.simulations, sources, cache);
+		Work work = new Work(this.results, this.inputs, sources, cache);
 		cache.run(work.deriveCounted());
 		cache.run(work.kneesOfCounted());
 		List<Pending> pending = work.pending();
@@ -99,6 +102,20 @@ public final class RangeFit {
 	 */
 	public static Path cachePath(String engine) {
 		return Path.of(System.getProperty("java.io.tmpdir"), "archsim-range-fit-" + engine + ".json");
+	}
+
+	/**
+	 * The cache of a fit whose designs run on a host machine: a file of its own beside
+	 * the engine's, so that the work done with and without the machine, or on two
+	 * machines, never mixes.
+	 * @param cache the engine's cache ({@link #cachePath(String)})
+	 * @param machine the machine's fit
+	 * @return the file
+	 */
+	public static Path cachePath(Path cache, MachineFit machine) {
+		String name = Objects.requireNonNull(cache.getFileName(), "a cache file").toString();
+		String base = name.endsWith(JSON) ? name.substring(0, name.length() - JSON.length()) : name;
+		return cache.resolveSibling(base + "-host-" + machine.digest() + JSON);
 	}
 
 	/**
@@ -195,10 +212,10 @@ public final class RangeFit {
 
 		private final List<JsonNode> comparisons = new ArrayList<>();
 
-		Work(Path results, Simulations simulations, Sources sources, RangeCache cache) {
+		Work(Path results, ModelInputs inputs, Sources sources, RangeCache cache) {
 			this.results = results;
-			this.simulations = simulations;
-			this.modelInputs = new ModelInputs(simulations);
+			this.simulations = inputs.simulations();
+			this.modelInputs = inputs;
 			this.sources = sources;
 			this.cache = cache;
 			for (int index = 0; index < sources.all().size(); index++) {

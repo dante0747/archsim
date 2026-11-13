@@ -9,8 +9,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.benchmarks.HarnessLog;
-import io.archsim.benchmarks.designs.Simulations;
 import io.archsim.benchmarks.inputs.MissingReadingException;
+import io.archsim.benchmarks.inputs.ModelInputs;
 import io.archsim.benchmarks.parallel.InParallel;
 import io.archsim.benchmarks.results.KeptRun;
 import io.archsim.benchmarks.results.ResultFiles;
@@ -37,13 +37,13 @@ public final class Resimulation {
 	/**
 	 * Checks of the kept runs under a results folder.
 	 * @param results the results folder
-	 * @param simulations the engine's simulations
+	 * @param inputs the inputs' derivation, and the engine's simulations it runs on
 	 * @param stamp what names each check
 	 * @param log the log, a line per run
 	 */
-	public Resimulation(Path results, Simulations simulations, CheckStamp stamp, HarnessLog log) {
+	public Resimulation(Path results, ModelInputs inputs, CheckStamp stamp, HarnessLog log) {
 		this.results = results;
-		this.checks = new DevCheck(results, simulations, stamp);
+		this.checks = new DevCheck(results, inputs, stamp);
 		this.label = stamp.label();
 		this.log = log;
 	}

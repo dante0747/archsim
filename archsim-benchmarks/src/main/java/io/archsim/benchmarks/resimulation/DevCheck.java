@@ -57,13 +57,13 @@ public final class DevCheck {
 	/**
 	 * Checks of the kept runs under a results folder.
 	 * @param results the results folder
-	 * @param simulations the engine's simulations
+	 * @param inputs the inputs' derivation, and the engine's simulations it runs on
 	 * @param stamp what names each check
 	 */
-	public DevCheck(Path results, Simulations simulations, CheckStamp stamp) {
+	public DevCheck(Path results, ModelInputs inputs, CheckStamp stamp) {
 		this.results = results;
-		this.simulations = simulations;
-		this.inputs = new ModelInputs(simulations);
+		this.simulations = inputs.simulations();
+		this.inputs = inputs;
 		this.stamp = stamp;
 	}
 

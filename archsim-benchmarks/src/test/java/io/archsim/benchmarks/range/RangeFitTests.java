@@ -20,6 +20,7 @@ import tools.jackson.databind.node.ObjectNode;
 import io.archsim.benchmarks.HarnessLog;
 import io.archsim.benchmarks.JsonText;
 import io.archsim.benchmarks.designs.Simulations;
+import io.archsim.benchmarks.inputs.ModelInputs;
 import io.archsim.benchmarks.resimulation.CheckStamp;
 import io.archsim.benchmarks.results.ResultFiles;
 
@@ -156,7 +157,8 @@ class RangeFitTests {
 
 	private static ObjectNode fit(Path results, Path cache, StringWriter log) {
 		CheckStamp stamp = new CheckStamp(LABEL, JsonText.read("{\"commit\": \"abc\"}"), NOON);
-		return new RangeFit(results, Simulations.onTheEngine(), stamp, new HarnessLog(new PrintWriter(log), NOON))
+		return new RangeFit(results, new ModelInputs(Simulations.onTheEngine()), stamp,
+				new HarnessLog(new PrintWriter(log), NOON))
 			.fit(results.resolveSibling("knee-range.json"), null, cache);
 	}
 

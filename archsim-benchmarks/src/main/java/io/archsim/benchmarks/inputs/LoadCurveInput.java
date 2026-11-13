@@ -159,6 +159,11 @@ final class LoadCurveInput {
 		 */
 		static final Above FLAT = new Above(List.of(), "flat outside the staircase");
 
+		// the factors copied
+		Above {
+			factors = List.copyOf(factors);
+		}
+
 	}
 
 }

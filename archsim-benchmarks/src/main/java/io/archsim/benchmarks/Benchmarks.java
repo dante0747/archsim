@@ -75,8 +75,8 @@ public final class Benchmarks implements Runnable {
 		HarnessLog log = setup.log();
 		CommandLine commandLine = new CommandLine(new Benchmarks()).addSubcommand(new CompareCommand(layout, log))
 			.addSubcommand(new ResourcesCommand(layout, log))
-			.addSubcommand(new ResimulateCommand(layout, log))
-			.addSubcommand(new RangeFitCommand(layout, log, setup.rangeFitCache()))
+			.addSubcommand(new ResimulateCommand(setup))
+			.addSubcommand(new RangeFitCommand(setup))
 			.addSubcommand(new SmokeCommand(setup))
 			.addSubcommand(new ReportCommand(layout))
 			.addSubcommand(new JavaParityCommand(layout))

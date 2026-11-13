@@ -104,7 +104,7 @@ final class StackCommand implements Callable<Integer>, HarnessRules.JavaEngineOn
 		Provenance provenance = new Provenance(new GitRepository(layout.root()),
 				MachineName.id(this.setup.environment(), MachineName.cpu()), EngineBuild.current().orElse(null));
 		Simulations simulations = Simulations.onTheEngine();
-		CampaignTools tools = new CampaignTools(simulations,
+		CampaignTools tools = new CampaignTools(this.setup.modelInputs(simulations),
 				new Prediction(simulations, layout.kneeRange(), provenance::of, this.setup.log()), layout.k6Summaries(),
 				this.setup.log());
 		Seals seals = Seals.of(layout.engines(), layout.treeIds());

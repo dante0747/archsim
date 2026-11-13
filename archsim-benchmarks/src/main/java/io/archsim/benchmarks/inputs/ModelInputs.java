@@ -4,6 +4,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
@@ -12,6 +13,8 @@ import io.archsim.benchmarks.designs.DatabaseAlone;
 import io.archsim.benchmarks.designs.Designs;
 import io.archsim.benchmarks.designs.Simulations;
 import io.archsim.benchmarks.experiments.Experiment;
+import io.archsim.benchmarks.machine.HostSwitch;
+import io.archsim.benchmarks.machine.MachineFit;
 import io.archsim.benchmarks.values.PythonValues;
 import io.archsim.model.text.PythonText;
 
@@ -29,14 +32,40 @@ public final class ModelInputs {
 
 	private final Anchoring anchoring;
 
+	private final Simulations simulations;
+
+	private final @Nullable MachineFit machine;
+
 	/**
-	 * Inputs whose fits and anchors simulate on an engine.
+	 * Inputs whose fits and anchors simulate on an engine, for designs with no host
+	 * machine (the default, as before engine 0.16.0).
 	 * @param simulations the simulations
 	 */
 	public ModelInputs(Simulations simulations) {
+		this(simulations, null);
+	}
+
+	/**
+	 * Inputs whose fits and anchors simulate on an engine, for designs on the machine of
+	 * a contention fit ({@code BENCH_HOST=on}, {@link HostSwitch}).
+	 * @param simulations the simulations
+	 * @param machine the machine's fit; {@code null} for designs with no host machine
+	 */
+	public ModelInputs(Simulations simulations, @Nullable MachineFit machine) {
+		this.simulations = simulations;
 		this.database = new DatabaseInputs(new CommitFlush(new DatabaseAlone(simulations)));
 		this.anchoring = new Anchoring((experiment, inputs, rps, window) -> simulations
 			.simulate(Designs.design(experiment, inputs, rps, window)));
+		this.machine = machine;
+	}
+
+	/**
+	 * The simulations its fits and anchors run on, which a check of its inputs simulates
+	 * its knee and ladder on too.
+	 * @return the simulations
+	 */
+	public Simulations simulations() {
+		return this.simulations;
 	}
 
 	/**
@@ -89,7 +118,9 @@ public final class ModelInputs {
 
 	/**
 	 * The inputs from one set of passes, before they are anchored: the service's, then
-	 * the queue's (Kafka), the database's, the cache's and the services' memory.
+	 * the queue's (Kafka), the database's, the cache's and the services' memory, and with
+	 * a host machine the design's host and the CPU-time inputs at full speed
+	 * ({@link MachineInputs}).
 	 * @param experiment the experiment
 	 * @param passes the low, top and auxiliary passes, the idle pass and the staircase
 	 * @return the inputs, each with its value and how it was found
@@ -104,6 +135,9 @@ public final class ModelInputs {
 			inputs.setAll(CacheInputs.of(experiment, passes));
 		}
 		inputs.setAll(MemoryInputs.of(experiment, passes));
+		if (this.machine != null) {
+			MachineInputs.apply(passes, inputs, this.machine);
+		}
 		return inputs;
 	}
 

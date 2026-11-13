@@ -8,7 +8,6 @@ import io.archsim.benchmarks.designs.Designs;
 import io.archsim.benchmarks.docker.Instruments;
 import io.archsim.benchmarks.docker.ResourceSampler;
 import io.archsim.benchmarks.experiments.Experiment;
-import io.archsim.benchmarks.inputs.ModelInputs;
 import io.archsim.benchmarks.load.K6;
 import io.archsim.benchmarks.values.PythonValues;
 
@@ -31,14 +30,14 @@ final class DockerSteps implements ExperimentSteps {
 	 * The steps on a running stack.
 	 * @param stack what drives and reads it
 	 * @param serviceCpus the CPUs of its service under test
-	 * @param tools the engine's simulations, the prediction, k6's folder and the log
+	 * @param tools the inputs' derivation, the prediction, k6's folder and the log
 	 */
 	DockerSteps(Instruments stack, int serviceCpus, CampaignTools tools) {
 		this.stack = stack;
 		this.serviceCpus = serviceCpus;
 		this.tools = tools;
 		K6 k6 = new K6(stack.compose(), tools.summaries());
-		this.calibrations = new Calibrations(stack, k6, new ModelInputs(tools.simulations()), tools.log());
+		this.calibrations = new Calibrations(stack, k6, tools.inputs(), tools.log());
 		this.measurement = new Measurement(stack, k6, ResourceSampler.OWN_THREAD, tools.log());
 	}
 
@@ -59,7 +58,8 @@ final class DockerSteps implements ExperimentSteps {
 
 	@Override
 	public ObjectNode predictStep(Experiment experiment, JsonNode inputs, long rps) {
-		return this.tools.simulations()
+		return this.tools.inputs()
+			.simulations()
 			.simulate(Designs.design(experiment, inputs, PythonValues.integer(rps), Designs.Window.STEP));
 	}
 

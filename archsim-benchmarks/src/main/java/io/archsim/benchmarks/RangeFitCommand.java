@@ -1,6 +1,7 @@
 package io.archsim.benchmarks;
 
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 
 import org.jspecify.annotations.Nullable;
@@ -11,6 +12,8 @@ import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.benchmarks.designs.Simulations;
 import io.archsim.benchmarks.history.GitRepository;
+import io.archsim.benchmarks.inputs.ModelInputs;
+import io.archsim.benchmarks.machine.MachineFit;
 import io.archsim.benchmarks.provenance.EngineBuild;
 import io.archsim.benchmarks.provenance.MachineName;
 import io.archsim.benchmarks.provenance.Provenance;
@@ -35,16 +38,19 @@ final class RangeFitCommand implements Callable<Integer>, HarnessRules.JavaEngin
 					+ "when nothing but the label changed since)")
 	private @Nullable String reuse;
 
+	private final HarnessSetup setup;
+
 	private final RepositoryLayout layout;
 
 	private final HarnessLog log;
 
 	private final Path cache;
 
-	RangeFitCommand(RepositoryLayout layout, HarnessLog log, Path cache) {
-		this.layout = layout;
-		this.log = log;
-		this.cache = cache;
+	RangeFitCommand(HarnessSetup setup) {
+		this.setup = setup;
+		this.layout = setup.layout();
+		this.log = setup.log();
+		this.cache = setup.rangeFitCache();
 	}
 
 	@Override
@@ -52,8 +58,11 @@ final class RangeFitCommand implements Callable<Integer>, HarnessRules.JavaEngin
 		Provenance provenance = new Provenance(new GitRepository(this.layout.root()), MachineName.current(),
 				EngineBuild.current().orElse(null));
 		CheckStamp stamp = new CheckStamp(EngineVersions.ENGINE, provenance.of(), this.log.clock());
-		ObjectNode fit = new RangeFit(this.layout.results(), Simulations.onTheEngine(), stamp, this.log)
-			.fit(this.layout.kneeRange(), this.reuse, this.cache);
+		Optional<MachineFit> machine = this.setup.machine();
+		ModelInputs inputs = new ModelInputs(Simulations.onTheEngine(), machine.orElse(null));
+		Path cacheFile = machine.map((host) -> RangeFit.cachePath(this.cache, host)).orElse(this.cache);
+		ObjectNode fit = new RangeFit(this.layout.results(), inputs, stamp, this.log).fit(this.layout.kneeRange(),
+				this.reuse, cacheFile);
 		String level = PythonFormat.format(KneeRanges.COVERAGE, "g");
 		fit.get("check").get("counts").properties().forEach((fold) -> {
 			JsonNode counts = fold.getValue().get(level);

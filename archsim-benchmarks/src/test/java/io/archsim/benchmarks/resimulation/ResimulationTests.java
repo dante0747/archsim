@@ -18,6 +18,7 @@ import tools.jackson.databind.node.ObjectNode;
 import io.archsim.benchmarks.HarnessLog;
 import io.archsim.benchmarks.RepositoryLayout;
 import io.archsim.benchmarks.designs.Simulations;
+import io.archsim.benchmarks.inputs.ModelInputs;
 import io.archsim.benchmarks.results.KeptRun;
 import io.archsim.benchmarks.results.ResultFiles;
 
@@ -94,7 +95,8 @@ class ResimulationTests {
 
 	private static Resimulation resimulation(Path results, StringWriter log) {
 		CheckStamp stamp = new CheckStamp(LABEL, JsonNodeFactory.instance.objectNode(), NOON);
-		return new Resimulation(results, Simulations.onTheEngine(), stamp, new HarnessLog(new PrintWriter(log), NOON));
+		return new Resimulation(results, new ModelInputs(Simulations.onTheEngine()), stamp,
+				new HarnessLog(new PrintWriter(log), NOON));
 	}
 
 	// a kept run's files, under a results folder of its own

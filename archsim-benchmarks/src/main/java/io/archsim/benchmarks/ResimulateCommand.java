@@ -43,13 +43,16 @@ final class ResimulateCommand implements Callable<Integer>, HarnessRules.JavaEng
 					+ "folder's checks of the same calibrations, committed or not")
 	private @Nullable String label;
 
+	private final HarnessSetup setup;
+
 	private final RepositoryLayout layout;
 
 	private final HarnessLog log;
 
-	ResimulateCommand(RepositoryLayout layout, HarnessLog log) {
-		this.layout = layout;
-		this.log = log;
+	ResimulateCommand(HarnessSetup setup) {
+		this.setup = setup;
+		this.layout = setup.layout();
+		this.log = setup.log();
 	}
 
 	/**
@@ -72,7 +75,8 @@ final class ResimulateCommand implements Callable<Integer>, HarnessRules.JavaEng
 		Provenance provenance = new Provenance(new GitRepository(this.layout.root()), MachineName.current(),
 				EngineBuild.current().orElse(null));
 		CheckStamp stamp = new CheckStamp(folder, provenance.of(), this.log.clock());
-		new Resimulation(this.layout.results(), Simulations.onTheEngine(), stamp, this.log).resimulate(runs)
+		new Resimulation(this.layout.results(), this.setup.modelInputs(Simulations.onTheEngine()), stamp, this.log)
+			.resimulate(runs)
 			.forEach((written) -> this.log.line("wrote " + this.layout.name(written)));
 		return 0;
 	}

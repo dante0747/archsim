@@ -16,6 +16,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.benchmarks.RepositoryLayout;
 import io.archsim.benchmarks.designs.Simulations;
+import io.archsim.benchmarks.inputs.ModelInputs;
 import io.archsim.benchmarks.results.KeptRun;
 import io.archsim.benchmarks.results.ResultFiles;
 
@@ -34,7 +35,7 @@ class KeptRunsChecksTests {
 
 	private static final Path RECORDED = RESULTS.resolve("dev/0.16.0-java");
 
-	private static final DevCheck CHECKS = new DevCheck(RESULTS, Simulations.onTheEngine(),
+	private static final DevCheck CHECKS = new DevCheck(RESULTS, new ModelInputs(Simulations.onTheEngine()),
 			new CheckStamp("1.0.0", JsonNodeFactory.instance.objectNode(), Clock.systemUTC()));
 
 	@ParameterizedTest(name = "{0}")

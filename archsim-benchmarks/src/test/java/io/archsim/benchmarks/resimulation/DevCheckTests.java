@@ -18,6 +18,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.benchmarks.RepositoryLayout;
 import io.archsim.benchmarks.designs.Simulations;
+import io.archsim.benchmarks.inputs.ModelInputs;
 import io.archsim.benchmarks.results.KeptRun;
 import io.archsim.benchmarks.results.ResultFiles;
 
@@ -37,7 +38,7 @@ class DevCheckTests {
 
 	private static final JsonNode PROVENANCE = JsonNodeFactory.instance.objectNode().put("machineId", "test");
 
-	private static final DevCheck CHECKS = new DevCheck(LAYOUT.results(), Simulations.onTheEngine(),
+	private static final DevCheck CHECKS = new DevCheck(LAYOUT.results(), new ModelInputs(Simulations.onTheEngine()),
 			new CheckStamp("1.0.0", PROVENANCE, Clock.fixed(Instant.parse("2026-11-13T10:00:00Z"), ZoneOffset.UTC)));
 
 	/** Cache-ttl's latest run checked, once for the tests of what names a check. */

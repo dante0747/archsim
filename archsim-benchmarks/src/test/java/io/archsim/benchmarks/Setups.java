@@ -23,7 +23,18 @@ public final class Setups {
 	 * @return the setup
 	 */
 	public static HarnessSetup onThisMachine(RepositoryLayout layout, HarnessLog log) {
-		return new HarnessSetup(layout, log, layout.root().resolve("range-fit-cache.json"), Map.of(),
+		return onThisMachine(layout, log, Map.of());
+	}
+
+	/**
+	 * A setup on this machine with the variables a test sets.
+	 * @param layout the repository
+	 * @param log the log
+	 * @param environment the variables
+	 * @return the setup
+	 */
+	public static HarnessSetup onThisMachine(RepositoryLayout layout, HarnessLog log, Map<String, String> environment) {
+		return new HarnessSetup(layout, log, layout.root().resolve("range-fit-cache.json"), environment,
 				new SystemProcesses(), new HttpServices(), Ticker.system());
 	}
 
