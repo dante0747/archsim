@@ -45,6 +45,16 @@ class PythonJsonTests {
 	}
 
 	@Test
+	void writeIndentedAsIs_textBeyondAscii_isWrittenAsItIsAndFloatsAsTheirRepr() {
+		// as json.dumps(value, indent=2, ensure_ascii=False) writes accuracy.json
+		JsonNode value = JSON.readTree("{\"a\": \"±22% \\u2192 😀\", \"b\": [1e-05, \"\\n\\u0001\"]}");
+
+		String text = PythonJson.writeIndentedAsIs(value, 2);
+
+		assertThat(text).isEqualTo("{\n  \"a\": \"±22% → 😀\",\n  \"b\": [\n    1e-05,\n    \"\\n\\u0001\"\n  ]\n}");
+	}
+
+	@Test
 	void writePydantic_textBeyondAscii_isWrittenAsItIs() {
 		// as pydantic_core.to_json(value, indent=2) wrote the MCP server's answers
 		JsonNode value = JSON.readTree("{\"a\": \"caf\\u00e9 \\u2192 \\ud83d\\ude00\", \"b\": [\"\\n\\u0001\"]}");

@@ -1,0 +1,23 @@
+{
+  "cacheStacks": ["cache", "cache-ttl"],
+  "containers": {
+    "postgres": ["api", "postgres"],
+    "cache": ["api", "postgres", "redis"],
+    "kafka": ["producer", "consumer", "postgres", "kafka"],
+    "java-mixed": ["api-java", "postgres"],
+    "go-mixed": ["api-go", "postgres"],
+    "python-mixed": ["api-python", "postgres"],
+    "chain": ["gateway", "chain-api", "postgres"],
+    "cache-ttl": ["api-ttl", "postgres", "redis-ttl"]
+  },
+  "k6Cpus": {
+    "postgres": "0,1,6,7",
+    "cache": "0,6,7",
+    "kafka": "6,7",
+    "java-mixed": "0,1,6,7",
+    "go-mixed": "0,1,6,7",
+    "python-mixed": "0,1,6,7",
+    "chain": "6,7",
+    "cache-ttl": "6,7"
+  }
+}

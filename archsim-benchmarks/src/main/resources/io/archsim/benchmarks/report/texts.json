@@ -1,0 +1,103 @@
+{
+  "names": {
+    "pg-mixed": "PostgreSQL, mixed reads and writes",
+    "pg-hot-row": "PostgreSQL, every request updating one row",
+    "cache-aside": "Redis cache in front of PostgreSQL",
+    "kafka": "Kafka queue feeding PostgreSQL",
+    "java-mixed": "Spring Boot and PostgreSQL, mixed reads and writes",
+    "go-mixed": "Go and PostgreSQL, mixed reads and writes",
+    "python-mixed": "Flask on gunicorn and PostgreSQL, mixed reads and writes",
+    "chain": "A gateway in front of an API, then PostgreSQL",
+    "cache-ttl": "Redis cache with a 5 s TTL in front of PostgreSQL"
+  },
+  "technologies": {
+    "pg-mixed": [
+      "Node.js",
+      "PostgreSQL"
+    ],
+    "pg-hot-row": [
+      "Node.js",
+      "PostgreSQL"
+    ],
+    "cache-aside": [
+      "Node.js",
+      "Redis",
+      "PostgreSQL"
+    ],
+    "kafka": [
+      "Node.js",
+      "Kafka",
+      "PostgreSQL"
+    ],
+    "java-mixed": [
+      "Java (Spring Boot)",
+      "PostgreSQL"
+    ],
+    "go-mixed": [
+      "Go",
+      "PostgreSQL"
+    ],
+    "python-mixed": [
+      "Python (Flask, gunicorn)",
+      "PostgreSQL"
+    ],
+    "chain": [
+      "Node.js",
+      "PostgreSQL"
+    ],
+    "cache-ttl": [
+      "Node.js",
+      "Redis",
+      "PostgreSQL"
+    ]
+  },
+  "parts": {
+    "api": "Node.js service",
+    "producer": "Node.js producer",
+    "consumer": "Node.js consumer",
+    "postgres": "PostgreSQL",
+    "redis": "Redis",
+    "kafka": "Kafka broker",
+    "api-java": "Spring Boot service",
+    "api-go": "Go service",
+    "api-python": "Flask service (gunicorn)",
+    "gateway": "Node.js gateway",
+    "chain-api": "Node.js API",
+    "api-ttl": "Node.js service",
+    "redis-ttl": "Redis"
+  },
+  "notModelled": {
+    "consumer": "inside the model's queue node, which has no CPU or memory",
+    "kafka": "the model's queue node has no CPU or memory"
+  },
+  "noMemoryModel": {
+    "postgres": "the model has no database memory figure yet"
+  },
+  "measuredBy": {
+    "window": "each container's CPU and working set (memory less reclaimable page cache), read every {sampleSeconds} s inside the window k6 measures",
+    "scaled": "each container's CPU over the whole k6 command, scaled to the measured window by the service's own CPU counter (these runs predate reading CPU inside the window; memory was not measured)",
+    "mixed": "partly inside the measured window, partly scaled from the whole k6 command"
+  },
+  "containers": {
+    "api": "service",
+    "producer": "producer",
+    "consumer": "consumer",
+    "postgres": "PostgreSQL",
+    "redis": "Redis",
+    "kafka": "Kafka",
+    "k6": "k6",
+    "api-java": "service",
+    "api-go": "service",
+    "api-python": "service",
+    "gateway": "gateway",
+    "chain-api": "API",
+    "api-ttl": "service",
+    "redis-ttl": "Redis"
+  },
+  "harnessCaveats": {
+    "kafka": {
+      "before": "2026-10-31T17:00:00Z",
+      "text": "Every Kafka run so far was measured with a broker healthcheck that started a Java tool every 3 s on the broker's own core (about half a core, all the time). Without it the same stack held the objective up to about 3,000 req/s in a trial on 31 Oct, so these measured knees are the benchmark's limit, not Kafka's. The healthcheck is fixed in compose.yaml; the next campaign measures Kafka again."
+    }
+  }
+}

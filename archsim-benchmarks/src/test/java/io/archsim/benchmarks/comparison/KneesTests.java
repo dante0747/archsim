@@ -3,6 +3,7 @@ package io.archsim.benchmarks.comparison;
 import java.util.Arrays;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
@@ -15,6 +16,66 @@ class KneesTests {
 
 	private static final ObjectNode RANGE = JsonText
 		.object("{\"lowRps\": 900, \"highRps\": 1100, \"nominalCoverage\": 0.5, \"replicates\": 3}");
+
+	// pg-mixed's second run of 30 October: missed at
+	// 2,550 to 4,590 req/s, met at 5,100, missed above
+	@Test
+	void disturbedSteps_missesBelowAStepThatMet_areDisturbed() {
+		List<JsonNode> rows = List.of(measured(1275, 8.5, 1.0), measured(2550, 102.1, 0.927),
+				measured(3825, 119.6, 0.798), measured(4590, 190.3, 0.737), measured(5100, 46.6, 0.998),
+				measured(5610, 136.7, 0.858));
+
+		List<JsonNode> disturbed = Knees.disturbedSteps(rows);
+
+		assertThat(disturbed).extracting(JsonNode::intValue).containsExactly(2550, 3825, 4590);
+	}
+
+	@Test
+	void disturbedSteps_aMissOnTheSuccessRateAlone_isDisturbed() {
+		List<JsonNode> rows = List.of(measured(100, 2.0, 1.0), measured(200, 9.0, 0.9), measured(300, 9.0, 1.0));
+
+		List<JsonNode> disturbed = Knees.disturbedSteps(rows);
+
+		assertThat(disturbed).extracting(JsonNode::intValue).containsExactly(200);
+	}
+
+	@Test
+	void disturbedSteps_rowsInAnyOrder_areReadByLoad() {
+		List<JsonNode> rows = List.of(measured(300, 9.0, 1.0), measured(200, 60.0, 1.0), measured(100, 2.0, 1.0));
+
+		List<JsonNode> disturbed = Knees.disturbedSteps(rows);
+
+		assertThat(disturbed).extracting(JsonNode::intValue).containsExactly(200);
+	}
+
+	@Test
+	void disturbedSteps_aStackThatStopsMeetingTheObjective_isNotDisturbed() {
+		List<JsonNode> rows = List.of(measured(100, 2.0, 1.0), measured(200, 60.0, 1.0), measured(300, null, 0.4));
+
+		List<JsonNode> disturbed = Knees.disturbedSteps(rows);
+
+		assertThat(disturbed).isEmpty();
+	}
+
+	@Test
+	void disturbedSteps_aStackThatNeverMet_isNotDisturbed() {
+		List<JsonNode> rows = List.of(measured(100, 90.0, 1.0), measured(200, 95.0, 1.0));
+
+		List<JsonNode> disturbed = Knees.disturbedSteps(rows);
+
+		assertThat(disturbed).isEmpty();
+	}
+
+	// older tests' rows have no success rate, so they never meet the objective
+	@Test
+	void disturbedSteps_rowsWithoutASuccessRate_areNotDisturbed() {
+		ObjectNode slow = JsonText.object("{\"offeredRps\": 100, \"measured\": {\"p95\": 99.0}}");
+		ObjectNode fast = JsonText.object("{\"offeredRps\": 200, \"measured\": {\"p95\": 1.0}}");
+
+		List<JsonNode> disturbed = Knees.disturbedSteps(List.of(slow, fast));
+
+		assertThat(disturbed).isEmpty();
+	}
 
 	@Test
 	void gridKnee_p95CrossingTheObjective_isInterpolatedInP95() {
@@ -170,6 +231,20 @@ class KneesTests {
 	@Test
 	void inRange_withoutARange_isEmpty() {
 		assertThat(Knees.inRange(JsonText.read("null"), JsonText.read("{\"kneeRps\": 950.0}"))).isEmpty();
+	}
+
+	// a comparison's row with what the objective reads
+	private static ObjectNode measured(int rate, @Nullable Double p95, double successRate) {
+		ObjectNode row = JsonText.object("{\"measured\": {}}").put("offeredRps", rate);
+		ObjectNode measured = (ObjectNode) row.get("measured");
+		if (p95 == null) {
+			measured.putNull("p95");
+		}
+		else {
+			measured.put("p95", p95);
+		}
+		measured.put("successRate", successRate);
+		return row;
 	}
 
 	private static JsonNode knee(double rate) {

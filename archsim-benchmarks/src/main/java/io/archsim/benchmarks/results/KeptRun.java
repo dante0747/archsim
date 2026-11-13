@@ -21,6 +21,12 @@ public record KeptRun(String experiment, Path directory) {
 	/** The measurements against the predictions: {@code comparison.json}. */
 	public static final String COMPARISON = "comparison";
 
+	/** The calibration the predictions came from: {@code calibration.json}. */
+	public static final String CALIBRATION = "calibration";
+
+	/** The machine and the stack's pinning: {@code environment.json}. */
+	public static final String ENVIRONMENT = "environment";
+
 	/**
 	 * CPU and memory simulated again later, for a run whose predictions recorded none:
 	 * {@code resources-predicted.json}.

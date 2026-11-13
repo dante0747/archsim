@@ -64,10 +64,11 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     # benchmarks/tests/test_held_out.py reads its cpuset loop
     (".github/workflows/benchmark.yml", BENCHMARK_TESTS),
     (".github/", NONE),
-    # The web app. The benchmarks' tests compare the accuracy page's copy with docs/validation/.
+    # The web app. The Python benchmark tests and the Java harness's ReportParityTests compare
+    # the accuracy page's copy with docs/validation/.
     # archsim-engine's GeneratedFileTests checks the fixtures `./gradlew :archsim-engine:generate`
     # writes from the starter. archsim-model's DesignDocumentsTests reads the starter too.
-    ("apps/web/src/data/accuracy.json", BENCHMARK_TESTS | {"web", "e2e"}),
+    ("apps/web/src/data/accuracy.json", BENCHMARK_TESTS | {"web", "e2e", "java"}),
     ("apps/web/src/test/fixtures/starter.json", WEB_FIXTURES),
     ("apps/web/src/test/fixtures/catalog.json", WEB_FIXTURES),
     ("apps/web/src/test/fixtures/analysis-starter.json", WEB_FIXTURES),
@@ -115,8 +116,12 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     # the engines' speed (the frozen engine's, and the Java speed task's): the Python job's
     # parity page check reads two of these files, and no benchmark test reads any
     ("benchmarks/perf/", PYTHON),
-    # the kept results, which the Java harness's tests reduce again
+    # the kept results and what labels them, which the Java harness's tests reduce again and
+    # report on
     ("benchmarks/results/", BENCHMARK_TESTS | {"java"}),
+    ("benchmarks/engines.json", BENCHMARK_TESTS | {"java"}),
+    ("benchmarks/compose.yaml", BENCHMARK_TESTS | {"java"}),
+    ("benchmarks/knee-range.json", BENCHMARK_TESTS | {"java"}),
     ("benchmarks/", BENCHMARK_TESTS),
     # The fixtures the golden files and recordings were made from, which the API and app tests
     # read.
@@ -128,11 +133,12 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     # The documents the tests compare with what the engine or the scripts generate; no job reads
     # the rest.
     ("docs/assumptions.md", frozenset({"java"})),
-    ("docs/validation.md", BENCHMARK_TESTS),
-    # stage 4's parity page and its runs, which the Python job's page check reads
-    ("docs/validation/java-parity.md", PYTHON),
+    ("docs/validation.md", BENCHMARK_TESTS | {"java"}),
+    # stage 4's parity page and its runs, which the Python job's page check reads; the Java
+    # harness's JavaEngineCheckTests reads the page too
+    ("docs/validation/java-parity.md", PYTHON | {"java"}),
     ("docs/validation/simulation-parity.json", PYTHON),
-    ("docs/validation/", BENCHMARK_TESTS),
+    ("docs/validation/", BENCHMARK_TESTS | {"java"}),
     ("docs/", NONE),
     # For people and assistants only.
     (".claude/", NONE),

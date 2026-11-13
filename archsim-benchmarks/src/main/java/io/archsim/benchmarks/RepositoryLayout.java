@@ -45,6 +45,56 @@ public record RepositoryLayout(Path root) {
 	}
 
 	/**
+	 * The engine versions and what each was tuned on: {@code benchmarks/engines.json}.
+	 * @return the file
+	 */
+	public Path engines() {
+		return benchmarks().resolve("engines.json");
+	}
+
+	/**
+	 * The benchmark's stacks: {@code benchmarks/compose.yaml}.
+	 * @return the file
+	 */
+	public Path compose() {
+		return benchmarks().resolve("compose.yaml");
+	}
+
+	/**
+	 * The fit the knee's predicted range is built from:
+	 * {@code benchmarks/knee-range.json}.
+	 * @return the file
+	 */
+	public Path kneeRange() {
+		return benchmarks().resolve("knee-range.json");
+	}
+
+	/**
+	 * The validation page: {@code docs/validation.md}.
+	 * @return the file
+	 */
+	public Path validationPage() {
+		return this.root.resolve("docs").resolve("validation.md");
+	}
+
+	/**
+	 * The validation page's charts and data: {@code docs/validation/}.
+	 * @return the folder
+	 */
+	public Path validation() {
+		return this.root.resolve("docs").resolve("validation");
+	}
+
+	/**
+	 * The web app's copy of {@code accuracy.json}, inside {@code apps/web} because the
+	 * web image is built from that folder alone.
+	 * @return the file
+	 */
+	public Path webAccuracy() {
+		return this.root.resolve("apps/web/src/data/accuracy.json");
+	}
+
+	/**
 	 * A path as the harness's log names it: from the root, with forward slashes.
 	 * @param path a path in the repository
 	 * @return its name

@@ -1,7 +1,8 @@
 /**
  * The accuracy benchmarks as data, for the /accuracy page. `src/data/accuracy.json` is written by
- * `benchmarks/report.py --json` (a copy of docs/validation/accuracy.json; a test keeps them equal),
- * from the same numbers as docs/validation.md. Text fields (`text`) are the report's own
+ * `./gradlew :archsim-benchmarks:run --args="report --json"` (a copy of
+ * docs/validation/accuracy.json; a test keeps them equal), from the same numbers as
+ * docs/validation.md. Text fields (`text`) are the report's own
  * formatting, so the page and validation.md show the same figures.
  */
 import raw from "@/data/accuracy.json";

@@ -85,6 +85,18 @@ public final class PythonJson {
 	}
 
 	/**
+	 * The JSON text of a value as {@code json.dumps(value, indent=spaces,
+	 * ensure_ascii=False)} writes it: laid out as {@link #writeIndented(JsonNode, int)}
+	 * lays it out, every character but the control characters as it is.
+	 * @param value the JSON value
+	 * @param spaces the spaces each level is indented by
+	 * @return its text
+	 */
+	public static String writeIndentedAsIs(JsonNode value, int spaces) {
+		return new PythonJson(Keys.IN_ORDER, Characters.AS_IS, Floats.REPR, " ".repeat(spaces)).text(value);
+	}
+
+	/**
 	 * The JSON text of a value as {@code pydantic_core.to_json(value, indent=spaces)}
 	 * writes it, as the Python MCP SDK wrote a tool's result: laid out as
 	 * {@link #writeIndented(JsonNode, int)} lays it out, every character but the control

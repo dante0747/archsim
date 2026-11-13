@@ -112,7 +112,7 @@ EVERY_JOB = {
             {"python", "java", "e2e", "archsim_check", "benchmark_tests"},
         ),
         (["apps/web/src/app/page.tsx", "apps/web/package-lock.json"], {"web", "e2e"}),
-        (["apps/web/src/data/accuracy.json"], {"python", "benchmark_tests", "web", "e2e"}),
+        (["apps/web/src/data/accuracy.json"], {"python", "benchmark_tests", "web", "e2e", "java"}),
         # the Java engine's tests check the web fixtures; the Java model's tests read the starter
         (["apps/web/src/test/fixtures/starter.json"], {"web", "java", "e2e"}),
         (["apps/web/src/test/fixtures/catalog.json"], {"web", "java", "e2e"}),
@@ -136,10 +136,18 @@ EVERY_JOB = {
         (["scripts/export_casefold.py", "scripts/export_erfc_points.py"], {"python", "java"}),
         # the frozen engine's golden files and simulation baselines, which the Java tests read
         (["parity/golden/manifest.json", "parity/simulation/manifest.json"], {"java", "e2e"}),
-        (["docs/validation.md", "docs/validation/accuracy.json"], {"python", "benchmark_tests"}),
+        # the Java harness's report tests read them too
+        (
+            ["docs/validation.md", "docs/validation/accuracy.json"],
+            {"python", "benchmark_tests", "java"},
+        ),
+        (["benchmarks/engines.json"], {"python", "benchmark_tests", "java"}),
+        (["benchmarks/compose.yaml"], {"python", "benchmark_tests", "java"}),
+        (["benchmarks/knee-range.json"], {"python", "benchmark_tests", "java"}),
         # stage 4's parity page and its runs: the page check in the Python job reads them, no
         # benchmark test does
-        (["docs/validation/java-parity.md", "docs/validation/simulation-parity.json"], {"python"}),
+        (["docs/validation/java-parity.md"], {"python", "java"}),
+        (["docs/validation/simulation-parity.json"], {"python"}),
         # the engines' speed, which only the page check reads, and the earlier measurements, which
         # nothing does
         (["benchmarks/perf/java-port.json", "benchmarks/perf/python-0.16.0.json"], {"python"}),

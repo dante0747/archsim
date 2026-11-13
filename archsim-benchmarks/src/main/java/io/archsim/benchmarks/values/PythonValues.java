@@ -2,6 +2,7 @@ package io.archsim.benchmarks.values;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
@@ -32,6 +33,15 @@ public final class PythonValues {
 	 */
 	public static JsonNode none() {
 		return NullNode.instance;
+	}
+
+	/**
+	 * A value that may be absent, as Python's None when it is.
+	 * @param value the value, or empty
+	 * @return the value, or None
+	 */
+	public static JsonNode orNone(Optional<? extends JsonNode> value) {
+		return value.isPresent() ? value.get() : none();
 	}
 
 	/**
@@ -224,6 +234,45 @@ public final class PythonValues {
 		JsonNode median = (sorted.size() % 2 == 1) ? sorted.get(middle)
 				: divide(add(sorted.get(middle - 1), sorted.get(middle)), TWO);
 		return Double.isInfinite(median.doubleValue()) ? none() : median;
+	}
+
+	/**
+	 * {@code sum(values)} as CPython 3.12 adds: integers exactly while every value is
+	 * one, then, from the first float on, floats by Neumaier's compensated summation and
+	 * any integer after it plainly. Twelve 0.8s add up to 9.600000000000001, not a loop's
+	 * 9.6.
+	 * @param values numbers
+	 * @return an integer when every value is one (0 for none), else a float
+	 * @throws ArithmeticException when an integer sum does not fit in a {@code long},
+	 * where Python's would grow
+	 */
+	public static JsonNode sum(List<JsonNode> values) {
+		long whole = 0;
+		int first = 0;
+		while (first < values.size() && values.get(first).isIntegralNumber()) {
+			whole = Math.addExact(whole, values.get(first).longValue());
+			first++;
+		}
+		if (first == values.size()) {
+			return integer(whole);
+		}
+		double total = (double) whole + values.get(first).doubleValue();
+		double compensation = 0.0;
+		for (JsonNode value : values.subList(first + 1, values.size())) {
+			double item = value.doubleValue();
+			double next = total + item;
+			if (!value.isIntegralNumber()) {
+				compensation += roundingError(total, item, next);
+			}
+			total = next;
+		}
+		boolean compensated = compensation != 0.0 && Double.isFinite(compensation);
+		return number(compensated ? total + compensation : total);
+	}
+
+	// what rounding lost when total + item became next (Neumaier)
+	private static double roundingError(double total, double item, double next) {
+		return (Math.abs(total) >= Math.abs(item)) ? (total - next) + item : (item - next) + total;
 	}
 
 	private static boolean bothIntegers(JsonNode left, JsonNode right) {

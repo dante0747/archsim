@@ -14,8 +14,9 @@ distribution for the knee's range, binomial tails for the range's coverage verdi
 many places. The Python harness used `statistics.median`, `statistics.fmean` (an exactly rounded
 sum, `math.fsum`, over the count), `statistics.NormalDist().inv_cdf` (Wichura's AS241),
 `math.comb`, `round()` (half to even on the exact binary value), `math.log`, `exp`, `sqrt` and
-`log10`, and `sum()` in list order. Stage 7's parity bar asks that the committed results reduce to
-the same numbers: medians, knees, spreads and digests.
+`log10`, and `sum()`, which since CPython 3.12 adds floats with Neumaier's compensation (twelve
+0.8s add up to 9.600000000000001, where a loop gives 9.6). Stage 7's parity bar asks that the
+committed results reduce to the same numbers: medians, knees, spreads and digests.
 
 Which implementations does the Java harness use?
 
@@ -39,6 +40,8 @@ bits, and they are short.
 
 - `PythonValues.median`, over the results' JSON values: the middle value, which keeps its type
   (an integer stays one), or the two middle ones' sum over two.
+- `PythonValues.sum`, CPython 3.12's `sum()`: integers exactly while every value is one, then
+  floats by Neumaier's compensated summation, and an integer after the first float plainly.
 - `PythonStatistics` in `archsim-benchmarks`, each added with the first slice that needs it:
   `fmean` (an exactly rounded sum over the count: the sum is made exactly in `BigDecimal` and
   rounded once, which is what `math.fsum` returns), `normalInverse` (AS241, as `statistics`

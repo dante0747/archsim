@@ -81,9 +81,8 @@ public final class Knees {
 		return knee;
 	}
 
-	// where the p95 crosses the objective, linear between the two steps; the step that
-	// met
-	// it when the missed step's p95 is unknown or no higher
+	// where the p95 crosses the objective, linear between the steps;
+	// the step that met it when the other's p95 is unknown or no higher
 	private static JsonNode p95Crossing(JsonNode met, JsonNode missed) {
 		JsonNode p95 = PythonValues.get(missed, "p95");
 		double metP95 = met.get("p95").doubleValue();
@@ -93,9 +92,8 @@ public final class Knees {
 		return crossing(met, missed, Objective.P95_MS - metP95, p95.doubleValue() - metP95);
 	}
 
-	// where the success rate crosses the objective, linear between the two steps; the
-	// step
-	// that met it when the missed step's is no lower
+	// where the success rate crosses the objective, linear between the steps;
+	// the step that met it when the other's is no lower
 	private static JsonNode successCrossing(JsonNode met, JsonNode missed) {
 		double success = PythonValues.numberOrZero(missed, "successRate");
 		double metSuccess = met.get("successRate").doubleValue();
@@ -109,6 +107,26 @@ public final class Knees {
 	private static JsonNode crossing(JsonNode met, JsonNode missed, double above, double span) {
 		double from = met.get(RATE).doubleValue();
 		return PythonValues.number(from + (missed.get(RATE).doubleValue() - from) * above / span);
+	}
+
+	/**
+	 * The steps of a comparison that missed the objective below a higher step that met
+	 * it. A stable stack does not get faster with more load, so such a miss was a
+	 * disturbance, not the stack's limit, and the run is not a measurement of the stack.
+	 * @param rows a comparison's rows, in any order
+	 * @return the missed steps' loads, in load order
+	 */
+	public static List<JsonNode> disturbedSteps(List<? extends JsonNode> rows) {
+		List<JsonNode> ladder = new ArrayList<>(rows);
+		ladder.sort((left, right) -> PythonValues.compare(left.get(RATE), right.get(RATE)));
+		List<Boolean> met = ladder.stream().map((row) -> meets(row.get("measured"))).toList();
+		List<JsonNode> disturbed = new ArrayList<>();
+		for (int i = 0; i < ladder.size(); i++) {
+			if (!met.get(i) && met.subList(i + 1, met.size()).contains(true)) {
+				disturbed.add(ladder.get(i).get(RATE));
+			}
+		}
+		return disturbed;
 	}
 
 	/**

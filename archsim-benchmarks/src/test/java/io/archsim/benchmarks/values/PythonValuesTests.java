@@ -1,6 +1,9 @@
 package io.archsim.benchmarks.values;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
@@ -150,6 +153,93 @@ class PythonValuesTests {
 		JsonNode absolute = PythonValues.abs(NODES.numberNode(-3));
 
 		assertThat(absolute).isEqualTo(NODES.numberNode(3));
+	}
+
+	// the values CPython 3.12.13 gives
+	@Test
+	void sum_ofTwelveEighties_compensatesItsRounding() {
+		List<JsonNode> values = Collections.nCopies(12, NODES.numberNode(0.8));
+
+		JsonNode sum = PythonValues.sum(values);
+
+		assertThat(sum).isEqualTo(NODES.numberNode(9.600000000000001));
+	}
+
+	@Test
+	void sum_ofTenTenths_isOne() {
+		List<JsonNode> values = Collections.nCopies(10, NODES.numberNode(0.1));
+
+		JsonNode sum = PythonValues.sum(values);
+
+		assertThat(sum).isEqualTo(NODES.numberNode(1.0));
+	}
+
+	@Test
+	void sum_ofIntegers_isAnInteger() {
+		JsonNode sum = PythonValues.sum(List.of(NODES.numberNode(3), NODES.numberNode(4)));
+
+		assertThat(sum).isEqualTo(NODES.numberNode(7));
+	}
+
+	@Test
+	void sum_ofNothing_isTheIntegerZero() {
+		JsonNode sum = PythonValues.sum(List.of());
+
+		assertThat(sum).isEqualTo(NODES.numberNode(0));
+	}
+
+	@Test
+	void sum_ofIntegersThenFloats_addsTheIntegersExactlyFirst() {
+		List<JsonNode> values = new ArrayList<>(List.of(NODES.numberNode(1), NODES.numberNode(2)));
+		values.addAll(Collections.nCopies(10, NODES.numberNode(0.1)));
+
+		JsonNode sum = PythonValues.sum(values);
+
+		assertThat(sum).isEqualTo(NODES.numberNode(4.0));
+	}
+
+	// CPython 3.12 adds an integer after a float without compensating its rounding
+	@Test
+	void sum_ofIntegersAfterAFloat_losesTheirRounding() {
+		List<JsonNode> values = List.of(NODES.numberNode(1e16), NODES.numberNode(1), NODES.numberNode(1),
+				NODES.numberNode(1), NODES.numberNode(1));
+
+		JsonNode sum = PythonValues.sum(values);
+
+		assertThat(sum).isEqualTo(NODES.numberNode(1e16));
+	}
+
+	@Test
+	void sum_ofFloatsAfterAFloat_keepsTheirRounding() {
+		List<JsonNode> values = List.of(NODES.numberNode(1e16), NODES.numberNode(1.0), NODES.numberNode(1.0),
+				NODES.numberNode(1.0), NODES.numberNode(1.0));
+
+		JsonNode sum = PythonValues.sum(values);
+
+		assertThat(sum).isEqualTo(NODES.numberNode(1.0000000000000004e16));
+	}
+
+	@Test
+	void sum_thatOverflows_isInfinite() {
+		List<JsonNode> values = List.of(NODES.numberNode(1e308), NODES.numberNode(1e308), NODES.numberNode(-1e308));
+
+		JsonNode sum = PythonValues.sum(values);
+
+		assertThat(sum).isEqualTo(NODES.numberNode(Double.POSITIVE_INFINITY));
+	}
+
+	@Test
+	void orNone_aValue_isTheValue() {
+		JsonNode value = PythonValues.orNone(Optional.of(NODES.numberNode(3)));
+
+		assertThat(value).isEqualTo(NODES.numberNode(3));
+	}
+
+	@Test
+	void orNone_noValue_isNone() {
+		JsonNode value = PythonValues.orNone(Optional.empty());
+
+		assertThat(value.isNull()).isTrue();
 	}
 
 }
