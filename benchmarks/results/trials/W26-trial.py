@@ -9,7 +9,7 @@ protocol v6 run calls it, written to ``<date>-<experiment>-w26/calibration.json`
 ``environment.json`` (the machine, the cpusets, the commit, the host's CPU load and the other jobs
 running when each stack started).
 
-Takes the benchmark lock (C:/Users/abarg/.archsim-bench-lock) once it is free, the host has
+Takes the benchmark lock (<home>/.archsim-bench-lock) once it is free, the host has
 been under QUIET_LOAD % CPU for QUIET_S and its CPU boosts (``cpu_boost``: on 1 Nov the laptop
 ran below its base clock and the service's CPU per request read twice the kept runs'), holds it
 for every stack of the trial, and releases it when the last stack is down; it stops before a

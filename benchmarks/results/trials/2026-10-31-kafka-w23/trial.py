@@ -2,7 +2,7 @@
 
     uv run python benchmarks/results/trials/2026-10-31-kafka-w23/trial.py --raw <dir>
 
-Takes the benchmark lock (C:/Users/abarg/.archsim-bench-lock) as soon as it is free, records the
+Takes the benchmark lock (<home>/.archsim-bench-lock) as soon as it is free, records the
 host's load and the other jobs running, and runs three variants back to back:
 
 1. The stack as benchmarked: two passes at 569 req/s (the top of the kept runs' calibration

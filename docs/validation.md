@@ -1320,3 +1320,8 @@ generated from them) keep the IDs they were measured with, since a run's `predic
 seals its `predictions.json` as written;
 [`benchmarks/results/commit-ids.tsv`](../benchmarks/results/commit-ids.tsv) maps each recorded
 ID to the commit's current one.
+
+On 13 Nov 2026 the local paths in nine files of the calibration-only trials
+(`benchmarks/results/trials/`) and in one performance profile (`benchmarks/perf/baseline.json`)
+were replaced by placeholders (`<home>`, `<repo>`, `<temp>`, `<runtime>`, `<plugins>`). Nothing
+measured changed.
