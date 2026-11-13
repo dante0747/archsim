@@ -241,7 +241,7 @@ class Experiment:
     held_out: HeldOut | None = None
 
 
-REGISTERED = HeldOut("2026-10-30", "90f067d6d40d9dae0ee7549907a562cf88bd2beb")
+REGISTERED = HeldOut("2026-10-30", "ce2d109d534b9a9cd18a4a42690b71dcf86342f4")
 """The five held-out experiments' registration (W19): the commit that added them."""
 
 

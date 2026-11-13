@@ -7,7 +7,7 @@ decision-makers: Majid Abarghooei (owner)
 # 0004. Prove accuracy on held-out experiments, sealed until a frozen engine predicts them
 
 *Recorded retroactively on 2026-11-02. The decision dates from 30 Oct 2026, when the five held-out
-experiments were registered in commit `90f067d`.*
+experiments were registered in commit `ce2d109`.*
 
 ## Context and Problem Statement
 

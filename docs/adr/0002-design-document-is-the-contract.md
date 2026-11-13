@@ -6,7 +6,7 @@ decision-makers: Majid Abarghooei (owner)
 
 # 0002. The versioned design document is the contract between web app, API and engine
 
-*Recorded retroactively on 2026-11-02. The decision dates from the first commit (`ea38af6`,
+*Recorded retroactively on 2026-11-02. The decision dates from the first commit (`fbcd3ab`,
 24 Oct 2026), which shipped schema 1.0 with `migrations.py`.*
 
 ## Context and Problem Statement

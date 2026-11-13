@@ -6,7 +6,7 @@ decision-makers: Majid Abarghooei (owner)
 
 # 0003. Run simulations from a PostgreSQL queue with leases
 
-*Recorded retroactively on 2026-11-02. The decision dates from commits `a32ac7c` and `9733ae0`
+*Recorded retroactively on 2026-11-02. The decision dates from commits `b025f82` and `318145d`
 (27 Oct 2026), which added the queue (migration 0003) and the worker that uses it.*
 
 ## Context and Problem Statement
@@ -51,7 +51,7 @@ in Java, since stage 4 of the port ([ADR-0053](0053-simulate-runs-in-the-java-ap
 and `jobs/` went with the Python worker. A run simulates on a thread of its worker, not in a process
 of its own, so a run that exhausts the worker's heap stops its other runs too; the reaper settles
 them like the runs of any worker that stops: requeued once, then failed. The claim above is its
-first version (`a32ac7c`). The same day W8's workspace caps (`0b4550c`) replaced `SKIP LOCKED`:
+first version (`b025f82`). The same day W8's workspace caps (`d892b19`) replaced `SKIP LOCKED`:
 to count each workspace's running runs and pick consistently, claims take turns under a
 transaction advisory lock (`pg_advisory_xact_lock`), and a `row_number` pick takes every
 workspace's oldest queued run before any workspace's second. The Java worker ports that claim.

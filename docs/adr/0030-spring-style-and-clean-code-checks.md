@@ -50,7 +50,7 @@ formatter and a Checkstyle module for it that keep it without effort.
   one enum constant per line, and test names. `maxWarnings` is 0, and a finding is never
   suppressed in the code.
 - **An exception to a rule** needs the owner's approval. It is a change to `config/checkstyle/`,
-  with its reason in a comment beside it. The owner approved two in 352b645:
+  with its reason in a comment beside it. The owner approved two in ba9810d:
   `LineLength` ignores the last line of an annotated record component, which the formatter can't
   wrap; `ClassFanOutComplexity` doesn't count the codec's annotations (`@Default`, `@Ge`, `@Ui`,
   ...), which declare a record's JSON rather than couple it to other code.

@@ -17,16 +17,16 @@ URL, and query values read whole (2026-11-12).**
   still say whom they need through their parameters, so public endpoints, unknown paths and body
   errors keep their order:
   - the chain, permitting every request, with the security headers and the request firewall in
-    it (`4bc4a50f`);
+    it (`dcffff86`);
   - API tokens through the resource server, an `OpaqueTokenIntrospector` over the tokens table,
-    with the RFC 9728 metadata, which the web app also serves (`2c44473f`, `bb1a711e`);
-  - browser sessions through a `SecurityContextRepository` over the sessions table (`efe659c6`);
+    with the RFC 9728 metadata, which the web app also serves (`2a892420`, `b62c3012`);
+  - browser sessions through a `SecurityContextRepository` over the sessions table (`57824a88`);
   - CSRF through Spring's filter: a random token in the `__Host-archsim_csrf` cookie, sent back
-    in `X-ArchSim-CSRF` and read from that header only (`1f7c3218`, a breaking change;
-    `8b4182cf`);
+    in `X-ArchSim-CSRF` and read from that header only (`641c8851`, a breaking change;
+    `760190c3`);
   - GitHub and Google sign-in through `oauth2Login`, PKCE for both, the request kept in the
-    signed `__Host-archsim_oauth` cookie, Google checked through OpenID Connect (`c9478f3b`);
-  - ADR 0037 superseded, and the docs brought up to date (slice 6, `994b206c`); once query values
+    signed `__Host-archsim_oauth` cookie, Google checked through OpenID Connect (`c85c4dd4`);
+  - ADR 0037 superseded, and the docs brought up to date (slice 6, `20214707`); once query values
     were read whole (below), the callback's own argument resolver and OpenAPI customizer went:
     the controller declares `code`, `state` and `error` as `@RequestParam`s, as `login` declares
     `next`.
@@ -37,7 +37,7 @@ URL, and query values read whole (2026-11-12).**
   HSTS spelled as Spring spells it; Spring's sign-in state; and a callback's too long `state` or
   `code` landing on the sign-in page.
 - `ARCHSIM_DATABASE_URL` takes a plain `postgresql://` URL, now the documented form
-  (`7f061b73`, a dated note on ADR 0035).
+  (`d3cb0337`, a dated note on ADR 0035).
 - A query parameter given once is read whole and as given, as FastAPI read a query value, where
   Spring split it at its commas, trimmed the pieces and made an empty one no value, and the last
   piece counted: an import named `Acme, Inc` was named `Inc`, a `limit` of `1,2` read as `2`,
@@ -52,48 +52,48 @@ URL, and query values read whole (2026-11-12).**
   harness and the repository's scripts until stage 7
   ([ADR 0064](docs/adr/0064-keep-python-only-for-the-harness-and-the-repositorys-tooling.md)).
   - `services/api`, the Alembic migrations Flyway took over from, is deleted, with
-    `scripts/schema_snapshot.py`, its CI job and its dependencies (`9e5dd08f`, a breaking change;
+    `scripts/schema_snapshot.py`, its CI job and its dependencies (`9544b47b`, a breaking change;
     [ADR 0063](docs/adr/0063-retire-alembic-older-databases-upgrade-from-a-tag.md)). A
     database below revision 0008 is refused with how to bring it there from the tag
     `alembic-0008`, a path run by hand from a database at 0007 to Flyway's takeover; the schema
     snapshot is data recorded once, and recording it again from the tag gives the same document.
   - The end-to-end launcher makes its database with the PostgreSQL driver in the API's jar
-    (`5e4f0fdc`); the `archsim-check` action posts its comment with `github-script` (`532edb41`);
-    the script that made the OTLP calibration fixture once is deleted (`901f007d`).
+    (`dfed598b`); the `archsim-check` action posts its comment with `github-script` (`0c3baa8b`);
+    the script that made the OTLP calibration fixture once is deleted (`732dda3f`).
 - The API ignores a request body's unknown keys, as FastAPI's request models did, where it had
   refused them with `extra_forbidden`; a design document in a body still refuses its own
-  (`91ed0b33`, a dated note on ADR 0034).
+  (`3d577bf8`, a dated note on ADR 0034).
 - Python's `float()` reads a figure of any length: `PythonNumbers` checks the text in one pass,
   where a regex recursed per digit and overflowed the stack at a few thousand digits, so an import
   whose `cpus` held 10,000 digits ended in a server error. It now answers as Python did, the
   infinity a component's settings hold written as `null`, as pydantic's JSON mode wrote it
-  (`7d164387`, `2b112d31`). The same recursion, once per group of digits, was in the model's
+  (`c1d29ee4`, `69b647a8`). The same recursion, once per group of digits, was in the model's
   numbers read from strings, a schema version's parts, the query parameters' whole numbers and
   the YAML resolver's base-60 numbers: their groups repeat possessively now, matching the same
   texts in a loop, and the YAML resolvers read a scalar of any length, as PyYAML's did, where
-  SnakeYAML stopped at 1,024 characters (`22c6aebb`).
+  SnakeYAML stopped at 1,024 characters (`4761041c`).
 - Stage 5's follow-ups:
   - archsim-model refuses half of a surrogate pair wherever pydantic encoded the string
-    (`45132465`), and `PythonText.repr` writes the smallest subnormals as Python does
-    (`4e654d25`);
-  - the CLI takes an empty file option as not given (`9bd2da0d`), and reads `--seed` and its
-    float options as Python's `int()` and `float()` did (`f67b1e69`);
+    (`8fbfa5c1`), and `PythonText.repr` writes the smallest subnormals as Python does
+    (`2d9b68a7`);
+  - the CLI takes an empty file option as not given (`f46daa60`), and reads `--seed` and its
+    float options as Python's `int()` and `float()` did (`1c4a9485`);
   - the build runs `format` and `check` in one command, and registers its tasks as Gradle 10
-    will (`60f75718`, `bdd61020`); the black-box suite's servers take five database connections
-    each, so the whole suite fits PostgreSQL's default 100 (`6b3e2ec4`);
+    will (`4f979fc2`, `60964dc8`); the black-box suite's servers take five database connections
+    each, so the whole suite fits PostgreSQL's default 100 (`347369cd`);
   - the `archsim-check` action tags its image for each check and removes only that tag, lets
     builds on one Docker take turns with Gradle's cache (two jobs at once on one Docker both
-    pass) and uploads with `upload-artifact` v7 (`c0bf3753`, `e44f1752`, `3adf7de9`); two web
-    comments name the Java code (`f6ee4734`).
+    pass) and uploads with `upload-artifact` v7 (`ddc5ca62`, `6125ea15`, `2e233b21`); two web
+    comments name the Java code (`676a637d`).
 - Sign-in moves to Spring Security after the port, in six test-first slices
-  ([ADR 0065](docs/adr/0065-move-sign-in-to-spring-security-after-the-port.md), `0298e1d9`),
+  ([ADR 0065](docs/adr/0065-move-sign-in-to-spring-security-after-the-port.md), `6aa85dd5`),
   built since (above).
 - `NOTICE` lists the third-party software the images and the CLI bundle; none is incompatible with
-  Apache-2.0 (`15b8a119`). The web image leaves out sharp and its libvips (LGPL-3.0-or-later), which
+  Apache-2.0 (`f5953070`). The web image leaves out sharp and its libvips (LGPL-3.0-or-later), which
   only Next.js's image optimizer used: the app turns the optimizer off, and its build and CI fail if
   they come back ([ADR 0066](docs/adr/0066-ship-the-web-image-without-an-image-optimizer.md)).
   README, CONTRIBUTING, `docs/extending-components.md` and the other docs that described
-  the Python engine as the product describe the Java one (`9b1396bc`).
+  the Python engine as the product describe the Java one (`070e6f48`).
 
 **The CLI, the MCP server and the action in Java, and the Python engine deleted: stage 5 of the
 Java port (2026-11-12).**
@@ -103,39 +103,39 @@ Java port (2026-11-12).**
   `schema`, with the same flags, the same lines on the same streams, the same exit codes and JSON
   with the same values ([ADR 0055](docs/adr/0055-the-java-clis-output-contract.md)), options
   taken by their full names ([ADR 0056](docs/adr/0056-the-java-cli-takes-options-by-their-full-names.md)).
-  It is checked against 307 cases recorded from the Python CLI (S5-1 to S5-4: `cbfa02b`,
-  `14af55e`, `198aabf`, `ec2e6d8`). Where Python crashed with a traceback, the Java answers in
+  It is checked against 307 cases recorded from the Python CLI (S5-1 to S5-4: `bba8dd7`,
+  `35debf7`, `99afd7d`, `f34e412`). Where Python crashed with a traceback, the Java answers in
   one line; the departures are listed in [archsim-cli/README.md](archsim-cli/README.md).
 - `calibrate prometheus --url` calls the app's Prometheus client, moved into the engine
-  ([ADR 0057](docs/adr/0057-move-the-prometheus-client-into-the-engine.md), `27bf9ae`), and the
+  ([ADR 0057](docs/adr/0057-move-the-prometheus-client-into-the-engine.md), `36ca1fc`), and the
   CLI and the MCP server read and write files as Python did, through the engine's `files`
-  package ([ADR 0059](docs/adr/0059-read-files-as-python-did-in-the-engine.md), `2c31888`).
+  package ([ADR 0059](docs/adr/0059-read-files-as-python-did-in-the-engine.md), `eb569ec`).
 - `archsim-mcp` serves the Python MCP server's 12 tools, its resources and its instructions,
   word for word, on the official MCP Java SDK 2.1.0
-  ([ADR 0058](docs/adr/0058-serve-mcp-with-the-official-mcp-java-sdk.md), `74250f6`): a recorded
+  ([ADR 0058](docs/adr/0058-serve-mcp-with-the-official-mcp-java-sdk.md), `2215971`): a recorded
   session of 55 requests to the Python server gets the same answers from the Java one.
 - The `archsim-check` action builds the Java CLI into an image in the job and runs the check in
   it, without a network; it needs a Linux runner with Docker
-  ([ADR 0060](docs/adr/0060-run-the-check-action-in-an-image-the-job-builds.md), `d2c0998`, a
+  ([ADR 0060](docs/adr/0060-run-the-check-action-in-an-image-the-job-builds.md), `e98d148`, a
   breaking change). Its job's steps ran in Docker on Linux (WSL) on seven cases, with the Python
   action's comment but for the engine's version.
 - The price snapshots are `archsim-model`'s own resources, and the test fixtures moved to
-  `parity/fixtures/` (`f278483`).
+  `parity/fixtures/` (`4fd2185`).
 - The benchmark harness asks one long-lived `archsim functions` process for the engine functions
   it imported from Python (fits, machine speeds, means;
   [ADR 0061](docs/adr/0061-answer-the-harnesss-engine-calls-from-one-java-process.md),
-  `0325b13`): the old and the new harness derive the same 2,468 values from all 67 kept runs. It
-  runs on the Java engine by default since `98b3ba8`
+  `7e733fb`): the old and the new harness derive the same 2,468 values from all 67 kept runs. It
+  runs on the Java engine by default since `720090f`
   ([ADR 0062](docs/adr/0062-make-the-java-engine-the-harnesss-default.md)), and on it only since
-  `24baae6`. On the way, a load curve's factor at a rate that is not a number no longer throws:
-  it is the last point's, as in Python (`6da5f1c`).
+  `e3a64ff`. On the way, a load curve's factor at a rate that is not a number no longer throws:
+  it is the last point's, as in Python (`825c6b7`).
 - What the Python engine still did moved to Java: the sizing audit is archsim-engine's
   `SizingAuditTests`, whose 301 checks on the 25 templates are `scripts/sizing_audit.py`'s
-  (`c74c12b`); `archsim-app`'s `seed` role seeds the examples, and `archsim-api seed` is gone
-  (`f9af362`); `./gradlew :archsim-engine:generate` writes the web app's engine fixtures
-  (`2704646`) and `docs/assumptions.md` (S5-10d), which `GeneratedFileTests` holds to the Java
+  (`ff9cbb1`); `archsim-app`'s `seed` role seeds the examples, and `archsim-api seed` is gone
+  (`08bd1e7`); `./gradlew :archsim-engine:generate` writes the web app's engine fixtures
+  (`b810c68`) and `docs/assumptions.md` (S5-10d), which `GeneratedFileTests` holds to the Java
   engine's output; the tests of the price scripts and the action's sticky comment moved to
-  `scripts/tests` (`3b07629`); and the checks against queueing theory are archsim-engine's
+  `scripts/tests` (`b33e151`); and the checks against queueing theory are archsim-engine's
   `QueueingTheoryTests`, `StarterReferenceTests` and `EstimateAgreementTests`, with the
   tolerances of the Python engine's reference benchmark and estimate tests (S5-10d).
 - Deleted at the exit (S5-10d; git history keeps them, and the tag `engine-0.16.0` the engine as
@@ -593,7 +593,7 @@ engine still 0.16.0).**
   pass keeps W24's resource readings and W22's PostgreSQL statistics; each re-derived replicate
   carries both the staircase (W24's memory fit) and `cpuByLoad` (W21).
 - In-sample re-simulation of every kept run with engine 0.15.0 (`docs/validation/dev-checks.md`,
-  clean tree at `83e1824`, a column per workstream and one for all four): median knee error over
+  clean tree at `75777df`, a column per workstream and one for all four): median knee error over
   the counted v5 runs pg-mixed +24%, pg-hot-row -7% (was -16%), cache-aside -34%, Kafka +4%;
   median absolute knee error over the latest runs 20% -> 15% (24% over all 19 counted runs, as
   before). These are runs the changes were tuned on, not predictions.
@@ -744,7 +744,7 @@ accuracy plan W21).**
   waiting 34 ms): pg-mixed's knee looks set by PostgreSQL's CPU (W22). cache-aside's CPU per
   request kept falling above its staircase (0.22-0.25 ms at the top, 0.170 at 4,850 req/s),
   which the curve, flat above its last point, leaves out: its -34% stays.
-- **Checks:** all 25 examples give the same result digest as main (59d7bc3) with the new setting
+- **Checks:** all 25 examples give the same result digest as main (200b545) with the new setting
   empty; the 25-template sizing audit passes; the engine simulates an overloaded pg-mixed step
   as fast as before (17.9 s against 18.1 s). `uv run pytest` (the one failure, the engine label
   in the generated docs/assumptions.md, regenerated), ruff, mypy, and in apps/web build, lint,
@@ -844,7 +844,7 @@ accuracy plan W21).**
 
 **Held-out experiments, sealed (2026-10-30; accuracy plan W19).**
 
-- Five experiments ArchSim was never tuned on, registered in `90f067d`: java-mixed (Spring Boot
+- Five experiments ArchSim was never tuned on, registered in `ce2d109`: java-mixed (Spring Boot
   on Tomcat, HikariCP), go-mixed (net/http, pgx), python-mixed (Flask on 10 gunicorn sync
   workers), chain (Node.js gateway → API → PostgreSQL) and cache-ttl (5 s TTL, Zipf 1.1 over
   1M keys: 0.8 would give only a 9-24% hit ratio).
@@ -1908,7 +1908,7 @@ Docker:
   2); `docker compose stop worker` gave its run back in 4.8 s.
 
 CI on GitHub, on 2026-10-25, in the private repository `dante0747/archsim`: the first run
-(commit `e4febe3`) passed all three jobs: Python engine + API on SQLite (ruff, format check,
+(commit `dc251a6`) passed all three jobs: Python engine + API on SQLite (ruff, format check,
 mypy, pytest; 5 min), API tests on PostgreSQL 16 (37 s), and web lint, types, tests and
 production build (2 min). It warned that `actions/checkout@v4`, `astral-sh/setup-uv@v6` and
 `actions/setup-node@v4` target the deprecated Node.js 20; the workflow now uses v7 of all

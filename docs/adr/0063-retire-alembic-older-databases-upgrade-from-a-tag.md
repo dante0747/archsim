@@ -42,7 +42,7 @@ not been opened since.
 Chosen option: "delete `services/api`, and upgrade from a tag", because it removes the last
 Python ArchSim runs and still gives an old database a way to reach Flyway.
 
-- The annotated tag `alembic-0008` marks commit 5def7c5 on main, which has `services/api` at
+- The annotated tag `alembic-0008` marks commit eafbd84 on main, which has `services/api` at
   revision 0008 and `scripts/schema_snapshot.py`. Its Flyway `V1` and takeover are today's.
 - `AlembicTakeover` refuses a database at another revision in the same words, and then says:
   in a checkout of the tag `alembic-0008`, run `uv sync` and `uv run archsim-api migrate` to bring

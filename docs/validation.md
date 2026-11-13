@@ -510,7 +510,7 @@ workload, `results/envcheck/`):
 
 The four experiments after these (pg-mixed, pg-hot-row, cache-aside and Kafka) are in-sample:
 the model and the calibration protocol were revised with their results in view. Five more were
-registered on 30 Oct 2026 in commit `90f067d` (`benchmarks/run.py`, `Experiment.held_out`) to
+registered on 30 Oct 2026 in commit `ce2d109` (`benchmarks/run.py`, `Experiment.held_out`) to
 test ArchSim on stacks it was never tuned on. They were **sealed** until an engine frozen in
 `benchmarks/engines.json` had predicted them. Engine 0.16.0 was frozen for them on 2 Nov 2026
 (tag `engine-0.16.0`; [ADR 0017](adr/0017-freeze-python-engine-during-port.md)), and each was
@@ -1308,3 +1308,15 @@ age) is further off (above: the consumer capped at 1,383 messages/s where it kep
 1,650/s, and message age 13 times the model's at 1,050 req/s), so Kafka would stay experimental
 for asynchronous questions even if it met all three, until the consumers' fetch cycle is
 modelled (W23). On this data the core set stays a focus list, as the badge says today.
+
+## Commit IDs in recorded results
+
+On 13 Nov 2026 the repository's history was rewritten: the author's email became GitHub's
+noreply address, two documents not meant to be public left every commit, and every commit
+carries the AGPL-3.0 licence. That changed every commit's ID and nothing else in the code. IDs
+written by hand, here and in the other docs, name the current commits. Recorded results
+(`benchmarks/results/`, `benchmarks/knee-range.json` and the accuracy and knee-range files
+generated from them) keep the IDs they were measured with, since a run's `predictionsSha256`
+seals its `predictions.json` as written;
+[`benchmarks/results/commit-ids.tsv`](../benchmarks/results/commit-ids.tsv) maps each recorded
+ID to the commit's current one.

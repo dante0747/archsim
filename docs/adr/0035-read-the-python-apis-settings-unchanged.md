@@ -83,5 +83,5 @@ migrations at the tag `alembic-0008`
 ## More Information
 
 - The Python API's settings, as they were when it was deleted:
-  `git show 5a557ca^:services/api/src/archsim_api/config.py`. The file now holds only the
+  `git show 6465579^:services/api/src/archsim_api/config.py`. The file now holds only the
   workers' settings.

@@ -70,7 +70,7 @@ How it works ([`archsim-api-tests/README.md`](../../archsim-api-tests/README.md)
 
 The CI job `java` runs `apiTest` against the Java API it starts (`-Parchsim.api.start=java`): 132
 test cases, from the 120 ported Python tests (122 methods, two of them parameterized). The
-FastAPI app was deleted at stage 2 (5a557ca), so the suite now checks only `archsim-app`.
+FastAPI app was deleted at stage 2 (6465579), so the suite now checks only `archsim-app`.
 
 Parity with Python was only partly shown. The port plan's stage 0 notes record that 36 of the 120
 ported tests had not run against the Python API, and they never did before it was deleted.

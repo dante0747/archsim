@@ -70,12 +70,12 @@ answers exactly as they are and can shrink one endpoint at a time.
   today. The Python API had no such timeout.
 - The black-box suite starts the service next to the Java API.
 
-**Status (5 Nov 2026):** stage 3 has removed three endpoints: `/validate` (143c6fb), then
-`/analyze` and `/prepare` (dedd377). Five remain: `/compare`, `/summarize-seeds`, `/export`,
+**Status (5 Nov 2026):** stage 3 has removed three endpoints: `/validate` (dd01bd3), then
+`/analyze` and `/prepare` (126125a). Five remain: `/compare`, `/summarize-seeds`, `/export`,
 `/import` and `/calibrate`.
 
-**Status (7 Nov 2026):** stage 3 has removed the other five: `/summarize-seeds` (9c994a6),
-`/compare` (a2d8d10), `/export` (6fe584d), `/import` (7283d62) and `/calibrate` (2150472).
+**Status (7 Nov 2026):** stage 3 has removed the other five: `/summarize-seeds` (25ed293),
+`/compare` (8540384), `/export` (b292067), `/import` (17308de) and `/calibrate` (1395bc0).
 Until stage 4's exit, the service keeps one call, the interim `/simulate` a calibration replays
 ([ADR-0045](0045-replay-calibrations-through-an-interim-simulate.md)); it no longer calls out.
 
