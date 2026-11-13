@@ -1,0 +1,15 @@
+name: Question
+description: Ask how to model something, read a result or set ArchSim up.
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The [documentation](https://github.com/dante0747/archsim/blob/main/docs/README.md) may already answer it: [getting started](https://github.com/dante0747/archsim/blob/main/docs/getting-started.md), [troubleshooting](https://github.com/dante0747/archsim/blob/main/docs/troubleshooting.md) and the [simulation model](https://github.com/dante0747/archsim/blob/main/docs/simulation-model.md) are good places to start.
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: What are you trying to do, and what have you tried? Attach the design document (JSON) if it is about a design or a result.
+    validations:
+      required: true

@@ -5,22 +5,32 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting. For security problems, follow SECURITY.md instead of opening an issue.
-        Note: results that differ from your production system are not necessarily bugs; ArchSim simulates
-        the model and assumptions you provide (see docs/simulation-model.md). Results that contradict
-        the documented model, break accounting invariants, or are not reproducible from the same seed are bugs.
+        Thanks for reporting. For security problems, follow [SECURITY.md](https://github.com/dante0747/archsim/blob/main/SECURITY.md) instead of opening an issue. If the stack doesn't start, [troubleshooting](https://github.com/dante0747/archsim/blob/main/docs/troubleshooting.md) may already have the answer.
+
+        Results that differ from your production system are not necessarily bugs: ArchSim simulates the model and the assumptions you give it ([simulation model](https://github.com/dante0747/archsim/blob/main/docs/simulation-model.md)). Results that contradict the documented model, break its accounting, or are not reproducible from the same document and seed are bugs.
   - type: dropdown
     id: area
     attributes:
       label: Area
-      options: [Simulation engine, API, Web editor, Results / charts, Import / export, Docs, Other]
+      options:
+        - Simulation engine
+        - Web app
+        - Results and charts
+        - API and workers
+        - Command line (archsim)
+        - MCP server or WebMCP tools
+        - Calibration, import or export
+        - Sign-in and workspaces
+        - Docker and setup
+        - Documentation
+        - Other
     validations:
       required: true
   - type: textarea
     id: what
     attributes:
       label: What happened?
-      description: Include error messages and the run's provenance (engine version, seed, inputDigest) if relevant.
+      description: Include error messages and, for a run, its provenance (engine version, seed, inputDigest and resultDigest).
     validations:
       required: true
   - type: textarea
@@ -33,16 +43,16 @@ body:
     id: repro
     attributes:
       label: Steps to reproduce
-      description: Attach the exported .archsim.json document and the scenario id if the problem involves a simulation.
+      description: If a simulation is involved, attach the exported design document (JSON) and name the scenario.
     validations:
       required: true
   - type: input
     id: version
     attributes:
-      label: Version / commit
-      placeholder: e.g. engine 0.1.0, commit abc1234
+      label: Version or commit
+      placeholder: e.g. engine 1.0.0, commit abc1234
   - type: input
     id: env
     attributes:
       label: Environment
-      placeholder: OS, browser, Java, Python and Node versions, Docker or local
+      placeholder: OS, browser, Java and Node.js versions; Docker Compose or from source
