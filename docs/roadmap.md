@@ -89,9 +89,11 @@ engine would flatten nested graphs before simulation.
 
 ## 6. Collaboration and access control
 
-Accounts, role-based access (viewer/editor/owner), shared projects, comments on nodes, and an
-audit history of document revisions. Seams: projects already carry a `revision` with
-optimistic concurrency (`expectedRevision`), and every run stores its exact input.
+Done: accounts through GitHub or Google sign-in, personal and team workspaces with viewer, editor
+and owner roles, invitations and API tokens, comments on parts, links and runs, sign-offs on runs,
+a history of every change to a project and its workspace, and read-only share links
+([api.md](api.md#sign-in-workspaces-and-tokens), [deployment.md](deployment.md)). Projects carry a
+`revision` with optimistic concurrency (`expectedRevision`), and every run stores its exact input.
 
 ## 7. Scalable job execution
 

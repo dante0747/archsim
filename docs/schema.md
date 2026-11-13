@@ -1,4 +1,4 @@
-# Architecture document format (schema 1.1)
+# Architecture document format (schema 1.7)
 
 An ArchSim project is one human-readable JSON document. It is what the editor saves, what
 `GET /api/v1/projects/{id}/export` downloads and what `POST /api/v1/projects/import` accepts.

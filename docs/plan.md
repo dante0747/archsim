@@ -35,7 +35,7 @@ and reload, and reproduce any result from its stored seed and input.
 | Persistence | **PostgreSQL** (JSONB) | PostgreSQL via Docker Compose. The Python API also ran on a SQLite file with no setup; the Java API dropped that mode ([ADR-0016](adr/0016-drop-sqlite-development-mode.md)). |
 | Migrations | Flyway, applied when the API starts (`ARCHSIM_AUTO_MIGRATE`); first Alembic | Safe schema evolution. Flyway took over at Alembic's revision 0008, and a test checks it builds the same schema ([ADR-0032](adr/0032-flyway-takes-over-from-alembic.md)). |
 | Reports | One JSON document per run, written once when the run finishes | No per-event database writes; memory is bounded by time buckets and histogram bins. |
-| Frontend | Next.js 16, React Flow (`@xyflow/react`), Zustand, Tailwind CSS v4, Radix primitives, Recharts, elkjs | As specified in the brief. React Flow handles the editable graph; ELK provides layered auto-layout. Recharts covers the time-series needs, so PixiJS was not needed. |
+| Frontend | Next.js 16, React Flow (`@xyflow/react`), Zustand, Tailwind CSS v4, Radix primitives, Recharts, elkjs | React Flow handles the editable graph; ELK provides layered auto-layout. Recharts covers the time-series needs, so PixiJS was not needed. |
 | UI forms | Generated from field descriptors served by `GET /api/v1/components` | Each config field carries unit, range, group and an "assumption" flag in the engine (first in Python, now in `archsim-model`'s config records). New components appear in the palette and inspector without frontend changes. |
 
 ## Modeling assumptions (MVP)
