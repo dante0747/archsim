@@ -36,7 +36,7 @@ class ReportCommandTests {
 
 		assertThat(exitCode).isZero();
 		assertThat(layout.validationPage()).content(StandardCharsets.UTF_8)
-			.contains("_No results for pg-mixed yet: run `uv run python benchmarks/run.py`._");
+			.contains("_No results for pg-mixed yet: run `./gradlew :archsim-benchmarks:run --args=\"postgres\"`._");
 	}
 
 	@Test

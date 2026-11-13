@@ -59,6 +59,21 @@ class ComposeTests {
 			.hasMessage("docker compose up -d --build --wait --profile x failed with exit code 1");
 	}
 
+	@Test
+	void container_aServiceNotRunning_isNone() {
+		Compose compose = Compose.of(FakeDocker.silent(), FILE, Map.of(), new Logs().log());
+
+		assertThat(compose.container("api")).isEmpty();
+	}
+
+	@Test
+	void container_aRunningService_isItsId() {
+		Compose compose = Compose.of(new FakeDocker((command) -> FakeDocker.printing("3f2a\n")), FILE, Map.of(),
+				new Logs().log());
+
+		assertThat(compose.container("api")).contains("3f2a");
+	}
+
 	private static FakeDocker failing() {
 		return new FakeDocker((command) -> new ProcessResult(1, "building", "no space left"));
 	}

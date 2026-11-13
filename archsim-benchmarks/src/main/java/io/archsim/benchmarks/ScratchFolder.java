@@ -6,10 +6,11 @@ import java.nio.file.Path;
 import java.util.List;
 
 /**
- * A folder of a command's input, output and errors, which the command reads and writes as
- * files, never through pipes: a pipe of a few KB fills while the command writes the
- * other, and waiting on one deadlocks. The folder is deleted when closed; a failure to
- * delete it is kept with the exception that ended the run.
+ * A folder of a command's files: its input, its errors, and its output when the caller
+ * does not read it as it comes. A command reads and writes files rather than pipes, since
+ * a pipe of a few KB fills while the command writes another, and waiting on one
+ * deadlocks. The folder is deleted when closed; a failure to delete it is kept with the
+ * exception that ended the run.
  */
 public final class ScratchFolder implements AutoCloseable {
 

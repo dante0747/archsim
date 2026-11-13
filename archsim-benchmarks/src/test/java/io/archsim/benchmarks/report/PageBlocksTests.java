@@ -106,15 +106,17 @@ class PageBlocksTests {
 
 		String block = EnvironmentBlock.of(Map.of("pg-mixed", old), CPUSETS);
 
-		assertThat(block).endsWith(" These are the runner's defaults (`benchmarks/run.py`, `compose.yaml`): the runs "
-				+ "shown predate recording the cpusets in `environment.json`.");
+		assertThat(block)
+			.endsWith(" These are the runner's defaults (`compose.yaml`, the harness's `stacks.json`): the runs "
+					+ "shown predate recording the cpusets in `environment.json`.");
 	}
 
 	@Test
 	void experiment_withoutResults_saysHowToRunIt(@TempDir Path results) {
 		String block = ExperimentBlock.of(Experiments.standard().get("pg-mixed"), results);
 
-		assertThat(block).isEqualTo("_No results for pg-mixed yet: run `uv run python benchmarks/run.py`._");
+		assertThat(block)
+			.isEqualTo("_No results for pg-mixed yet: run `./gradlew :archsim-benchmarks:run --args=\"postgres\"`._");
 	}
 
 	@Test

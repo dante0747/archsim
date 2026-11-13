@@ -3,6 +3,7 @@ package io.archsim.benchmarks;
 import java.nio.file.Path;
 import java.util.Map;
 
+import io.archsim.benchmarks.docker.Cgroups;
 import io.archsim.benchmarks.docker.Compose;
 import io.archsim.benchmarks.docker.Cpusets;
 import io.archsim.benchmarks.docker.HttpServices;
@@ -30,6 +31,9 @@ import io.archsim.engine.version.EngineVersions;
  */
 public record HarnessSetup(RepositoryLayout layout, HarnessLog log, Path rangeFitCache, Map<String, String> environment,
 		ProcessRunner processes, ServiceHttp services, Ticker ticker) {
+
+	/** The host's cgroup folder, which Linux hosts with cgroup v2 can read directly. */
+	private static final Path HOST_CGROUPS = Path.of("/sys/fs/cgroup");
 
 	/**
 	 * Copies the environment.
@@ -63,7 +67,8 @@ public record HarnessSetup(RepositoryLayout layout, HarnessLog log, Path rangeFi
 	 * @return the instruments
 	 */
 	public Instruments instruments() {
-		return new Instruments(compose(), this.services, this.ticker);
+		Compose compose = compose();
+		return new Instruments(compose, new Cgroups(compose, HOST_CGROUPS, this.ticker), this.services, this.ticker);
 	}
 
 	/**

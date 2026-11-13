@@ -141,7 +141,9 @@ class StackLifecycleTests {
 		Logs logs = new Logs();
 		FakeTicker ticker = new FakeTicker(0);
 		Compose compose = Compose.of(docker, folder.resolve("compose.yaml"), Map.of(), logs.log());
-		return new StackLifecycle(new Instruments(compose, services, ticker), CPUSETS, Map.of(), logs.log());
+		return new StackLifecycle(
+				new Instruments(compose, new Cgroups(compose, Path.of("cgroups"), ticker), services, ticker), CPUSETS,
+				Map.of(), logs.log());
 	}
 
 }

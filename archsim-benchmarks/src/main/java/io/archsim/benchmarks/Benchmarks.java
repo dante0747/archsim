@@ -13,6 +13,7 @@ import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.ParameterException;
 import picocli.CommandLine.Spec;
 
+import io.archsim.benchmarks.experiments.Experiments;
 import io.archsim.engine.version.EngineVersions;
 
 /**
@@ -81,6 +82,11 @@ public final class Benchmarks implements Runnable {
 			.addSubcommand(new JavaParityCommand(layout))
 			.addSubcommand(new TreeIdsCommand(layout))
 			.setColorScheme(Help.defaultColorScheme(Help.Ansi.OFF));
+		Experiments.standard()
+			.stacks()
+			.keySet()
+			.forEach((stack) -> commandLine.addSubcommand(stack, StackCommand.of(setup, stack)));
+		commandLine.addSubcommand("all", StackCommand.all(setup));
 		HarnessRules.apply(commandLine, setup.environment());
 		return commandLine;
 	}

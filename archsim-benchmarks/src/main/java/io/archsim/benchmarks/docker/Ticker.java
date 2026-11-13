@@ -2,6 +2,8 @@ package io.archsim.benchmarks.docker;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The wall clock a campaign reads and waits on, which a test replaces with its own.
@@ -19,6 +21,14 @@ public interface Ticker {
 	 * @param seconds how long
 	 */
 	void sleep(double seconds);
+
+	/**
+	 * Waits for a time or until a stop, whichever comes first.
+	 * @param stop the stop
+	 * @param seconds the longest wait
+	 * @return whether it stopped
+	 */
+	boolean awaitStop(CountDownLatch stop, double seconds);
 
 	/**
 	 * This machine's clock.
@@ -53,6 +63,17 @@ public interface Ticker {
 			catch (InterruptedException ex) {
 				Thread.currentThread().interrupt();
 				throw new IllegalStateException("interrupted while waiting", ex);
+			}
+		}
+
+		@Override
+		public boolean awaitStop(CountDownLatch stop, double seconds) {
+			try {
+				return stop.await((long) (seconds * NANOSECONDS), TimeUnit.NANOSECONDS);
+			}
+			catch (InterruptedException ex) {
+				Thread.currentThread().interrupt();
+				return true;
 			}
 		}
 

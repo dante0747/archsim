@@ -45,6 +45,18 @@ public final class KneeRanges {
 	}
 
 	/**
+	 * The range at the nominal coverage, {@link #COVERAGE}.
+	 * @param nominal the predicted knee
+	 * @param sensitivity the knee's sensitivity to each varied input
+	 * ({@link Sensitivity})
+	 * @param fit the fit ({@code knee-range.json}), or None
+	 * @return the range; empty without a fit or a knee
+	 */
+	public static Optional<ObjectNode> of(JsonNode nominal, JsonNode sensitivity, JsonNode fit) {
+		return of(nominal, sensitivity, fit, COVERAGE);
+	}
+
+	/**
 	 * The range at a coverage.
 	 * @param nominal the predicted knee
 	 * @param sensitivity the knee's sensitivity to each varied input

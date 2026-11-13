@@ -1,4 +1,4 @@
-package io.archsim.benchmarks.resimulation;
+package io.archsim.benchmarks.parallel;
 
 import java.util.ArrayList;
 import java.util.List;

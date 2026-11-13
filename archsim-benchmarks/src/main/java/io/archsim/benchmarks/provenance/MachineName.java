@@ -53,7 +53,7 @@ public final class MachineName {
 	 * @return {@code BENCH_MACHINE}, else the CPU's model in lower case without its
 	 * vendor's words, its words joined by hyphens; {@code unknown} when nothing is left
 	 */
-	static String id(Map<String, String> environment, String cpu) {
+	public static String id(Map<String, String> environment, String cpu) {
 		String named = environment.get(VARIABLE);
 		if (named != null && !named.isEmpty()) {
 			return named;
@@ -70,7 +70,7 @@ public final class MachineName {
 	 * on a machine that names neither the two harnesses give different IDs.
 	 * @return the model
 	 */
-	static String cpu() {
+	public static String cpu() {
 		String architecture = System.getProperty("os.arch", "");
 		if (System.getProperty("os.name", "").startsWith("Windows")) {
 			String name = windowsName();

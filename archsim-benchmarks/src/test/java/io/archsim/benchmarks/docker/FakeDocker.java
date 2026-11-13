@@ -16,6 +16,8 @@ public final class FakeDocker implements ProcessRunner {
 
 	private final List<Map<String, String>> environments = Collections.synchronizedList(new ArrayList<>());
 
+	private final List<String> inputs = Collections.synchronizedList(new ArrayList<>());
+
 	private final Function<String, ProcessResult> answers;
 
 	/**
@@ -44,10 +46,11 @@ public final class FakeDocker implements ProcessRunner {
 	}
 
 	@Override
-	public ProcessResult run(List<String> command, Map<String, String> environment) {
+	public ProcessResult run(List<String> command, Map<String, String> environment, String input) {
 		String words = String.join(" ", command);
 		this.commands.add(words);
 		this.environments.add(Map.copyOf(environment));
+		this.inputs.add(input);
 		return this.answers.apply(words);
 	}
 
@@ -57,6 +60,14 @@ public final class FakeDocker implements ProcessRunner {
 	 */
 	public List<String> commands() {
 		return List.copyOf(this.commands);
+	}
+
+	/**
+	 * What each command read.
+	 * @return the inputs, in the commands' order; empty for a command that read nothing
+	 */
+	public List<String> inputs() {
+		return List.copyOf(this.inputs);
 	}
 
 	/**

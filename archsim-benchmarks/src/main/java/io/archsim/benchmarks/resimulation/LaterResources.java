@@ -15,6 +15,7 @@ import io.archsim.benchmarks.designs.Designs;
 import io.archsim.benchmarks.designs.Simulations;
 import io.archsim.benchmarks.experiments.Experiment;
 import io.archsim.benchmarks.experiments.Experiments;
+import io.archsim.benchmarks.parallel.InParallel;
 import io.archsim.benchmarks.results.KeptRun;
 import io.archsim.benchmarks.results.ResultFiles;
 import io.archsim.benchmarks.results.Timestamps;

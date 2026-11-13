@@ -33,7 +33,8 @@ final class ExperimentBlock {
 		Optional<JsonNode> predictions = LatestRuns.load(results, experiment.id(), KeptRun.PREDICTIONS);
 		Optional<JsonNode> comparison = LatestRuns.load(results, experiment.id(), KeptRun.COMPARISON);
 		if (calibration.isEmpty() || predictions.isEmpty() || comparison.isEmpty()) {
-			return "_No results for " + experiment.id() + " yet: run `uv run python benchmarks/run.py`._";
+			return "_No results for " + experiment.id() + " yet: run `./gradlew :archsim-benchmarks:run --args=\""
+					+ experiment.stack() + "\"`._";
 		}
 		List<String> lines = new ArrayList<>(head(experiment, calibration.get(), predictions.get(), comparison.get()));
 		lines.addAll(inputs(calibration.get()));

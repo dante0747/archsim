@@ -37,7 +37,7 @@ class SystemProcessesTests {
 			Files.write(source, Objects.requireNonNull(program).readAllBytes());
 		}
 		Set<String> before = scratchFolders();
-		result = new SystemProcesses().run(List.of(JAVA, source.toString()), Map.of("ARCHSIM_PROBE", "set"));
+		result = new SystemProcesses().run(List.of(JAVA, source.toString()), Map.of("ARCHSIM_PROBE", "set"), "");
 		leftOver = new HashSet<>(scratchFolders());
 		leftOver.removeAll(before);
 	}
@@ -60,6 +60,20 @@ class SystemProcessesTests {
 	@Test
 	void run_aCommand_leavesNoFilesBehind() {
 		assertThat(leftOver).isEmpty();
+	}
+
+	// the scripts the harness runs in a container's shell go in this way
+	@Test
+	void run_aCommandGivenInput_readsIt(@TempDir Path folder) throws IOException {
+		Path source = folder.resolve("Program.java");
+		try (InputStream program = SystemProcessesTests.class.getResourceAsStream("echo-program.txt")) {
+			Files.write(source, Objects.requireNonNull(program).readAllBytes());
+		}
+
+		ProcessResult echoed = new SystemProcesses().run(List.of(JAVA, source.toString()), Map.of(),
+				"for d in /proc/[0-9]*; do printf \"%s\" \"$d\"; done\n");
+
+		assertThat(echoed.output()).isEqualTo("for d in /proc/[0-9]*; do printf \"%s\" \"$d\"; done\n");
 	}
 
 	// the folders the runner keeps a command's input and output in while it runs

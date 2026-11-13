@@ -11,6 +11,7 @@ import tools.jackson.databind.node.ObjectNode;
 import io.archsim.benchmarks.HarnessLog;
 import io.archsim.benchmarks.designs.Simulations;
 import io.archsim.benchmarks.inputs.MissingReadingException;
+import io.archsim.benchmarks.parallel.InParallel;
 import io.archsim.benchmarks.results.KeptRun;
 import io.archsim.benchmarks.results.ResultFiles;
 import io.archsim.benchmarks.values.PythonValues;

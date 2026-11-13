@@ -74,7 +74,7 @@ final class EnvironmentBlock {
 		List<String> stacks = new ArrayList<>();
 		byPinning.forEach((pinning, experiments) -> stacks.add(Figures.andList(experiments) + ": " + pinning.cpus()));
 		String note = recorded ? ""
-				: " These are the runner's defaults (`benchmarks/run.py`, `compose.yaml`): the runs "
+				: " These are the runner's defaults (`compose.yaml`, the harness's `stacks.json`): the runs "
 						+ "shown predate recording the cpusets in `environment.json`.";
 		return "- CPUs pinned per container (cpuset; k6 gets the CPUs the stack leaves free): "
 				+ String.join("; ", stacks) + "." + note;

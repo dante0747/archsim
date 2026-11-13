@@ -78,13 +78,23 @@ public final class ModelInputs {
 	}
 
 	/**
+	 * The model inputs from the replicate sets: each input taken whole from the replicate
+	 * whose value is the median ({@link MedianInputs}).
+	 * @param replicates each replicate set's inputs
+	 * @return the inputs
+	 */
+	public static ObjectNode median(List<ObjectNode> replicates) {
+		return MedianInputs.of(replicates);
+	}
+
+	/**
 	 * The inputs from one set of passes, before they are anchored: the service's, then
 	 * the queue's (Kafka), the database's, the cache's and the services' memory.
 	 * @param experiment the experiment
 	 * @param passes the low, top and auxiliary passes, the idle pass and the staircase
 	 * @return the inputs, each with its value and how it was found
 	 */
-	ObjectNode of(Experiment experiment, JsonNode passes) {
+	public ObjectNode of(Experiment experiment, JsonNode passes) {
 		ObjectNode inputs = ServiceInputs.of(experiment, passes);
 		if (experiment.stack().equals("kafka")) {
 			inputs.setAll(QueueInputs.of(passes));
@@ -97,8 +107,14 @@ public final class ModelInputs {
 		return inputs;
 	}
 
-	// the inputs anchored at the set's top pass
-	private ObjectNode anchored(Experiment experiment, JsonNode passes) {
+	/**
+	 * The inputs from one set of passes, anchored at its top pass.
+	 * @param experiment the experiment
+	 * @param passes the low, top and auxiliary passes, the idle pass, the staircase and
+	 * its CPU by load
+	 * @return the inputs
+	 */
+	public ObjectNode anchored(Experiment experiment, JsonNode passes) {
 		ObjectNode inputs = of(experiment, passes);
 		this.anchoring.anchor(experiment, inputs, passes.get("high"));
 		return inputs;

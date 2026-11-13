@@ -5,12 +5,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import io.archsim.benchmarks.HarnessLog;
 
 /**
  * {@code docker compose} with the benchmark's stacks ({@code benchmarks/compose.yaml}),
- * through a runner of commands.
+ * and {@code docker} itself, through one runner of commands.
  */
 public final class Compose {
 
@@ -89,7 +90,51 @@ public final class Compose {
 	 * @return its exit code and what it printed
 	 */
 	public ProcessResult result(String... arguments) {
-		return this.runner.run(command(arguments), this.environment);
+		return this.runner.run(command(arguments), this.environment, "");
+	}
+
+	/**
+	 * What a compose command did with a script as its input
+	 * ({@code exec -T <service> sh -s}).
+	 * @param script the script
+	 * @param arguments its arguments
+	 * @return its exit code and what it printed
+	 */
+	public ProcessResult withInput(String script, String... arguments) {
+		return this.runner.run(command(arguments), this.environment, script);
+	}
+
+	/**
+	 * The container of a stack's service.
+	 * @param service the compose service
+	 * @return its container's id; empty when it is not running
+	 */
+	public Optional<String> container(String service) {
+		String id = output("ps", "-q", service).strip();
+		return id.isEmpty() ? Optional.empty() : Optional.of(id);
+	}
+
+	/**
+	 * What a {@code docker} command did, outside compose: {@code docker exec},
+	 * {@code docker version}.
+	 * @param arguments its arguments
+	 * @return its exit code and what it printed
+	 */
+	public ProcessResult docker(String... arguments) {
+		return dockerWithInput("", arguments);
+	}
+
+	/**
+	 * What a {@code docker} command did with a script as its input ({@code docker run -i
+	 * ... sh -s}).
+	 * @param script the script
+	 * @param arguments its arguments
+	 * @return its exit code and what it printed
+	 */
+	public ProcessResult dockerWithInput(String script, String... arguments) {
+		List<String> command = new ArrayList<>(List.of("docker"));
+		command.addAll(List.of(arguments));
+		return this.runner.run(command, Map.of(), script);
 	}
 
 	private List<String> command(String... arguments) {

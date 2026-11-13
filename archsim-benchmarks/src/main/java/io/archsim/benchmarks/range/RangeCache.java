@@ -15,7 +15,7 @@ import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.benchmarks.HarnessLog;
-import io.archsim.benchmarks.resimulation.InParallel;
+import io.archsim.benchmarks.parallel.InParallel;
 import io.archsim.benchmarks.results.ResultFiles;
 import io.archsim.engine.text.JsonDecodeException;
 

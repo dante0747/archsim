@@ -104,9 +104,18 @@ public final class Experiments {
 	 * @return its runtime
 	 */
 	public ServiceRuntime runtime(Experiment experiment) {
-		ServiceRuntime runtime = this.runtimes.get(experiment.runtime());
+		return runtime(experiment.runtime());
+	}
+
+	/**
+	 * A service runtime by its name.
+	 * @param name its name ({@code nodejs}, {@code java}, {@code go}, {@code python})
+	 * @return the runtime
+	 */
+	public ServiceRuntime runtime(String name) {
+		ServiceRuntime runtime = this.runtimes.get(name);
 		if (runtime == null) {
-			throw new IllegalArgumentException("no runtime " + experiment.runtime());
+			throw new IllegalArgumentException("no runtime " + name);
 		}
 		return runtime;
 	}

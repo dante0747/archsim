@@ -1,5 +1,7 @@
 package io.archsim.benchmarks.docker;
 
+import java.util.concurrent.CountDownLatch;
+
 /**
  * A clock that moves only when the code waits: each wait takes no time but moves the
  * clock on by as long, so that a campaign's timing runs at once and the same every time.
@@ -24,6 +26,15 @@ public final class FakeTicker implements Ticker {
 	@Override
 	public synchronized void sleep(double seconds) {
 		this.now += seconds;
+	}
+
+	@Override
+	public synchronized boolean awaitStop(CountDownLatch stop, double seconds) {
+		if (stop.getCount() == 0) {
+			return true;
+		}
+		this.now += seconds;
+		return false;
 	}
 
 }

@@ -42,6 +42,17 @@ public final class Engines {
 	}
 
 	/**
+	 * The engines frozen for prospective predictions: {@code frozenAt}, {@code tag} and
+	 * {@code engineTree} set.
+	 * @return each one's entry, in the file's order
+	 */
+	public List<JsonNode> frozen() {
+		return this.entries.stream()
+			.filter((entry) -> isFrozen(entry) && PythonText.truthy(PythonValues.get(entry, "engineTree")))
+			.toList();
+	}
+
+	/**
 	 * The engine trees the engines record: the tree of the frozen Python engine's sources
 	 * each one was known by.
 	 * @return each engine's tree by its version, in the file's order, for the engines
@@ -73,7 +84,7 @@ public final class Engines {
 		Optional<JsonNode> engine = this.entries.stream()
 			.filter((entry) -> PythonValues.get(entry, "version").equals(engineVersion))
 			.findFirst();
-		if (engine.isEmpty() || !frozen(engine.get())) {
+		if (engine.isEmpty() || !isFrozen(engine.get())) {
 			return "tuned-on";
 		}
 		boolean tunedOn = engine.get()
@@ -83,7 +94,7 @@ public final class Engines {
 		return tunedOn ? "tuned-on" : "held-out";
 	}
 
-	private static boolean frozen(JsonNode engine) {
+	private static boolean isFrozen(JsonNode engine) {
 		return PythonText.truthy(PythonValues.get(engine, "frozenAt"))
 				&& PythonText.truthy(PythonValues.get(engine, "tag"));
 	}

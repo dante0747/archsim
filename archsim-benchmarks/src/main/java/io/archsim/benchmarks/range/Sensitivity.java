@@ -10,6 +10,7 @@ import tools.jackson.databind.node.ObjectNode;
 import io.archsim.benchmarks.designs.Designs;
 import io.archsim.benchmarks.designs.Simulations;
 import io.archsim.benchmarks.experiments.Experiment;
+import io.archsim.benchmarks.parallel.InParallel;
 import io.archsim.engine.numeric.PythonRound;
 
 /**
@@ -19,7 +20,7 @@ import io.archsim.engine.numeric.PythonRound;
  * taken on the side where the input costs more: where the knee switches between two
  * limits it reads the one that binds as the input grows.
  */
-final class Sensitivity {
+public final class Sensitivity {
 
 	/**
 	 * How far each input is moved up, in log terms (x e^0.2 = +22%): several times its
@@ -42,6 +43,27 @@ final class Sensitivity {
 	private static final JsonNodeFactory NODES = JsonNodeFactory.instance;
 
 	private Sensitivity() {
+	}
+
+	/**
+	 * The knee's sensitivity to each varied input, its searches run in parallel.
+	 * @param simulations the engine's simulations
+	 * @param experiment the experiment
+	 * @param inputs the inputs the knee was found with
+	 * @param knee the knee, where each search starts
+	 * @return d ln(knee) / d ln(input) for each input ({@link #fromKnees})
+	 */
+	public static ObjectNode of(Simulations simulations, Experiment experiment, JsonNode inputs, JsonNode knee) {
+		return fromKnees(inputs, InParallel.map(jobs(inputs), (job) -> kneeNear(simulations, experiment, job, knee)));
+	}
+
+	/**
+	 * How many inputs the sensitivity varies.
+	 * @param inputs the inputs
+	 * @return how many of them vary between calibrations
+	 */
+	public static int inputsVaried(JsonNode inputs) {
+		return RangeInputs.keys(inputs).size();
 	}
 
 	/**

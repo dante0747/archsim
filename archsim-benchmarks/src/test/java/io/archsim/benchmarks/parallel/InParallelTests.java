@@ -1,4 +1,4 @@
-package io.archsim.benchmarks.resimulation;
+package io.archsim.benchmarks.parallel;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;

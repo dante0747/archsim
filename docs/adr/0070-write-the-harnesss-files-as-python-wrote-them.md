@@ -58,6 +58,18 @@ committed file reproducible.
   `java-parity.md`. Each is listed in `archsim-benchmarks/README.md` with the commit that made
   it.
 
+**Status (13 Nov 2026, proposed):** with the campaign ported (stage 7, slice S7-6), the files
+a new run writes differ from run.py's in two more ways, beyond the command names above. Both are
+in what new runs record; every recorded file and every file generated from them stays as it was.
+- `measured.json` records `extensionSeals`: one `{offeredRps, predictionsSha256}` per step a
+  ladder climbs above its prediction, saved before that step is measured, so that every seal
+  matches the bytes of `predictions.json` it sealed. run.py saved each such step into the
+  sealed file after its one seal (cache-aside's runs 4 and 5 no longer match theirs); the plan
+  asked for the fix ([java-25-port.md](../proposals/java-25-port.md), the prediction seal).
+- `environment.json` records the harness's runtime as `java` (`Runtime.version()`) where run.py
+  recorded `python`. `accuracy.json` republishes whichever of the two a run recorded, and the
+  web app's type allows either.
+
 ### Consequences
 
 - Good, because the parity bar is a test: regenerate everything, compare bytes.

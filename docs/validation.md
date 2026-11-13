@@ -316,7 +316,7 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
    changes, and the machine. Its sha256 goes to the log and into `measured.json` before the
    first step is measured. When the system still
    meets the objective at the top of the ladder, the runner climbs by 30% (at most four times),
-   predicting and saving each new step before measuring it.
+   predicting, saving and sealing each new step before measuring it.
 4. **Measure** each step three times: 5 s of warm-up, then 20 s measured, 2 s client timeout;
    each metric is the median of the three (robust to one stall), and a step whose three p95s
    differ by more than 2x across the objective is marked unstable. p50, p95 and p99 are over
@@ -1336,8 +1336,10 @@ IDs written by hand, here and in the other docs, name the current commits.
 Two more seals do not match, for another reason. Cache-aside's run-4 and run-5 extended their
 load ladders after their predictions were sealed, and the harness appended the extension steps to
 `predictions.json` without sealing it again, so each seal covers the file as it was before those
-steps. That is a bug of the Python harness, which the Java harness fixes when it takes over the
-runs. Every other sealed run matches its seal.
+steps. That is a bug of the Python harness. The Java harness seals each extension too: before it
+measures a step above the ladder, `measured.json`'s `extensionSeals` records the step and the
+sha256 of `predictions.json` with that step in it, so every seal matches the bytes it sealed.
+Every other sealed run matches its seal.
 
 On 13 Nov 2026 the local paths in nine files of the calibration-only trials
 (`benchmarks/results/trials/`) and in one performance profile (`benchmarks/perf/baseline.json`)

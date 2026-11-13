@@ -130,15 +130,15 @@ public final class GitRepository {
 	private Answer exchange(List<String> arguments, String input) throws IOException {
 		List<String> command = new ArrayList<>(List.of("git", "-C", this.directory.toString()));
 		command.addAll(arguments);
-		try (ScratchFolder exchange = ScratchFolder.create("archsim-git")) {
-			Files.writeString(exchange.input(), input, StandardCharsets.UTF_8);
-			return execute(command, exchange);
+		try (ScratchFolder scratch = ScratchFolder.create("archsim-git")) {
+			Files.writeString(scratch.input(), input, StandardCharsets.UTF_8);
+			return execute(command, scratch);
 		}
 	}
 
-	private static Answer execute(List<String> command, ScratchFolder exchange) throws IOException {
-		Process git = new ProcessBuilder(command).redirectInput(exchange.input().toFile())
-			.redirectError(exchange.errors().toFile())
+	private static Answer execute(List<String> command, ScratchFolder scratch) throws IOException {
+		Process git = new ProcessBuilder(command).redirectInput(scratch.input().toFile())
+			.redirectError(scratch.errors().toFile())
 			.start();
 		String output;
 		try (InputStream answers = git.getInputStream()) {
@@ -147,7 +147,7 @@ public final class GitRepository {
 		int exitCode = Processes.waitFor(git, command);
 		// bytes that are not UTF-8 are replaced, so
 		// git's reason is never lost to decoding
-		String errors = new String(Files.readAllBytes(exchange.errors()), StandardCharsets.UTF_8).strip();
+		String errors = new String(Files.readAllBytes(scratch.errors()), StandardCharsets.UTF_8).strip();
 		return new Answer(String.join(" ", command), exitCode, output, errors);
 	}
 

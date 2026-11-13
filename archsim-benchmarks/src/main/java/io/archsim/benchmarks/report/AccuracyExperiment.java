@@ -99,7 +99,9 @@ final class AccuracyExperiment {
 		json.put("dockerMemoryGiB", PythonRound.round(EnvironmentBlock.dockerMemoryGib(environment), 1));
 		JsonNode images = PythonValues.get(environment, "images");
 		json.set("images", images.isObject() ? images : NODES.objectNode());
-		json.set("python", PythonValues.get(environment, "python"));
+		// the harness's runtime as the run recorded it: Python's, or Java's since S7-6
+		String runtime = environment.has("java") ? "java" : "python";
+		json.set(runtime, PythonValues.get(environment, runtime));
 		ArrayNode pinned = json.putArray("cpusets");
 		sets.forEach((name, set) -> pinned.addObject()
 			.put("container", PageTexts.standard().container(name))

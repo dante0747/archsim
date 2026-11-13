@@ -40,6 +40,18 @@ class HarnessRulesTests {
 	}
 
 	@Test
+	void execute_benchEngineNamingAnotherEngine_refusesAStackBeforeItStarts(@TempDir Path root) throws IOException {
+		FakeMachine machine = FakeMachine.smoking(root, Map.of("BENCH_ENGINE", "python"), 200);
+		StringWriter err = new StringWriter();
+
+		int exitCode = machine.commandLine(root, new StringWriter(), err).execute("postgres");
+
+		assertThat(exitCode).isEqualTo(2);
+		assertThat(err.toString()).startsWith("BENCH_ENGINE='python': the harness runs the Java engine only");
+		assertThat(machine.docker().commands()).isEmpty();
+	}
+
+	@Test
 	void execute_benchEngineNamingAnotherEngine_refusesACommandWithoutDocker(@TempDir Path root) throws IOException {
 		FakeMachine machine = FakeMachine.smoking(root, Map.of("BENCH_ENGINE", "python"), 200);
 		StringWriter err = new StringWriter();

@@ -17,6 +17,7 @@ import tools.jackson.databind.JsonNode;
 import io.archsim.benchmarks.JsonText;
 import io.archsim.benchmarks.Logs;
 import io.archsim.benchmarks.RepositoryLayout;
+import io.archsim.benchmarks.docker.Cgroups;
 import io.archsim.benchmarks.docker.Compose;
 import io.archsim.benchmarks.docker.Cpusets;
 import io.archsim.benchmarks.docker.FakeDocker;
@@ -127,7 +128,8 @@ class SmokeTests {
 		});
 		FakeTicker ticker = new FakeTicker(0);
 		Compose compose = Compose.of(docker, results.resolve("compose.yaml"), Map.of(), logs.log());
-		Instruments instruments = new Instruments(compose, services, ticker);
+		Instruments instruments = new Instruments(compose, new Cgroups(compose, Path.of("cgroups"), ticker), services,
+				ticker);
 		StackLifecycle stacks = new StackLifecycle(instruments,
 				Cpusets.declaredIn(RepositoryLayout.current().compose()), Map.of(), logs.log());
 		return new Smoke(stacks, summaries, logs.log());

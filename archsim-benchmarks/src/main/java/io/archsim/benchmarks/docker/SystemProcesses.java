@@ -11,15 +11,17 @@ import io.archsim.benchmarks.Processes;
 import io.archsim.benchmarks.ScratchFolder;
 
 /**
- * Commands run on this machine. A command reads an empty input and writes what it prints
- * to files, never to pipes, which could fill while the other is read.
+ * Commands run on this machine. A command reads its input from a file and writes what it
+ * prints to files, never to pipes, which could fill while the other is read; a script
+ * goes in as input rather than as an argument, since Java on Windows passes an argument's
+ * quotes on unescaped, and the command's C runtime reads them as its own.
  */
 public final class SystemProcesses implements ProcessRunner {
 
 	@Override
-	public ProcessResult run(List<String> command, Map<String, String> environment) {
+	public ProcessResult run(List<String> command, Map<String, String> environment, String input) {
 		try (ScratchFolder scratch = ScratchFolder.create("archsim-process")) {
-			Files.writeString(scratch.input(), "", StandardCharsets.UTF_8);
+			Files.writeString(scratch.input(), input, StandardCharsets.UTF_8);
 			ProcessBuilder builder = new ProcessBuilder(command).redirectInput(scratch.input().toFile())
 				.redirectOutput(scratch.output().toFile())
 				.redirectError(scratch.errors().toFile());

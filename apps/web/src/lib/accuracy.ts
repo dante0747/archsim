@@ -79,7 +79,10 @@ export interface Environment {
   dockerCpus: number | string | null;
   dockerMemoryGiB: number;
   images: Record<string, string>;
-  python: string | null;
+  /** The Python harness's runtime, for the runs it measured. */
+  python?: string | null;
+  /** The Java harness's runtime, for the runs it measured (since 13 Nov 2026). */
+  java?: string | null;
   cpusets: { container: string; cpus: string; count: number }[];
   cpusetsRecorded: boolean;
   text: string;
