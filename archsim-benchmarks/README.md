@@ -29,6 +29,7 @@ stage 7 of the [Java port](../docs/proposals/java-25-port.md). It is not shipped
 | `compare` | recomputes every kept run's `comparison.json` from its `predictions.json` and `measured.json` (no Docker) | `run.py compare` |
 | `report [--json] [--dev]` | rewrites `docs/validation.md`'s generated blocks and its charts; `--json` also `docs/validation/accuracy.json` and the web app's copy; `--dev` also `docs/validation/dev-checks.md` and `knee-range.md` | `report.py` |
 | `java-parity [--check]` | writes `docs/validation/java-parity.md`, stage 4's parity page, from `simulation-parity.json`, both engines' development checks and their speed; `--check` fails when the page is stale | `scripts/java_parity_report.py` |
+| `tree-ids --before <clone> --commit-map <file>` | writes `benchmarks/results/tree-ids.tsv`, today's tree of each engine tree `engines.json` records, through a clone of the history before a rewrite and its commit map | none: new for the 13 Nov rewrite |
 
 ## Packages
 
@@ -42,6 +43,7 @@ stage 7 of the [Java port](../docs/proposals/java-25-port.md). It is not shipped
 | `values` (`PythonStatistics`) | `statistics.NormalDist().inv_cdf`, `math.comb` | the statistics `report.py` and `run.py` used |
 | `docker` | each stack's containers and k6's CPUs (`stacks.json`), the cpusets `compose.yaml` declares | `STACK_SERVICES`, `K6_CPUS`, `compose_cpusets`, `cpusets`, `cpu_count` |
 | `report` | the validation page's blocks (`ValidationPage`, `SummaryBlocks`, `TiersBlock`, `ResourcesBlock`, `EnvironmentBlock`, `ExperimentBlock`, `LadderTable`), the charts (`Chart`, `ChartPanel`, `ValueAxis`), `accuracy.json` (`AccuracyData`, `AccuracyExperiment`, `AccuracySteps`), the run history and criteria (`RunHistory`, `Tiers`, `Repeatability`, `KneeSpread`), the Java engine's sentence (`JavaEngineCheck`), `dev-checks.md` (`DevChecksPage`), `knee-range.md` (`KneeRangePage`), the page's words (`PageTexts`, `texts.json`) and numbers (`Figures`) | all of `report.py` |
+| `history` | commits and folder trees through `git` (`GitRepository`), a rewrite's commit map (`CommitMap`), today's engine trees (`TreeIds`) | none |
 | `parity` | stage 4's parity page (`JavaParity`, `JavaParityPage`, `ParityTables`, `ParityNumbers`), both engines' speed (`Speed`, `SpeedRows`) | the rest of `java_parity_report.py` |
 
 ## Tests
@@ -54,8 +56,9 @@ They are ported from `benchmarks/tests` and `scripts/tests/test_java_parity_repo
 test per Python assertion group, and the parity
 tests read the committed results: `CommittedComparisonsTests` recomputes all 67 kept runs'
 comparisons byte for byte, `ReportParityTests` regenerates `docs/validation.md`, its nine
-charts, both `accuracy.json` and both development pages, and `CommittedParityPageTests`
-regenerates `docs/validation/java-parity.md`.
+charts, both `accuracy.json` and both development pages, `CommittedParityPageTests`
+regenerates `docs/validation/java-parity.md`, and `CommittedTreeIdsTests` checks
+`benchmarks/results/tree-ids.tsv` against the engines' tags.
 
 ## What the port changed in the files it writes
 

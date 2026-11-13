@@ -1326,7 +1326,10 @@ neither changed the code.
   generated from them) keep the IDs they had, since a run's `predictionsSha256` seals its
   `predictions.json` as written;
   [`benchmarks/results/commit-ids.tsv`](../benchmarks/results/commit-ids.tsv) maps each recorded
-  ID to the commit's current one.
+  ID to the commit's current one. The rewrite also changed the trees of the engine sources that
+  `benchmarks/engines.json` records;
+  [`benchmarks/results/tree-ids.tsv`](../benchmarks/results/tree-ids.tsv) maps each recorded tree
+  to today's, and the held-out check compares through it.
 
 IDs written by hand, here and in the other docs, name the current commits.
 

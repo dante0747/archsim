@@ -1,7 +1,9 @@
 package io.archsim.benchmarks.experiments;
 
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import tools.jackson.databind.JsonNode;
@@ -37,6 +39,20 @@ public final class Engines {
 	 */
 	public List<JsonNode> entries() {
 		return this.entries;
+	}
+
+	/**
+	 * The engine trees the engines record: the tree of the frozen Python engine's sources
+	 * each one was known by.
+	 * @return each engine's tree by its version, in the file's order, for the engines
+	 * that record one
+	 */
+	public Map<String, String> engineTrees() {
+		Map<String, String> trees = new LinkedHashMap<>();
+		this.entries.stream()
+			.filter((entry) -> entry.path("engineTree").isString())
+			.forEach((entry) -> trees.put(entry.get("version").stringValue(), entry.get("engineTree").stringValue()));
+		return trees;
 	}
 
 	/**

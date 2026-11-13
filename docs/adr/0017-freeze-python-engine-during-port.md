@@ -72,6 +72,13 @@ under `packages/engine` to the frozen tree;
 `test_engine_0_16_0_is_frozen_for_the_held_out_campaign` still checks the entry against its
 tag's tree where the tag is in the clone.
 
+**Status (13 Nov 2026):** the history rewrite of 13 Nov put the licence in every commit, which
+changed the tag's `packages/engine` tree: the recorded `4da78ff6` is `d8340657` today.
+`benchmarks/engines.json` keeps the recorded tree, and
+[`benchmarks/results/tree-ids.tsv`](../../benchmarks/results/tree-ids.tsv) maps each recorded
+engine tree to today's. The test compares the tag's tree with the mapped one, and the held-out
+seal compares the running engine's tree with it.
+
 ### Consequences
 
 - Good, because the parity checks compare against an engine that doesn't move.

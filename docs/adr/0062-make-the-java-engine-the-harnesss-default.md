@@ -70,6 +70,11 @@ is refused before a command starts. The frozen engine's development checks
 Provenance names the Java engine by its sources only, so the seal's matching of a frozen tree
 cannot be reached until the Java engine's freeze changes it.
 
+**Status (13 Nov 2026):** the history rewrite of 13 Nov changed the trees `engines.json` records
+for its engines. The seal now matches a frozen engine's recorded tree through
+[`benchmarks/results/tree-ids.tsv`](../../benchmarks/results/tree-ids.tsv), which maps each
+recorded tree to today's.
+
 ### Consequences
 
 - Good, because a benchmark run from here on predicts with the engine that remains, and says so.

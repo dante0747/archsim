@@ -84,8 +84,41 @@ def test_engine_0_16_0_is_frozen_for_the_held_out_campaign() -> None:
     (frozen,) = run.frozen_engines()
     assert (frozen["version"], frozen["tag"]) == (FROZEN_VERSION, f"engine-{FROZEN_VERSION}")
     tagged = run.git("rev-parse", f"{frozen['tag']}:packages/engine")
-    if tagged is not None:  # the tag is in this clone
-        assert tagged == frozen["engineTree"]
+    if tagged is not None:  # the tag is in this clone, as the 13 Nov rewrite left it
+        assert tagged == run.current_tree(frozen["engineTree"])
+
+
+def test_current_tree_maps_a_recorded_tree_the_rewrite_changed(tmp_path: Path) -> None:
+    ids = tmp_path / "tree-ids.tsv"
+    ids.write_text(f"recorded\tcurrent\n{'a' * 40}\t{'b' * 40}\n", encoding="utf-8")
+
+    assert run.current_tree("a" * 40, ids) == "b" * 40
+
+
+def test_current_tree_keeps_a_tree_the_map_does_not_name(tmp_path: Path) -> None:
+    ids = tmp_path / "tree-ids.tsv"
+    ids.write_text("recorded\tcurrent\n", encoding="utf-8")
+
+    assert run.current_tree("c" * 40, ids) == "c" * 40
+
+
+def test_current_tree_refuses_a_map_without_its_header(tmp_path: Path) -> None:
+    ids = tmp_path / "tree-ids.tsv"
+    ids.write_text(f"{'a' * 40}\t{'b' * 40}\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="the first line is not"):
+        run.current_tree("a" * 40, ids)
+
+
+def test_a_frozen_engines_mapped_tree_unseals_its_held_out_experiments(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ids = tmp_path / "tree-ids.tsv"
+    ids.write_text(f"recorded\tcurrent\n{'d' * 40}\t{TREE}\n", encoding="utf-8")
+    monkeypatch.setattr(run, "TREE_IDS", ids)
+    frozen = [{**FROZEN[0], "engineTree": "d" * 40}]
+
+    assert run.seal(run.EXPERIMENTS[HELD_OUT[0]], CLEAN, frozen) is None
 
 
 def test_the_last_engine_entry_is_the_java_engine_not_frozen_yet(

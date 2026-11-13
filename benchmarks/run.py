@@ -5137,6 +5137,24 @@ def save(exp_id: str, name: str, data: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------------------------
 
 
+TREE_IDS = RESULTS / "tree-ids.tsv"
+"""Today's tree of each engine tree engines.json records: the 13 Nov 2026 rewrite put the licence
+in every commit, which changed them (``./gradlew :archsim-benchmarks:run --args="tree-ids ..."``
+writes it)."""
+
+
+def current_tree(recorded: str | None, path: Path | None = None) -> str | None:
+    """Today's tree of an engine tree engines.json records: what tree-ids.tsv maps it to, else the
+    tree itself."""
+    ids = TREE_IDS if path is None else path
+    if recorded is None or not ids.exists():
+        return recorded
+    header, *rows = ids.read_text(encoding="utf-8").splitlines()
+    if header != "recorded\tcurrent":
+        raise ValueError(f"{ids}: the first line is not 'recorded<TAB>current': {header!r}")
+    return {old: new for old, new in (row.split("\t") for row in rows)}.get(recorded, recorded)
+
+
 def frozen_engines(path: Path | None = None) -> list[dict[str, Any]]:
     """The engines in engines.json frozen for prospective predictions: frozenAt and tag set."""
     return [
@@ -5155,8 +5173,9 @@ def seal(
     the engine here must be one frozen in engines.json, with nothing uncommitted in the engine or
     the harness, so that the prediction saved before the first measurement is the frozen
     engine's. Other experiments are never sealed. A frozen engine is known by its tree, as the
-    Python engine's provenance named it; the Java engine's names its sources (engineSources), so
-    it stays sealed until its freeze says what identifies it (ADR-0062)."""
+    Python engine's provenance named it, mapped to today's tree (``current_tree``: the 13 Nov 2026
+    rewrite changed them); the Java engine's names its sources (engineSources), so it stays sealed
+    until its freeze says what identifies it (ADR-0062)."""
     if exp.held_out is None:
         return None
     prov = provenance() if prov is None else prov
@@ -5166,7 +5185,7 @@ def seal(
         f"{exp.id} is a held-out experiment (registered {exp.held_out.registered}, commit "
         f"{exp.held_out.commit[:12]}) and stays sealed"
     )
-    if not any(e.get("engineTree") == tree for e in frozen):
+    if not any(current_tree(e.get("engineTree")) == tree for e in frozen):
         engine = (
             "the Java engine is not frozen yet (ADR-0062)"
             if "engineSources" in prov

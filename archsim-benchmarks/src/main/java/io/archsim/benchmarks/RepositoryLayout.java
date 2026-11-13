@@ -70,6 +70,15 @@ public record RepositoryLayout(Path root) {
 	}
 
 	/**
+	 * Today's tree of each engine tree {@code engines.json} records:
+	 * {@code benchmarks/results/tree-ids.tsv}.
+	 * @return the file
+	 */
+	public Path treeIds() {
+		return results().resolve("tree-ids.tsv");
+	}
+
+	/**
 	 * The validation page: {@code docs/validation.md}.
 	 * @return the file
 	 */
