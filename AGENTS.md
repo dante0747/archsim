@@ -26,8 +26,8 @@ Ask the owner instead.
 ## The repository
 
 - `archsim-model/`, `archsim-engine/`, `archsim-app/`, `archsim-api-tests/`, `archsim-cli/`,
-  `archsim-mcp/`, `build-logic/`: Java 25, one Gradle build (`./gradlew build`). The Java port's
-  plan is `docs/proposals/java-25-port.md`.
+  `archsim-mcp/`, `archsim-benchmarks/`, `build-logic/`: Java 25, one Gradle build
+  (`./gradlew build`). The Java port's plan is `docs/proposals/java-25-port.md`.
 - `parity/`: what the Python engine, frozen at 0.16.0, recorded for the Java tests (golden files,
   simulation baselines, test fixtures). It is data now, never recorded again: stage 5 deleted
   that engine and its MCP server (`packages/`; the tag `engine-0.16.0` keeps them).

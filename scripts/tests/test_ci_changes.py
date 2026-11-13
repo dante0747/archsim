@@ -121,9 +121,15 @@ EVERY_JOB = {
         # the end-to-end launcher starts the worker, whose command line the Java tests check
         (["apps/web/e2e/api-server.mjs"], {"web", "java", "e2e"}),
         (["scripts/check_commits.py", "scripts/tests/test_check_commits.py"], {"python"}),
+        (["benchmarks/report.py", "benchmarks/run.py"], {"python", "benchmark_tests"}),
+        # the kept results, which the Java harness's tests reduce again
         (
             ["benchmarks/report.py", "benchmarks/results/pg-mixed/run-5/measured.json"],
-            {"python", "benchmark_tests"},
+            {"python", "benchmark_tests", "java"},
+        ),
+        (
+            ["archsim-benchmarks/src/main/java/io/archsim/benchmarks/comparison/Comparison.java"],
+            {"java"},
         ),
         (["scripts/prices/aws.py", "scripts/tests/test_price_refresh_scripts.py"], {"python"}),
         # the exporters write the Java tests' resources, and the Python job checks them

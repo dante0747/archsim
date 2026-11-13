@@ -1,0 +1,161 @@
+{
+  "runtimes": {
+    "nodejs": {
+      "technology": "nodejs",
+      "label": "Node.js service",
+      "cpuCores": 1,
+      "workers": null,
+      "image": "node:24-alpine + pg 8.23.1, redis 4.7.1, kafkajs 2.2.4"
+    },
+    "java": {
+      "technology": "java",
+      "label": "Spring Boot service",
+      "cpuCores": 2,
+      "workers": 200,
+      "image": "eclipse-temurin:21-jre-alpine + Spring Boot 3.5.7 (Tomcat, HikariCP), G1, 1 GiB heap"
+    },
+    "go": {
+      "technology": "go",
+      "label": "Go service",
+      "cpuCores": 2,
+      "workers": 4096,
+      "image": "alpine:3.22 + Go 1.25 net/http, pgx 5.9.2"
+    },
+    "python": {
+      "technology": "python",
+      "label": "Flask service (gunicorn)",
+      "cpuCores": 2,
+      "workers": 10,
+      "image": "python:3.13-slim + gunicorn 23.0.0 (sync), Flask 3.1.3, psycopg 3.2.10"
+    }
+  },
+  "experiments": [
+    {
+      "id": "pg-mixed",
+      "stack": "postgres",
+      "title": "Node.js + PostgreSQL: 90% reads, 10% writes over 100,000 rows",
+      "mix": "read:0.9,write:0.1",
+      "readRatio": 0.9,
+      "keys": 100000,
+      "skew": 0.0,
+      "calibration": ["read:0.9,write:0.1", "write_async:1"],
+      "runtime": "nodejs",
+      "ttlS": 30,
+      "heldOut": null
+    },
+    {
+      "id": "pg-hot-row",
+      "stack": "postgres",
+      "title": "Node.js + PostgreSQL: every request updates the same row",
+      "mix": "hot:1",
+      "readRatio": 0.0,
+      "keys": 1,
+      "skew": 0.0,
+      "calibration": ["hot:1", "write_async:1"],
+      "runtime": "nodejs",
+      "ttlS": 30,
+      "heldOut": null
+    },
+    {
+      "id": "cache-aside",
+      "stack": "cache",
+      "title": "Cache-aside: Node.js, Redis (30 s TTL) and PostgreSQL; Zipf 0.99 over 100,000 keys",
+      "mix": "cached:1",
+      "readRatio": 1.0,
+      "keys": 100000,
+      "skew": 0.99,
+      "calibration": ["cached:1"],
+      "runtime": "nodejs",
+      "ttlS": 30,
+      "heldOut": null
+    },
+    {
+      "id": "kafka",
+      "stack": "kafka",
+      "title": "Kafka: Node.js producer, 6 partitions, 3 consumers inserting into PostgreSQL",
+      "mix": "event:1",
+      "readRatio": 0.0,
+      "keys": 100000,
+      "skew": 0.0,
+      "calibration": ["event:1", "write:1", "write_async:1"],
+      "runtime": "nodejs",
+      "ttlS": 30,
+      "heldOut": null
+    },
+    {
+      "id": "java-mixed",
+      "stack": "java-mixed",
+      "title": "Spring Boot (Tomcat, HikariCP) + PostgreSQL: 90% reads, 10% writes over 100,000 rows",
+      "mix": "read:0.9,write:0.1",
+      "readRatio": 0.9,
+      "keys": 100000,
+      "skew": 0.0,
+      "calibration": ["read:0.9,write:0.1", "write_async:1"],
+      "runtime": "java",
+      "ttlS": 30,
+      "heldOut": {"registered": "2026-10-30", "commit": "ce2d109d534b9a9cd18a4a42690b71dcf86342f4"}
+    },
+    {
+      "id": "go-mixed",
+      "stack": "go-mixed",
+      "title": "Go (net/http, pgx) + PostgreSQL: 90% reads, 10% writes over 100,000 rows",
+      "mix": "read:0.9,write:0.1",
+      "readRatio": 0.9,
+      "keys": 100000,
+      "skew": 0.0,
+      "calibration": ["read:0.9,write:0.1", "write_async:1"],
+      "runtime": "go",
+      "ttlS": 30,
+      "heldOut": {"registered": "2026-10-30", "commit": "ce2d109d534b9a9cd18a4a42690b71dcf86342f4"}
+    },
+    {
+      "id": "python-mixed",
+      "stack": "python-mixed",
+      "title": "Flask on gunicorn (10 sync workers) + PostgreSQL: 90% reads, 10% writes over 100,000 rows",
+      "mix": "read:0.9,write:0.1",
+      "readRatio": 0.9,
+      "keys": 100000,
+      "skew": 0.0,
+      "calibration": ["read:0.9,write:0.1", "write_async:1"],
+      "runtime": "python",
+      "ttlS": 30,
+      "heldOut": {"registered": "2026-10-30", "commit": "ce2d109d534b9a9cd18a4a42690b71dcf86342f4"}
+    },
+    {
+      "id": "chain",
+      "stack": "chain",
+      "title": "Node.js gateway, Node.js API, PostgreSQL in a chain: 90% reads, 10% writes over 100,000 rows",
+      "mix": "read:0.9,write:0.1",
+      "readRatio": 0.9,
+      "keys": 100000,
+      "skew": 0.0,
+      "calibration": ["read:0.9,write:0.1", "write_async:1"],
+      "runtime": "nodejs",
+      "ttlS": 30,
+      "heldOut": {"registered": "2026-10-30", "commit": "ce2d109d534b9a9cd18a4a42690b71dcf86342f4"}
+    },
+    {
+      "id": "cache-ttl",
+      "stack": "cache-ttl",
+      "title": "Cache-aside: Node.js, Redis (5 s TTL) and PostgreSQL; Zipf 1.1 over 1,000,000 keys",
+      "mix": "cached:1",
+      "readRatio": 1.0,
+      "keys": 1000000,
+      "skew": 1.1,
+      "calibration": ["cached:1"],
+      "runtime": "nodejs",
+      "ttlS": 5,
+      "heldOut": {"registered": "2026-10-30", "commit": "ce2d109d534b9a9cd18a4a42690b71dcf86342f4"}
+    }
+  ],
+  "stacks": {
+    "postgres": ["pg-mixed", "pg-hot-row"],
+    "cache": ["cache-aside"],
+    "kafka": ["kafka"],
+    "java-mixed": ["java-mixed"],
+    "go-mixed": ["go-mixed"],
+    "python-mixed": ["python-mixed"],
+    "chain": ["chain"],
+    "cache-ttl": ["cache-ttl"]
+  }
+}

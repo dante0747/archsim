@@ -85,6 +85,8 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     ("archsim-cli/build.gradle.kts", frozenset({"java"}) | CHECK_ACTION | BENCHMARK_TESTS),
     ("archsim-cli/", frozenset({"java"}) | CHECK_ACTION),
     ("archsim-mcp/", frozenset({"java"})),
+    # the harness, whose tests read the kept results under benchmarks/results/ (ADR-0068)
+    ("archsim-benchmarks/", frozenset({"java"})),
     ("archsim-app/", JAVA),
     ("archsim-engine/src/main/", JAVA | CHECK_ACTION | BENCHMARK_TESTS),
     ("archsim-engine/build.gradle.kts", JAVA | CHECK_ACTION | BENCHMARK_TESTS),
@@ -113,6 +115,8 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     # the engines' speed (the frozen engine's, and the Java speed task's): the Python job's
     # parity page check reads two of these files, and no benchmark test reads any
     ("benchmarks/perf/", PYTHON),
+    # the kept results, which the Java harness's tests reduce again
+    ("benchmarks/results/", BENCHMARK_TESTS | {"java"}),
     ("benchmarks/", BENCHMARK_TESTS),
     # The fixtures the golden files and recordings were made from, which the API and app tests
     # read.

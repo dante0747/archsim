@@ -25,6 +25,7 @@ archsim-app/       Java: the HTTP API on Spring Boot 4 (stage 2 of the port); Fl
 archsim-api-tests/ Java: black-box tests of the HTTP API.
 archsim-cli/       Java: the `archsim` command line.
 archsim-mcp/       Java: the MCP server for AI coding agents.
+archsim-benchmarks/ Java: the accuracy benchmarks' harness; its data stays in benchmarks/.
                    build-logic/ and gradle/ hold the build.
 parity/            What the Python engine 0.16.0 recorded before stage 5 deleted it (golden
                    files, simulation baselines, test fixtures): the Java tests' reference.

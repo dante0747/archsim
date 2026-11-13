@@ -369,8 +369,8 @@ doesn't change.
 - **Slices**, each test first (its tests ported from the Python ones), each commit that touches
   Java, the build or CI reviewed before it lands:
   - **S7-1 · The module and the reduction of a run:** `archsim-benchmarks`, the experiments,
-    Python's statistics, the results' JSON, and `compare`. Parity: every kept run's
-    `comparison.json` recomputed byte for byte.
+    Python's arithmetic on the results' JSON values and their median, the results' files, and
+    `compare`. Parity: every kept run's `comparison.json` recomputed byte for byte.
   - **S7-2 · The reports:** `report [--json] [--dev]`: the validation page's blocks, the charts,
     both `accuracy.json`, `dev-checks.md` and `knee-range.md`. Parity: all regenerated from the
     committed results, byte for byte but for the command names

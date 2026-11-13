@@ -37,10 +37,12 @@ Which implementations does the Java harness use?
 Chosen option: "port the few functions exactly", because only the same algorithms give the same
 bits, and they are short.
 
-- `PythonStatistics` in `archsim-benchmarks`: `median` (the middle value, or the mean of the two
-  middle ones, `(a + b) / 2`), `fmean` (an exactly rounded sum over the count: the sum is made
-  exactly in `BigDecimal` and rounded once, which is what `math.fsum` returns), `normalInverse`
-  (AS241, as `statistics` implements it) and `comb`.
+- `PythonValues.median`, over the results' JSON values: the middle value, which keeps its type
+  (an integer stays one), or the two middle ones' sum over two.
+- `PythonStatistics` in `archsim-benchmarks`, each added with the first slice that needs it:
+  `fmean` (an exactly rounded sum over the count: the sum is made exactly in `BigDecimal` and
+  rounded once, which is what `math.fsum` returns), `normalInverse` (AS241, as `statistics`
+  implements it) and `comb`.
 - `round()` is the engine's `PythonRound`; integer results stay integers
   ([ADR-0070](0070-write-the-harnesss-files-as-python-wrote-them.md)).
 - Logarithms, exponentials and square roots are `StrictMath`'s, as the engine's random streams
@@ -59,10 +61,10 @@ bits, and they are short.
 
 ### Confirmation
 
-`PythonStatisticsTests` (values computed by CPython 3.12 for the cases that need care: even
-counts, integer inputs, sums that cancel, the tails of the inverse normal), and the parity tests
-of [ADR-0070](0070-write-the-harnesss-files-as-python-wrote-them.md), which reduce every kept run
-again.
+`PythonValuesTests` and `PythonStatisticsTests` (values computed by CPython 3.12 for the cases
+that need care: even counts, integer inputs, sums that cancel, the tails of the inverse normal),
+and the parity tests of [ADR-0070](0070-write-the-harnesss-files-as-python-wrote-them.md), which
+reduce every kept run again.
 
 ## Pros and Cons of the Options
 

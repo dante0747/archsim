@@ -15,6 +15,7 @@ archsim-app/        Java API (Spring Boot): projects, runs, workspaces, reviews,
 archsim-api-tests/  Java black-box tests of the HTTP API
 archsim-cli/        Java command line, `archsim`
 archsim-mcp/        Java MCP server for AI coding agents
+archsim-benchmarks/ Java accuracy benchmarks' harness; its data stays in benchmarks/
 build-logic/        The Gradle build's shared conventions (with gradle/ and config/checkstyle/)
 apps/web/           Next.js editor: canvas, inspector, results, dashboard and comparison
 examples/           Example architectures (versioned JSON) with scenarios: the templates
@@ -26,10 +27,10 @@ docs/               Documentation, the ADRs and the accuracy report
 
 Each Java module has a README of its own: [archsim-model](../archsim-model/README.md),
 [archsim-engine](../archsim-engine/README.md), [archsim-app](../archsim-app/README.md),
-[archsim-api-tests](../archsim-api-tests/README.md), [archsim-cli](../archsim-cli/README.md) and
-[archsim-mcp](../archsim-mcp/README.md); so do the [web app](../apps/web/README.md) and the
-[parity data](../parity/README.md). How to run the benchmarks is in
-[validation.md](validation.md#reproduce).
+[archsim-api-tests](../archsim-api-tests/README.md), [archsim-cli](../archsim-cli/README.md),
+[archsim-mcp](../archsim-mcp/README.md) and [archsim-benchmarks](../archsim-benchmarks/README.md);
+so do the [web app](../apps/web/README.md) and the [parity data](../parity/README.md). How to run
+the benchmarks is in [validation.md](validation.md#reproduce).
 
 ## Tests and checks
 
