@@ -58,7 +58,7 @@ committed file reproducible.
   `java-parity.md`. Each is listed in `archsim-benchmarks/README.md` with the commit that made
   it.
 
-**Status (13 Nov 2026, proposed):** with the campaign ported (stage 7, slice S7-6), the files
+**Status (13 Nov 2026):** with the campaign ported (stage 7, slice S7-6), the files
 a new run writes differ from run.py's in two more ways, beyond the command names above. Both are
 in what new runs record; every recorded file and every file generated from them stays as it was.
 - `measured.json` records `extensionSeals`: one `{offeredRps, predictionsSha256}` per step a
