@@ -54,6 +54,30 @@ bits, and they are short.
   the range's knee searches, which Python spread over processes) is gathered in submission
   order before anything is summed.
 
+**Status (13 Nov 2026, proposed):** with the range fit ported (stage 7, slice S7-5), every place
+this decision covers has run against the committed results.
+- `StrictMath` and the C library CPython calls on Windows (MSVC's) do differ in a last bit for
+  some inputs: `exp(0.7103238548114007)` is 2.034650083178199 in CPython 3.12 and
+  2.0346500831781995 in Java.
+- So do squares. CPython's `x ** 2` calls the C library's `pow`, which MSVC does not round
+  correctly either: on CPython 3.12.13 on Windows about 1 in 2,000 values between 1e-5 and 3,000
+  squares a last bit away from `x * x` (953 of 2,000,000 drawn uniformly), and
+  `2.983367844600024 ** 2` is 8.900483696193394 where the product is 8.900483696193392. The port
+  writes every square as a product, which IEEE 754 rounds correctly on every machine: the range
+  fit's `(x - mean) ** 2`, `sum(parts) ** 2` and `cal ** 2 + model ** 2`, and the model inputs'
+  `sigma ** 2` (the lognormals and the GC pauses) and `mean ** 2` (`lognormal_moments`,
+  `link_leg`).
+- No committed number reaches either difference. Every kept run's development check reduces to
+  the recorded one byte for byte (65 of 65), and `benchmarks/knee-range.json` refitted from its
+  own data comes out byte for byte but for what names it. The floats the harness writes are
+  rounded far above a last bit: inputs to 4 or 6 decimals, sigmas to 4, ranges to whole req/s.
+- The difference shows only in an unrounded intermediate, where its test holds it to the bit it
+  can differ by (`ModelDistributionsTests`: a lognormal's variance within 2e-16).
+- `fmean`'s exact sum is CPython's `math.fsum` itself (Shewchuk's partials with its closing
+  half-even correction), which replaces the `BigDecimal` sum the Decision's `fmean` bullet names.
+  Both give the correctly rounded sum; `math.fsum`'s algorithm also keeps Python's errors for two
+  infinities and an overflow.
+
 ### Consequences
 
 - Good, because the reduced numbers can be compared bit for bit, and are.

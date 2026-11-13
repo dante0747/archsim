@@ -3,6 +3,7 @@ package io.archsim.benchmarks;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.time.Clock;
 import java.time.ZoneId;
 
@@ -13,13 +14,15 @@ import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.ParameterException;
 import picocli.CommandLine.Spec;
 
+import io.archsim.benchmarks.range.RangeFit;
 import io.archsim.engine.version.EngineVersions;
 
 /**
  * The accuracy benchmarks' harness, whose subcommands keep the names {@code run.py} gave
  * them (ADR-0069): {@code compare} recomputes every kept run's comparison,
- * {@code resources} predicts the CPU and memory of predictions that have none, and
- * {@code resimulate} checks today's model against every kept run.
+ * {@code resources} predicts the CPU and memory of predictions that have none,
+ * {@code resimulate} checks today's model against every kept run, and {@code range-fit}
+ * fits the predicted range of the knee.
  */
 @Command(name = "archsim-benchmarks",
 		description = "ArchSim's accuracy benchmarks: calibrate, predict, measure, "
@@ -49,15 +52,28 @@ public final class Benchmarks implements Runnable {
 	}
 
 	/**
-	 * The harness's command line, working in a repository and logging to a log.
+	 * The harness's command line, working in a repository and logging to a log, its range
+	 * fit keeping its work in the system's temporary folder ({@link RangeFit#cachePath}).
 	 * @param layout the repository
 	 * @param log the log
 	 * @return the command line, its help and errors in plain text
 	 */
 	static CommandLine commandLine(RepositoryLayout layout, HarnessLog log) {
+		return commandLine(layout, log, RangeFit.cachePath(EngineVersions.ENGINE));
+	}
+
+	/**
+	 * The harness's command line, working in a repository and logging to a log.
+	 * @param layout the repository
+	 * @param log the log
+	 * @param rangeFitCache the file the range fit keeps its finished work in
+	 * @return the command line, its help and errors in plain text
+	 */
+	static CommandLine commandLine(RepositoryLayout layout, HarnessLog log, Path rangeFitCache) {
 		return new CommandLine(new Benchmarks()).addSubcommand(new CompareCommand(layout, log))
 			.addSubcommand(new ResourcesCommand(layout, log))
 			.addSubcommand(new ResimulateCommand(layout, log))
+			.addSubcommand(new RangeFitCommand(layout, log, rangeFitCache))
 			.addSubcommand(new ReportCommand(layout))
 			.addSubcommand(new JavaParityCommand(layout))
 			.addSubcommand(new TreeIdsCommand(layout))

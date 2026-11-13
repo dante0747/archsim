@@ -40,6 +40,8 @@ public final class GitRepository {
 	 * Every commit the repository's refs reach.
 	 * @return their IDs
 	 * @throws IllegalStateException when git fails, with what it said
+	 * @throws UncheckedIOException when git cannot run, or its files cannot be written or
+	 * read
 	 */
 	List<String> commits() {
 		return run(List.of("rev-list", "--all"), "").lines().toList();
@@ -51,6 +53,8 @@ public final class GitRepository {
 	 * @param folder the folder, from the repository's root
 	 * @return each revision's tree of the folder, for the revisions that have it
 	 * @throws IllegalStateException when git fails, with what it said
+	 * @throws UncheckedIOException when git cannot run, or its files cannot be written or
+	 * read
 	 */
 	Map<String, String> folderTrees(List<String> revisions, String folder) {
 		StringBuilder input = new StringBuilder();

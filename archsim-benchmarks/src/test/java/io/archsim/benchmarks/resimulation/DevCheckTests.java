@@ -7,6 +7,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -40,9 +41,12 @@ class DevCheckTests {
 			new CheckStamp("1.0.0", PROVENANCE, Clock.fixed(Instant.parse("2026-11-13T10:00:00Z"), ZoneOffset.UTC)));
 
 	/** Cache-ttl's latest run checked, once for the tests of what names a check. */
-	private static final ObjectNode CACHE_TTL = CHECKS
-		.of(new KeptRun("cache-ttl", LAYOUT.results().resolve("cache-ttl")))
-		.orElseThrow();
+	private static ObjectNode cacheTtl = JsonNodeFactory.instance.objectNode();
+
+	@BeforeAll
+	static void checkCacheTtl() {
+		cacheTtl = CHECKS.of(new KeptRun("cache-ttl", LAYOUT.results().resolve("cache-ttl"))).orElseThrow();
+	}
 
 	@ParameterizedTest(name = "{0} {1}")
 	@CsvSource({ "pg-mixed, pg-mixed/run-5, 2026-10-28T23-21-36Z", "cache-ttl, cache-ttl, 2026-11-04T06-11-13Z" })
@@ -59,7 +63,7 @@ class DevCheckTests {
 
 	@Test
 	void of_aKeptRun_isNamedByItsTimeEngineAndProvenance() {
-		assertThat(CACHE_TTL.properties()).filteredOn((field) -> NAMES.contains(field.getKey()))
+		assertThat(cacheTtl.properties()).filteredOn((field) -> NAMES.contains(field.getKey()))
 			.extracting(Map.Entry::getValue)
 			.containsExactly(JsonNodeFactory.instance.stringNode("2026-11-13T10:00:00Z"),
 					JsonNodeFactory.instance.stringNode("1.0.0"), PROVENANCE);
@@ -67,7 +71,7 @@ class DevCheckTests {
 
 	@Test
 	void of_aKeptRun_saysTheHarnessDerivedItsInputsAgain() {
-		assertThat(CACHE_TTL.get("how").stringValue()).startsWith(
+		assertThat(cacheTtl.get("how").stringValue()).startsWith(
 				"Inputs derived again from this run's calibration passes with today's harness, and its measured");
 	}
 

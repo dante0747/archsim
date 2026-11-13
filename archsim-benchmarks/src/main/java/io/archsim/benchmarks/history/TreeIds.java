@@ -40,6 +40,7 @@ public final class TreeIds {
 	 * @return the map
 	 * @throws IllegalArgumentException when the file has no header, or a line is not two
 	 * trees separated by a tab or names a tree twice
+	 * @throws java.io.UncheckedIOException when the file cannot be read
 	 */
 	public static TreeIds read(Path file) {
 		return new TreeIds(PairFile.read(file, FORMAT));
@@ -57,6 +58,7 @@ public final class TreeIds {
 	 * @throws IllegalStateException when no commit had a recorded tree, or the commits
 	 * that had it came out of the rewrite with no tree or several, or git fails, with
 	 * what it said
+	 * @throws java.io.UncheckedIOException when git cannot run
 	 */
 	public static TreeIds derive(Collection<String> recorded, Rewrite rewrite) {
 		Map<String, String> before = rewrite.before().folderTrees(rewrite.before().commits(), ENGINE_FOLDER);

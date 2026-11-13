@@ -296,27 +296,72 @@ public final class PythonValues {
 		if (first == values.size()) {
 			return integer(whole);
 		}
-		double total = (double) whole + values.get(first).doubleValue();
-		double compensation = 0.0;
+		Compensated total = new Compensated((double) whole + values.get(first).doubleValue());
 		for (JsonNode value : values.subList(first + 1, values.size())) {
-			double item = value.doubleValue();
-			double next = total + item;
-			if (!value.isIntegralNumber()) {
-				compensation += roundingError(total, item, next);
+			if (value.isIntegralNumber()) {
+				total.addPlainly(value.doubleValue());
 			}
-			total = next;
+			else {
+				total.add(value.doubleValue());
+			}
 		}
-		boolean compensated = compensation != 0.0 && Double.isFinite(compensation);
-		return number(compensated ? total + compensation : total);
+		return number(total.sum());
 	}
 
-	// what rounding lost when total + item became next (Neumaier)
-	private static double roundingError(double total, double item, double next) {
-		return (Math.abs(total) >= Math.abs(item)) ? (total - next) + item : (item - next) + total;
+	/**
+	 * {@code sum(values)} of floats as CPython 3.12 adds them: from the integer 0, with
+	 * Neumaier's compensation, as {@link #sum} adds JSON floats, for values that are not
+	 * JSON.
+	 * @param values the floats
+	 * @return their sum; 0 for none
+	 */
+	public static double sumOfFloats(List<Double> values) {
+		if (values.isEmpty()) {
+			return 0.0;
+		}
+		Compensated total = new Compensated(0.0 + values.getFirst());
+		values.subList(1, values.size()).forEach(total::add);
+		return total.sum();
 	}
 
 	private static boolean bothIntegers(JsonNode left, JsonNode right) {
 		return left.isIntegralNumber() && right.isIntegralNumber();
+	}
+
+	/**
+	 * CPython 3.12's float sum as it runs: the total and what rounding lost on the way,
+	 * which Neumaier's compensation adds back once at the end.
+	 */
+	private static final class Compensated {
+
+		private double total;
+
+		private double compensation;
+
+		Compensated(double start) {
+			this.total = start;
+		}
+
+		// a float: what rounding loses is kept
+		void add(double item) {
+			double next = this.total + item;
+			this.compensation += (Math.abs(this.total) >= Math.abs(item)) ? (this.total - next) + item
+					: (item - next) + this.total;
+			this.total = next;
+		}
+
+		// an integer after a float, which CPython adds without keeping what rounding
+		// loses
+		void addPlainly(double item) {
+			this.total += item;
+		}
+
+		// the compensation, unless it is zero or not finite
+		double sum() {
+			boolean compensated = this.compensation != 0.0 && Double.isFinite(this.compensation);
+			return compensated ? this.total + this.compensation : this.total;
+		}
+
 	}
 
 }

@@ -86,6 +86,8 @@ public final class GitFixture {
 			}
 		}
 		catch (InterruptedException ex) {
+			// git stopped and waited for, so that the test's folder can be deleted
+			git.destroyForcibly().onExit().join();
 			Thread.currentThread().interrupt();
 			throw new IOException("interrupted", ex);
 		}

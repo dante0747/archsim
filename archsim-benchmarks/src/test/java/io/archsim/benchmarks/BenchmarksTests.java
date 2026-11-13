@@ -15,6 +15,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import picocli.CommandLine;
 
+import io.archsim.benchmarks.results.ResultFiles;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class BenchmarksTests {
@@ -88,6 +90,36 @@ class BenchmarksTests {
 		assertThat(root.resolve("benchmarks/results/dev")).doesNotExist();
 	}
 
+	// no kept runs: nothing to fit on, and every fold counts no run
+	@Test
+	void rangeFit_noKeptRuns_writesAFitOfNoRunsAndSaysSo(@TempDir Path root) throws IOException {
+		StringWriter out = new StringWriter();
+
+		int exitCode = commandLine(root, out).execute("range-fit");
+
+		assertThat(exitCode).isZero();
+		assertThat(ResultFiles.read(root.resolve("benchmarks/knee-range.json")).orElseThrow().get("runs").intValue())
+			.isZero();
+		assertThat(out.toString().lines()).startsWith(
+				"[12:34:56] range fit, engine 1.0.0: 0 calibrations, 0 with engine 1.0.0's development checks, 0 to "
+						+ "derive (or in the cache)")
+			.endsWith("[12:34:56] range fit: inSample: 0 of 0 runs inside the 80% range",
+					"[12:34:56] range fit: leaveRunOut: 0 of 0 runs inside the 80% range",
+					"[12:34:56] range fit: leaveExperimentOut: 0 of 0 runs inside the 80% range",
+					"[12:34:56] wrote benchmarks/knee-range.json");
+	}
+
+	@Test
+	void rangeFit_aCacheThatHoldsResults_saysItReusesThem(@TempDir Path root) {
+		ResultFiles.write(rangeFitCache(root), JsonText.read("{\"sens|pg-mixed|0\": 1700.0}"));
+		StringWriter out = new StringWriter();
+
+		commandLine(root, out).execute("range-fit");
+
+		assertThat(out.toString().lines()).first()
+			.isEqualTo("[12:34:56] range fit: reusing the 1 results " + rangeFitCache(root) + " holds");
+	}
+
 	@Test
 	void execute_withoutACommand_isRefused() {
 		int exitCode = commandLine(Path.of("."), new StringWriter()).execute();
@@ -97,9 +129,14 @@ class BenchmarksTests {
 
 	private static CommandLine commandLine(Path root, StringWriter out) {
 		PrintWriter writer = new PrintWriter(out, true);
-		return Benchmarks.commandLine(new RepositoryLayout(root), new HarnessLog(writer, NOON))
+		return Benchmarks.commandLine(new RepositoryLayout(root), new HarnessLog(writer, NOON), rangeFitCache(root))
 			.setOut(writer)
 			.setErr(writer);
+	}
+
+	// the file range-fit keeps its finished work in: the test's, not the machine's
+	private static Path rangeFitCache(Path root) {
+		return root.resolve("range-fit-cache.json");
 	}
 
 }

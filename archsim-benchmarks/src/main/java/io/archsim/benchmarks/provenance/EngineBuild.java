@@ -13,7 +13,6 @@ import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 import io.archsim.engine.simulator.Simulator;
 import io.archsim.model.component.standard.StandardComponents;
@@ -38,9 +37,11 @@ public final class EngineBuild {
 	 * @return its hash; empty when the engine runs from folders of classes, not jars
 	 */
 	public static Optional<String> current() {
-		List<Path> jars = ENGINE_CLASSES.stream().flatMap(EngineBuild::jar).distinct().toList();
-		boolean fromJars = ENGINE_CLASSES.stream().allMatch((type) -> jar(type).findAny().isPresent());
-		return fromJars ? Optional.of(digest(jars)) : Optional.empty();
+		List<Optional<Path>> jars = ENGINE_CLASSES.stream().map(EngineBuild::jar).toList();
+		if (jars.stream().anyMatch(Optional::isEmpty)) {
+			return Optional.empty();
+		}
+		return Optional.of(digest(jars.stream().map(Optional::orElseThrow).distinct().toList()));
 	}
 
 	/**
@@ -66,17 +67,17 @@ public final class EngineBuild {
 	}
 
 	// the jar a class was loaded from, if it was
-	private static Stream<Path> jar(Class<?> type) {
+	private static Optional<Path> jar(Class<?> type) {
 		CodeSource source = type.getProtectionDomain().getCodeSource();
 		if (source == null) {
-			return Stream.empty();
+			return Optional.empty();
 		}
 		try {
 			Path location = Path.of(source.getLocation().toURI());
-			return name(location).endsWith(".jar") ? Stream.of(location) : Stream.empty();
+			return name(location).endsWith(".jar") ? Optional.of(location) : Optional.empty();
 		}
 		catch (URISyntaxException ex) {
-			return Stream.empty();
+			return Optional.empty();
 		}
 	}
 

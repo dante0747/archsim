@@ -12,7 +12,7 @@ import java.util.function.Function;
  * Work on each of some items in threads of their own, one per processor at most, its
  * results gathered in the items' order.
  */
-final class InParallel {
+public final class InParallel {
 
 	private InParallel() {
 	}
@@ -27,7 +27,7 @@ final class InParallel {
 	 * @throws RuntimeException the first failure in the items' order, after the work not
 	 * yet started is cancelled
 	 */
-	static <T, R> List<R> map(List<T> items, Function<T, R> work) {
+	public static <T, R> List<R> map(List<T> items, Function<T, R> work) {
 		return map(items, work, Runtime.getRuntime().availableProcessors());
 	}
 
@@ -71,7 +71,7 @@ final class InParallel {
 		catch (InterruptedException ex) {
 			pool.shutdownNow();
 			Thread.currentThread().interrupt();
-			throw new IllegalStateException("interrupted while waiting for a simulation", ex);
+			throw new IllegalStateException("interrupted while waiting for the work", ex);
 		}
 	}
 

@@ -177,6 +177,28 @@ class PythonValuesTests {
 	}
 
 	@Test
+	void sumOfFloats_twelveEighties_compensatesItsRoundingAsSumDoes() {
+		assertThat(PythonValues.sumOfFloats(Collections.nCopies(12, 0.8))).isEqualTo(9.600000000000001);
+	}
+
+	// CPython 3.12.13's sum([1e100, 1.0, -1e100]): Neumaier keeps the 1.0, fsum would too
+	@Test
+	void sumOfFloats_aCancellingLargeValue_keepsTheSmallOne() {
+		assertThat(PythonValues.sumOfFloats(List.of(1e100, 1.0, -1e100))).isEqualTo(1.0);
+	}
+
+	// sum starts from the integer 0: 0 + -0.0 is 0.0
+	@Test
+	void sumOfFloats_minusZeroAlone_isZero() {
+		assertThat(Double.doubleToRawLongBits(PythonValues.sumOfFloats(List.of(-0.0)))).isZero();
+	}
+
+	@Test
+	void sumOfFloats_noValues_isZero() {
+		assertThat(PythonValues.sumOfFloats(List.of())).isZero();
+	}
+
+	@Test
 	void sum_ofIntegers_isAnInteger() {
 		JsonNode sum = PythonValues.sum(List.of(NODES.numberNode(3), NODES.numberNode(4)));
 

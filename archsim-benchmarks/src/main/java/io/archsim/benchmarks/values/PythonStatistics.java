@@ -1,12 +1,15 @@
 package io.archsim.benchmarks.values;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * The functions of Python's {@code statistics} and {@code math} the harness reduces its
  * results with, ported so that they give the same bits (ADR-0071):
- * {@code NormalDist().inv_cdf} (Wichura's AS241, in CPython's order of operations) and
- * {@code comb}.
+ * {@code NormalDist().inv_cdf} (Wichura's AS241, in CPython's order of operations),
+ * {@code comb}, {@code math.fsum} (Shewchuk's exact partials, as CPython keeps them) and
+ * {@code fmean}, which divides {@code fsum} by the count.
  */
 public final class PythonStatistics {
 
@@ -83,6 +86,32 @@ public final class PythonStatistics {
 		return ways;
 	}
 
+	/**
+	 * {@code math.fsum(values)}: the values' exact sum, rounded once (half to even).
+	 * @param values the values
+	 * @return the sum: 0 for none, an infinity or NaN when one is among the values
+	 * @throws IllegalArgumentException when the values hold both infinities
+	 * @throws ArithmeticException when finite values add up past the largest double
+	 */
+	public static double fsum(List<Double> values) {
+		Partials partials = new Partials();
+		values.forEach(partials::add);
+		return partials.sum();
+	}
+
+	/**
+	 * {@code statistics.fmean(values)}: their {@code fsum} over their count.
+	 * @param values at least one value
+	 * @return the mean
+	 * @throws IllegalArgumentException when there are no values
+	 */
+	public static double fmean(List<Double> values) {
+		if (values.isEmpty()) {
+			throw new IllegalArgumentException("fmean requires at least one data point");
+		}
+		return fsum(values) / values.size();
+	}
+
 	private static double ratio(double[] numerator, double[] denominator, double variable) {
 		return horner(numerator, variable) / horner(denominator, variable);
 	}
@@ -94,6 +123,96 @@ public final class PythonStatistics {
 			sum = sum * variable + coefficients[i];
 		}
 		return sum;
+	}
+
+	/**
+	 * Non-overlapping partials whose sum is exactly the values' so far, smallest first,
+	 * and the infinities and NaNs among the values, as CPython's {@code math_fsum} keeps
+	 * them.
+	 */
+	private static final class Partials {
+
+		private final List<Double> exact = new ArrayList<>();
+
+		private double special;
+
+		private double infinite;
+
+		void add(double value) {
+			double running = value;
+			int kept = 0;
+			for (double partial : List.copyOf(this.exact)) {
+				boolean partialLarger = Math.abs(running) < Math.abs(partial);
+				double larger = partialLarger ? partial : running;
+				double smaller = partialLarger ? running : partial;
+				double high = larger + smaller;
+				double low = smaller - (high - larger);
+				if (low != 0.0) {
+					this.exact.set(kept++, low);
+				}
+				running = high;
+			}
+			this.exact.subList(kept, this.exact.size()).clear();
+			if (running == 0.0) {
+				return;
+			}
+			if (Double.isFinite(running)) {
+				this.exact.add(running);
+				return;
+			}
+			addSpecial(value);
+		}
+
+		// an infinity or a NaN among the values: the partials start again after it; a
+		// finite value that overflowed them is an error
+		private void addSpecial(double value) {
+			if (Double.isFinite(value)) {
+				throw new ArithmeticException("intermediate overflow in fsum");
+			}
+			if (Double.isInfinite(value)) {
+				this.infinite += value;
+			}
+			this.special += value;
+			this.exact.clear();
+		}
+
+		double sum() {
+			if (this.special != 0.0) {
+				if (Double.isNaN(this.infinite)) {
+					throw new IllegalArgumentException("-inf + inf in fsum");
+				}
+				return this.special;
+			}
+			int count = this.exact.size();
+			if (count == 0) {
+				return 0.0;
+			}
+			double high = this.exact.get(--count);
+			double low = 0.0;
+			while (count > 0) {
+				double larger = high;
+				double smaller = this.exact.get(--count);
+				high = larger + smaller;
+				low = smaller - (high - larger);
+				if (low != 0.0) {
+					break;
+				}
+			}
+			return (count > 0) ? halfEven(high, low, this.exact.get(count - 1)) : high;
+		}
+
+		// the sum rounded half to even across the partials: when the rest below the low
+		// partial has its sign, the true sum is past the halfway point, so round away
+		private static double halfEven(double high, double low, double below) {
+			boolean sameSign = Math.signum(low) != 0 && Math.signum(low) == Math.signum(below);
+			if (!sameSign) {
+				return high;
+			}
+			double doubled = low * 2.0;
+			double rounded = high + doubled;
+			return (doubled == rounded - high) ? rounded : high;
+		}
+
 	}
 
 }
