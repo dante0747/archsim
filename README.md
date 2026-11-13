@@ -1,459 +1,208 @@
-# ArchSim
+<p align="center">
+  <img src="apps/web/src/app/icon.svg" alt="ArchSim logo" width="88" height="88">
+</p>
 
-**A flight simulator for your architecture.**
+<h1 align="center">ArchSim</h1>
 
-ArchSim is an open-source, local-first studio for designing distributed systems and testing them
-before you build them. Model the stack you actually run (PostgreSQL with read replicas, sharded
-MongoDB, Cassandra quorums, Redis, Kafka, Kubernetes clusters and pods, serverless functions,
-third-party APIs), push traffic and failures through it with a discrete-event engine that moves
-every single request, replay what happened second by second, and decide with SLOs, cost and
-capacity curves. Same document and seed, same result.
+<h3 align="center">Crash-test your architecture before your users do.</h3>
 
-> **Results are estimates, not production guarantees.** Every number comes from the model you
-> drew and the assumptions you entered. Without calibration against real telemetry, trust
-> comparisons between scenarios more than any single absolute value. See
-> [docs/simulation-model.md](docs/simulation-model.md).
+<p align="center">
+  A flight simulator for distributed systems. Draw your stack with real technologies, throw traffic
+  and failures at it, and get a straight yes or no against your objectives, with the bottleneck,
+  the breaking point and the monthly bill.
+</p>
 
-![Demo, about one minute: the cache-aside starter (clients, load balancer, API servers, Redis, PostgreSQL) on AWS us-east-1 prices is opened and simulated, then the "Lose Redis Cache" chaos pad is pressed; the replay shows the outage from 28 to 43 s on the timeline, the API servers saturating while every read goes to PostgreSQL, and the test plan turning to "Didn't hold up": success fell to 92% during the outage](docs/images/cache-outage.gif)
+<p align="center">
+  <a href="LICENSE"><img alt="License: AGPL-3.0-only" src="https://img.shields.io/badge/license-AGPL--3.0--only-0A84FF"></a>
+  <a href="docs/getting-started.md#what-you-need"><img alt="Java 25" src="https://img.shields.io/badge/Java-25-BF5AF2?logo=openjdk&amp;logoColor=white"></a>
+  <a href="docs/README.md"><img alt="Documentation" src="https://img.shields.io/badge/docs-read-0A84FF"></a>
+  <a href="docs/validation.md"><img alt="Accuracy report: published" src="https://img.shields.io/badge/accuracy-published-BF5AF2"></a>
+</p>
 
-*Losing Redis on the cache-aside starter: press a chaos pad and the verdict flips within seconds.*
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="docs/features.md">Features</a> ·
+  <a href="#how-accurate-is-it">Accuracy</a> ·
+  <a href="docs/README.md">Documentation</a> ·
+  <a href="#contributing">Contributing</a>
+</p>
 
-![The Test workspace paused at 103.3 s of the Black Friday on Kubernetes ramp (300 → 1,500 req/s): Checkout API has scaled out to 3 pods, link labels show live request rates, the timeline below shows the ramp, events, latency, failures and throughput per part, and the test plan reports that the design did not hold up: p95 561 ms against the 500 ms objective and 98.8% availability against 99.5%](docs/images/editor-results.jpg)
+<p align="center">
+  <img src="docs/images/cache-outage.gif" alt="Demo: the cache-aside starter (clients, load balancer, API servers, Redis, PostgreSQL) is simulated, then the Lose Redis Cache chaos pad is pressed; the replay shows the API servers saturating while every read goes to PostgreSQL, and the test plan turns to Didn't hold up" width="900">
+  <br>
+  <sub>Losing Redis on the cache-aside starter: press a chaos pad and the verdict flips within seconds.</sub>
+</p>
 
-*The Test workspace replaying the Black Friday on Kubernetes template.*
+## Why ArchSim
 
-## What you can do
+- **Real technologies, real behaviour.** PostgreSQL locks rows and waits for its write-ahead log,
+  replicas lag, Redis forks for snapshots, JVMs pause for garbage collection, Lambda starts cold and
+  Kubernetes pods wait as Pending for a node. Each behaviour links to the vendor's documentation,
+  and each one is a setting you can override.
+- **Every request, every second.** A discrete-event engine moves each request through every hop,
+  queue, lock and retry, then replays the run second by second on your diagram. Same document and
+  seed, same result, down to the digest.
+- **A straight answer.** Yes or no against your latency and availability objectives, the
+  bottleneck, what to fix first, the highest load that still holds, and the monthly cost on real
+  AWS instance types.
+- **Honest about what it knows.** Every default says whether it is documented or illustrative,
+  calibration replaces them with values measured by Prometheus or OpenTelemetry, and the accuracy
+  report publishes predictions against real systems, misses included.
+- **Local-first and open.** No account and no telemetry. The web app, a CLI for CI and an MCP
+  server for AI agents share one engine, under the AGPL-3.0.
 
-ArchSim has four workspaces around one canvas, switched from the top bar: **Design → Test →
-Results**, plus a **Dashboard** (keys 1, 2, 3, 4). One **Simulate** button (Ctrl/⌘ Enter) runs the design from wherever
-you are; results land on the canvas right away. A short guided tour opens on the first visit
-(and from the ⋯ menu), and a small hint on the canvas says what to do next, for example adding
-API servers behind a lone Clients box.
+## Features
 
-**Design: draw it with real technologies**
-- Resource specs on every part: CPU cores, memory and (databases, queues) storage per
-  instance, with one-click common sizes and an illustrative price. They change the run where
-  it is defensible: fewer cores than workers makes CPU work queue, a service refuses requests
-  past its memory, a database whose hot working set does not fit in memory sends reads to
-  disk, a cache evicts least recently used keys. Left empty they are **auto-sized**: each part
-  gets the CPU, memory and storage it needs for the design's peak load (CPU at a 60% target,
-  memory for the requests, buffer cache or keys it holds, storage under 70% full), shown with
-  how it was worked out and used in runs, prices and exports until you type your own. The
-  engine does the sizing, so the CLI, the API and the web app simulate a design identically
-  (same result digest).
-- Clients as separate parts: **Mobile app** (iOS, Android, React Native, Flutter), **Web
-  browser** (React, Next.js, Vue, Angular, Svelte) and **API consumers** (REST / OpenAPI,
-  GraphQL), alongside the generic Clients box. Each has its own timeouts, retries and network
-  latency on its link, and a traffic share: put all three in front of one gateway and the
-  workload is split between them (50 / 35 / 15 by default). Results show success and latency
-  per client.
-- A parts library on the left with each technology's logo and a search box: relational (PostgreSQL, MySQL, SQL Server,
-  distributed SQL), document (MongoDB replica sets and sharded clusters), wide-column
-  (Cassandra), key-value (DynamoDB-style provisioned throughput), search (Elasticsearch),
-  caches (Redis, Valkey, Memcached, CDN edge, Varnish), message queues (Kafka, RabbitMQ,
-  SQS-style...), gateways (Nginx, HAProxy, Envoy, Kong...), services on VMs, Docker, Kubernetes
-  (HPA autoscaling, pods on a cluster's nodes) or serverless (cold starts, concurrency limits),
-  Kubernetes clusters (EKS-, GKE- and AKS-style, k3s), and third-party APIs
-  (payments, e-mail, identity, LLM inference...).
-- **Each technology brings the behaviour its documentation describes.** PostgreSQL locks rows, makes commits wait for
-  its write-ahead log (sharing flushes between concurrent commits) and replays writes on
-  replicas with a single worker, so heavy writes make replicas lag and serve stale reads.
-  MySQL replays on four workers; SQL Server's reads wait for writers; MongoDB waits for a
-  majority of its replica set, reads from the primary and caps concurrency with 128 tickets;
-  DynamoDB meters capacity units and throttles a hot key at 1,000 writes per second per
-  partition; Elasticsearch sends every search to every shard. Redis runs commands on one thread
-  per shard and stalls while forking for snapshots; Kafka keeps each key in order on one
-  partition and one consumer; RabbitMQ blocks publishers at its memory watermark; SQS delivers
-  slow messages twice after the visibility timeout; Envoy answers 503 past 1,024 requests per
-  target and nginx gives up after 60 s; Node.js runs CPU work on one event loop; JVMs pause for
-  garbage collection and start slow until the JIT warms up; Lambda cold starts depend on the
-  runtime and scale-out is rate limited. On a Kubernetes cluster every replica is a pod placed
-  by its CPU and memory requests: when the nodes are full new pods wait as Pending until the
-  cluster autoscaler's node is ready minutes later, then pull their image and start. The
-  canvas draws each service's pods (ready, starting, Pending) and the cluster's nodes, live
-  during replay. The inspector shows how the selected technology
-  behaves, each behaviour links to the vendor's documentation, and every one is a setting
-  (Auto by default) that you can override; each Auto value says whether it is documented or
-  illustrative. [docs/assumptions.md](docs/assumptions.md) lists every such number, generated
-  from the code.
-- **Core and experimental technologies.** A core set comes first: generic, Node.js, Java and
-  Go services (on VMs, containers, Kubernetes with HPA or serverless), PostgreSQL, Redis, Kafka,
-  SQS-style queues, and Nginx and ALB-style load balancers (plus the generic part of each kind,
-  which adds no technology behaviour). Every other technology carries an "experimental" badge
-  in the parts library, the inspector, reports and exports: its behaviour rests on
-  documentation and illustrative numbers. No technology is validated against measurements yet;
-  that is the next step.
-- **Calibrate from your telemetry.** Prometheus metrics (with a mapping file) or an
-  OpenTelemetry trace export set service times, hit ratios, link latency and the traffic curve;
-  each input is marked measured with its source, query, time range and fit error, and the
-  calibrated model replays what was observed and reports its largest error, not only p95 (the
-  bundled fixtures are generated by ArchSim itself, so they show the method, not real-world
-  accuracy). Ctrl/⌘ K
-  → Calibrate from telemetry, or `archsim calibrate`. See [docs/calibration.md](docs/calibration.md).
-- **Import what you run.** A docker-compose file, Kubernetes manifests or a Terraform plan
-  become a design, with a report of what was mapped, what was guessed (marked assumed), what
-  was ignored and which links to confirm. ArchSim's own exports come back with the same
-  structure (parts, technologies, replicas, autoscaling, links); timings, hit ratios, timeouts,
-  workload and scenarios do not. Menu →
-  Import from compose, Kubernetes, Terraform, or `archsim import`. See
-  [docs/import.md](docs/import.md).
-- **Prices from real machines.** A design names a price snapshot (provider, region, date):
-  parts then run on the cheapest real instance type that fits them and every cost line cites
-  it. ArchSim ships AWS us-east-1 on-demand list prices (EC2, RDS, ElastiCache, MSK, EBS,
-  Lambda, SQS, ALB), refreshed monthly; templates and new projects use them, and every dollar
-  figure names its source. Designs saved without a snapshot keep the generic illustrative
-  rates. See [docs/pricing.md](docs/pricing.md).
-- **An SLO gate in CI.** `archsim check` fails a pull request when a design misses its
-  objectives or regresses against the base branch (p95, success rate, cost, breaking point),
-  and a GitHub Action posts one sticky comment with the comparison. See [docs/ci.md](docs/ci.md).
-- Every part is the same card: its technology logo on a solid tile in its family's colour, its
-  name, one or two key settings, and after a run a 12-segment level meter (green, then yellow,
-  then red, like an audio meter) that shows how busy it was. Links are rounded
-  wires that attach on any of the four sides: drag from a dot on any side of one part to any side
-  of another, in either direction. Traffic moves along them while a run replays.
-- A "Studio" look, modelled on pro audio and design apps: charcoal panels, part families in
-  Apple's system colours, a dot-grid canvas, and a transport bar at the top with replay buttons
-  and an LCD readout (time, throughput, p95 against the goal, success) next to a red
-  record-style Simulate button. Chaos pads on the canvas plan a failure and simulate in one hit,
-  and the replay timeline shows one arrangement lane per part, in its family colour. Dark by
-  default, with a matching light theme (see [docs/ui-redesign.md](docs/ui-redesign.md)).
-- Click a part to edit it: its technology, a one-line last-run status, at most three key
-  settings (response-time distributions as a one-line summary you click to edit), and "More
-  settings" for everything else, notes and what the model covers.
-- A design review flags single points of failure, missing timeouts, retry amplification along
-  a path, timeout inversions, connection-pool exhaustion and more, with the numbers.
-- Export the design as docker-compose, Kubernetes manifests (Deployments, Services, HPAs,
-  StatefulSets) or Mermaid, as reviewed starting points.
+<table>
+<tr>
+<td width="50%" valign="top"><img src="docs/images/build.jpg" alt="Design workspace: the Black Friday diagram with a PostgreSQL database selected; the inspector shows its replica lag, settings and a real db.m6g.xlarge instance at its hourly price" width="380"><br><b>Design with real technologies</b><br>Pick PostgreSQL, Kafka or a Go service on Kubernetes, and see how it behaves and what it costs.</td>
+<td width="50%" valign="top"><img src="docs/images/editor-results.jpg" alt="Test workspace: a Kubernetes checkout service scaled to 3 pods mid-ramp, live request rates on the links, and a timeline of traffic, events, latency and failures beside a test plan that did not hold up" width="380"><br><b>Test with traffic and failures</b><br>Ramp the load, drop a cache, slow a database, then scrub the replay to any second.</td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img src="docs/images/scorecard.jpg" alt="Results Answer tab: No, it doesn't hold up, with p95 561 ms against a 500 ms objective, availability 98.8% against 99.5%, the primary bottleneck, a confidence note and the monthly cost" width="380"><br><b>Get a straight answer</b><br>The verdict, the objective that failed, the bottleneck, what to fix first and the bill.</td>
+<td width="50%" valign="top"><img src="docs/images/tradeoffs.jpg" alt="Results Compare tab: monthly cost plotted against p95 latency for every scenario, with the objective line and the Pareto frontier" width="380"><br><b>Compare the options</b><br>Every scenario on a cost-against-latency map, then a load sweep to find where it breaks.</td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img src="docs/images/dashboard.jpg" alt="Dashboard workspace: Grafana-style panels for throughput, p95, errors, saturation and cost, with a crosshair synced across latency and queue-wait charts" width="380"><br><b>Watch it like production</b><br>A Grafana-style dashboard with per-component signals: lag, lock waits, GC pauses, 503s.</td>
+<td width="50%" valign="top"><img src="docs/images/calculations.jpg" alt="Calculations for a PostgreSQL database: the technology behaviour in effect, then utilization, Little's law and M/M/c queueing formulas filled in with this run's numbers" width="380"><br><b>See the maths</b><br>Every formula behind a number, filled in with the run's values, next to what was simulated.</td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img src="docs/images/traces.jpg" alt="Request traces: a 169 ms write on a waterfall through the gateway, the checkout service, a database query with its log flush and a slow payment call" width="380"><br><b>Follow single requests</b><br>Sampled traces through every hop, wait, lock, log flush and GC pause.</td>
+<td width="50%" valign="top"><img src="docs/images/templates.jpg" alt="Templates gallery: category filters, search and a featured Black Friday on Kubernetes template drawn as technology logo tiles" width="380"><br><b>Start from a template</b><br>25 ready-made architectures, from a cache-aside starter to Kafka, Cassandra and serverless.</td>
+</tr>
+</table>
 
-**Test: traffic, failures and replay**
-- The Test plan panel holds the last result and one plan card with three rows: Traffic,
-  Must stay true (your objectives) and Failures. "Add failure" offers quick tests generated
-  from the design ("lose the cache for 15 s", "database 4× slower", "+300 ms on a link", "3×
-  spike") and custom outages, slowdowns and link latency. You can also drag the traffic line
-  and the failure blocks on the timeline.
-- Every run is recorded second by second and replays on the canvas: each component's
-  utilization, queue and traffic at that second. The timeline below stays short: play, the
-  time, speed, the traffic plan, events, latency against the objective and failures; "More
-  detail" adds throughput and a heat lane per component.
-- Every test gets a result against its objectives (what must stay true), including what
-  happened during each failure.
+And beyond the canvas:
 
-**Results: four tabs**
-- **Answer**: one sentence ("Yes, it holds up." or "No, it doesn't hold up." with the objective
-  that failed and the bottleneck), the key numbers, what to fix first, objective tiles with
-  editable targets, and monthly cost from per-component cost assumptions.
-- **Compare**: cost against latency for every run and scenario (Pareto frontier, objective
-  line), two runs side by side with the exact input differences, and the run history.
-- **Breaking point**: stepped load sweeps that find where latency turns into a hockey stick
-  and the highest load that still meets the objectives.
-- **Details**: findings in plain language (bottlenecks, hot shards, hot rows, replica lag,
-  throttling, autoscaling lag, consumer lag, wasted work), error budget, metrics over time,
-  per-component drill-down, **Calculations** and **Request traces**, and the assumptions behind
-  every number. A Markdown report is one click away.
-  - **Calculations** shows the maths behind the numbers: each formula written out, again with
-    the run's own values, and the result, next to what the simulation measured (utilization,
-    Little's law, the M/M/c queueing prediction, the hottest row's lock, group commit, replica
-    replay capacity, DynamoDB partitions, event-loop capacity...), plus where a typical
-    request's time goes. The same formulas fold out under the selected part in Design.
-  - **Request traces** follows about thirty sampled requests (evenly spread, the slowest, the
-    median, failures) through every hop, wait, lock, log flush and GC pause on a waterfall.
+- **Calibrate** a design from Prometheus metrics or OpenTelemetry traces ([calibration](docs/calibration.md)).
+- **Import** docker-compose, Kubernetes manifests or a Terraform plan, and **export** compose,
+  Kubernetes or Mermaid ([import](docs/import.md)).
+- **Gate pull requests** on your objectives with `archsim check` and a GitHub Action ([CI](docs/ci.md)).
+- **Let AI agents drive it** through the MCP server or WebMCP in the browser ([agents](docs/agents.md)).
+- **Work as a team** with GitHub or Google sign-in, workspaces, comments, sign-offs and share links
+  ([deployment](docs/deployment.md)).
 
-**Dashboard: a Grafana-style view of every run**
-- Rows of panels for the overview (throughput, p95 against the objective, error and success
-  rate, the most saturated part, monthly cost), traffic, latency, saturation and errors, then
-  one row per component with its own signals: replication lag, lock and commit waits, consumed
-  capacity units, evictions, partition lag, redeliveries, GC pauses, event-loop lag, warming
-  replicas, 504s and 503s.
-- A crosshair synced across every panel, table legends you can click to isolate a series,
-  drag-to-zoom on any chart, warm-up and failure windows as annotations, fullscreen and
-  "Inspect data" (table and CSV) per panel, and Replay at 1x/4x/10x that draws the run live,
-  shared with the Test workspace. Each panel's info popover says how its value is calculated.
-
-**AI agents (WebMCP):** the app registers [WebMCP](https://webmachinelearning.github.io/webmcp/)
-tools, so an agent in your browser can open a template, read the design, add and connect parts,
-set traffic and objectives, run the design review, simulate and read the verdict, without
-clicking. Every agent edit shows on the canvas, is announced in a toast and can be undone. WebMCP
-is an experimental draft standard; see [docs/agents.md](docs/agents.md) for the tools and
-browser support.
-
-**AI coding agents (MCP):** `archsim-mcp` is an MCP server over stdio for Claude Code, Claude
-Desktop, Cursor and others: list part types and templates, validate, analyze, simulate (with
-the verdict, findings and result digest), compare, find the breaking point, export, import and
-calibrate, with the engine's limits and no browser or API server (`./gradlew
-:archsim-mcp:installDist`, then
-`claude mcp add archsim -- /path/to/archsim/archsim-mcp/build/install/archsim-mcp/bin/archsim-mcp`;
-see [docs/agents.md](docs/agents.md)).
-
-**Everywhere:** a command palette (Ctrl/⌘ K) with every action, keyboard shortcuts, and the
-Studio theme, dark by default, in dark and light (the sun/moon button at the top right picks one
-or follows the system). The screenshots in this README still show the previous look. Templates have their own gallery (`/templates`): each card draws the design with
-its technology logos and flowing traffic, says what you will see happen, its level and key
-numbers, with category filters, search and a featured template. Your saved projects are on their
-own page (`/projects`). Projects live in
-PostgreSQL, documents
-import/export as versioned JSON, and every run stores its input, seed, engine version and
-result digest so it can be re-run and verified bit for bit.
-
-| Dashboard (Grafana-style, synced crosshair) | Results → Details → Calculations |
-| --- | --- |
-| ![The Dashboard workspace: overview panels (937 req/s, p95 561 ms against the 500 ms objective, 1.2% errors, 99% success, 79% peak saturation on Checkout API, $1,129 a month at AWS us-east-1 prices of October 2026), request and retry panels with a crosshair at 48 s, end-to-end latency, time in each component and queue wait per component](docs/images/dashboard.jpg) | ![Results → Details for the Orders DB (PostgreSQL): the technology behaviour in effect (row locks on writes, readers that never wait for writers, group commit, asynchronous replicas with lag), then calculation cards with this run's numbers filled in: arrival rate 303 req/s, capacity from slots, utilization 1.9%, Little's law 3.46 requests, the M/M/c queueing model and capacity from CPU](docs/images/calculations.jpg) |
-| **Results → Details → Request traces** | **Design: how PostgreSQL behaves** |
-| ![A traced 169 ms write on a waterfall: network legs, time in the API gateway and Checkout API, the Orders DB query and its write-ahead log flush, then a slow third-party payment call; the list beside it mixes evenly spread, slowest and failed requests](docs/images/traces.jpg) | ![The Design workspace in the light theme: the Black Friday diagram with Orders DB selected; the side panel shows its technology (PostgreSQL), how it did in the last run (2% busy, CPU caps it at 2,404 req/s, replica lag up to 18.3 ms), its settings and its resources sized as a real db.m6g.xlarge at $0.32 an hour (AWS us-east-1 prices of 2026-10-27), with the chaos pads below the canvas](docs/images/build.jpg) |
-| **Results → Answer** | **Home** |
-| ![Results → Answer in the light theme: "No, it doesn't hold up." Latency p95 561 ms against at most 500 ms and availability 98.8% against at least 99.5%, a note that p95 is within 15% of the objective from one seed with a Check 5 seeds button, Checkout API as the primary bottleneck, "Low confidence: 29 of 42 inputs are illustrative defaults" with how to raise it and the measured accuracy, then 937 req/s handled, p95 561 ms (608 ms counting failures as timeouts), 98.8% success and $1,129 a month at AWS prices, the queueing-formula estimate, a Review panel and the first findings](docs/images/scorecard.jpg) | ![Landing page in the dark theme: "Crash-test your architecture before your users do." with the second line in a blue-to-orange gradient, above a live product shot of the Black Friday design](docs/images/home.jpg) |
-| **Results → Compare** | **Templates gallery** |
-| ![Results → Compare: monthly cost against p95 for every scenario of the Black Friday template at AWS us-east-1 prices, with the p95 objective line and the Pareto frontier (which leaves out runs where more than 0.5% failed), and a table of the options; every scenario misses the objectives](docs/images/tradeoffs.jpg) | ![The templates gallery in the dark theme: counts (10 templates, 45 scenarios to compare, 18 technologies), category filters and search, and the featured Black Friday on Kubernetes template, marked Labs, drawn as logo tiles (Shoppers, Kong API gateway, Go checkout, Redis catalog cache, PostgreSQL orders, payments API) beside its description and Built with list](docs/images/templates.jpg) |
-
-## How accurate is it?
-
-Measured, not claimed: [docs/validation.md](docs/validation.md) calibrates ArchSim from
-low-load runs of four real stacks, saves its predictions, then measures them with k6. In one run
-on one Windows laptop (Docker Desktop) the predicted breaking point was off the measured one by
--10% for Node.js + PostgreSQL, -14% for cache-aside with Redis, +6% for Kafka and +97% for a single
-hot row, which could not be measured reliably on that machine. Treat these as one run, not as an
-accuracy figure: the measured breaking point itself moves between runs (Node.js + PostgreSQL:
-1,895, 3,162 and 2,291 req/s in three runs), and the protocol was revised after the two
-PostgreSQL experiments' high-load results had been seen, so only cache-aside and Kafka were first
-run under the final protocol. At low load the predicted p95 was about 8.7 ms (+300%) high for
-Kafka and 0.1 to 1.4 ms high for the other three, and the model's collapse past the knee is
-sharper than the real one. No technology meets the page's proposed thresholds for "validated".
-The page explains each gap; every measured repeat's numbers are committed, but k6's raw
-summaries are not.
+Every workspace and technology behaviour is described in [docs/features.md](docs/features.md).
 
 ## Quick start
 
-Prerequisites: **Java 25** (a JDK), **Node.js 20.9+** (24 recommended) with npm, and
-**PostgreSQL 16**, which Docker Compose can start for you. Python 3.11+ with
-[uv](https://docs.astral.sh/uv/) is needed only for development: the benchmarks and the
-repository's scripts ([CONTRIBUTING.md](CONTRIBUTING.md)).
+You need Docker with Compose, and a JDK 17 or later to start Gradle, which fetches JDK 25 for the
+build when you don't have it.
 
 ```bash
-git clone <your-fork-url> archsim
+git clone https://github.com/dante0747/archsim.git
 cd archsim
-docker compose up -d postgres
-./gradlew :archsim-app:bootJar
+./gradlew :archsim-app:jibDockerBuild   # builds the API's image into your local Docker
+docker compose up --build               # PostgreSQL, the API, a worker and the web app
 ```
 
-Then start the back end, each part in a terminal of its own: the API (it migrates the database
-when it starts) and a simulation worker (three runs at once, with the heap
-[archsim-app's README](archsim-app/README.md#the-workers-heap) asks for).
+Open <http://localhost:3000>, choose **Open the starter example** and press **Simulate**. The stack
+listens on `127.0.0.1` only and has no sign-in. [Getting started](docs/getting-started.md) covers
+running from source and a five-minute tour; [Troubleshooting](docs/troubleshooting.md) helps when
+something won't start.
 
-```bash
-java -jar archsim-app/build/libs/archsim-app.jar api
-```
+### Command line
 
-```bash
-ARCHSIM_MAX_CONCURRENT_RUNS=3 java -Xmx2g -XX:+ExitOnOutOfMemoryError -jar archsim-app/build/libs/archsim-app.jar worker
-```
-
-In another terminal, start the web app:
-
-```bash
-cd apps/web
-npm ci
-npm run dev
-```
-
-Open <http://localhost:3000>, pick **Cache-aside web API (starter)**, and press **Run**.
-
-The parts find each other with their default: PostgreSQL at
-`postgresql://archsim:archsim@127.0.0.1:5432/archsim` (compose's). For another database,
-set `ARCHSIM_DATABASE_URL` for the API and the worker alike (on Windows PowerShell:
-`$env:ARCHSIM_DATABASE_URL = "postgresql://..."`, and likewise
-`$env:ARCHSIM_MAX_CONCURRENT_RUNS = "3"` before the worker's `java` command; `make worker` runs
-that command on a POSIX shell).
-Use `127.0.0.1` rather than `localhost`: with Docker Desktop on Windows, `localhost` may try
-IPv6 first and stall.
-All settings are listed in [.env.example](.env.example).
-
-### Everything in Docker
-
-```bash
-./gradlew :archsim-app:jibDockerBuild
-```
-
-```bash
-docker compose up --build
-```
-
-The first command builds the Java API's image into your local Docker with Jib (`make image`; run
-it again after changing the Java code); compose builds the rest. Then open
-<http://localhost:3000>. Ports are bound to 127.0.0.1 because the stack runs without sign-in by
-default. A one-shot `migrate` service updates the database first, and a `worker` simulates the
-runs the API queues.
-
-### Several API instances and workers
-
-Runs wait in a queue in the database, and workers simulate them. To share the work, start more
-workers against the same PostgreSQL (`docker compose up --build --scale worker=3`, or
-`java -jar archsim-app.jar worker` on any machine that reaches the database, with the heap
-[archsim-app's README](archsim-app/README.md#the-workers-heap) asks for). A run survives a
-restart (it is queued again), and cancel works from any instance. A worker's runs share its
-heap: a run that exhausts it stops the worker, whose runs are then requeued. Details and limits:
-[docs/api.md](docs/api.md#background-runs-and-several-instances).
-
-### Sign-in, teams and API tokens
-
-Locally there is no sign-in: you are the owner of one `default` workspace. To let other people
-in, run the API with `ARCHSIM_AUTH_MODE=oauth`, a secret key, the public address and a GitHub
-or Google OAuth app (all listed in [.env.example](.env.example)). Then:
-
-- people sign in with GitHub or Google and get a personal workspace; whoever's verified email
-  is in `ARCHSIM_ADMIN_EMAILS` also owns `default`;
-- the person menu at the top right switches workspaces, and **Settings** creates team
-  workspaces, invites people as viewers, editors or owners, and makes **API tokens** for the
-  CLI, CI and MCP (`Authorization: Bearer asim_pat_...` to `https://<host>/api/v1`);
-- runs per hour and runs at once are limited per workspace (429 with `Retry-After`), and the
-  server calls a Prometheus only on an allowlist of public hosts.
-
-Use PostgreSQL and HTTPS, and keep the API's port private (the web server proxies it). The
-threat model is in [SECURITY.md](SECURITY.md); the endpoints in
-[docs/api.md](docs/api.md#sign-in-workspaces-and-tokens).
-
-## A five-minute tour
-
-1. On the home page, open **Black Friday on Kubernetes**: Shoppers → Kong gateway → a Go
-   checkout service on Kubernetes (HPA 3→14 pods) → Redis, PostgreSQL with two read replicas,
-   and a payments API. The **design review** (bottom left) already warns that reads fail when
-   the cache is down, because there is no fallback path.
-2. Press **2** for **Test**, then **Simulate** (Ctrl/⌘ Enter). The run is recorded and replays
-   automatically: around t = 60 s the checkout service goes red while new pods start, then
-   recovers. Scrub the timeline to any second; the canvas shows that moment. The **Test plan**
-   panel reports whether what must stay true (p95 ≤ 500 ms, availability ≥ 99.5%) held.
-3. In the Test plan, **Add failure** offers quick tests such as **Lose Catalog cache for 15 s**.
-   Pick one and simulate again: the verdict flips, and the failure's block on the timeline shows
-   exactly when and where it broke.
-4. Press **3** for **Results**. **Answer** gives the verdict, the objectives and a monthly cost
-   estimate; **Compare → Simulate all scenarios** puts every scenario on the cost-against-latency
-   map (no autoscaling is cheaper but misses the objective).
-5. **Breaking point** sweeps the load and finds the highest load that still meets the
-   objectives. **Report** gives you a Markdown write-up; **Ctrl/⌘ K → Export** gives
-   docker-compose, Kubernetes or Mermaid scaffolding.
-
-The numbers come from the shipped examples with seed 42 and are illustrative assumptions.
-
-## Command line
-
-The engine works without the web stack, with the same answers as the web app. The `archsim`
-command is built with Gradle into `archsim-cli/build/install/archsim/bin/` (put that folder on
-your `PATH`; it runs on the Java 25 that `JAVA_HOME` names, else the one on the `PATH`; see
-[archsim-cli/README.md](archsim-cli/README.md)):
+The same engine, with the same answers, without a server or database:
 
 ```bash
 ./gradlew :archsim-cli:installDist
-archsim validate examples/cache-aside-starter.json
-archsim analyze examples/cache-aside-starter.json
-archsim run examples/cache-aside-starter.json --scenario one-api-replica --out report.json
-archsim run long-steady-design.json --sampled   # answer a long steady run from a sample
-archsim compare examples/cache-aside-starter.json --a baseline --b three-api-replicas
-archsim calibrate prometheus examples/cache-aside-starter.json \
-  --map parity/fixtures/calibration/starter-mapping.yaml \
-  --recorded parity/fixtures/calibration/starter-prometheus.json -o calibrated.json
-archsim import compose docker-compose.yml -o design.json --report import-report.json
-archsim export k8s examples/cache-aside-starter.json -o manifests.yaml
-archsim check examples/cache-aside-starter.json --baseline-ref origin/main --fail-on regression
+export PATH="$PWD/archsim-cli/build/install/archsim/bin:$PATH"
+archsim run examples/cache-aside-starter.json --scenario one-api-replica
 ```
 
-`analyze` prints the auto sizes, the cost estimate, the design review and each part's
-technology tier without simulating.
-Untrusted documents are bounded: the wall-clock limit and cancellation hold inside the event
-loop, and a design whose one request would fan out into more than 10,000 calls is rejected
-(`design.amplification`).
+```text
+offered 398.9 req/s | throughput 286.8 req/s | success 71.90% | p50 217.0 ms | p95 269.8 ms | ...
+  [critical] API Servers is the primary bottleneck: On average 100% of its 4 workers were busy. ...
+```
 
-## Tests and checks
+It also validates, analyzes, compares, calibrates, imports, exports and checks designs in CI
+([archsim-cli](archsim-cli/README.md)).
+
+### MCP server
+
+Give Claude Code, Claude Desktop, Cursor or another MCP client the engine as tools:
 
 ```bash
-./gradlew build                                 # the Java code: format, Checkstyle, tests
-./gradlew :archsim-cli:installDist              # the benchmarks' tests call the CLI
-uv run pytest                                   # the benchmarks and the scripts
-uv run ruff check benchmarks scripts
-uv run ruff format --check benchmarks scripts
-uv run mypy benchmarks
-cd apps/web && npm test && npm run lint && npm run typecheck && npm run build
+./gradlew :archsim-mcp:installDist
+claude mcp add archsim -- "$PWD/archsim-mcp/build/install/archsim-mcp/bin/archsim-mcp"
 ```
 
-The Java engine's tests replay the runs the frozen Python engine 0.16.0 recorded, figure for
-figure, and match its golden files ([parity/README.md](parity/README.md)). They also check the
-simulator against M/M/1 and M/M/c (Erlang C) queues and Little's law, the instant estimate
-against the simulation, and the starter example's scenarios against a directional reference
-benchmark, as that engine's own suite did. CI (GitHub Actions) also runs the black-box API tests
-against the Java API and its worker on PostgreSQL. `make` targets wrap these commands (see the
-[Makefile](Makefile)).
+Then ask your agent to find the breaking point of `examples/cache-aside-starter.json`. The tools
+are listed in [docs/agents.md](docs/agents.md).
 
-## Repository layout
+## How it works
 
+```mermaid
+flowchart LR
+  web["Web app"] --> api["API"] --> db[("PostgreSQL<br/>run queue")] --> worker["Workers"]
+  cli["CLI"]
+  mcp["MCP server"]
+  subgraph engine["Java engine"]
+    direction TB
+    doc["Validate the design"] --> prep["Size, price, review"]
+    prep --> sim["Simulate every request"]
+    sim --> report["Verdict, bottleneck,<br/>cost, traces"]
+  end
+  worker --> engine
+  cli --> engine
+  mcp --> engine
 ```
-archsim-app/       Java API (Spring Boot): projects, runs, workspaces, reviews, sharing, sign-in
-archsim-model/     Java design model: the document's records, upgrades and validation
-archsim-engine/    Java engine: the simulator and its deterministic parts (sizing, cost, ...)
-archsim-cli/       Java command line, `archsim`
-archsim-mcp/       Java MCP server for AI coding agents
-benchmarks/        Python accuracy benchmarks (k6 against real stacks), on the Java engine
-apps/web/          Next.js editor: canvas, inspector, results and comparison
-examples/          Example architectures (versioned JSON) with scenarios
-parity/            What the Python engine 0.16.0 recorded: the Java tests' reference data
-docs/              Architecture, simulation model, schema, API, extension guide, roadmap
-scripts/           Developer scripts (e.g. which CI jobs a change needs, the commit message check)
-```
+
+A design is one versioned JSON document. The engine validates it, sizes every part for the peak
+load, prices it on real instance types and reviews it; then a discrete-event simulator moves every
+request through every hop, queue, lock and retry, from a seeded random stream. Each run records its
+input, seed, engine version and result digest, so it can be repeated and checked bit for bit. The
+web app reaches the engine through the API, which checks and sizes designs itself and queues runs in
+PostgreSQL for the workers; the CLI and the MCP server call the engine directly. More in
+[docs/architecture.md](docs/architecture.md).
+
+## How accurate is it?
+
+Measured, not claimed. In nine experiments on real services, ArchSim was calibrated at low load,
+predicted where each would break, and only then was the breaking point measured with k6:
+
+| Experiments | Median error in the predicted breaking point |
+| --- | --- |
+| **5 held out**, predicted before any of them was measured | −6% to +70%: one within ±25%, and four over-predicted capacity, the unsafe side |
+| **4 tuned on**, the model developed with their results in view | −23% to +16% |
+
+These are three to six runs per experiment on one laptop (engine 0.16.0, whose results the Java
+engine 1.0.0 reproduces exactly). No technology counts as validated yet: that needs a second
+machine. [docs/validation.md](docs/validation.md) shows every run, where the model is wrong and why.
+
+> **Results are estimates, not production guarantees.** Every number comes from the model you drew
+> and the assumptions you entered. Without calibration, trust comparisons between scenarios more
+> than any single absolute value. What is and isn't modeled: [docs/simulation-model.md](docs/simulation-model.md).
 
 ## Documentation
 
-- [Implementation plan and assumptions](docs/plan.md)
-- [Architecture](docs/architecture.md)
-- [Architecture decision records: why ArchSim is built the way it is](docs/adr/README.md)
-- [Simulation model: what is and isn't modeled](docs/simulation-model.md)
-- [Assumptions: every default, documented or illustrative](docs/assumptions.md) (generated)
-- [Calibrating from Prometheus and OpenTelemetry](docs/calibration.md)
-- [Importing docker-compose, Kubernetes and Terraform](docs/import.md)
-- [Prices and machine shapes](docs/pricing.md)
-- [An SLO gate in CI](docs/ci.md)
-- [Performance: what is fast, what is not, sampled mode](docs/performance.md)
-- [How accurate is ArchSim? Benchmarks against real stacks](docs/validation.md)
-- [Document schema](docs/schema.md)
-- [HTTP API](docs/api.md) (OpenAPI at `/api/v1/openapi.json`, interactive docs at `/api/v1/docs`)
-- [Adding a component type](docs/extending-components.md)
-- [AI agents: the MCP server and the WebMCP tools](docs/agents.md)
-- [Roadmap: calibration, Grafana, AI/MCP, more components](docs/roadmap.md)
-- [Implementation status](IMPLEMENTATION_STATUS.md)
+| Use it | Run it | Understand it |
+| --- | --- | --- |
+| [Getting started](docs/getting-started.md) | [Running for a team](docs/deployment.md) | [Simulation model](docs/simulation-model.md) |
+| [Features](docs/features.md) | [Troubleshooting](docs/troubleshooting.md) | [Assumptions](docs/assumptions.md) |
+| [Calibration](docs/calibration.md) | [HTTP API](docs/api.md) | [Accuracy](docs/validation.md) |
+| [Import](docs/import.md) and [pricing](docs/pricing.md) | [Security](SECURITY.md) | [Architecture](docs/architecture.md) |
+| [CI gate](docs/ci.md) and [AI agents](docs/agents.md) | [Command line](archsim-cli/README.md) | [Decision records](docs/adr/README.md) |
 
-## Scope and limitations
+Everything else is indexed in [docs/README.md](docs/README.md).
 
-Supported today: several client groups per design (Clients, mobile app, web browser, API
-consumers) sharing one workload; load balancers, services (with autoscaling and serverless),
-caches, databases, message queues and external APIs; synchronous acyclic call graphs;
-open-loop synthetic workloads; scheduled faults (outage, slowdown, link latency); local
-use without sign-in, or GitHub/Google sign-in with workspaces, roles and API tokens; optional
-CPU, memory and storage specs (CPU contention, memory limits,
-database buffer cache, LRU cache eviction); the technology behaviours listed above (row locks,
-write-ahead-log flushes, GC pauses, cold starts and so on). Not modeled: OOM kills and
-restarts, disk and network bandwidth, packet loss, deadlocks and range locks, random failures
-(faults are scheduled), parallel fan-out calls, regions. The full list is in
-[docs/simulation-model.md](docs/simulation-model.md#what-is-not-modeled). Without
-`ARCHSIM_AUTH_MODE=oauth` there is no authentication: keep it on your machine. A hosted stack
-and deploy guide are still to come; until then, read [SECURITY.md](SECURITY.md) before exposing
-a server.
-Grafana integration and an HTTP transport for the MCP server are on the roadmap, not
-implemented; AI agents can use the stdio MCP server and, in the browser, the
-[WebMCP tools](docs/agents.md).
-Details: [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+## Contributing
 
-## Troubleshooting
+Bug reports, ideas and questions are welcome as [issues](https://github.com/dante0747/archsim/issues/new/choose). ArchSim is
+offered under the AGPL-3.0 and under a commercial license, so a pull request from outside the
+project can be merged only once its author has signed the Contributor License Agreement. The
+agreement is being prepared; until it is published, outside pull requests wait.
 
-- **The web app says it cannot reach the API.** Start it as the [quick start](#quick-start)
-  shows. If it runs elsewhere, set `ARCHSIM_API_URL` for the web server (default
-  `http://127.0.0.1:8000`).
-- **Runs stay queued.** No worker is running: start one (`make worker`, or the `worker` role of
-  archsim-app's jar), with the API's `ARCHSIM_DATABASE_URL`.
-- **Windows: `DLL load failed ... The filename or extension is too long`.** The checkout path is
-  too deep for Windows' path limit. Clone into a short path such as `C:\src\archsim`, or put the
-  virtual environment somewhere short with `UV_PROJECT_ENVIRONMENT`.
-- **Next.js telemetry.** The npm scripts disable it by default; see
-  [SECURITY.md](SECURITY.md).
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for the setup and checks, [docs/development.md](docs/development.md)
+for the layout and tests, and the [Code of Conduct](CODE_OF_CONDUCT.md). Report vulnerabilities
+privately, as [SECURITY.md](SECURITY.md) describes.
 
-## Contributing and license
+## License
 
-Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) and the
-[Code of Conduct](CODE_OF_CONDUCT.md); report vulnerabilities as described in
-[SECURITY.md](SECURITY.md). ArchSim is licensed under the [GNU Affero General Public License v3.0](LICENSE)
-(`AGPL-3.0-only`). A commercial license, for using ArchSim without the AGPL's obligations, is
-available from its copyright holder ([ADR 0067](docs/adr/0067-license-under-agpl-3.0-with-a-commercial-license.md)).
+ArchSim is licensed under the [GNU Affero General Public License v3.0 only](LICENSE)
+(`AGPL-3.0-only`). Using it, at work too, is free. If you ship ArchSim inside a product or offer a
+changed ArchSim over a network, the AGPL asks you to publish your source under the same license; a
+commercial license from the copyright holder lifts those obligations
+([ADR-0067](docs/adr/0067-license-under-agpl-3.0-with-a-commercial-license.md)). Third-party
+components keep their own licenses ([NOTICE](NOTICE)).
