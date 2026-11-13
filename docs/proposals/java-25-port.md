@@ -354,6 +354,49 @@ doesn't change.
   (medians, knees, spreads, digests of the reduced summaries), because past and future runs must
   stay comparable.
 - **Exit:** the harness runs from Gradle, and the last Python code is deleted.
+- **Also:** the repository's tooling in `scripts/` moves to Java or goes
+  ([ADR-0064](../adr/0064-keep-python-only-for-the-harness-and-the-repositorys-tooling.md)).
+- **Decisions** (proposed, 13 Nov 2026): the harness is a module, `archsim-benchmarks`, calling
+  the engine in process, with its data left in `benchmarks/`
+  ([ADR-0068](../adr/0068-port-the-harness-to-a-module-that-calls-the-engine-in-process.md));
+  it runs as `./gradlew :archsim-benchmarks:run --args="<command>"`, with `run.py`'s command
+  names ([ADR-0069](../adr/0069-run-the-harness-from-gradle-with-picocli-commands.md)); it writes
+  every file as the Python harness did, byte for byte, charts included
+  ([ADR-0070](../adr/0070-write-the-harnesss-files-as-python-wrote-them.md)), with Python's
+  statistics ported exactly ([ADR-0071](../adr/0071-python-statistics-in-the-harness.md)); the
+  tooling moves to a module `archsim-tools`, and the recorders of CPython's behaviour retire
+  ([ADR-0072](../adr/0072-move-the-repositorys-tooling-to-java-and-retire-the-cpython-recorders.md)).
+- **Slices**, each test first (its tests ported from the Python ones), each commit that touches
+  Java, the build or CI reviewed before it lands:
+  - **S7-1 · The module and the reduction of a run:** `archsim-benchmarks`, the experiments,
+    Python's statistics, the results' JSON, and `compare`. Parity: every kept run's
+    `comparison.json` recomputed byte for byte.
+  - **S7-2 · The reports:** `report [--json] [--dev]`: the validation page's blocks, the charts,
+    both `accuracy.json`, `dev-checks.md` and `knee-range.md`. Parity: all regenerated from the
+    committed results, byte for byte but for the command names
+    ([ADR-0070](../adr/0070-write-the-harnesss-files-as-python-wrote-them.md)).
+  - **S7-3 · The Java engine's parity page:** `java-parity [--check]`, from
+    `scripts/java_parity_report.py`; CI's check becomes the module's test.
+  - **S7-4 · Model inputs, designs and simulation in process:** the calibration's inputs, the
+    design, the knee search, `resimulate` and `resources`. Parity: re-simulating every kept
+    calibration gives the Java engine's recorded checks (`results/dev/0.16.0-java/`).
+  - **S7-5 · The knee's range:** the sensitivity, the variation fit and `range-fit`. Parity:
+    `benchmarks/knee-range.json` reproduced from the same checks.
+  - **S7-6 · Docker, k6 and a campaign:** stacks, cpusets, cgroup readings, k6, the calibration
+    staircase, measurement, the held-out seals and `smoke`; the seal fix below. Proof: one smoke
+    run and one experiment on Docker.
+  - **S7-7 · The machine checks:** `envcheck` and `contention` (host counters, probes).
+  - **S7-8 · The tooling:** `archsim-tools` (commit messages, CI's changes, the price refresh);
+    the hook and CI on Java; the CPython recorders retire.
+  - **S7-9 · Python removed:** `benchmarks/*.py` and their tests, `scripts/`, `pyproject.toml`,
+    `uv.lock`, `.python-version`, CI's Python job, the Makefile's and the workflows' uv steps,
+    `archsim functions` in the CLI; the docs.
+- **The prediction seal:** a run's `predictionsSha256` seals `predictions.json` before the first
+  measured step. Of the 53 sealed runs, 27 match their file and 24 were edited by the 2 Nov 2026
+  history rewrite (commit IDs and the harness's hash), their originals matching. The other two,
+  cache-aside's runs 4 and 5, show a harness bug: a ladder that still met the objective at its
+  top was extended, and each extension step was saved into the sealed file after the seal, so
+  the file no longer matches it. S7-6 fixes it in the Java harness, test first.
 
 ## Where the port ended
 
