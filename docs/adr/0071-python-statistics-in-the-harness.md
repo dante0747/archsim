@@ -54,7 +54,7 @@ bits, and they are short.
   the range's knee searches, which Python spread over processes) is gathered in submission
   order before anything is summed.
 
-**Status (13 Nov 2026, proposed):** with the range fit ported (stage 7, slice S7-5), every place
+**Status (13 Nov 2026):** with the range fit ported (stage 7, slice S7-5), every place
 this decision covers has run against the committed results.
 - `StrictMath` and the C library CPython calls on Windows (MSVC's) do differ in a last bit for
   some inputs: `exp(0.7103238548114007)` is 2.034650083178199 in CPython 3.12 and
