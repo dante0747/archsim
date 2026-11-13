@@ -454,4 +454,6 @@ Details: [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) and the
 [Code of Conduct](CODE_OF_CONDUCT.md); report vulnerabilities as described in
-[SECURITY.md](SECURITY.md). ArchSim is licensed under the [GNU Affero General Public License v3.0](LICENSE).
+[SECURITY.md](SECURITY.md). ArchSim is licensed under the [GNU Affero General Public License v3.0](LICENSE)
+(`AGPL-3.0-only`). A commercial license, for using ArchSim without the AGPL's obligations, is
+available from its copyright holder ([ADR 0067](docs/adr/0067-license-under-agpl-3.0-with-a-commercial-license.md)).

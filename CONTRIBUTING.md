@@ -191,6 +191,15 @@ renders its palette entry and inspector form automatically.
 [`docs/extending-components.md`](docs/extending-components.md) walks through the parts, on the
 external API's.
 
+## Licensing of contributions
+
+ArchSim is licensed under the [GNU Affero General Public License v3.0](LICENSE)
+(`AGPL-3.0-only`), and its copyright holder also offers it under a commercial license
+([ADR 0067](docs/adr/0067-license-under-agpl-3.0-with-a-commercial-license.md)). Offering both needs
+the right to license every contribution both ways, so a pull request from outside the project
+can be merged only once its author has signed ArchSim's Contributor License Agreement. The
+agreement is being prepared; until it is published, outside pull requests wait.
+
 ## Questions
 
 Open a GitHub Discussion or an issue labelled `question`.

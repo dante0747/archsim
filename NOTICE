@@ -1,10 +1,12 @@
 ArchSim
-Copyright 2026 The ArchSim contributors
+Copyright 2026 Majid Abarghooei and the ArchSim contributors
 
 This product is licensed under the GNU Affero General Public License, version 3 only (see LICENSE).
 
 This repository holds ArchSim's own source only. What it builds bundles third-party open-source
-software, each under its own license, which is not part of this repository's source:
+software, each under its own license, which is not part of this repository's source. Each of
+these licenses is compatible with the AGPL-3.0; where a library offers a choice, ArchSim takes
+the one compatible with the GPL (docs/adr/0067-license-under-agpl-3.0-with-a-commercial-license.md):
 
 - The API image (archsim-app, built with Jib), the command line (archsim-cli) and the MCP server
   (archsim-mcp) bundle these Java libraries:
@@ -20,16 +22,17 @@ software, each under its own license, which is not part of this repository's sou
     qualifiers and WebJars Locator Lite; Reactive Streams under MIT-0;
   - the PostgreSQL JDBC driver, under the BSD 2-Clause License, and ASM, under the BSD 3-Clause
     License;
-  - Logback, under the Eclipse Public License 2.0 (it is dual-licensed EPL-2.0 or LGPL-2.1);
-  - the Jakarta Annotations API, under the Eclipse Public License 2.0 (or GPL-2.0 with the
-    Classpath Exception), and the Jakarta Activation and XML Binding APIs, under the Eclipse
+  - Logback, under the GNU Lesser General Public License 2.1 (of its EPL-2.0 or LGPL-2.1
+    choice);
+  - the Jakarta Annotations API, under the GNU General Public License 2.0 with the Classpath
+    Exception (of its EPL-2.0 or GPL-2.0-with-Classpath-Exception choice), and the Jakarta Activation and XML Binding APIs, under the Eclipse
     Distribution License 1.0 (BSD 3-Clause).
   The NOTICE and license files these libraries carry are kept, unchanged, inside their jars.
 - The web image (apps/web, Next.js's standalone output) bundles Next.js, React, React Flow
   (@xyflow/react), Zustand, Recharts, Radix UI, Sonner, clsx, class-variance-authority,
   tailwind-merge and their dependencies (MIT, ISC, Apache-2.0 and BSD licenses), styles built with
-  Tailwind CSS (MIT), lucide-react (ISC), elkjs (Eclipse Public License 2.0, of its EPL-2.0 or
-  GPL-3.0-or-later choice) and Simple Icons (CC0-1.0). Next.js draws a shared run's preview
+  Tailwind CSS (MIT), lucide-react (ISC), elkjs (GNU General Public License 3.0 or later, of its
+  EPL-2.0 or GPL-3.0-or-later choice) and Simple Icons (CC0-1.0). Next.js draws a shared run's preview
   image with the @vercel/og and Satori it bundles, under the Mozilla Public License 2.0 and
   shipped unmodified; their source is at https://www.npmjs.com/package/@vercel/og and
   https://github.com/vercel/satori. The image leaves out sharp and the libvips that sharp

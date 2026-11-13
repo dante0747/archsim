@@ -108,3 +108,4 @@ what the repository shows.
 | [0064](0064-keep-python-only-for-the-harness-and-the-repositorys-tooling.md) | Keep Python only for the benchmark harness and the repository's tooling, until stage 7 | Accepted | 2026-11-12 |
 | [0065](0065-move-sign-in-to-spring-security-after-the-port.md) | Move sign-in to Spring Security after the port, keeping its HTTP contract | Accepted | 2026-11-12 |
 | [0066](0066-ship-the-web-image-without-an-image-optimizer.md) | Ship the web image without Next.js's image optimizer, and so without sharp and libvips | Accepted | 2026-11-12 |
+| [0067](0067-license-under-agpl-3.0-with-a-commercial-license.md) | License ArchSim under the AGPL-3.0, and offer a commercial license | Accepted | 2026-11-13 |

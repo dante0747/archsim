@@ -89,7 +89,7 @@ URL, and query values read whole (2026-11-12).**
   ([ADR 0065](docs/adr/0065-move-sign-in-to-spring-security-after-the-port.md), `6aa85dd5`),
   built since (above).
 - `NOTICE` lists the third-party software the images and the CLI bundle; none is incompatible with
-  Apache-2.0 (`f5953070`). The web image leaves out sharp and its libvips (LGPL-3.0-or-later), which
+  the AGPL-3.0 ArchSim is licensed under (`f5953070`; [ADR 0067](docs/adr/0067-license-under-agpl-3.0-with-a-commercial-license.md)). The web image leaves out sharp and its libvips (LGPL-3.0-or-later), which
   only Next.js's image optimizer used: the app turns the optimizer off, and its build and CI fail if
   they come back ([ADR 0066](docs/adr/0066-ship-the-web-image-without-an-image-optimizer.md)).
   README, CONTRIBUTING, `docs/extending-components.md` and the other docs that described

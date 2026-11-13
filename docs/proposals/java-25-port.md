@@ -339,7 +339,8 @@ doesn't change.
     moves it to Spring Security after the port, keeping its HTTP contract but for the changes
     it records, in six test-first slices, all built (12 Nov 2026).
   - Also: `NOTICE` lists the third-party software the images and the CLI bundle, none of it
-    incompatible with Apache-2.0, and the web image leaves out sharp and its libvips
+    incompatible with the AGPL-3.0 ArchSim is licensed under
+    ([ADR-0067](../adr/0067-license-under-agpl-3.0-with-a-commercial-license.md)), and the web image leaves out sharp and its libvips
     ([ADR-0066](../adr/0066-ship-the-web-image-without-an-image-optimizer.md)); stage 5's
     follow-ups are closed; and two gaps in the contract found in review are closed. The API ignores
     a request body's unknown keys, as FastAPI's request models did, and a number's text of any
