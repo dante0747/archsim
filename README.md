@@ -28,14 +28,14 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/cache-outage.gif" alt="Demo: the cache-aside starter (clients, load balancer, API servers, Redis, PostgreSQL) is simulated, then the Lose Redis Cache chaos pad is pressed; the replay shows the API servers saturating while every read goes to PostgreSQL, and the test plan turns to Didn't hold up" width="900">
+  <img src="docs/images/cache-outage.gif" alt="Demo: the cache-aside starter (clients, load balancer, API servers, Redis, PostgreSQL) is simulated, then the Lose Redis Cache chaos pad is pressed; the replay shows the API servers saturating while every read goes to PostgreSQL, and the test plan turns to Didn't hold up" width="800">
   <br>
   <sub>Losing Redis on the cache-aside starter: press a chaos pad and the verdict flips within seconds.</sub>
 </p>
 
 ## Why ArchSim
 
-- **Real technologies, real behaviour.** PostgreSQL locks rows and waits for its write-ahead log,
+- **Real technologies, real behaviour.** PostgreSQL locks rows and waits for its write-ahead log, its
   replicas lag, Redis forks for snapshots, JVMs pause for garbage collection, Lambda starts cold and
   Kubernetes pods wait as Pending for a node. Each behaviour links to the vendor's documentation,
   and each one is a setting you can override.
