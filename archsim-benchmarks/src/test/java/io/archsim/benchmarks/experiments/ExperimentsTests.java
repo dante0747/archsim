@@ -55,6 +55,20 @@ class ExperimentsTests {
 	}
 
 	@Test
+	void hasCache_theExperiments_areTheTwoOnARedisStack() {
+		List<String> cached = EXPERIMENTS.all().stream().filter(Experiment::hasCache).map(Experiment::id).toList();
+
+		assertThat(cached).containsExactly("cache-aside", "cache-ttl");
+	}
+
+	@Test
+	void runsOnNode_theExperiments_areTheSixWithANodeService() {
+		List<String> node = EXPERIMENTS.all().stream().filter(Experiment::runsOnNode).map(Experiment::id).toList();
+
+		assertThat(node).containsExactly("pg-mixed", "pg-hot-row", "cache-aside", "kafka", "chain", "cache-ttl");
+	}
+
+	@Test
 	void runtime_pythonMixed_isGunicornsTenSyncWorkers() {
 		ServiceRuntime runtime = EXPERIMENTS.runtime(EXPERIMENTS.get("python-mixed"));
 

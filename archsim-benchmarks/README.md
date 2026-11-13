@@ -36,11 +36,13 @@ stage 7 of the [Java port](../docs/proposals/java-25-port.md). It is not shipped
 | Package | What it holds | Python it ports |
 | --- | --- | --- |
 | `io.archsim.benchmarks` | the command line (`Benchmarks`, one class per command), the repository's layout, the log | `run.py`'s `main`, `log` |
-| `experiments` | the experiments, stacks and service runtimes (`experiments.json`), the objective, the protocol's numbers, each container's model node | `EXPERIMENTS`, `STACKS`, `RUNTIMES`, `CONTAINER_NODES`, the constants |
+| `experiments` | the experiments, stacks and service runtimes (`experiments.json`), the objective and whether a step met it (`Objective`), the protocol's numbers, each container's model node | `EXPERIMENTS`, `STACKS`, `RUNTIMES`, `CONTAINER_NODES`, `meets`, the constants |
 | `results` | the kept runs and the results' JSON files; each kept calibration's knee on the frozen and the Java engine (`KneePairs`) | `result_dirs`, `read_json`, `write_json`, `java_parity_report.py`'s `knees` and `_same_knee` |
-| `comparison` | a step from its repeats (`StepAggregation`, `RepeatResources`), the knees (`Knees`), `comparison.json` (`Comparison`, `ResourceComparison`, `RelativeError`), `compare` (`Recomparison`) | `aggregate`, `failed_repeat`, `repeat_value`, `run_resources`, `aggregate_resources`, `grid_knee`, `meets`, `at_or_below_knee`, `at_or_below_both_knees`, `in_range`, `compare`, `resource_rows`, `resources_below_knee`, `err`, `measured_steps`, `comparison_of`, `recompare` |
+| `comparison` | a step from its repeats (`StepAggregation`, `RepeatResources`), the knees (`Knees`), `comparison.json` (`Comparison`, `ResourceComparison`, `RelativeError`), `compare` (`Recomparison`) | `aggregate`, `failed_repeat`, `repeat_value`, `run_resources`, `aggregate_resources`, `grid_knee`, `at_or_below_knee`, `at_or_below_both_knees`, `in_range`, `compare`, `resource_rows`, `resources_below_knee`, `err`, `measured_steps`, `comparison_of`, `recompare` |
 | `values` | Python's arithmetic on JSON values: `+`, `-`, `*`, `/`, `abs`, `round`, `min`, `max`, `sum` (3.12's compensated), `==` (`equal`), `statistics.median`, `dict.get` | the semantics `run.py` relied on |
 | `values` (`PythonStatistics`) | `statistics.NormalDist().inv_cdf`, `math.comb` | the statistics `report.py` and `run.py` used |
+| `inputs` | the model inputs from a calibration's passes, one class per part (`ServiceInputs` with `GcInputs`, `LoadCurveInput` and `ChainInputs`; `QueueInputs`; `DatabaseInputs` with `PostgresCpu`, `QueryPasses`, `ServerTimes`, `CommitFlush` and `FlushFit`; `CacheInputs`; `MemoryInputs`), anchored at the top pass (`Anchoring`), the median of the replicates (`MedianInputs`), a run's inputs derived again (`ModelInputs`), the lognormals (`ModelDistributions`), a trial's GC for runs whose service reported none (`TrialGc`) | `model_inputs`, `service_inputs`, `queue_inputs`, `database_inputs`, `cache_inputs`, `memory_inputs`, `anchor`, `anchor_spread`, `median_inputs`, `rederive_inputs`, `trial_gc`, `with_trial_gc`, `fit_flush`, `commit_flush`, `server_time`, `link_leg`, `lognormal`, `lognormal_with_mean` and the rest of `run.py`'s calibration-to-inputs functions but three it has yet to take: `machine_inputs` (the host machine `BENCH_HOST=on` adds, with `envcheck` and `contention`), and `staircase_cpu` and `service_cpus` with the `log` form of `CURVE_FORM` (`extend_load_curve`, off by default; with the calibration staircase). Until then the inputs are those of their defaults: no host machine, a flat curve above the staircase |
+| `designs` | an experiment's design at a load (`Designs`, `Nodes`, `Edge`), PostgreSQL alone (`DatabaseAlone`), simulations on the engine in process and what the harness reads from them (`Simulations`), the knee search (`KneeSearch`) | `design`, `service_node`, `database_node`, `cache_node`, `queue_node`, `_edge`, `database_only`, `simulate`, `node_resources`, `predicted_knee` |
 | `docker` | each stack's containers and k6's CPUs (`stacks.json`), the cpusets `compose.yaml` declares | `STACK_SERVICES`, `K6_CPUS`, `compose_cpusets`, `cpusets`, `cpu_count` |
 | `report` | the validation page's blocks (`ValidationPage`, `SummaryBlocks`, `TiersBlock`, `ResourcesBlock`, `EnvironmentBlock`, `ExperimentBlock`, `LadderTable`), the charts (`Chart`, `ChartPanel`, `ValueAxis`), `accuracy.json` (`AccuracyData`, `AccuracyExperiment`, `AccuracySteps`), the run history and criteria (`RunHistory`, `Tiers`, `Repeatability`, `KneeSpread`), the Java engine's sentence (`JavaEngineCheck`), `dev-checks.md` (`DevChecksPage`), `knee-range.md` (`KneeRangePage`), the page's words (`PageTexts`, `texts.json`) and numbers (`Figures`) | all of `report.py` |
 | `history` | commits and folder trees through `git` (`GitRepository`), a rewrite's commit map (`CommitMap`), today's engine trees (`TreeIds`) | none |
@@ -58,7 +60,11 @@ tests read the committed results: `CommittedComparisonsTests` recomputes all 67 
 comparisons byte for byte, `ReportParityTests` regenerates `docs/validation.md`, its nine
 charts, both `accuracy.json` and both development pages, `CommittedParityPageTests`
 regenerates `docs/validation/java-parity.md`, and `CommittedTreeIdsTests` checks
-`benchmarks/results/tree-ids.tsv` against the engines' tags.
+`benchmarks/results/tree-ids.tsv` against the engines' tags. The inputs' and the designs' tests
+read kept runs too: each part's inputs from a run's passes (`RecordedPartsTests`), whole runs'
+inputs derived again (`RecordedInputsTests`), and steps and knees simulated
+(`RecordedStepsTests`), each against what the Python harness derived with the Java engine before
+it was 1.0.0 (`results/dev/0.16.0-java/`), byte for byte.
 
 ## What the port changed in the files it writes
 

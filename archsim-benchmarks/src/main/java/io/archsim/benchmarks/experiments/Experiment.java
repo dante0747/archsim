@@ -36,4 +36,22 @@ public record Experiment(String id, String stack, String title, String mix, doub
 		return this.heldOut != null;
 	}
 
+	/**
+	 * Whether its service runs on Node.js, whose garbage collection the service reports
+	 * itself.
+	 * @return whether it runs on Node.js
+	 */
+	public boolean runsOnNode() {
+		return "nodejs".equals(this.runtime);
+	}
+
+	/**
+	 * Whether its stack has Redis in front of PostgreSQL: {@code cache} and
+	 * {@code cache-ttl}.
+	 * @return whether it has a cache
+	 */
+	public boolean hasCache() {
+		return "cache".equals(this.stack) || "cache-ttl".equals(this.stack);
+	}
+
 }

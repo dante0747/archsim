@@ -32,13 +32,6 @@ public final class Knees {
 	private Knees() {
 	}
 
-	// at least the objective's success rate and a p95 within its latency (Objective)
-	private static boolean meets(JsonNode step) {
-		JsonNode p95 = PythonValues.get(step, "p95");
-		return PythonValues.numberOrZero(step, "successRate") >= Objective.MIN_SUCCESS && !PythonValues.isNone(p95)
-				&& p95.doubleValue() <= Objective.P95_MS;
-	}
-
 	/**
 	 * The highest load meeting the objective, interpolated between the last step that met
 	 * it and the first that did not: linear in p95, or in the success rate when that is
@@ -52,7 +45,7 @@ public final class Knees {
 		ladder.sort((left, right) -> PythonValues.compare(left.get(RATE), right.get(RATE)));
 		JsonNode last = null;
 		for (JsonNode step : ladder) {
-			if (meets(step)) {
+			if (Objective.isMetBy(step)) {
 				last = step;
 				continue;
 			}
@@ -119,7 +112,7 @@ public final class Knees {
 	public static List<JsonNode> disturbedSteps(List<? extends JsonNode> rows) {
 		List<JsonNode> ladder = new ArrayList<>(rows);
 		ladder.sort((left, right) -> PythonValues.compare(left.get(RATE), right.get(RATE)));
-		List<Boolean> met = ladder.stream().map((row) -> meets(row.get("measured"))).toList();
+		List<Boolean> met = ladder.stream().map((row) -> Objective.isMetBy(row.get("measured"))).toList();
 		List<JsonNode> disturbed = new ArrayList<>();
 		for (int i = 0; i < ladder.size(); i++) {
 			if (!met.get(i) && met.subList(i + 1, met.size()).contains(true)) {

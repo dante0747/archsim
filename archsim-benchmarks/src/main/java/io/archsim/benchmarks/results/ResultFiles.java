@@ -43,12 +43,16 @@ public final class ResultFiles {
 	}
 
 	/**
-	 * Writes a value to a file, over what was there.
+	 * Writes a value to a file, over what was there, and its folder when there is none.
 	 * @param path the file
 	 * @param data the value
 	 */
 	public static void write(Path path, JsonNode data) {
 		try {
+			Path folder = path.toAbsolutePath().getParent();
+			if (folder != null) {
+				Files.createDirectories(folder);
+			}
 			Files.writeString(path, text(data), StandardCharsets.UTF_8);
 		}
 		catch (IOException ex) {
