@@ -113,9 +113,11 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     # table against Python in the Python job.
     ("scripts/export_*", frozenset({"python", "java"})),
     ("scripts/", PYTHON),
-    # the engines' speed (the frozen engine's, and the Java speed task's): the Python job's
-    # parity page check reads two of these files, and no benchmark test reads any
-    ("benchmarks/perf/", PYTHON),
+    # the engines' speed (the frozen engine's, and the Java speed task's): the Java harness's
+    # parity page test reads two of these files, and nothing reads the earlier measurements
+    ("benchmarks/perf/java-port.json", frozenset({"java"})),
+    ("benchmarks/perf/python-0.16.0.json", frozenset({"java"})),
+    ("benchmarks/perf/", NONE),
     # the kept results and what labels them, which the Java harness's tests reduce again and
     # report on
     ("benchmarks/results/", BENCHMARK_TESTS | {"java"}),
@@ -134,10 +136,9 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     # the rest.
     ("docs/assumptions.md", frozenset({"java"})),
     ("docs/validation.md", BENCHMARK_TESTS | {"java"}),
-    # stage 4's parity page and its runs, which the Python job's page check reads; the Java
-    # harness's JavaEngineCheckTests reads the page too
-    ("docs/validation/java-parity.md", PYTHON | {"java"}),
-    ("docs/validation/simulation-parity.json", PYTHON),
+    # stage 4's parity page's runs, which only the Java harness's parity page test reads (the
+    # page itself is one of docs/validation/'s)
+    ("docs/validation/simulation-parity.json", frozenset({"java"})),
     ("docs/validation/", BENCHMARK_TESTS | {"java"}),
     ("docs/", NONE),
     # For people and assistants only.

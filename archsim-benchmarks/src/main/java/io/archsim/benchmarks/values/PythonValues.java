@@ -3,6 +3,7 @@ package io.archsim.benchmarks.values;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.IntStream;
 
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
@@ -164,6 +165,45 @@ public final class PythonValues {
 	 */
 	public static JsonNode round(JsonNode value, int digits) {
 		return value.isIntegralNumber() ? value : number(PythonRound.round(value.doubleValue(), digits));
+	}
+
+	/**
+	 * {@code left == right} for JSON values: numbers by value ({@code 2 == 2.0},
+	 * {@code 0.0 == -0.0}; two integers exactly, an integer and a float as doubles, where
+	 * Python compares them exactly), objects by their keys in any order, arrays item by
+	 * item, None only to None. Not a number equals nothing, even inside an object or an
+	 * array, where Python finds the one NaN object its json reads equal to itself; and
+	 * unlike Python, where {@code True == 1}, a boolean equals only a boolean. The
+	 * results compare neither.
+	 * @param left a value
+	 * @param right a value
+	 * @return whether they are equal: Python's {@code ==}, but for those cases
+	 */
+	public static boolean equal(JsonNode left, JsonNode right) {
+		if (isNone(left) || isNone(right)) {
+			return isNone(left) && isNone(right);
+		}
+		if (left.isNumber() && right.isNumber()) {
+			return bothIntegers(left, right) ? left.bigIntegerValue().equals(right.bigIntegerValue())
+					: left.doubleValue() == right.doubleValue();
+		}
+		if (left.isContainer() && right.isContainer()) {
+			return equalContainers(left, right);
+		}
+		return left.equals(right);
+	}
+
+	// objects key by key in any order, arrays item by item
+	private static boolean equalContainers(JsonNode left, JsonNode right) {
+		if (left.size() != right.size() || left.isObject() != right.isObject()) {
+			return false;
+		}
+		if (left.isObject()) {
+			return left.properties()
+				.stream()
+				.allMatch((field) -> right.has(field.getKey()) && equal(field.getValue(), right.get(field.getKey())));
+		}
+		return IntStream.range(0, left.size()).allMatch((index) -> equal(left.get(index), right.get(index)));
 	}
 
 	/**

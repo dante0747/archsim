@@ -188,8 +188,8 @@ exactly Python's figures and digest, and writes
 `archsim-engine/build/parity/simulation-parity.json`, with the cases that miss and what they
 missed. `-Parchsim.parity.baselines=DIR` judges another recording, a partial one say.
 
-[`scripts/java_parity_report.py`](../scripts/java_parity_report.py) writes stage 4's parity
-report, `docs/validation/java-parity.md`, from that file (written to `docs/validation/` with
+`./gradlew :archsim-benchmarks:run --args="java-parity"` writes stage 4's parity report,
+`docs/validation/java-parity.md`, from that file (written to `docs/validation/` with
 `-Parchsim.parity.out=docs/validation`), the kept calibrations' knees re-simulated on both
 engines by the same harness over every kept run with a two-pass calibration
 (`benchmarks/results/dev/0.16.0-port/`, which `uv run python benchmarks/run.py resimulate --label

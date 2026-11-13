@@ -14,7 +14,9 @@ import tools.jackson.databind.node.ObjectNode;
 import io.archsim.benchmarks.JsonText;
 import io.archsim.benchmarks.RepositoryLayout;
 import io.archsim.benchmarks.experiments.Engines;
+import io.archsim.benchmarks.results.DevChecks;
 import io.archsim.benchmarks.results.KeptRun;
+import io.archsim.benchmarks.results.KneePairs;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -57,8 +59,8 @@ class JavaEngineCheckTests {
 
 	@Test
 	void of_aKneeTheJavaEngineMissed_saysHowManyItReproduces(@TempDir Path results) throws IOException {
-		write(results.resolve("dev/0.16.0-port/kafka"), 1000.0, 2000.0, 900.0);
-		write(results.resolve("dev/0.16.0-java/kafka"), 1000.0, 2100.0);
+		write(results.resolve("dev"), KneePairs.PYTHON_KNEES, 1000.0, 2000.0, 900.0);
+		write(results.resolve("dev"), KneePairs.JAVA_KNEES, 1000.0, 2100.0);
 
 		JsonNode check = JavaEngineCheck.of(results, ENGINES).orElseThrow();
 
@@ -84,13 +86,10 @@ class JavaEngineCheckTests {
 		assertThat(block).endsWith("reproduces ([java-parity.md](validation/java-parity.md)).");
 	}
 
-	// one development check per knee, named by its place
-	private static void write(Path folder, double... knees) throws IOException {
-		Files.createDirectories(folder);
+	// one development check of kafka per knee, named by its place
+	private static void write(Path dev, String engine, double... knees) throws IOException {
 		for (int i = 0; i < knees.length; i++) {
-			ObjectNode check = JsonText.object("{\"comparison\": {\"predictedKnee\": {}}}");
-			((ObjectNode) check.at("/comparison/predictedKnee")).put("kneeRps", knees[i]);
-			Files.writeString(folder.resolve(i + ".json"), check.toString(), StandardCharsets.UTF_8);
+			DevChecks.write(dev, engine, new DevChecks.Check("kafka", String.valueOf(i), knees[i], 2.0));
 		}
 	}
 

@@ -10,6 +10,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.NullNode;
 
+import io.archsim.benchmarks.JsonText;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PythonValuesTests {
@@ -240,6 +242,60 @@ class PythonValuesTests {
 		JsonNode value = PythonValues.orNone(Optional.empty());
 
 		assertThat(value.isNull()).isTrue();
+	}
+
+	@Test
+	void equal_anIntegerAndTheEqualFloat_isEqual() {
+		assertThat(PythonValues.equal(NODES.numberNode(2), NODES.numberNode(2.0))).isTrue();
+	}
+
+	@Test
+	void equal_objectsWithTheSameFieldsInAnotherOrder_isEqual() {
+		JsonNode left = JsonText.read("{\"a\": 1, \"b\": [2.0, null]}");
+		JsonNode right = JsonText.read("{\"b\": [2, null], \"a\": 1.0}");
+
+		assertThat(PythonValues.equal(left, right)).isTrue();
+	}
+
+	@Test
+	void equal_noneAndANumber_isNotEqual() {
+		assertThat(PythonValues.equal(NullNode.instance, NODES.numberNode(0))).isFalse();
+	}
+
+	@Test
+	void equal_arraysOfDifferentLengths_isNotEqual() {
+		assertThat(PythonValues.equal(JsonText.read("[1, 2]"), JsonText.read("[1, 2, 3]"))).isFalse();
+	}
+
+	// unlike Python, where True == 1
+	@Test
+	void equal_aBooleanAndOne_isNotEqual() {
+		assertThat(PythonValues.equal(NODES.booleanNode(true), NODES.numberNode(1))).isFalse();
+	}
+
+	@Test
+	void equal_noneAndNone_isEqual() {
+		assertThat(PythonValues.equal(NullNode.instance, NullNode.instance)).isTrue();
+	}
+
+	@Test
+	void equal_notANumberAndANumber_isNotEqual() {
+		assertThat(PythonValues.equal(NODES.numberNode(Double.NaN), NODES.numberNode(5.0))).isFalse();
+	}
+
+	@Test
+	void equal_integersBeyondTheDoublesPrecision_areComparedExactly() {
+		assertThat(PythonValues.equal(NODES.numberNode(9007199254740993L), NODES.numberNode(9007199254740992L)))
+			.isFalse();
+	}
+
+	// where Python finds the one NaN object json reads equal to itself
+	@Test
+	void equal_notANumberInTwoArrays_isNotEqual() {
+		JsonNode left = NODES.arrayNode().add(Double.NaN);
+		JsonNode right = NODES.arrayNode().add(Double.NaN);
+
+		assertThat(PythonValues.equal(left, right)).isFalse();
 	}
 
 }

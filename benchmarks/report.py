@@ -1587,7 +1587,8 @@ def java_engine(results: Path = RESULTS) -> dict[str, Any] | None:
 
 def _same_knee(frozen: Path, java: Path) -> bool:
     """Whether both engines re-simulated a calibration and found the same knee (or none): the
-    rule of scripts/java_parity_report.py's ``_same_knee``, whose count a test compares."""
+    rule of the Java harness's knee pairs (``KneePairs.sameKnee``), whose count a test
+    compares."""
     if not (frozen.exists() and java.exists()):
         return False
     knees = [

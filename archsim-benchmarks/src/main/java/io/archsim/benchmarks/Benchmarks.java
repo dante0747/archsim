@@ -55,6 +55,7 @@ public final class Benchmarks implements Runnable {
 	static CommandLine commandLine(RepositoryLayout layout, HarnessLog log) {
 		return new CommandLine(new Benchmarks()).addSubcommand(new CompareCommand(layout, log))
 			.addSubcommand(new ReportCommand(layout))
+			.addSubcommand(new JavaParityCommand(layout))
 			.setColorScheme(Help.defaultColorScheme(Help.Ansi.OFF));
 	}
 

@@ -31,8 +31,8 @@ tasks.named<JavaExec>("run") {
 
 tasks.test {
     // the parity tests regenerate what the Python harness wrote from benchmarks/results, the
-    // engines, the stacks' cpusets and the knee range's fit, and compare it with the committed
-    // pages, charts and accuracy.json: a change to any of them reruns them
+    // engines, the stacks' cpusets, the knee range's fit and the engines' speed, and compare it
+    // with the committed pages, charts and accuracy.json: a change to any of them reruns them
     systemProperty("archsim.repoRoot", rootDir.absolutePath)
     inputs.dir(rootDir.resolve("benchmarks/results")).withPropertyName("results")
         .withPathSensitivity(PathSensitivity.RELATIVE)
@@ -45,6 +45,8 @@ tasks.test {
             "benchmarks/knee-range.json",
             "docs/validation.md",
             "apps/web/src/data/accuracy.json",
+            "benchmarks/perf/python-0.16.0.json",
+            "benchmarks/perf/java-port.json",
         ).map { rootDir.resolve(it) },
     ).withPropertyName("reportSources").withPathSensitivity(PathSensitivity.RELATIVE)
 }

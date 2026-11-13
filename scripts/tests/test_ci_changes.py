@@ -144,14 +144,14 @@ EVERY_JOB = {
         (["benchmarks/engines.json"], {"python", "benchmark_tests", "java"}),
         (["benchmarks/compose.yaml"], {"python", "benchmark_tests", "java"}),
         (["benchmarks/knee-range.json"], {"python", "benchmark_tests", "java"}),
-        # stage 4's parity page and its runs: the page check in the Python job reads them, no
-        # benchmark test does
-        (["docs/validation/java-parity.md"], {"python", "java"}),
-        (["docs/validation/simulation-parity.json"], {"python"}),
-        # the engines' speed, which only the page check reads, and the earlier measurements, which
-        # nothing does
-        (["benchmarks/perf/java-port.json", "benchmarks/perf/python-0.16.0.json"], {"python"}),
-        (["benchmarks/perf/baseline.json"], {"python"}),
+        # stage 4's parity page, which the Java harness writes and checks and a benchmark test reads,
+        # and its runs, which only the Java harness reads
+        (["docs/validation/java-parity.md"], {"python", "benchmark_tests", "java"}),
+        (["docs/validation/simulation-parity.json"], {"java"}),
+        # the engines' speed, which only the parity page's test reads, and the earlier
+        # measurements, which nothing does
+        (["benchmarks/perf/java-port.json", "benchmarks/perf/python-0.16.0.json"], {"java"}),
+        (["benchmarks/perf/baseline.json"], set()),
         # the Java engine generates the page, and its tests check it
         (["docs/assumptions.md"], {"java"}),
         ([".github/actions/archsim-check/action.yml"], {"python", "archsim_check"}),
