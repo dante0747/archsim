@@ -1311,15 +1311,30 @@ modelled (W23). On this data the core set stays a focus list, as the badge says 
 
 ## Commit IDs in recorded results
 
-On 13 Nov 2026 the repository's history was rewritten: the author's email became GitHub's
-noreply address, two documents not meant to be public left every commit, and every commit
-carries the AGPL-3.0 licence. That changed every commit's ID and nothing else in the code. IDs
-written by hand, here and in the other docs, name the current commits. Recorded results
-(`benchmarks/results/`, `benchmarks/knee-range.json` and the accuracy and knee-range files
-generated from them) keep the IDs they were measured with, since a run's `predictionsSha256`
-seals its `predictions.json` as written;
-[`benchmarks/results/commit-ids.tsv`](../benchmarks/results/commit-ids.tsv) maps each recorded
-ID to the commit's current one.
+The repository's history has been rewritten twice. Each rewrite changed every commit's ID, and
+neither changed the code.
+
+- On 2 Nov 2026 every commit message was rewritten to Conventional Commits. The rewrite also
+  mapped the IDs recorded in the results to the new ones, among them in 24 sealed
+  `predictions.json` files, three lines each (`provenance.commit`, the design's commit and
+  `provenance.harnessHash`). Those 24 no longer match their `predictionsSha256`: each seal
+  matches its file as written before the rewrite, which a backup of the old history keeps byte
+  for byte.
+- On 13 Nov 2026 the author's email became GitHub's noreply address, two documents not meant to
+  be public left every commit, and every commit carries the AGPL-3.0 licence. Recorded results
+  (`benchmarks/results/`, `benchmarks/knee-range.json` and the accuracy and knee-range files
+  generated from them) keep the IDs they had, since a run's `predictionsSha256` seals its
+  `predictions.json` as written;
+  [`benchmarks/results/commit-ids.tsv`](../benchmarks/results/commit-ids.tsv) maps each recorded
+  ID to the commit's current one.
+
+IDs written by hand, here and in the other docs, name the current commits.
+
+Two more seals do not match, for another reason. Cache-aside's run-4 and run-5 extended their
+load ladders after their predictions were sealed, and the harness appended the extension steps to
+`predictions.json` without sealing it again, so each seal covers the file as it was before those
+steps. That is a bug of the Python harness, which the Java harness fixes when it takes over the
+runs. Every other sealed run matches its seal.
 
 On 13 Nov 2026 the local paths in nine files of the calibration-only trials
 (`benchmarks/results/trials/`) and in one performance profile (`benchmarks/perf/baseline.json`)
