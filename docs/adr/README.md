@@ -109,8 +109,8 @@ what the repository shows.
 | [0065](0065-move-sign-in-to-spring-security-after-the-port.md) | Move sign-in to Spring Security after the port, keeping its HTTP contract | Accepted | 2026-11-12 |
 | [0066](0066-ship-the-web-image-without-an-image-optimizer.md) | Ship the web image without Next.js's image optimizer, and so without sharp and libvips | Accepted | 2026-11-12 |
 | [0067](0067-license-under-agpl-3.0-with-a-commercial-license.md) | License ArchSim under the AGPL-3.0, and offer a commercial license | Accepted | 2026-11-13 |
-| [0068](0068-port-the-harness-to-a-module-that-calls-the-engine-in-process.md) | Port the benchmark harness to its own module, `archsim-benchmarks`, which calls the engine in process | Proposed | 2026-11-13 |
-| [0069](0069-run-the-harness-from-gradle-with-picocli-commands.md) | Run the harness from Gradle, as picocli commands named as `run.py` named them | Proposed | 2026-11-13 |
-| [0070](0070-write-the-harnesss-files-as-python-wrote-them.md) | Write the harness's files as the Python harness wrote them, byte for byte | Proposed | 2026-11-13 |
-| [0071](0071-python-statistics-in-the-harness.md) | Reduce the results with Python's statistics, ported exactly | Proposed | 2026-11-13 |
+| [0068](0068-port-the-harness-to-a-module-that-calls-the-engine-in-process.md) | Port the benchmark harness to its own module, `archsim-benchmarks`, which calls the engine in process | Accepted | 2026-11-13 |
+| [0069](0069-run-the-harness-from-gradle-with-picocli-commands.md) | Run the harness from Gradle, as picocli commands named as `run.py` named them | Accepted | 2026-11-13 |
+| [0070](0070-write-the-harnesss-files-as-python-wrote-them.md) | Write the harness's files as the Python harness wrote them, byte for byte | Accepted | 2026-11-13 |
+| [0071](0071-python-statistics-in-the-harness.md) | Reduce the results with Python's statistics, ported exactly | Accepted | 2026-11-13 |
 | [0072](0072-move-the-repositorys-tooling-to-java-and-retire-the-cpython-recorders.md) | Move the repository's tooling to Java, and retire the recorders of CPython's behaviour | Proposed | 2026-11-13 |
