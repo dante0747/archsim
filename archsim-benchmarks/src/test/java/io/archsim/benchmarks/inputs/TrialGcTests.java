@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.within;
 class TrialGcTests {
 
 	@Test
-	void trialGc_aTrialsTopPasses_isEachKindsGcPerRequest(@TempDir Path results) {
+	void of_aTrialsTopPasses_isEachKindsGcPerRequest(@TempDir Path results) {
 		writeTrial(results);
 
 		JsonNode gc = TrialGc.of(results, Experiments.standard().get("pg-mixed")).orElseThrow();
@@ -33,7 +33,7 @@ class TrialGcTests {
 	}
 
 	@Test
-	void trialGc_aTrialsTopPasses_namesTheTrialItsTopRateAndItsRequests(@TempDir Path results) {
+	void of_aTrialsTopPasses_namesTheTrialItsTopRateAndItsRequests(@TempDir Path results) {
 		writeTrial(results);
 
 		JsonNode gc = TrialGc.of(results, Experiments.standard().get("pg-mixed")).orElseThrow();
@@ -43,7 +43,7 @@ class TrialGcTests {
 	}
 
 	@Test
-	void trialGc_anExperimentWithoutATrial_isEmpty(@TempDir Path results) {
+	void of_anExperimentWithoutATrial_isEmpty(@TempDir Path results) {
 		writeTrial(results);
 
 		assertThat(TrialGc.of(results, Experiments.standard().get("kafka"))).isEmpty();

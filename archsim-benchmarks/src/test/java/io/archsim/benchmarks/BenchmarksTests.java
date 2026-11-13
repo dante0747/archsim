@@ -11,6 +11,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import picocli.CommandLine;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -45,6 +47,45 @@ class BenchmarksTests {
 		assertThat(lines).hasSize(CACHE_ASIDE_RUNS)
 			.startsWith("[12:34:56] wrote benchmarks/results/cache-aside/run-1/comparison.json")
 			.endsWith("[12:34:56] wrote benchmarks/results/cache-aside/comparison.json");
+	}
+
+	@Test
+	void resources_predictionsThatHaveResources_onlyRecomputesTheComparisons(@TempDir Path root) throws IOException {
+		Path cacheTtl = root.resolve("benchmarks/results/cache-ttl");
+		ResultCopies.copyWithoutComparisons(RepositoryLayout.current().results().resolve("cache-ttl"), cacheTtl);
+		StringWriter out = new StringWriter();
+
+		int exitCode = commandLine(root, out).execute("resources");
+
+		assertThat(exitCode).isZero();
+		assertThat(out.toString().lines()).containsExactly(
+				"[12:34:56] wrote benchmarks/results/cache-ttl/run-1/comparison.json",
+				"[12:34:56] wrote benchmarks/results/cache-ttl/run-2/comparison.json",
+				"[12:34:56] wrote benchmarks/results/cache-ttl/comparison.json");
+	}
+
+	@Test
+	void resimulate_oneExperiment_writesItsKeptRunsChecks(@TempDir Path root) throws IOException {
+		Path run = root.resolve("benchmarks/results/kafka/run-2");
+		ResultCopies.copy(RepositoryLayout.current().results().resolve("kafka/run-2"), run);
+		StringWriter out = new StringWriter();
+
+		int exitCode = commandLine(root, out).execute("resimulate", "--only", "kafka");
+
+		assertThat(exitCode).isZero();
+		assertThat(out.toString().lines()).last()
+			.isEqualTo("[12:34:56] wrote benchmarks/results/dev/1.0.0/kafka/2026-10-30T11-20-01Z.json");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "--label=0.16.0-java", "--only=no-such-experiment" })
+	void resimulate_aLabelOrAnExperimentItCannotTake_isRefusedBeforeItRuns(String option, @TempDir Path root) {
+		StringWriter out = new StringWriter();
+
+		int exitCode = commandLine(root, out).execute("resimulate", option);
+
+		assertThat(exitCode).isEqualTo(2);
+		assertThat(root.resolve("benchmarks/results/dev")).doesNotExist();
 	}
 
 	@Test

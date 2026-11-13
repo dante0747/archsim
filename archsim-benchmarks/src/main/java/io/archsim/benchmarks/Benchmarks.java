@@ -17,7 +17,9 @@ import io.archsim.engine.version.EngineVersions;
 
 /**
  * The accuracy benchmarks' harness, whose subcommands keep the names {@code run.py} gave
- * them (ADR-0069): {@code compare} recomputes every kept run's comparison.
+ * them (ADR-0069): {@code compare} recomputes every kept run's comparison,
+ * {@code resources} predicts the CPU and memory of predictions that have none, and
+ * {@code resimulate} checks today's model against every kept run.
  */
 @Command(name = "archsim-benchmarks",
 		description = "ArchSim's accuracy benchmarks: calibrate, predict, measure, "
@@ -54,6 +56,8 @@ public final class Benchmarks implements Runnable {
 	 */
 	static CommandLine commandLine(RepositoryLayout layout, HarnessLog log) {
 		return new CommandLine(new Benchmarks()).addSubcommand(new CompareCommand(layout, log))
+			.addSubcommand(new ResourcesCommand(layout, log))
+			.addSubcommand(new ResimulateCommand(layout, log))
 			.addSubcommand(new ReportCommand(layout))
 			.addSubcommand(new JavaParityCommand(layout))
 			.addSubcommand(new TreeIdsCommand(layout))

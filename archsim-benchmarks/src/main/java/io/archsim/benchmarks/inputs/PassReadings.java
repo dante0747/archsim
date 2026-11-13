@@ -7,9 +7,10 @@ import io.archsim.benchmarks.experiments.Protocol;
 import io.archsim.benchmarks.values.PythonValues;
 
 /**
- * What a calibration pass read: a timing the service reported, a container's CPU net of
- * what it burns at rest, and the extra of a resource per extra unit of work between two
- * passes.
+ * What a calibration read: a pass by its name, a timing the service reported, a
+ * container's CPU net of what it burns at rest, and the extra of a resource per extra
+ * unit of work between two passes. A pass or a timing today's derivation needs and the
+ * calibration lacks is a {@link MissingReadingException}.
  */
 final class PassReadings {
 

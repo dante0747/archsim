@@ -55,18 +55,18 @@ final class DatabaseInputs {
 		ObjectNode inputs = NODES.objectNode();
 		if (experiment.stack().equals("kafka")) {
 			KafkaWrites writes = KafkaWrites.of(passes);
-			linkAndShare(inputs, kafka(passes, writes, inputs), passes);
+			linkShareAndExecutorTimes(inputs, kafka(passes, writes, inputs), passes);
 			inputs.set("commitFlushMs", this.flushes.of(experiment, values(inputs),
 					new CommitFlush.Passes(passes.get("high"), writes.syncPass(), writes.sync(), writes.async()), 0.0));
 			return inputs;
 		}
-		linkAndShare(inputs, queries(experiment, passes, inputs), passes);
+		linkShareAndExecutorTimes(inputs, queries(experiment, passes, inputs), passes);
 		serviceFlush(experiment, passes, values(inputs)).ifPresent((flush) -> inputs.set("commitFlushMs", flush));
 		return inputs;
 	}
 
 	// the link, the CPU share, and PostgreSQL's executor times beside the model's
-	private static void linkAndShare(ObjectNode inputs, Derived derived, JsonNode passes) {
+	private static void linkShareAndExecutorTimes(ObjectNode inputs, Derived derived, JsonNode passes) {
 		inputs.set("dbLinkLatencyMs",
 				Input.of(derived.leg(),
 						"each way: the round trip the service measured less "

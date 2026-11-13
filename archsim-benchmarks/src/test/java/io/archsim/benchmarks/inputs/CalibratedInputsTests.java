@@ -36,15 +36,16 @@ class CalibratedInputsTests {
 	@ParameterizedTest
 	@ValueSource(strings = { "pg-mixed", "pg-hot-row", "cache-aside", "kafka", "java-mixed", "go-mixed", "python-mixed",
 			"chain", "cache-ttl" })
-	void calibration_aLatestRun_wasCalibratedUnderProtocolV6(String experiment) {
+	void recordedCalibration_aLatestRun_wasCalibratedUnderProtocolV6(String experiment) {
 		assertThat(calibration(experiment).get("protocol").stringValue()).isEqualTo("v6");
 	}
 
 	// since W22 PostgreSQL's time is its CPU, and the rest of the round trip the link
+	// (like the protocol's, a guard on the committed data the parity above relies on)
 	@ParameterizedTest
 	@ValueSource(strings = { "pg-mixed", "pg-hot-row", "cache-aside", "kafka", "java-mixed", "go-mixed", "python-mixed",
 			"chain", "cache-ttl" })
-	void calibration_aLatestRun_hasPostgresqlsLinkAndCpuShare(String experiment) {
+	void recordedCalibration_aLatestRun_hasPostgresqlsLinkAndCpuShare(String experiment) {
 		assertThat(calibration(experiment).get("inputs").propertyNames()).contains("dbLinkLatencyMs", "dbCpuShare");
 	}
 

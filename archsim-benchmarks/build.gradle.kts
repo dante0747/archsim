@@ -30,6 +30,8 @@ tasks.named<JavaExec>("run") {
 }
 
 tasks.test {
+    // every kept run checked again takes minutes: the parity task runs it
+    useJUnitPlatform { excludeTags("parity") }
     // the parity tests regenerate what the Python harness wrote from benchmarks/results, the
     // engines, the stacks' cpusets, the knee range's fit and the engines' speed, and compare it
     // with the committed pages, charts and accuracy.json: a change to any of them reruns them
@@ -49,4 +51,21 @@ tasks.test {
             "benchmarks/perf/java-port.json",
         ).map { rootDir.resolve(it) },
     ).withPropertyName("reportSources").withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
+// Every kept run checked again (its inputs derived and anchored again, its steps and its knee
+// simulated, its comparison), against the checks the Python harness wrote with the Java engine
+// before it was 1.0.0 (results/dev/0.16.0-java/).
+//
+//   ./gradlew :archsim-benchmarks:parity
+tasks.register<Test>("parity") {
+    description = "Checks every kept run again and compares the checks with the recorded ones."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    useJUnitPlatform { includeTags("parity") }
+    systemProperty("archsim.repoRoot", rootDir.absolutePath)
+    inputs.dir(rootDir.resolve("benchmarks/results")).withPropertyName("results")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    maxHeapSize = "4g"
 }

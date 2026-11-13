@@ -10,12 +10,13 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * A git repository the harness reads with {@code git}: the commits its refs reach and the
- * tree of a folder in each.
+ * A git repository the harness reads with {@code git}: the commits its refs reach, the
+ * tree of a folder in each, and what a run's provenance names.
  */
 public final class GitRepository {
 
@@ -67,23 +68,68 @@ public final class GitRepository {
 		return trees;
 	}
 
-	// git reads its input from a file and writes its errors to one, never to
-	// pipes: a whole history's input to cat-file (about 47 KB for 820 commits)
-	// outgrows a Windows pipe of a few KB while git's answers fill the other,
-	// and writing one before reading the other deadlocks
+	/**
+	 * What {@code git rev-parse} names a revision or an object by: a commit, or a path's
+	 * tree or blob in one ({@code HEAD:archsim-engine}).
+	 * @param revision the revision
+	 * @return its ID; empty when git cannot name it (a path the commit lacks, or no git)
+	 */
+	public Optional<String> revision(String revision) {
+		return answer(List.of("rev-parse", revision)).map(String::strip);
+	}
+
+	/**
+	 * Whether any of some paths has changes that are not committed, untracked files
+	 * included, as {@code git status --porcelain} lists them.
+	 * @param paths the paths, from the repository's root
+	 * @return whether one has; empty when git cannot tell
+	 */
+	public Optional<Boolean> hasChanges(List<String> paths) {
+		List<String> arguments = new ArrayList<>(List.of("status", "--porcelain", "--"));
+		arguments.addAll(paths);
+		return answer(arguments).map((status) -> !status.isBlank());
+	}
+
 	private String run(List<String> arguments, String input) {
-		List<String> command = new ArrayList<>(List.of("git", "-C", this.directory.toString()));
-		command.addAll(arguments);
-		try (Exchange exchange = Exchange.create()) {
-			Files.writeString(exchange.input(), input, StandardCharsets.UTF_8);
-			return execute(command, exchange);
+		try {
+			Answer answer = exchange(arguments, input);
+			if (answer.exitCode() != 0) {
+				throw new IllegalStateException(
+						answer.command() + " failed with exit code " + answer.exitCode() + ": " + answer.errors());
+			}
+			return answer.output();
 		}
 		catch (IOException ex) {
 			throw new UncheckedIOException(ex);
 		}
 	}
 
-	private static String execute(List<String> command, Exchange exchange) throws IOException {
+	// git's answer, or none when it fails or cannot
+	// start: a provenance names what it can and goes on
+	private Optional<String> answer(List<String> arguments) {
+		try {
+			Answer answer = exchange(arguments, "");
+			return (answer.exitCode() == 0) ? Optional.of(answer.output()) : Optional.empty();
+		}
+		catch (IOException ex) {
+			return Optional.empty();
+		}
+	}
+
+	// git reads its input from a file and writes its errors to one, never to
+	// pipes: a whole history's input to cat-file (about 47 KB for 820 commits)
+	// outgrows a Windows pipe of a few KB while git's answers fill the other,
+	// and writing one before reading the other deadlocks
+	private Answer exchange(List<String> arguments, String input) throws IOException {
+		List<String> command = new ArrayList<>(List.of("git", "-C", this.directory.toString()));
+		command.addAll(arguments);
+		try (Exchange exchange = Exchange.create()) {
+			Files.writeString(exchange.input(), input, StandardCharsets.UTF_8);
+			return execute(command, exchange);
+		}
+	}
+
+	private static Answer execute(List<String> command, Exchange exchange) throws IOException {
 		Process git = new ProcessBuilder(command).redirectInput(exchange.input().toFile())
 			.redirectError(exchange.errors().toFile())
 			.start();
@@ -92,14 +138,10 @@ public final class GitRepository {
 			output = new String(answers.readAllBytes(), StandardCharsets.UTF_8);
 		}
 		int exitCode = waitFor(git, command);
-		if (exitCode != 0) {
-			// bytes that are not UTF-8 are replaced, so
-			// git's reason is never lost to decoding
-			String said = new String(Files.readAllBytes(exchange.errors()), StandardCharsets.UTF_8).strip();
-			throw new IllegalStateException(
-					String.join(" ", command) + " failed with exit code " + exitCode + ": " + said);
-		}
-		return output;
+		// bytes that are not UTF-8 are replaced, so
+		// git's reason is never lost to decoding
+		String errors = new String(Files.readAllBytes(exchange.errors()), StandardCharsets.UTF_8).strip();
+		return new Answer(String.join(" ", command), exitCode, output, errors);
 	}
 
 	// an interruption stops git and waits for it to end,
@@ -113,6 +155,18 @@ public final class GitRepository {
 			Thread.currentThread().interrupt();
 			throw new IllegalStateException("interrupted while running " + String.join(" ", command), ex);
 		}
+	}
+
+	/**
+	 * What a run of git answered.
+	 *
+	 * @param command the command, in words
+	 * @param exitCode its exit code
+	 * @param output what it wrote out
+	 * @param errors what it wrote as errors, stripped
+	 */
+	private record Answer(String command, int exitCode, String output, String errors) {
+
 	}
 
 	/**

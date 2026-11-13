@@ -28,6 +28,15 @@ public final class HarnessLog {
 	}
 
 	/**
+	 * The clock that stamps the log's lines, which also dates the files the harness
+	 * writes.
+	 * @return the clock
+	 */
+	public Clock clock() {
+		return this.clock;
+	}
+
+	/**
 	 * Writes a line: {@code [12:34:56] message}.
 	 * @param message the message
 	 */
