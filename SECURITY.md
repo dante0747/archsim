@@ -2,26 +2,25 @@
 
 ## Supported versions
 
-ArchSim is pre-1.0. Only the latest commit on `main` receives security fixes. There are no
-long-term-support branches yet.
+Security fixes land on `main`. ArchSim has no releases or long-term-support branches yet.
 
-| Version          | Supported |
-| ---------------- | --------- |
-| `main` (0.6.x)   | yes       |
-| anything older   | no        |
+| Version | Supported |
+| --- | --- |
+| the latest commit on `main` | yes |
+| anything older | no |
 
 ## Reporting a vulnerability
 
-Please **do not open a public issue** for security problems.
+Please **do not open a public issue, discussion or pull request** for security problems.
 
-- Preferred: use GitHub's private vulnerability reporting ("Report a vulnerability" on the
-  repository's Security tab) once the repository is published.
-- Alternative: email **security@&lt;your-project-domain&gt;** *(maintainers: replace this
-  placeholder before publishing)*.
+Report them privately through GitHub: on the repository's **Security** tab, choose **Report a
+vulnerability** ([direct link](https://github.com/dante0747/archsim/security/advisories/new)).
+Only the maintainers see the report, and we can work on a fix and an advisory with you there.
 
-Include the affected component (engine, API, web), steps to reproduce, and the impact you
-expect. We aim to acknowledge reports within 5 working days and to agree on a disclosure date
-with you. Please give us a reasonable chance to ship a fix before disclosing publicly.
+Include the affected part (engine, API, web app, CLI or MCP server), the version or commit, steps
+to reproduce, and the impact you expect. We aim to acknowledge reports within 5 working days and to
+agree on a disclosure date with you. Please give us a reasonable chance to ship a fix before
+disclosing publicly.
 
 ## Threat model and deployment notes
 
