@@ -129,7 +129,7 @@ class BenchmarksTests {
 
 	private static CommandLine commandLine(Path root, StringWriter out) {
 		PrintWriter writer = new PrintWriter(out, true);
-		return Benchmarks.commandLine(new RepositoryLayout(root), new HarnessLog(writer, NOON), rangeFitCache(root))
+		return Benchmarks.commandLine(Setups.onThisMachine(new RepositoryLayout(root), new HarnessLog(writer, NOON)))
 			.setOut(writer)
 			.setErr(writer);
 	}

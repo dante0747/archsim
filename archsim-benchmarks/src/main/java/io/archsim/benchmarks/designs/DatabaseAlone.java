@@ -6,6 +6,7 @@ import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.benchmarks.experiments.Experiment;
+import io.archsim.benchmarks.experiments.Protocol;
 import io.archsim.benchmarks.values.PythonValues;
 
 /**
@@ -50,7 +51,7 @@ public final class DatabaseAlone {
 			.put("id", "clients")
 			.put("type", "traffic_source")
 			.put("label", "service");
-		clients.putObject("config").put("timeoutMs", Designs.TIMEOUT_MS).put("maxAttempts", 1);
+		clients.putObject("config").put("timeoutMs", Protocol.TIMEOUT_MS).put("maxAttempts", 1);
 		nodes.add(Nodes.database(values));
 		JsonNode link = values.has("dbLinkLatencyMs") ? values.get("dbLinkLatencyMs") : PythonValues.number(0.0);
 		architecture.putArray("edges").add(Edge.of("e-db", "clients", "db", link).json());

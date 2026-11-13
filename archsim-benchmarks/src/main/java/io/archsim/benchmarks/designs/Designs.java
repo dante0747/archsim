@@ -1,12 +1,11 @@
 package io.archsim.benchmarks.designs;
 
-import java.util.List;
-
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.benchmarks.docker.Stacks;
 import io.archsim.benchmarks.experiments.Experiment;
 import io.archsim.benchmarks.experiments.Experiments;
 import io.archsim.benchmarks.experiments.Protocol;
@@ -23,16 +22,10 @@ public final class Designs {
 	/** The Kafka stack's partitions ({@code compose.yaml}). */
 	public static final int KAFKA_PARTITIONS = 6;
 
-	/** The clients' timeout, as k6's. */
-	static final int TIMEOUT_MS = 2000;
-
 	/** The seed of every simulation. */
 	static final int SEED = 42;
 
 	private static final JsonNodeFactory NODES = JsonNodeFactory.instance;
-
-	private static final List<String> DATABASE_STACKS = List.of("postgres", "java-mixed", "go-mixed", "python-mixed",
-			"chain");
 
 	private Designs() {
 	}
@@ -103,7 +96,7 @@ public final class Designs {
 	// PostgreSQL, behind Redis on the cache stacks and behind Kafka on its own
 	private static void backends(Experiment experiment, ObjectNode values, ArrayNode nodes, ArrayNode edges) {
 		JsonNode dbLink = values.has("dbLinkLatencyMs") ? values.get("dbLinkLatencyMs") : PythonValues.number(0.0);
-		if (DATABASE_STACKS.contains(experiment.stack())) {
+		if (Stacks.standard().callsPostgresEveryRequest(experiment.stack())) {
 			nodes.add(Nodes.database(values));
 			edges.add(Edge.of("e-db", "api", "db", dbLink).json());
 		}
@@ -121,7 +114,7 @@ public final class Designs {
 
 	private static ObjectNode clients(String label) {
 		ObjectNode clients = NODES.objectNode().put("id", "clients").put("type", "traffic_source").put("label", label);
-		clients.putObject("config").put("timeoutMs", TIMEOUT_MS).put("maxAttempts", 1);
+		clients.putObject("config").put("timeoutMs", Protocol.TIMEOUT_MS).put("maxAttempts", 1);
 		return clients;
 	}
 

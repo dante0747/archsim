@@ -29,7 +29,7 @@ import io.archsim.benchmarks.results.KeptRuns;
 @Command(name = "resimulate",
 		description = "check today's model against every kept run (in-sample, written under results/dev/; no Docker)",
 		mixinStandardHelpOptions = true, version = Benchmarks.VERSION)
-final class ResimulateCommand implements Callable<Integer> {
+final class ResimulateCommand implements Callable<Integer>, HarnessRules.JavaEngineOnly {
 
 	@Spec
 	private CommandSpec spec = CommandSpec.create();

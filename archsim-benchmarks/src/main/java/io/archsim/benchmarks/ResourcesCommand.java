@@ -15,7 +15,7 @@ import io.archsim.benchmarks.resimulation.LaterResources;
 @Command(name = "resources",
 		description = "predict CPU and memory for results whose predictions have none, then compare (no Docker)",
 		mixinStandardHelpOptions = true, version = Benchmarks.VERSION)
-final class ResourcesCommand implements Callable<Integer> {
+final class ResourcesCommand implements Callable<Integer>, HarnessRules.JavaEngineOnly {
 
 	private final RepositoryLayout layout;
 

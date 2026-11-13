@@ -31,12 +31,15 @@ public final class Stacks {
 
 	private final List<String> cacheStacks;
 
+	private final List<String> postgresEveryRequest;
+
 	private final Map<String, List<String>> containers;
 
 	private final Map<String, String> k6Cpus;
 
 	private Stacks(Catalog catalog) {
 		this.cacheStacks = List.copyOf(catalog.cacheStacks());
+		this.postgresEveryRequest = List.copyOf(catalog.postgresEveryRequest());
 		this.containers = Map.copyOf(catalog.containers());
 		this.k6Cpus = Map.copyOf(catalog.k6Cpus());
 	}
@@ -56,6 +59,16 @@ public final class Stacks {
 	 */
 	public boolean isCache(String stack) {
 		return this.cacheStacks.contains(stack);
+	}
+
+	/**
+	 * Whether every request on a stack calls PostgreSQL: through its one service, or
+	 * chain's API. The cache stacks call it on a miss only, Kafka's in its consumers.
+	 * @param stack the stack
+	 * @return whether it does
+	 */
+	public boolean callsPostgresEveryRequest(String stack) {
+		return this.postgresEveryRequest.contains(stack);
 	}
 
 	/**
@@ -88,7 +101,8 @@ public final class Stacks {
 		}
 	}
 
-	private record Catalog(List<String> cacheStacks, Map<String, List<String>> containers, Map<String, String> k6Cpus) {
+	private record Catalog(List<String> cacheStacks, List<String> postgresEveryRequest,
+			Map<String, List<String>> containers, Map<String, String> k6Cpus) {
 
 	}
 

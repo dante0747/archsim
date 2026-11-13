@@ -88,13 +88,13 @@ final class DatabaseInputs {
 	// the top pass's flush, when the service writes
 	private Optional<ObjectNode> serviceFlush(Experiment experiment, JsonNode passes, ObjectNode values) {
 		JsonNode high = passes.get("high");
-		JsonNode client = QueryPasses.client(experiment, high);
+		JsonNode client = experiment.postgresClient(high.get("service"));
 		if (!client.path("timings").has("db_write")) {
 			return Optional.empty();
 		}
 		JsonNode write = PassReadings.timing(client, "db_write");
-		JsonNode async = PassReadings.timing(QueryPasses.client(experiment, PassReadings.pass(passes, "write_async:1")),
-				"db_write_async");
+		JsonNode async = PassReadings.timing(
+				experiment.postgresClient(PassReadings.pass(passes, "write_async:1").get("service")), "db_write_async");
 		return Optional.of(this.flushes.of(experiment, values, new CommitFlush.Passes(high, high, write, async),
 				experiment.readRatio()));
 	}

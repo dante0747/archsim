@@ -13,7 +13,7 @@ import io.archsim.benchmarks.comparison.Recomparison;
 @Command(name = "compare",
 		description = "recompute every comparison.json from its measured.json and predictions.json (no Docker)",
 		mixinStandardHelpOptions = true, version = Benchmarks.VERSION)
-final class CompareCommand implements Callable<Integer> {
+final class CompareCommand implements Callable<Integer>, HarnessRules.JavaEngineOnly {
 
 	private final RepositoryLayout layout;
 

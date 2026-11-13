@@ -14,6 +14,9 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import io.archsim.benchmarks.Processes;
+import io.archsim.benchmarks.ScratchFolder;
+
 /**
  * A git repository the harness reads with {@code git}: the commits its refs reach, the
  * tree of a folder in each, and what a run's provenance names.
@@ -127,13 +130,13 @@ public final class GitRepository {
 	private Answer exchange(List<String> arguments, String input) throws IOException {
 		List<String> command = new ArrayList<>(List.of("git", "-C", this.directory.toString()));
 		command.addAll(arguments);
-		try (Exchange exchange = Exchange.create()) {
+		try (ScratchFolder exchange = ScratchFolder.create("archsim-git")) {
 			Files.writeString(exchange.input(), input, StandardCharsets.UTF_8);
 			return execute(command, exchange);
 		}
 	}
 
-	private static Answer execute(List<String> command, Exchange exchange) throws IOException {
+	private static Answer execute(List<String> command, ScratchFolder exchange) throws IOException {
 		Process git = new ProcessBuilder(command).redirectInput(exchange.input().toFile())
 			.redirectError(exchange.errors().toFile())
 			.start();
@@ -141,24 +144,11 @@ public final class GitRepository {
 		try (InputStream answers = git.getInputStream()) {
 			output = new String(answers.readAllBytes(), StandardCharsets.UTF_8);
 		}
-		int exitCode = waitFor(git, command);
+		int exitCode = Processes.waitFor(git, command);
 		// bytes that are not UTF-8 are replaced, so
 		// git's reason is never lost to decoding
 		String errors = new String(Files.readAllBytes(exchange.errors()), StandardCharsets.UTF_8).strip();
 		return new Answer(String.join(" ", command), exitCode, output, errors);
-	}
-
-	// an interruption stops git and waits for it to end,
-	// so the files it held can be deleted
-	private static int waitFor(Process git, List<String> command) {
-		try {
-			return git.waitFor();
-		}
-		catch (InterruptedException ex) {
-			git.destroyForcibly().onExit().join();
-			Thread.currentThread().interrupt();
-			throw new IllegalStateException("interrupted while running " + String.join(" ", command), ex);
-		}
 	}
 
 	/**
@@ -170,39 +160,6 @@ public final class GitRepository {
 	 * @param errors what it wrote as errors, stripped
 	 */
 	private record Answer(String command, int exitCode, String output, String errors) {
-
-	}
-
-	/**
-	 * A folder of git's input and errors, deleted when closed; a failure to delete it is
-	 * kept with the exception that ended the run.
-	 */
-	private static final class Exchange implements AutoCloseable {
-
-		private final Path folder;
-
-		private Exchange(Path folder) {
-			this.folder = folder;
-		}
-
-		static Exchange create() throws IOException {
-			return new Exchange(Files.createTempDirectory("archsim-git"));
-		}
-
-		Path input() {
-			return this.folder.resolve("stdin.txt");
-		}
-
-		Path errors() {
-			return this.folder.resolve("stderr.txt");
-		}
-
-		@Override
-		public void close() throws IOException {
-			Files.deleteIfExists(input());
-			Files.deleteIfExists(errors());
-			Files.deleteIfExists(this.folder);
-		}
 
 	}
 

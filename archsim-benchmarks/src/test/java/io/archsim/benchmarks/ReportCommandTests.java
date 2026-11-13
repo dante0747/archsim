@@ -102,7 +102,7 @@ class ReportCommandTests {
 
 	private static CommandLine commandLine(RepositoryLayout layout) {
 		PrintWriter out = new PrintWriter(new StringWriter(), true);
-		return Benchmarks.commandLine(layout, new HarnessLog(out, NOON)).setOut(out).setErr(out);
+		return Benchmarks.commandLine(Setups.onThisMachine(layout, new HarnessLog(out, NOON))).setOut(out).setErr(out);
 	}
 
 }

@@ -45,6 +45,15 @@ public record RepositoryLayout(Path root) {
 	}
 
 	/**
+	 * Where k6 writes its summaries, which the harness reads:
+	 * {@code benchmarks/results/.k6/} (not committed).
+	 * @return the folder
+	 */
+	public Path k6Summaries() {
+		return results().resolve(".k6");
+	}
+
+	/**
 	 * The engine versions and what each was tuned on: {@code benchmarks/engines.json}.
 	 * @return the file
 	 */

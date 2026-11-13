@@ -42,9 +42,9 @@ record QueryPasses(JsonNode timings, long high, long low, @Nullable JsonNode rea
 	static QueryPasses of(Experiment experiment, JsonNode passes) {
 		JsonNode high = passes.get("high");
 		JsonNode low = passes.get("low");
-		JsonNode service = client(experiment, high);
+		JsonNode service = experiment.postgresClient(high.get("service"));
 		JsonNode timings = service.get("timings");
-		JsonNode lowTimings = client(experiment, low).get("timings");
+		JsonNode lowTimings = experiment.postgresClient(low.get("service")).get("timings");
 		long queries = count(timings, timings);
 		long lowQueries = count(timings, lowTimings);
 		Double cpuAll = PostgresCpu.perQuery(passes, new PostgresCpu.Queries(high, queries),
@@ -55,7 +55,7 @@ record QueryPasses(JsonNode timings, long high, long low, @Nullable JsonNode rea
 		if (timings.has("db_write")) {
 			write = PassReadings.timing(service, "db_write");
 			JsonNode asyncPass = PassReadings.pass(passes, "write_async:1");
-			asyncWrite = PassReadings.timing(client(experiment, asyncPass), "db_write_async");
+			asyncWrite = PassReadings.timing(experiment.postgresClient(asyncPass.get("service")), "db_write_async");
 			cpuWrites = PostgresCpu.perQueryNetOfIdle(passes, asyncPass, asyncWrite.get("count").doubleValue());
 		}
 		boolean writesWithoutCpu = write != null && cpuWrites == null;
@@ -90,18 +90,6 @@ record QueryPasses(JsonNode timings, long high, long low, @Nullable JsonNode rea
 			}
 		}
 		return count;
-	}
-
-	/**
-	 * The {@code /stats} of the service that calls PostgreSQL in a calibration pass:
-	 * chain's API, inside the gateway's, else the service k6 calls.
-	 * @param experiment the experiment
-	 * @param entry the pass
-	 * @return its {@code /stats}
-	 */
-	static JsonNode client(Experiment experiment, JsonNode entry) {
-		JsonNode service = entry.get("service");
-		return experiment.stack().equals("chain") ? service.get("upstream") : service;
 	}
 
 }

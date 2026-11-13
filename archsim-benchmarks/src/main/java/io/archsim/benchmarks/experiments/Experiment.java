@@ -3,6 +3,7 @@ package io.archsim.benchmarks.experiments;
 import java.util.List;
 
 import org.jspecify.annotations.Nullable;
+import tools.jackson.databind.JsonNode;
 
 /**
  * An accuracy experiment: a stack, the traffic sent to it, and how it is calibrated.
@@ -43,6 +44,24 @@ public record Experiment(String id, String stack, String title, String mix, doub
 	 */
 	public boolean runsOnNode() {
 		return "nodejs".equals(this.runtime);
+	}
+
+	/**
+	 * The {@code /stats} of the service that calls PostgreSQL: chain's API, which its
+	 * gateway reports as {@code upstream}, else the service k6 calls.
+	 * @param service the {@code /stats} of the service k6 calls
+	 * @return the client's {@code /stats}
+	 * @throws IllegalStateException when chain's gateway reported no API behind it
+	 */
+	public JsonNode postgresClient(JsonNode service) {
+		if (!"chain".equals(this.stack)) {
+			return service;
+		}
+		JsonNode upstream = service.get("upstream");
+		if (upstream == null) {
+			throw new IllegalStateException("chain's gateway reported no upstream");
+		}
+		return upstream;
 	}
 
 	/**

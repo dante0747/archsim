@@ -28,7 +28,7 @@ import io.archsim.model.text.PythonFormat;
 		description = "fit the predicted range of the knee from the in-sample runs and check its coverage (writes "
 				+ "benchmarks/knee-range.json; run resimulate first to reuse its inputs and knees)",
 		mixinStandardHelpOptions = true, version = Benchmarks.VERSION)
-final class RangeFitCommand implements Callable<Integer> {
+final class RangeFitCommand implements Callable<Integer>, HarnessRules.JavaEngineOnly {
 
 	@Option(names = "--reuse-dev", paramLabel = "LABEL",
 			description = "take the kept runs' inputs and knees from this engine label's development checks (only "

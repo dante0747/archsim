@@ -15,6 +15,9 @@ public final class Protocol {
 	/** The seconds k6 measures a step. */
 	public static final int DURATION_S = 20;
 
+	/** A request's timeout, k6's and the model's clients' alike. */
+	public static final int TIMEOUT_MS = 2000;
+
 	/**
 	 * The seconds between readings of each container's CPU and memory in a measured
 	 * window: few, so that reading them adds next to no load.

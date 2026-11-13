@@ -45,4 +45,13 @@ public final class HarnessLog {
 		this.out.flush();
 	}
 
+	/**
+	 * Writes text unstamped, and a line end after it: what a failing command printed.
+	 * @param text the text
+	 */
+	public void text(String text) {
+		this.out.println(text);
+		this.out.flush();
+	}
+
 }
