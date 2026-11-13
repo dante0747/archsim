@@ -66,6 +66,7 @@ How ArchSim got here, kept for reference:
 
 | Page | What it covers |
 | --- | --- |
+| [Changelog](../CHANGELOG.md) | What changed in each release |
 | [Implementation status](../IMPLEMENTATION_STATUS.md) | What is done, week by week |
 | [Implementation plan](plan.md) | The plan the first version was built against |
 | [The Java 25 port](proposals/java-25-port.md) | The plan that moved the engine, API, CLI and MCP server from Python to Java |
