@@ -23,7 +23,6 @@ import io.archsim.benchmarks.load.Traffic;
 import io.archsim.benchmarks.probes.PostgresProbe;
 import io.archsim.benchmarks.probes.PostgresSnapshot;
 import io.archsim.benchmarks.probes.RedisStats;
-import io.archsim.benchmarks.results.Timestamps;
 import io.archsim.benchmarks.values.PythonValues;
 import io.archsim.engine.numeric.PythonRound;
 import io.archsim.model.text.PythonFormat;
@@ -34,9 +33,6 @@ import io.archsim.model.text.PythonFormat;
  * measured.
  */
 final class DockerPasses implements CalibrationPasses {
-
-	/** Seconds of the discarded warm-up after the data load. */
-	static final int SETTLE_S = 30;
 
 	/** Seconds at rest before the staircase. */
 	static final int IDLE_S = 20;
@@ -81,20 +77,7 @@ final class DockerPasses implements CalibrationPasses {
 
 	@Override
 	public JsonNode settle(Experiment experiment) {
-		this.log.line("settling " + experiment.id() + ": VACUUM ANALYZE, CHECKPOINT, " + SETTLE_S + " s warm-up");
-		double start = this.stack.ticker().now();
-		this.stack.compose()
-			.output("exec", "-T", "postgres", "psql", "-U", "bench", "-d", "bench", "-q", "-c", "VACUUM ANALYZE", "-c",
-					"CHECKPOINT");
-		this.k6.run(Traffic.of(experiment, experiment.calibration().getFirst(), Calibration.FIRST_RPS),
-				new K6.Window(0, SETTLE_S), "settle");
-		ObjectNode settled = JsonNodeFactory.instance.objectNode().put("at", Timestamps.now(this.log.clock()));
-		settled.put("seconds", PythonRound.round(this.stack.ticker().now() - start, 1));
-		settled.putArray("steps")
-			.add("VACUUM ANALYZE")
-			.add("CHECKPOINT")
-			.add(SETTLE_S + " s warm-up at " + Calibration.FIRST_RPS + " req/s");
-		return settled;
+		return Settling.settle(this.stack, this.k6, this.log, experiment);
 	}
 
 	@Override

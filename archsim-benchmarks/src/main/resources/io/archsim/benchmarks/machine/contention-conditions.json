@@ -1,0 +1,146 @@
+{
+  "probe": [
+    {
+      "name": "alone",
+      "duty": 1.0,
+      "burners": {}
+    },
+    {
+      "name": "sibling busy",
+      "duty": 1.0,
+      "burners": {
+        "3": 1.0
+      }
+    },
+    {
+      "name": "sibling half busy",
+      "duty": 1.0,
+      "burners": {
+        "3": 0.5
+      }
+    },
+    {
+      "name": "1 other core busy",
+      "duty": 1.0,
+      "burners": {
+        "0": 1.0,
+        "1": 1.0
+      }
+    },
+    {
+      "name": "2 other cores busy",
+      "duty": 1.0,
+      "burners": {
+        "0": 1.0,
+        "1": 1.0,
+        "4": 1.0,
+        "5": 1.0
+      }
+    },
+    {
+      "name": "3 other cores busy",
+      "duty": 1.0,
+      "burners": {
+        "0": 1.0,
+        "1": 1.0,
+        "4": 1.0,
+        "5": 1.0,
+        "6": 1.0,
+        "7": 1.0
+      }
+    },
+    {
+      "name": "3 other cores, one thread each",
+      "duty": 1.0,
+      "burners": {
+        "0": 1.0,
+        "4": 1.0,
+        "6": 1.0
+      }
+    },
+    {
+      "name": "every CPU busy",
+      "duty": 1.0,
+      "burners": {
+        "0": 1.0,
+        "1": 1.0,
+        "3": 1.0,
+        "4": 1.0,
+        "5": 1.0,
+        "6": 1.0,
+        "7": 1.0
+      }
+    },
+    {
+      "name": "own duty 90%",
+      "duty": 0.9,
+      "burners": {}
+    },
+    {
+      "name": "own duty 50%",
+      "duty": 0.5,
+      "burners": {}
+    },
+    {
+      "name": "own duty 25%",
+      "duty": 0.25,
+      "burners": {}
+    },
+    {
+      "name": "own duty 50%, 3 other cores busy",
+      "duty": 0.5,
+      "burners": {
+        "0": 1.0,
+        "1": 1.0,
+        "4": 1.0,
+        "5": 1.0,
+        "6": 1.0,
+        "7": 1.0
+      }
+    }
+  ],
+  "service": [
+    {
+      "name": "as benchmarked",
+      "burners": {}
+    },
+    {
+      "name": "service's sibling busy",
+      "burners": {
+        "3": "normal"
+      }
+    },
+    {
+      "name": "k6's idle CPU taken",
+      "burners": {
+        "0": "nice 19",
+        "1": "nice 19",
+        "6": "nice 19",
+        "7": "nice 19"
+      }
+    },
+    {
+      "name": "PostgreSQL's idle CPU taken",
+      "burners": {
+        "4": "nice 19",
+        "5": "nice 19"
+      }
+    },
+    {
+      "name": "every idle CPU taken",
+      "burners": {
+        "0": "nice 19",
+        "1": "nice 19",
+        "3": "normal",
+        "4": "nice 19",
+        "5": "nice 19",
+        "6": "nice 19",
+        "7": "nice 19"
+      }
+    },
+    {
+      "name": "as benchmarked, again",
+      "burners": {}
+    }
+  ]
+}

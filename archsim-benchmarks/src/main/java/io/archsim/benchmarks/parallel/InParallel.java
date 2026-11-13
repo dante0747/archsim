@@ -42,7 +42,7 @@ public final class InParallel {
 	 * @throws RuntimeException the first failure in the items' order, after the work not
 	 * yet started is cancelled and the work running is interrupted
 	 */
-	static <T, R> List<R> map(List<T> items, Function<T, R> work, int threads) {
+	public static <T, R> List<R> map(List<T> items, Function<T, R> work, int threads) {
 		int workers = Math.max(1, Math.min(items.size(), threads));
 		try (ExecutorService pool = Executors.newFixedThreadPool(workers)) {
 			List<Future<R>> futures = items.stream().map((item) -> pool.submit(() -> work.apply(item))).toList();

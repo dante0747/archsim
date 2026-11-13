@@ -55,6 +55,30 @@ record FakeMachine(Map<String, String> environment, FakeDocker docker, FakeServi
 	}
 
 	/**
+	 * A machine on which pg-mixed's stack answers every check: k6 writes each summary it
+	 * is asked for, 750 requests all succeeding, and Docker prints nothing else.
+	 * @param root the repository
+	 * @param environment the variables the harness started with
+	 * @return the machine
+	 * @throws IOException when the compose file cannot be copied
+	 */
+	static FakeMachine checking(Path root, Map<String, String> environment) throws IOException {
+		Path benchmarks = Files.createDirectories(root.resolve("benchmarks"));
+		Files.copy(RepositoryLayout.current().compose(), benchmarks.resolve("compose.yaml"));
+		Path summaries = benchmarks.resolve("results/.k6");
+		FakeDocker docker = new FakeDocker((command) -> {
+			if (command.contains(" k6 run ")) {
+				String name = command.substring(command.indexOf("OUT=") + "OUT=".length(), command.indexOf(" k6 run"));
+				ResultFiles.write(summaries.resolve(name + ".json"), JsonText.read("""
+						{"http_req_duration{scenario:measure,expected_response:true}": {"values": {"count": 750}},
+						 "http_reqs{scenario:measure}": {"values": {"count": 750}}}"""));
+			}
+			return FakeDocker.printing("");
+		});
+		return new FakeMachine(environment, docker, new FakeServices((request) -> stats(request, 750)));
+	}
+
+	/**
 	 * The harness's command line on this machine, its log stamped at noon.
 	 * @param root the repository
 	 * @param out where the log and the commands' output go

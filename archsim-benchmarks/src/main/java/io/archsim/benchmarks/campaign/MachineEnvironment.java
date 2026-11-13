@@ -24,7 +24,7 @@ import io.archsim.benchmarks.values.PythonValues;
  * fit compares runs by it), Windows' power mode, Docker's version, CPUs and memory, the
  * images and the harness's Java.
  */
-final class MachineEnvironment {
+public final class MachineEnvironment {
 
 	/**
 	 * Windows 11's power modes (Settings, System, Power), by the overlay scheme each
@@ -53,7 +53,7 @@ final class MachineEnvironment {
 	 * @param runner what runs Docker and the operating system's tools
 	 * @param environment the harness's environment, which may name the machine
 	 */
-	MachineEnvironment(ProcessRunner runner, Map<String, String> environment) {
+	public MachineEnvironment(ProcessRunner runner, Map<String, String> environment) {
 		this.runner = runner;
 		this.environment = Map.copyOf(environment);
 	}
@@ -64,7 +64,7 @@ final class MachineEnvironment {
 	 * {@code docker}, {@code dockerCpus}, {@code dockerMemory}, {@code images} and
 	 * {@code java}
 	 */
-	ObjectNode of() {
+	public ObjectNode of() {
 		String cpu = MachineName.cpu();
 		ObjectNode machine = JsonNodeFactory.instance.objectNode().put("cpu", cpu);
 		machine.put("machineId", MachineName.id(this.environment, cpu));

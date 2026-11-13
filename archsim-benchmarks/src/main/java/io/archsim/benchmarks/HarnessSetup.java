@@ -4,6 +4,7 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
 
+import io.archsim.benchmarks.campaign.MachineEnvironment;
 import io.archsim.benchmarks.designs.Simulations;
 import io.archsim.benchmarks.docker.Cgroups;
 import io.archsim.benchmarks.docker.Compose;
@@ -16,6 +17,7 @@ import io.archsim.benchmarks.docker.StackLifecycle;
 import io.archsim.benchmarks.docker.SystemProcesses;
 import io.archsim.benchmarks.docker.Ticker;
 import io.archsim.benchmarks.inputs.ModelInputs;
+import io.archsim.benchmarks.machine.CheckTools;
 import io.archsim.benchmarks.machine.HostSwitch;
 import io.archsim.benchmarks.machine.MachineFit;
 import io.archsim.benchmarks.range.RangeFit;
@@ -81,6 +83,17 @@ public record HarnessSetup(RepositoryLayout layout, HarnessLog log, Path rangeFi
 					+ "or no fit where " + HostSwitch.VARIABLE + "_FIT points): the designs have none");
 		}
 		return machine;
+	}
+
+	/**
+	 * What the machine's checks run with: the stacks, the cpusets {@code compose.yaml}
+	 * declares, k6's folder and the machine's part of a check's file.
+	 * @return the tools
+	 */
+	public CheckTools checkTools() {
+		return new CheckTools(instruments(), Cpusets.declaredIn(this.layout.compose()), this.environment,
+				this.layout.k6Summaries(), () -> new MachineEnvironment(this.processes, this.environment).of(),
+				this.log);
 	}
 
 	/**
