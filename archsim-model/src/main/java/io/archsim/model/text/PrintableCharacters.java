@@ -15,7 +15,8 @@ import java.util.Objects;
  * {@code repr()} writes as they are: all but the Unicode categories Cc, Cf, Cs, Co, Cn,
  * Zl, Zp and Zs, the space excepted, as Python's Unicode 15.0 database assigns them.
  * Java's own categories follow its newer Unicode version, so the rejected code points are
- * read from the table {@code scripts/export_printable.py} writes from Python.
+ * read from a table Python recorded once ({@code parity/README.md}, "Python's own
+ * answers").
  */
 final class PrintableCharacters {
 

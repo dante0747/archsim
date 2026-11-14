@@ -125,8 +125,8 @@ public final class PythonStrings {
 	}
 
 	/**
-	 * Reads the folding table {@code scripts/export_casefold.py} writes: a code point and
-	 * what it folds to per line, in hex, after comment lines.
+	 * Reads the folding table Python 3.12 gave, recorded once ({@code parity/README.md}):
+	 * a code point and what it folds to per line, in hex, after comment lines.
 	 * @return what each code point listed folds to
 	 */
 	private static Map<Integer, String> folds() {

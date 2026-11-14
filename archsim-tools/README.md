@@ -48,9 +48,10 @@ java archsim-tools/src/main/java/io/archsim/tools/changes/ChangedParts.java --al
 | `GitDiff` | the files a change touched through `git diff`, none without a usable base | `changed_files` |
 
 The rules are `ci_changes.py`'s but for CI itself, which is now this package
-(`scripts/ci_changes.py` falls under `scripts/`, which the Python job tests), and
-`archsim-tools/`, which the Java job tests. On main's last 80 commits both give the same report
-but for the two that changed `scripts/ci_changes.py`.
+(`scripts/ci_changes.py` falls under `scripts/`, which the Python job tests),
+`archsim-tools/`, which the Java job tests, and `.github/actions/`, whose step's test moved from
+the Python job to the Java job (`ArchsimCheckActionTests`). On main's last 80 commits before the
+test moved, both gave the same report but for the two that changed `scripts/ci_changes.py`.
 
 ## The price refresh
 
@@ -126,7 +127,10 @@ rest is how the commands fail and wait:
 ```
 
 They are `scripts/tests/test_check_commits.py`'s, `test_ci_changes.py`'s (its table of
-changes in `changes.csv`) and `test_price_refresh_scripts.py`'s. They run the commit and CI
+changes in `changes.csv`), `test_price_refresh_scripts.py`'s and
+`test_archsim_check_action.py`'s: `ArchsimCheckActionTests` runs the archsim-check action's check
+step in bash with a stand-in for `docker`, from a file as GitHub runs a step, on Linux only (the
+step reads `/proc/sys/kernel/random/uuid`). They run the commit and CI
 commands through Java's source launcher too, so nothing beyond the JDK creeps into them, and
 compare the price refresh's snapshots and summaries with what `scripts/prices` wrote for the same
 samples, recorded once (`src/test/resources/io/archsim/tools/prices/`).

@@ -52,9 +52,9 @@ final class Rules {
 		// CI itself
 		.rule(".github/workflows/ci.yml", EVERY)
 		.rule("archsim-tools/src/main/java/io/archsim/tools/changes/", EVERY)
-		// scripts/tests/test_archsim_check_action.py runs its check step,
-		// and the archsim-check job tests its comment and runs it
-		.rule(".github/actions/", Set.of(Job.PYTHON, Job.ARCHSIM_CHECK))
+		// archsim-tools' ArchsimCheckActionTests runs its check step, and
+		// the archsim-check job tests its comment and runs it
+		.rule(".github/actions/", Set.of(Job.JAVA, Job.ARCHSIM_CHECK))
 		// benchmarks/tests/test_held_out.py reads its cpuset loop
 		.rule(".github/workflows/benchmark.yml", BENCHMARK_TESTS)
 		.rule(".github/", NONE)
@@ -93,9 +93,6 @@ final class Rules {
 		.rule("archsim-engine/src/main/", union(JAVA, CHECK_ACTION, BENCHMARK_TESTS))
 		.rule("archsim-engine/build.gradle.kts", union(JAVA, CHECK_ACTION, BENCHMARK_TESTS))
 		.rule("archsim-engine/", union(JAVA, CHECK_ACTION))
-		// the model's main sources include the table PythonText reads, which
-		// scripts/export_printable.py writes and scripts/tests checks against
-		// Python in the Python job (BENCHMARK_TESTS runs that job)
 		.rule("archsim-model/src/main/", union(JAVA, CHECK_ACTION, BENCHMARK_TESTS))
 		.rule("archsim-model/build.gradle.kts", union(JAVA, CHECK_ACTION, BENCHMARK_TESTS))
 		.rule("archsim-model/", union(JAVA, CHECK_ACTION))
@@ -109,11 +106,6 @@ final class Rules {
 		// Python
 		.rule("pyproject.toml", PYTHON_RUNTIME)
 		.rule("uv.lock", PYTHON_RUNTIME)
-		// The exporters write tables of Python's own answers (casefold,
-		// erfc, isprintable) that the Java tests, and the model for
-		// export_printable.py, read; scripts/tests checks the printable
-		// table against Python in the Python job.
-		.rule("scripts/export_*", Set.of(Job.PYTHON, Job.JAVA))
 		.rule("scripts/", PYTHON)
 		// the engines' speed (the frozen engine's, and the Java speed
 		// task's): the Java harness's parity page test reads two of these

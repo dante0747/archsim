@@ -264,3 +264,30 @@ compose file, Kubernetes manifests and a Terraform plan written for the importer
 files, they are inputs. The golden exporter and the CLI, import and MCP recorders read them
 before stage 5's exit deleted them; the API and app tests (`Examples.fixture`) and the API tests'
 local profile (its `ARCHSIM_PRICES_DIR`) read them now.
+
+## Python's own answers
+
+Three tables hold what CPython 3.12 answers where the Java keeps its behaviour on purpose
+([ADR-0072](../docs/adr/0072-move-the-repositorys-tooling-to-java-and-retire-the-cpython-recorders.md)):
+
+| Table | What | Read by |
+| --- | --- | --- |
+| `archsim-engine/src/main/resources/io/archsim/engine/text/casefold.tsv` | `str.casefold()` of every code point that does not fold to itself | `PythonStrings` |
+| `archsim-model/src/main/resources/io/archsim/model/text/nonprintable.tsv` | the code points `str.isprintable()` rejects, by Python's Unicode 15.0 | `PrintableCharacters` |
+| `archsim-engine/src/test/resources/io/archsim/engine/numeric/erfc.csv` | `math.erfc` at points over every interval of the approximation, as hex floats | `ErfTests` |
+
+`scripts/export_casefold.py`, `scripts/export_printable.py` and `scripts/export_erfc_points.py`
+wrote them, and their `--check` (with `scripts/tests/test_export_printable.py`) compared them with
+the Python that ran it. Stage 7 retired the recorders with the repository's last Python: the
+tables are data now, recorded once, as the golden files are. The tag `cpython-recorders` (commit
+`1634ba9e` at the time of writing) is the last commit that has the recorders, to record the tables
+again from, or to check them against a newer Python:
+
+```bash
+git worktree add ../archsim-recorders cpython-recorders
+cd ../archsim-recorders
+uv sync
+uv run python scripts/export_casefold.py --check
+uv run python scripts/export_printable.py --check
+uv run python scripts/export_erfc_points.py --check
+```

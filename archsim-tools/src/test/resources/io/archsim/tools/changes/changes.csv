@@ -48,8 +48,6 @@ archsim-benchmarks/src/main/java/io/archsim/benchmarks/comparison/Comparison.jav
 # the tooling's own tests, which the Java build runs; the commit check always runs
 archsim-tools/src/main/java/io/archsim/tools/commits/CheckCommits.java | java
 scripts/prices/aws.py scripts/tests/test_price_refresh_scripts.py | python
-# the exporters write the Java tests' resources, and the Python job checks them
-scripts/export_casefold.py scripts/export_erfc_points.py | python java
 # the frozen engine's golden files and simulation baselines, which the Java tests read
 parity/golden/manifest.json parity/simulation/manifest.json | java e2e
 # the Java harness's report tests read them too
@@ -67,7 +65,8 @@ benchmarks/perf/java-port.json benchmarks/perf/python-0.16.0.json | java
 benchmarks/perf/baseline.json |
 # the Java engine generates the page, and its tests check it
 docs/assumptions.md | java
-.github/actions/archsim-check/action.yml | python archsim_check
+.github/actions/archsim-check/action.yml | java archsim_check
+.github/actions/archsim-check/sticky-comment.js | java archsim_check
 .github/workflows/benchmark.yml | python benchmark_tests
 # the Python environment runs the jobs that run Python
 uv.lock | python benchmark_tests

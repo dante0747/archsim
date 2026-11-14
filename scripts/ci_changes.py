@@ -108,10 +108,6 @@ RULES: tuple[tuple[str, frozenset[str]], ...] = (
     # Python
     ("pyproject.toml", PYTHON_RUNTIME),
     ("uv.lock", PYTHON_RUNTIME),
-    # The exporters write tables of Python's own answers (casefold, erfc, isprintable) that the
-    # Java tests, and the model for export_printable.py, read; scripts/tests checks the printable
-    # table against Python in the Python job.
-    ("scripts/export_*", frozenset({"python", "java"})),
     ("scripts/", PYTHON),
     # the engines' speed (the frozen engine's, and the Java speed task's): the Java harness's
     # parity page test reads two of these files, and nothing reads the earlier measurements

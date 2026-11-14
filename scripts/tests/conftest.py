@@ -1,4 +1,4 @@
-"""The scripts' tests import a script as a module (``export_printable``) from ``scripts/``, the
+"""The scripts' tests import a script as a module (``check_commits``) from ``scripts/``, the
 folder a script runs from."""
 
 from __future__ import annotations

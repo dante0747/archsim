@@ -34,7 +34,7 @@ Each package uses only those below it, and ArchUnit checks it
 | `issue` | `Issue`, `Severity`, `DocumentInvalidException`; codec errors as issues | [0024](../docs/adr/0024-validation-issues-with-stable-codes.md) |
 | `document`, `distribution` | the records of schema 1.7 | [0022](../docs/adr/0022-records-and-a-pydantic-compatible-codec.md) |
 | `codec` | `RecordCodec`: records to JSON and back as pydantic does, and their JSON Schema; unions told apart by a property (`@Tagged`) or by which key an object has (`@TaggedByKey`), maps keyed by text or by a `JsonEnum` | [0022](../docs/adr/0022-records-and-a-pydantic-compatible-codec.md), [0025](../docs/adr/0025-json-schema-generated-from-the-records.md) |
-| `text` | Python's way of writing numbers and values: `repr` (a string's characters escaped as Python 3.12's `str.isprintable()` judges them, from `nonprintable.tsv`, which `scripts/export_printable.py` writes), `format`, `json.dumps` | [0027](../docs/adr/0027-python-text-conventions-in-one-package.md) |
+| `text` | Python's way of writing numbers and values: `repr` (a string's characters escaped as Python 3.12's `str.isprintable()` judges them, from `nonprintable.tsv`, which Python recorded once ([parity/README.md](../parity/README.md#pythons-own-answers))), `format`, `json.dumps` | [0027](../docs/adr/0027-python-text-conventions-in-one-package.md) |
 
 The price snapshots ArchSim ships are this module's resources,
 `src/main/resources/io/archsim/model/pricing/snapshots/`: the build lists every file of the folder

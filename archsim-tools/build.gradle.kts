@@ -12,6 +12,8 @@ dependencies {
     // the price refresh rounds, reads and writes JSON as scripts/prices did in Python
     implementation(project(":archsim-engine"))
     implementation(libs.picocli)
+    // the archsim-check action's test reads the step it runs from action.yml
+    testImplementation(libs.snakeyaml)
 }
 
 application {

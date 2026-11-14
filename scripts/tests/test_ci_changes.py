@@ -132,8 +132,6 @@ EVERY_JOB = {
             {"java"},
         ),
         (["scripts/prices/aws.py", "scripts/tests/test_price_refresh_scripts.py"], {"python"}),
-        # the exporters write the Java tests' resources, and the Python job checks them
-        (["scripts/export_casefold.py", "scripts/export_erfc_points.py"], {"python", "java"}),
         # the frozen engine's golden files and simulation baselines, which the Java tests read
         (["parity/golden/manifest.json", "parity/simulation/manifest.json"], {"java", "e2e"}),
         # the Java harness's report tests read them too
