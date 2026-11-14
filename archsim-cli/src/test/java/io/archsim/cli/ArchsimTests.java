@@ -11,9 +11,8 @@ import org.junit.jupiter.api.io.TempDir;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The {@code archsim} command itself: what it says it is, and how it answers a command
- * that cannot go on. The benchmark harness reads the engine's version from
- * {@code --version} and names its checks on the Java engine by it.
+ * The {@code archsim} command itself: what it says it is, and how it answers a command it
+ * does not have or one that cannot go on.
  */
 class ArchsimTests {
 
@@ -27,6 +26,15 @@ class ArchsimTests {
 		int exitCode = Archsim.commandLine().setOut(new PrintWriter(out)).execute("--version");
 
 		assertThat(List.of(exitCode, out.toString().strip())).containsExactly(0, "archsim, engine 1.0.0");
+	}
+
+	// ADR-0073: the command only the Python harness called went with it
+	@Test
+	void execute_functions_isNoCommand() {
+		ArchsimRun run = ArchsimRun.of("functions");
+
+		assertThat(run.exitCode()).isEqualTo(2);
+		assertThat(run.err()).contains("'functions'");
 	}
 
 	@Test

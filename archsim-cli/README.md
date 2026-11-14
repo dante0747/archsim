@@ -1,8 +1,8 @@
 # archsim-cli
 
 The `archsim` command line, on the Java engine. Stage 4 of the
-[Java port](../docs/proposals/java-25-port.md) brought `archsim run`, which the benchmark harness
-runs to simulate on the Java engine
+[Java port](../docs/proposals/java-25-port.md) brought `archsim run`, which the Python benchmark
+harness ran to simulate on the Java engine
 ([ADR-0051](../docs/adr/0051-start-the-java-cli-in-stage-4-with-archsim-run.md)); stage 5 brought
 the rest of the Python CLI's commands, with the same flags, lines and exit codes
 ([ADR-0055](../docs/adr/0055-the-java-clis-output-contract.md)), and deleted the Python CLI with
@@ -113,25 +113,6 @@ option given empty is not given, but for `--scenario`: an empty one is no scenar
 result names as given, `"scenarioId": ""`. The result names the engine that ran the check, `1.0.0`,
 in its JSON (`engineVersion`) and its Markdown, where Python's named `0.16.0`.
 
-### `archsim functions`
-
-A hidden command for the benchmark harness, not for people
-([ADR-0061](../docs/adr/0061-answer-the-harnesss-engine-calls-from-one-java-process.md)): it
-answers the engine's functions the harness calls (`benchmarks/engine_functions.py`), a JSON
-request a line on standard input, `{"function": NAME, "input": {...}}`, and an answer a line on
-standard output, `{"output": VALUE}` or `{"error": {"type", "message"}}`, until the input ends.
-The functions are the Python engine's that the harness and its tests imported before, by their
-names: `expected` (a distribution's mean), `machine_speed` (a machine's thread speed at each busy
-count), `load_factor` (a `serviceTimeByLoad` table's factor at each rate), `fit_load_curve` (with
-its table), `extend_load_curve`, `fit_memory`, `fit_cpu_share`, `constants` and `report_version`
-(which the harness records with a prediction). A fit is its record, or `null` when it finds none.
-Numbers are read and written as Python's `json` writes and reads them, `NaN` and `Infinity`
-included: the fits leave such points out as the Python engine's did, and a rate's load factor is
-the last point's as in Python, but a parameter that is one number must be finite. An input
-refused, or of the wrong shape, is a `ValueError` in the engine's words, and a name that is not a
-function a `LookupError`. A line that is not a request is answered with an error, and the next
-line still is. Each answer is flushed before the next line is read: the harness waits for it.
-
 ### Departures
 
 Where the Python CLI crashed with a traceback, the Java CLI answers:
@@ -205,7 +186,7 @@ Elsewhere:
 
 | Package | What it holds |
 | --- | --- |
-| `io.archsim.cli` | `Archsim` (the `archsim` command, its `main`, and the answer to a `CommandException`: its message alone, exit code 1), one class per command (`ValidateCommand`, `RunCommand`, `CompareCommand`, `AnalyzeCommand`, `ImportCommand`, `ExportCommand`, `CatalogCommand`, `SchemaCommand`, and `CalibrateCommand` with `CalibratePrometheusCommand` and `CalibrateOtlpCommand`), `Choices` (what `import` and `export` take, and `check`'s `--fail-on` and `--format`, by name), `RunText` (what `run` and `compare` print of a run), `IssueLines` (a design's issues, in the Python CLI's words), `CommandFiles` (the files a command reads and writes, refused with the reason), `JsonOutput` (JSON as `json.dumps(value, indent=2)` wrote it), `TextOutput` (text as `sys.stdout.write` wrote it), `TextDecoding` (a file's text as `decode_text` read it: `Utf16` after its byte order mark, else the engine's `Utf8`, each finding where bytes stop being text in CPython's words), `PythonOptions` (an option given empty is not given), `PrometheusCalibrator` (a calibration from Prometheus, in the Python CLI's order, from the `PrometheusOptions` asked and a `PrometheusSource`: a server or a recording), `PrometheusClients` (the server, on the open policy, the recorded responses, and a recording written), `CalibrationAttempt` (what stops a calibration, as `Cannot calibrate: ...`), `CalibrationText` (what a calibration prints, and the calibrated design), `PythonFloat` and `PythonInt` (a number option read as Python's `float()` and `int()` read it, the latter through the engine's `PythonNumbers`), `CheckCommand` with its `Refs` (a git ref, never one starting with `-`) and `CheckOptions` (what a check was asked) and `CheckRun` (the check, in the Python CLI's order, and what stops it), `Checks` (what runs a check: the engine's `CheckRunner`), `CheckFormat` (Markdown or JSON), `GitBaseline` (the design's file at a git ref, through `git`), `PythonJsonBytes` (JSON from bytes as `json.loads(bytes)` read it), `AnswersUnexpectedErrors` (a command that answers an error nobody expected itself, as `check` does), and `FunctionsCommand` with `HarnessFunctions` (the engine's functions the benchmark harness calls, a JSON line each). The files `calibrate` and `check` read and write go through the engine's `PythonFiles` ([the engine's README](../archsim-engine/README.md), [ADR-0059](../docs/adr/0059-read-files-as-python-did-in-the-engine.md)) |
+| `io.archsim.cli` | `Archsim` (the `archsim` command, its `main`, and the answer to a `CommandException`: its message alone, exit code 1), one class per command (`ValidateCommand`, `RunCommand`, `CompareCommand`, `AnalyzeCommand`, `ImportCommand`, `ExportCommand`, `CatalogCommand`, `SchemaCommand`, and `CalibrateCommand` with `CalibratePrometheusCommand` and `CalibrateOtlpCommand`), `Choices` (what `import` and `export` take, and `check`'s `--fail-on` and `--format`, by name), `RunText` (what `run` and `compare` print of a run), `IssueLines` (a design's issues, in the Python CLI's words), `CommandFiles` (the files a command reads and writes, refused with the reason), `JsonOutput` (JSON as `json.dumps(value, indent=2)` wrote it), `TextOutput` (text as `sys.stdout.write` wrote it), `TextDecoding` (a file's text as `decode_text` read it: `Utf16` after its byte order mark, else the engine's `Utf8`, each finding where bytes stop being text in CPython's words), `PythonOptions` (an option given empty is not given), `PrometheusCalibrator` (a calibration from Prometheus, in the Python CLI's order, from the `PrometheusOptions` asked and a `PrometheusSource`: a server or a recording), `PrometheusClients` (the server, on the open policy, the recorded responses, and a recording written), `CalibrationAttempt` (what stops a calibration, as `Cannot calibrate: ...`), `CalibrationText` (what a calibration prints, and the calibrated design), `PythonFloat` and `PythonInt` (a number option read as Python's `float()` and `int()` read it, the latter through the engine's `PythonNumbers`), `CheckCommand` with its `Refs` (a git ref, never one starting with `-`) and `CheckOptions` (what a check was asked) and `CheckRun` (the check, in the Python CLI's order, and what stops it), `Checks` (what runs a check: the engine's `CheckRunner`), `CheckFormat` (Markdown or JSON), `GitBaseline` (the design's file at a git ref, through `git`), `PythonJsonBytes` (JSON from bytes as `json.loads(bytes)` read it), and `AnswersUnexpectedErrors` (a command that answers an error nobody expected itself, as `check` does). The files `calibrate` and `check` read and write go through the engine's `PythonFiles` ([the engine's README](../archsim-engine/README.md), [ADR-0059](../docs/adr/0059-read-files-as-python-did-in-the-engine.md)) |
 
 ## Tests
 
@@ -278,7 +259,8 @@ Elsewhere:
   finds, each checked against Python 3.12; `GitBaselineTests` git not installed, a git slower than
   the deadline (a Java program that sleeps) and refs starting with `-`; `PrometheusClientsTests` the
   open policy (a loopback address and name, with no allowlist, are called) and `slf4j-nop` as the
-  only SLF4J provider; `CommandFilesTests` and `ArchsimTests` (a refusal prints no stack trace) the
+  only SLF4J provider; `CommandFilesTests` and `ArchsimTests` (a refusal prints no stack trace, and
+  `archsim functions` is no command since ADR-0073) the
   rest. `TextDecodingTests` checks text that decodes, at the edges of each codec.
 - `RunOptionsTests` checks what the recordings cannot: the two limits the Python `run` did not
   have, a seed for a workload that is not an object, an option named by the start of its name, a
@@ -288,8 +270,3 @@ Elsewhere:
   check the number options against Python 3.12's answers.
 - `RunTextTests` checks the lines a report skips when its quick check, confidence or estimate is
   empty or missing.
-- `FunctionsCommandTests` checks each function `archsim functions` answers against the Python
-  engine's answer to the same call (a fit that finds nothing, a point that is not a number and a
-  table's unusable points among them), the refusals (an input refused or of the wrong shape, a
-  function that is not one, a line that is not a request), that the next line is answered after
-  one, and that each answer is written before the next line is read.

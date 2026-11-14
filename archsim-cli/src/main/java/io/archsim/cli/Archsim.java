@@ -26,7 +26,7 @@ import io.archsim.engine.version.EngineVersions;
 @Command(name = "archsim", description = "ArchSim architecture simulator",
 		subcommands = { ValidateCommand.class, RunCommand.class, CompareCommand.class, AnalyzeCommand.class,
 				CalibrateCommand.class, ImportCommand.class, ExportCommand.class, CheckCommand.class,
-				CatalogCommand.class, SchemaCommand.class, FunctionsCommand.class },
+				CatalogCommand.class, SchemaCommand.class },
 		mixinStandardHelpOptions = true, version = Archsim.VERSION)
 public final class Archsim implements Runnable {
 

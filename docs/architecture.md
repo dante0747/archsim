@@ -40,10 +40,9 @@ without the API or a database: `validate`, `run`, `analyze`, `compare`, `calibra
 `export`, `check` (the CI gate, which the `archsim-check` action runs from an image the job
 builds; see [`ci.md`](ci.md)), `catalog` and `schema`. It replaced the Python engine's CLI with
 the same flags, lines and exit codes
-([ADR-0055](adr/0055-the-java-clis-output-contract.md)). The benchmark harness calls it too,
-for its simulations and, through a hidden `archsim functions`, for the engine's fits, machine
-speeds and means
-([ADR-0061](adr/0061-answer-the-harnesss-engine-calls-from-one-java-process.md)).
+([ADR-0055](adr/0055-the-java-clis-output-contract.md)). The benchmark harness,
+`archsim-benchmarks`, calls the engine in process instead
+([ADR-0068](adr/0068-port-the-harness-to-a-module-that-calls-the-engine-in-process.md)).
 
 ### MCP server (`archsim-mcp`, Java)
 
