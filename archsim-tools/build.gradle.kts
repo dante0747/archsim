@@ -28,8 +28,15 @@ tasks.named<JavaExec>("run") {
 }
 
 tasks.test {
-    // the CI rules' tests read ci.yml and check every path a rule names; the hook's tests run it
+    // the CI rules' tests read ci.yml, the action's test runs its step from action.yml and the
+    // hook's tests run the hook, so a change to any of them reruns them. The rules' tests also
+    // check that every path a rule names exists, which depends on the whole tree: a path deleted
+    // elsewhere is caught on the next full run.
     systemProperty("archsim.repoRoot", rootDir.absolutePath)
     inputs.file(rootDir.resolve(".githooks/commit-msg")).withPropertyName("commitMsgHook")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(rootDir.resolve(".github/workflows/ci.yml")).withPropertyName("ciWorkflow")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.dir(rootDir.resolve(".github/actions/archsim-check")).withPropertyName("archsimCheckAction")
         .withPathSensitivity(PathSensitivity.RELATIVE)
 }
