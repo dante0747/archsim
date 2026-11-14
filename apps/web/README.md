@@ -8,9 +8,12 @@ Radix primitives, Recharts, elkjs). It talks to the API (`archsim-app`) through 
 (`src/app/.well-known/oauth-protected-resource/[[...path]]/route.ts`); nothing else under
 `/.well-known` does.
 
+Start PostgreSQL, the API and a worker first, as
+[Run from source](../../docs/getting-started.md#run-from-source) describes, then:
+
 ```bash
 npm ci
-npm run dev        # http://localhost:3000 (start the API first: ../../README.md, quick start)
+npm run dev        # http://localhost:3000
 npm test           # unit tests (Vitest + Testing Library)
 npm run lint
 npm run build      # then: npm run typecheck
