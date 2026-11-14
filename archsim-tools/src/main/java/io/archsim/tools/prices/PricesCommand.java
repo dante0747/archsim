@@ -62,7 +62,8 @@ public final class PricesCommand implements Runnable {
 	 * {@link #failed} prints it
 	 */
 	static CommandLine commandLine(PriceSetup setup) {
-		return new CommandLine(new PricesCommand()).addSubcommand(new AzureCommand(setup))
+		return new CommandLine(new PricesCommand()).addSubcommand(new AwsCommand(setup))
+			.addSubcommand(new AzureCommand(setup))
 			.addSubcommand(new GcpCommand(setup))
 			.addSubcommand(new DiffCommand(setup))
 			.setExecutionExceptionHandler(PricesCommand::failed)

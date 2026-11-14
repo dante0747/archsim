@@ -60,6 +60,7 @@ among the ones archsim-model ships, and a summary of what changed since the last
 price API at runtime:
 
 ```bash
+./gradlew :archsim-tools:run --args="prices aws --region us-east-1"
 ./gradlew :archsim-tools:run --args="prices azure --region eastus"
 GOOGLE_API_KEY=... ./gradlew :archsim-tools:run --args="prices gcp --region us-central1"
 ./gradlew :archsim-tools:run --args="prices diff archsim-model/src/main/resources/io/archsim/model/pricing/snapshots/NEW.json"
@@ -68,7 +69,10 @@ GOOGLE_API_KEY=... ./gradlew :archsim-tools:run --args="prices gcp --region us-c
 A snapshot is written as `scripts/prices` wrote it, in `json.dumps(snapshot, indent=1)`'s text
 with Python's keys, numbers and order, so that the next one diffs cleanly against the last
 (ADR-0072): written again, the AWS snapshot of 2026-10-28 is the same file, byte for byte, and
-`prices diff` words the shipped snapshots' changes as `diff.py` did.
+`prices diff` words the shipped snapshots' changes as `diff.py` did. The refresh workflow
+(`.github/workflows/prices.yml`) runs the installed commands, `./gradlew :archsim-tools:installDist`
+then `archsim-tools/build/install/archsim-tools/bin/archsim-tools prices ...`, so that each step's
+`GITHUB_OUTPUT` reaches `prices diff` directly.
 
 | Java | What it does | Python it ports |
 | --- | --- | --- |
@@ -77,6 +81,11 @@ with Python's keys, numbers and order, so that the next one diffs cleanly agains
 | `SkuList` | one entry per type, shape and price, in a snapshot's order; a type and engine at two prices refused | `common.dedupe` |
 | `Snapshot`, `SnapshotWriter` | a snapshot, written dated and in order among the snapshots | `common.write_snapshot` |
 | `HttpDownloads` | the public endpoints, with a cache of whole files | `common.fetch` |
+| `AwsCommand`, `AwsPrices` | a region's offer files, fetched by version into the cache, and its snapshot and note | `aws.py`'s `main`, `download`, `provenance` |
+| `OfferFile`, `OfferRow`, `CsvRecords`, `OfferText` | an offer file's metadata and rows, streamed and read as Python's `csv` module read them, and its cells | `rows`, `header`, `_price`, `_regional`, `_usage`, `gib` |
+| `Ec2Prices`, `RdsPrices`, `ElastiCachePrices`, `MskPrices` | the instance, database, cache and broker types, and EC2's gp3 and RDS's storage | `ec2`, `rds`, `rds_storage`, `elasticache`, `msk` |
+| `Burstables` | the burstable types, their baseline CPU and credit prices | `BURSTABLE`, `baseline_cpu`, `_with_credits` |
+| `UsageRates` | Lambda, SQS, the load balancers, DynamoDB, API Gateway and EKS at their first paid tiers | `rates`, `dynamodb`, `api_gateway`, `eks`, `_paid_tier`, `_only` |
 | `AzurePrices` | Azure's virtual machines from the Retail Prices API | `azure.py` |
 | `GcpPrices` | GCP's machine types from the Cloud Billing Catalog API | `gcp.py` |
 | `PriceDiff`, `Baselines` | the summary of a snapshot against the newest older one | `diff.py` |
@@ -104,6 +113,10 @@ rest is how the commands fail and wait:
   JSON, and stopped at JSON that is not an object. A snapshot missing its provider, region or
   date prints `None` where `diff.py` stopped with a `KeyError`. Its lines end in LF on
   Windows too, where Python's `print` wrote CRLF.
+- An offer file's vCPUs are digits of any script; Python's `isdigit()` also took digits such as
+  superscripts, which its `float()` then refused, so such a row is skipped where `aws.py`
+  stopped. A database or cache type with no family in its name stops the refresh with a
+  message, where `aws.py` stopped with an `IndexError`.
 - The commands' help is picocli's, not argparse's.
 
 ## Tests

@@ -77,6 +77,20 @@ class PricesCommandTests {
 	}
 
 	@Test
+	void aws_aRegion_writesItsSnapshotFromTheOfferFilesItCaches(@TempDir Path folder) throws IOException {
+		Path cache = folder.resolve("cache");
+		Path snapshots = Files.createDirectories(folder.resolve("snapshots"));
+
+		int exit = run(new PriceSetup(AwsPricesTests.downloads(), Map.of(), snapshots, SnapshotWriterTests.NOVEMBER_14),
+				"aws", "--region", "sample-1", "--cache", cache.toString());
+
+		assertThat(exit).isZero();
+		assertThat(snapshots.resolve("aws-sample-1-2026-11-14.json"))
+			.hasContent(Recorded.text("aws-offers-sample-1-2026-11-14.json"));
+		assertThat(cache).isDirectoryContaining("glob:**/AmazonEC2-sample-1-20261010000000.csv");
+	}
+
+	@Test
 	void gcp_noApiKey_isRefused(@TempDir Path folder) {
 		int exit = run(setup(folder, Map.of()), "gcp", "--region", "us-central1");
 

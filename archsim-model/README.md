@@ -39,9 +39,9 @@ Each package uses only those below it, and ArchUnit checks it
 The price snapshots ArchSim ships are this module's resources,
 `src/main/resources/io/archsim/model/pricing/snapshots/`: the build lists every file of the folder
 in an index `PriceSnapshots` reads, so the model ships what the folder holds. A refreshed snapshot
-(`scripts/prices`) is a file added there, but the golden pricing entries and some sizing tests
-still expect 0.16.0's two snapshots to be the only ones, so a refresh fails them until they stop
-assuming it. Until stage 5 deleted the frozen Python engine, a test checked its snapshots were
+(archsim-tools' `prices`) is a file added there, but the golden pricing entries and some sizing
+tests still expect 0.16.0's two snapshots to be the only ones, so a refresh fails them until they
+stop assuming it. Until stage 5 deleted the frozen Python engine, a test checked its snapshots were
 shipped byte for byte.
 
 ## Tests

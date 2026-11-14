@@ -34,6 +34,7 @@ record FakeDownloads(Map<String, String> pages, List<String> asked) implements P
 
 	@Override
 	public Path file(URI address, Path cache) throws IOException {
+		Files.createDirectories(cache.toAbsolutePath().getParent());
 		Files.write(cache, bytes(address));
 		return cache;
 	}

@@ -13,7 +13,7 @@ import io.archsim.model.codec.MinItems;
 import io.archsim.model.codec.ModelName;
 
 /**
- * A price snapshot file as {@code scripts/prices/} writes it (format
+ * A price snapshot file as archsim-tools' price refresh writes it (format
  * {@code archsim.prices/1}), read with the Python engine's rules so a bad file is refused
  * with the same reason.
  *

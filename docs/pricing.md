@@ -225,14 +225,15 @@ unpinned design whose provider has no snapshot here gets the same warning and ge
 
 ## Refreshing snapshots
 
-The scripts in `scripts/prices/` read the providers' public price lists and write a snapshot.
-ArchSim never calls them, or any price API, at runtime.
+archsim-tools' price refresh (`prices`, run by Gradle from the repository's root) reads the
+providers' public price lists and writes a snapshot. ArchSim never calls it, or any price API,
+at runtime.
 
 **Monthly AWS refresh.** `.github/workflows/prices.yml` rebuilds the us-east-1 snapshot among
 the model's, runs the model's tests, and opens a pull request with the new file and a summary of
-what changed (`scripts/prices/diff.py`: types added, removed and repriced, largest changes
-first). When no price changed it opens nothing. A person reviews and merges it. Older snapshots
-stay, so a design pinned to one reproduces. Its monthly schedule (the 2nd) is off, and it runs
+what changed (`prices diff`: types added, removed and repriced, largest changes first). When no
+price changed it opens nothing. A person reviews and merges it. Older snapshots stay, so a
+design pinned to one reproduces. Its monthly schedule (the 2nd) is off, and it runs
 by hand only: the golden pricing entries and some sizing tests still expect 0.16.0's two
 snapshots to be the only ones, so a new snapshot fails them until they stop assuming it
 ([ADR-0026](adr/0026-component-specs-and-price-snapshots-in-the-model.md)); and the repository's
@@ -249,10 +250,10 @@ analyzes that starter), and run the whole test suite.
 By hand:
 
 ```bash
-uv run python scripts/prices/aws.py --region us-east-1      # AWS Price List bulk API (CSV, streamed)
-uv run python scripts/prices/diff.py archsim-model/src/main/resources/io/archsim/model/pricing/snapshots/aws-us-east-1-<date>.json
-uv run python scripts/prices/azure.py --region eastus       # Azure Retail Prices API
-GOOGLE_API_KEY=... uv run python scripts/prices/gcp.py --region us-central1   # Cloud Billing Catalog API
+./gradlew :archsim-tools:run --args="prices aws --region us-east-1"     # AWS Price List bulk API (CSV, streamed)
+./gradlew :archsim-tools:run --args="prices diff archsim-model/src/main/resources/io/archsim/model/pricing/snapshots/aws-us-east-1-<date>.json"
+./gradlew :archsim-tools:run --args="prices azure --region eastus"      # Azure Retail Prices API
+GOOGLE_API_KEY=... ./gradlew :archsim-tools:run --args="prices gcp --region us-central1"   # Cloud Billing Catalog API
 ```
 
 - **AWS**: EC2 (Linux, shared tenancy, on-demand), RDS Single-AZ (PostgreSQL, MySQL, MariaDB)
@@ -260,11 +261,11 @@ GOOGLE_API_KEY=... uv run python scripts/prices/gcp.py --region us-central1   # 
   storage, Lambda, SQS standard, Application and Network Load Balancers (hours and capacity
   units), DynamoDB (request units, capacity units, storage), API Gateway REST API requests and
   the EKS control plane, each rate at its first paid tier. Burstable types get their baseline CPU
-  from a table in the script (AWS's instance tables; the price list does not have it). The EC2 file is
+  from a table in the refresh (AWS's instance tables; the price list does not have it). The EC2 file is
   about 300 MB; downloads are cached in `.cache/aws-prices` by AWS's file version. A region's
   file also lists Outposts and Local Zone prices, Capacity Blocks and extended-support
   surcharges; only the region's own on-demand rows are kept, and the same type at two prices
-  stops the script rather than letting snapping pick the wrong one. Types that differ only in
+  stops the refresh rather than letting snapping pick the wrong one. Types that differ only in
   engine are stored once (an ElastiCache type costs the same for Redis and Memcached).
 - **Azure**: virtual machines of the D v3-v6, E v3-v6 and F v2 series (Linux, pay-as-you-go).
   The API returns prices but not shapes, so memory comes from each series' published ratio.
@@ -272,9 +273,9 @@ GOOGLE_API_KEY=... uv run python scripts/prices/gcp.py --region us-central1   # 
   GiB-hour of their family. The API needs an API key, read from `GOOGLE_API_KEY` and never
   written anywhere.
 
-Their parsers are tested on small samples in each API's layout
-(`scripts/tests/test_price_refresh_scripts.py`); the AWS samples include the rows that tripped
-the first run against the live price lists. The AWS script has been run against the live lists
-(the snapshot above); **the Azure and GCP scripts have not**, so their first real refresh should
-be checked by hand (a few well-known prices against the provider's pricing page) before the
-snapshot is committed.
+Their parsers are tested on small samples in each API's layout (archsim-tools' `prices` tests,
+which compare them with what the Python scripts they port wrote); the AWS samples include the
+rows that tripped the first run against the live price lists. The AWS refresh has been run
+against the live lists (the snapshot above, by its Python version); **the Azure and GCP
+refreshes have not**, so their first real refresh should be checked by hand (a few well-known
+prices against the provider's pricing page) before the snapshot is committed.

@@ -1,0 +1,158 @@
+{
+ "provider": "aws",
+ "region": "sample-1",
+ "sources": [
+  {
+   "name": "AWS Price List bulk API",
+   "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/index.json"
+  }
+ ],
+ "note": "Offer file versions: AmazonEC2 20261010000000, AmazonRDS 20261011000000, AmazonElastiCache 20261012000000, AmazonMSK 20261013000000, AWSLambda 20261014000000, AWSQueueService 20261015000000, AWSELB 20261016000000, AmazonDynamoDB 20261017000000, AmazonApiGateway 20261018000000, AmazonEKS 20261019000000. AWS: sample",
+ "compute": [
+  {
+   "sku": "t4g.large",
+   "family": "t4g",
+   "vcpu": 2.0,
+   "memoryGib": 8.0,
+   "hourly": {
+    "on_demand": 0.0672
+   },
+   "burstable": true,
+   "baselineCpu": 0.3,
+   "creditVcpuHour": 0.04
+  },
+  {
+   "sku": "t9g.large",
+   "family": "t9g",
+   "vcpu": 2.0,
+   "memoryGib": 8.0,
+   "hourly": {
+    "on_demand": 0.04
+   },
+   "burstable": true
+  },
+  {
+   "sku": "x9.large",
+   "family": "x9",
+   "vcpu": 2.0,
+   "memoryGib": 8.0,
+   "hourly": {
+    "on_demand": 0.1
+   }
+  },
+  {
+   "sku": "x9.2xlarge",
+   "family": "x9",
+   "vcpu": 8.0,
+   "memoryGib": 32.0,
+   "hourly": {
+    "on_demand": 0.4
+   }
+  }
+ ],
+ "databases": [
+  {
+   "sku": "db.t4g.micro",
+   "family": "t4g",
+   "vcpu": 2.0,
+   "memoryGib": 1.0,
+   "hourly": {
+    "on_demand": 0.016
+   },
+   "engines": [
+    "postgresql"
+   ],
+   "burstable": true,
+   "baselineCpu": 0.1,
+   "creditVcpuHour": 0.075
+  },
+  {
+   "sku": "db.y9.large",
+   "family": "y9",
+   "vcpu": 2.0,
+   "memoryGib": 16.0,
+   "hourly": {
+    "on_demand": 0.24
+   },
+   "engines": [
+    "mariadb",
+    "mysql"
+   ]
+  },
+  {
+   "sku": "db.y9.large",
+   "family": "y9",
+   "vcpu": 2.0,
+   "memoryGib": 16.0,
+   "hourly": {
+    "on_demand": 0.25
+   },
+   "engines": [
+    "postgresql"
+   ]
+  }
+ ],
+ "caches": [
+  {
+   "sku": "cache.y9.large",
+   "family": "y9",
+   "vcpu": 2.0,
+   "memoryGib": 6.38,
+   "hourly": {
+    "on_demand": 0.156
+   },
+   "engines": [
+    "memcached",
+    "redis"
+   ]
+  }
+ ],
+ "streams": [
+  {
+   "sku": "kafka.t9.small",
+   "family": "t9",
+   "vcpu": 2.0,
+   "memoryGib": 2.0,
+   "hourly": {
+    "on_demand": 0.0456
+   },
+   "engines": [
+    "kafka"
+   ],
+   "burstable": true
+  },
+  {
+   "sku": "kafka.x9.large",
+   "family": "x9",
+   "vcpu": 2.0,
+   "memoryGib": 8.0,
+   "hourly": {
+    "on_demand": 0.21
+   },
+   "engines": [
+    "kafka"
+   ]
+  }
+ ],
+ "rates": {
+  "storageGibMonth": 0.09,
+  "serverlessGbSecond": 1.66667e-05,
+  "serverlessPerMillionRequests": 0.2,
+  "queuePerMillionRequests": 0.4,
+  "loadBalancerHour": 0.0225,
+  "loadBalancerLcuHour": 0.008,
+  "networkLoadBalancerHour": 0.0225,
+  "networkLoadBalancerLcuHour": 0.006,
+  "rdsStorageGibMonth": 0.115,
+  "dynamodbRcuHour": 0.00013,
+  "dynamodbWcuHour": 0.00065,
+  "dynamodbReadPerMillion": 0.125,
+  "dynamodbWritePerMillion": 0.625,
+  "dynamodbStorageGibMonth": 0.25,
+  "apiGatewayPerMillion": 3.5,
+  "kubernetesControlPlaneHour": 0.1
+ },
+ "format": "archsim.prices/1",
+ "currency": "USD",
+ "snapshotDate": "2026-11-14"
+}
