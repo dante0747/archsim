@@ -219,6 +219,9 @@ test("cache-outage demo video", async ({ browser, baseURL }) => {
 
   // Open the starter from the gallery, look at it, then lose the cache (the pad simulates).
   await page.goto("/templates");
+  // The GIF starts on the drawn gallery, not on the blank and half-loaded frames before it.
+  await expect(page.getByRole("button", { name: /^Open the .* template$/ }).first()).toBeVisible();
+  const shownFrom = at();
   await page.waitForTimeout(1_500);
   await page.getByRole("button", { name: /Open the Cache-aside .* template/ }).first().click();
   await page.waitForURL(/\/projects\/[^/]+$/);
@@ -257,9 +260,9 @@ test("cache-outage demo video", async ({ browser, baseURL }) => {
   const gif = path.join(OUT, "cache-outage.gif");
   // 8 frames a second, 800 px wide and 64 colours keep a minute of the studio under ~8 MB.
   const filter = "fps=8,scale=800:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=64:stats_mode=diff[p];[b][p]paletteuse=dither=none:diff_mode=rectangle";
-  const [a, b] = [waitFrom.toFixed(2), waitTo.toFixed(2)];
+  const [s, a, b] = [shownFrom.toFixed(2), waitFrom.toFixed(2), waitTo.toFixed(2)];
   const graph =
-    `[0:v]split=3[s0][s1][s2];[s0]trim=0:${a},setpts=PTS-STARTPTS[v0];` +
+    `[0:v]split=3[s0][s1][s2];[s0]trim=${s}:${a},setpts=PTS-STARTPTS[v0];` +
     `[s1]trim=${a}:${b},setpts=(PTS-STARTPTS)/6[v1];[s2]trim=start=${b},setpts=PTS-STARTPTS[v2];` +
     `[v0][v1][v2]concat=n=3:v=1:a=0,${filter}`;
   if (HAS_FFMPEG) {
