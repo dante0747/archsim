@@ -20,9 +20,6 @@ concurrency:
   group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true
 
-env:
-  UV_PYTHON: "3.12"
-
 jobs:
   commits:
     # every commit a pull request or push adds: Conventional Commits, no AI co-author trailer
