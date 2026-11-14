@@ -69,6 +69,13 @@ cost, and publishes how accurate it is. Start with [Getting started](docs/gettin
   frozen Python engine 0.16.0's recorded runs figure for figure
   ([java-parity.md](docs/validation/java-parity.md)), about 14 times faster on the templates
   ([docs/performance.md](docs/performance.md)).
+- The accuracy benchmarks' harness and the repository's tools moved from Python to Java as well:
+  [archsim-benchmarks](archsim-benchmarks/README.md), run as
+  `./gradlew :archsim-benchmarks:run --args="<command>"`, and [archsim-tools](archsim-tools/README.md)
+  (the commit-message check, CI's changed parts and the price refresh). Building ArchSim and
+  contributing to it no longer need Python or uv ([CONTRIBUTING.md](CONTRIBUTING.md#development-setup)).
+  The one Python left is a benchmarked service, `benchmarks/service-python`, which builds in its
+  own container.
 - ArchSim is licensed under the GNU AGPL-3.0-only, with a commercial license available from the
   copyright holder ([ADR-0067](docs/adr/0067-license-under-agpl-3.0-with-a-commercial-license.md)).
 
@@ -79,6 +86,12 @@ cost, and publishes how accurate it is. Start with [Getting started](docs/gettin
 - The SQLite development mode: the API needs PostgreSQL
   ([ADR-0016](docs/adr/0016-drop-sqlite-development-mode.md)).
 - Plugin entry points for third-party component models.
+- The Python benchmark harness and the repository's Python scripts. The tag `cpython-recorders`
+  keeps them.
+- **Breaking:** the CLI's hidden `archsim functions` command, which answered the Python benchmark
+  harness's calls into the engine. A script that called it now gets an unknown command (exit
+  code 2); call the engine's classes in process instead, as `archsim-benchmarks` does
+  ([ADR-0073](docs/adr/0073-remove-archsim-functions-with-the-python-harness.md)).
 
 ### Upgrading from a pre-release
 
@@ -86,6 +99,9 @@ cost, and publishes how accurate it is. Start with [Getting started](docs/gettin
   takes it from there ([ADR-0063](docs/adr/0063-retire-alembic-older-databases-upgrade-from-a-tag.md)).
 - An MCP client set up with `uv run --directory /path/to/archsim archsim-mcp` needs the Java
   server's command instead ([docs/agents.md](docs/agents.md)).
+- The `commit-msg` hook checks messages with Java's source launcher and needs JDK 22 or later: it
+  runs `$JAVA_HOME`'s Java when that is set, else `java` on the `PATH`
+  ([CONTRIBUTING.md](CONTRIBUTING.md#development-setup)).
 
 ### Known limitations
 
