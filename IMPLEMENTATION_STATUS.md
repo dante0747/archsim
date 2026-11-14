@@ -2138,7 +2138,11 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
    are built (engine 1.0.0; everything ArchSim ships in Java, and Python left for the benchmark
    harness and the scripts). Next, before anything is published, the owner's review: ADR 0063,
    sign-in on Spring Security (ADR 0065), and what `docs/proposals/java-25-port.md`'s "where the
-   port ended" lists. Stage 7, the harness in Java, follows.
+   port ended" lists. Stage 7, the harness in Java, follows. Its price refresh (archsim-tools'
+   `prices`) has not run against live offer files yet: until `aws.py` and `prices aws` have run
+   on the same cached files, the first real refresh (`prices.yml`, idle while Actions cannot
+   start jobs) is that check, and its snapshot is compared with the shipped one before it is
+   taken (ADR-0072).
 2. W25 (accuracy over time on /accuracy). Engine 0.14.0 did not predict the held-out
    experiments before they were measured (the harness can't predict with a second engine), so a
    before-and-after on them can only re-simulate 0.14.0, labelled as such.

@@ -62,6 +62,28 @@ program from its source files without a build.
   names the last commit that has the recorders, to record them again from if Python's behaviour
   must be checked. The Java tests that read the tables stay.
 
+**Status (14 Nov 2026):** stage 7's S7-8 built this as decided, with these differences.
+
+- The hook takes about a second on the owner's laptop (0.95 to 1.07 s), not 0.6 s, nearly all
+  of it the source launcher compiling the check; Python's check took a quarter of a second
+  through `uv run`.
+- The hook refuses the commit (exit 1, naming the Java it found) when that Java is older than 22
+  or missing, so committing needs a JDK of 22 or later, `$JAVA_HOME`'s when it is set: a machine
+  whose `JAVA_HOME` names an older JDK, as the owner's names JDK 21, sets it to a newer one for
+  its commits.
+- The refresh workflow runs the installed commands, `./gradlew :archsim-tools:installDist`, then
+  `archsim-tools prices aws` and `prices diff`, so that each step's own `GITHUB_OUTPUT` reaches
+  them; by hand, `./gradlew :archsim-tools:run --args="prices ..."` runs them as decided.
+- The archsim-check action's test, `scripts/tests/test_archsim_check_action.py`, moved too, to
+  archsim-tools' `ArchsimCheckActionTests`, and a change to the action now runs the Java job.
+- `parity/README.md` names the tag `cpython-recorders` (commit `1634ba9e`) as the last commit
+  with the CPython recorders.
+
+Two confirmations wait. CI's `changes` and `commits` jobs have run only locally while Actions
+cannot start jobs. The price refresh has run against the parsers' samples, where it writes what
+`aws.py` wrote byte for byte, but not yet against live offer files: running `aws.py` and
+`prices aws` on the same cached files is the check left before stage 7 deletes `aws.py`.
+
 ### Consequences
 
 - Good, because no Python is left in the tooling, and every tool has JUnit tests and the same
