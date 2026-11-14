@@ -3,8 +3,11 @@
  * (playwright.capture.config.ts; the default `npm run e2e` skips this file).
  *
  * The templates run at full length here. The shots come from the Black Friday template with every
- * scenario simulated; each one is its own test, so one broken shot doesn't stop the rest. The
- * video records the starter's cache-outage demo (about 60 s) and converts it to a GIF with ffmpeg.
+ * scenario simulated, except the trade-offs map: its scenarios all cost the same (the bill is priced
+ * at the ramp's 300 req/s base, where the autoscaler sits at its 3 pods), so the map plots the six
+ * sizings of the right-sizing template instead. Each shot is its own test, so one broken shot
+ * doesn't stop the rest. The video records the starter's cache-outage demo (about 60 s) and converts
+ * it to a GIF with ffmpeg.
  *
  * Writes docs/images/<name>.jpg (taken at 1440 × 900 and scaled to 800 × 500, the names the
  * README uses) and docs/images/cache-outage.gif. Set CAPTURE_OUT_DIR to write somewhere else.
@@ -18,6 +21,7 @@ import { type APIRequestContext, expect, type Page, test } from "@playwright/tes
 
 const OUT = path.resolve(process.env.CAPTURE_OUT_DIR ?? path.join(__dirname, "..", "..", "..", "docs", "images"));
 const SHOWCASE = "black-friday-kubernetes";
+const TRADEOFFS = "right-size-catalog-api";
 const HAS_FFMPEG = spawnSync("ffmpeg", ["-version"], { stdio: "ignore" }).status === 0;
 
 type Theme = "dark" | "light";
@@ -68,46 +72,57 @@ async function waitForRuns(api: APIRequestContext, ids: string[]) {
 }
 
 /**
- * The showcase project: every scenario simulated, then the design itself (the run shown first).
- * Made by the first test that needs it; the database lives as long as the API server, so a
- * restarted worker finds the finished project and reuses it.
+ * A project from a template with every scenario simulated, then, with `design`, the design itself
+ * (the run shown first). Made by the first test that needs it; the database lives as long as the
+ * API server, so a restarted worker finds the finished project and reuses it.
  */
-async function makeShowcase(api: APIRequestContext): Promise<string> {
-  const example = (await (await api.get(`/api/v1/examples/${SHOWCASE}`)).json()) as { metadata: { name: string }; scenarios: { id: string }[] };
+async function makeProject(api: APIRequestContext, exampleId: string, design: boolean): Promise<string> {
+  const example = (await (await api.get(`/api/v1/examples/${exampleId}`)).json()) as { metadata: { name: string }; scenarios: { id: string }[] };
   const projects = (await (await api.get("/api/v1/projects")).json()) as { id: string; name: string }[];
   for (const p of projects.filter((x) => x.name === example.metadata.name)) {
     const runs = (await (await api.get(`/api/v1/projects/${p.id}/runs`)).json()) as { status: string; scenarioId: string | null }[];
     const done = runs.filter((r) => r.status === "succeeded");
-    if (done.length > example.scenarios.length && done[0].scenarioId === null) return p.id;
+    if (design ? done.length > example.scenarios.length && done[0].scenarioId === null : done.length >= example.scenarios.length) return p.id;
   }
-  const project = (await (await api.post("/api/v1/projects", { data: { exampleId: SHOWCASE } })).json()) as { id: string };
+  const project = (await (await api.post("/api/v1/projects", { data: { exampleId } })).json()) as { id: string };
   const batch = (await (
     await api.post(`/api/v1/projects/${project.id}/runs/batch`, { data: { scenarioIds: example.scenarios.map((s) => s.id) } })
   ).json()) as { id: string }[];
   await waitForRuns(api, batch.map((r) => r.id));
-  const base = (await (await api.post(`/api/v1/projects/${project.id}/runs`, { data: {} })).json()) as { id: string };
-  await waitForRuns(api, [base.id]);
+  if (design) {
+    const base = (await (await api.post(`/api/v1/projects/${project.id}/runs`, { data: {} })).json()) as { id: string };
+    await waitForRuns(api, [base.id]);
+  }
   return project.id;
 }
 
-let showcase: Promise<string> | null = null;
+const made = new Map<string, Promise<string>>();
 
 function workspace(page: Page, key: "build" | "stress" | "decide" | "dashboard") {
   return page.getByTestId(`workspace-${key}`).filter({ visible: true });
 }
 
-async function openShowcase(page: Page, theme: Theme) {
-  test.setTimeout(12 * 60_000); // the first caller simulates the showcase
-  showcase ??= makeShowcase(page.request).catch((e) => {
-    showcase = null;
-    throw e;
-  });
-  const id = await showcase;
+/** Open a template's project (made on first use), once the part `nodeId` is on the canvas. */
+async function openProject(page: Page, exampleId: string, design: boolean, nodeId: string, theme: Theme) {
+  test.setTimeout(12 * 60_000); // the first caller simulates the project
+  let project = made.get(exampleId);
+  if (!project) {
+    project = makeProject(page.request, exampleId, design).catch((e) => {
+      made.delete(exampleId);
+      throw e;
+    });
+    made.set(exampleId, project);
+  }
+  const id = await project;
   await prepare(page, theme);
   await page.goto(`/projects/${id}`);
-  await expect(page.getByTestId("node-orders")).toBeVisible();
+  await expect(page.getByTestId(`node-${nodeId}`)).toBeVisible();
   // the latest run is on the canvas once the transport shows it
   await expect(page.getByTestId("transport-lcd")).not.toHaveAttribute("aria-label", "No run yet");
+}
+
+async function openShowcase(page: Page, theme: Theme) {
+  await openProject(page, SHOWCASE, true, "orders", theme);
 }
 
 async function openResults(page: Page, tab: "Answer" | "Compare" | "Details") {
@@ -125,11 +140,15 @@ test("home", async ({ page }) => {
 test("templates", async ({ page }) => {
   await prepare(page, "dark");
   await page.goto("/templates");
-  const featured = page.getByRole("button", { name: /^Open the .* template$/ }).first();
-  await expect(featured).toBeVisible();
-  // the counts, the filters and the featured template, as in the README
-  await featured.evaluate((el) => el.scrollIntoView({ block: "end" }));
-  await page.evaluate(() => window.scrollBy(0, 24));
+  await expect(page.getByRole("button", { name: /^Open the .* template$/ }).first()).toBeVisible();
+  // The counts, the filters with theirs and the featured template, as in the README: the counts
+  // just under the sticky header, the featured template running on past the bottom edge.
+  const counts = page.locator("dl", { hasText: "scenarios to compare" });
+  await expect(counts).not.toContainText("…"); // every template's design has loaded
+  const header = await page.locator("header").first().boundingBox();
+  const top = await counts.boundingBox();
+  if (!header || !top) throw new Error("the gallery's header or counts are not on screen");
+  await page.evaluate((y) => window.scrollBy(0, y), top.y - header.height - 20);
   await page.waitForTimeout(1_500); // the previews draw their diagrams
   await shoot(page, "templates");
 });
@@ -164,9 +183,12 @@ test("scorecard", async ({ page }) => {
 });
 
 test("tradeoffs", async ({ page }) => {
-  await openShowcase(page, "dark");
+  // six ways to run the catalog API, each at its own price
+  await openProject(page, TRADEOFFS, false, "db", "dark");
   await openResults(page, "Compare");
   await page.getByRole("tab", { name: "Cost vs. speed" }).click();
+  await expect(page.getByRole("img", { name: "Scatter of monthly cost against p95 latency per run" })).toBeVisible();
+  await expect(page.getByText("loading reports…")).toBeHidden();
   await page.waitForTimeout(1_000); // the chart lays out
   await shoot(page, "tradeoffs");
 });
