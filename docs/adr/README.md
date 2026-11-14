@@ -115,4 +115,4 @@ what the repository shows.
 | [0071](0071-python-statistics-in-the-harness.md) | Reduce the results with Python's statistics, ported exactly | Accepted | 2026-11-13 |
 | [0072](0072-move-the-repositorys-tooling-to-java-and-retire-the-cpython-recorders.md) | Move the repository's tooling to Java, and retire the recorders of CPython's behaviour | Accepted | 2026-11-13 |
 | [0073](0073-remove-archsim-functions-with-the-python-harness.md) | Remove `archsim functions` with the Python harness | Accepted | 2026-11-14 |
-| [0074](0074-bill-the-peak-for-the-hours-a-month-it-lasts.md) | Bill a workload's peak for the hours a month it lasts, and autoscaled parts at the count they settle at | Proposed | 2026-11-14 |
+| [0074](0074-bill-the-peak-for-the-hours-a-month-it-lasts.md) | Bill a workload's peak for the hours a month it lasts, and autoscaled parts at the count they settle at | Accepted | 2026-11-14 |
