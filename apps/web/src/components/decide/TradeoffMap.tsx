@@ -30,6 +30,65 @@ interface Point {
 const H = 400;
 const M = { top: 20, right: 28, bottom: 44, left: 64 };
 
+/** A point's direct label: longer ones end in an ellipsis. */
+const LABEL_CHARS = 40;
+/** The width of a character of the labels' 11 px monospace. */
+const CHAR_W = 6.4;
+/** From a point's centre to its label. */
+const LABEL_GAP = 11;
+/**
+ * A label sits this far above its point: the frontier leaves each of its points to the right, at
+ * the point's height, and would strike through a label beside it.
+ */
+const LABEL_LIFT = 8;
+const LINE = 12;
+
+/** Where a point's label sits on the map, and what it says. */
+export interface PlacedLabel {
+  x: number;
+  y: number;
+  anchor: "start" | "end";
+  text: string;
+}
+
+/** A label cut to `chars` characters with an ellipsis, after its last whole word when that keeps most of it. */
+function shorten(label: string, chars: number): string {
+  if (label.length <= chars) return label;
+  const cut = label.slice(0, Math.max(chars - 1, 1));
+  const words = cut.replace(/[\s,;:/·–-]+\S*$/, "");
+  return `${(words.length >= chars * 0.6 ? words : cut).trimEnd()}…`;
+}
+
+/**
+ * The points' direct labels, just above each point: right of it, or left of it when the right
+ * would run past the plot (cut to the wider side when neither fits). Placed top first, a label
+ * that would overlap one already placed moves down a line.
+ */
+export function placeLabels(
+  points: { id: string; label: string; x: number; y: number }[],
+  plot: { left: number; right: number },
+): Map<string, PlacedLabel> {
+  const labels = new Map<string, PlacedLabel>();
+  const placed: { x0: number; x1: number; y: number }[] = [];
+  for (const p of [...points].sort((a, b) => a.y - b.y)) {
+    const full = shorten(p.label, LABEL_CHARS);
+    const rightRoom = plot.right - (p.x + LABEL_GAP);
+    const leftRoom = p.x - LABEL_GAP - plot.left;
+    const width = full.length * CHAR_W;
+    const anchor = width <= rightRoom || (width > leftRoom && rightRoom >= leftRoom) ? "start" : "end";
+    const room = anchor === "start" ? rightRoom : leftRoom;
+    const text = width <= room ? full : shorten(full, Math.max(Math.floor(room / CHAR_W), 1));
+    const x = anchor === "start" ? p.x + LABEL_GAP : p.x - LABEL_GAP;
+    const x0 = anchor === "start" ? x : x - text.length * CHAR_W;
+    const x1 = x0 + text.length * CHAR_W;
+    let y = p.y - LABEL_LIFT;
+    for (let k = 0; k < 8 && placed.some((b) => Math.abs(b.y - y) < LINE && b.x0 < x1 && x0 < b.x1); k++) y += LINE;
+    placed.push({ x0, x1, y });
+    labels.set(p.id, { x, y, anchor, text });
+  }
+  return labels;
+}
+
 function Cross({ x, y, r, color }: { x: number; y: number; r: number; color: string }) {
   return (
     <g stroke={color} strokeWidth={2.25} strokeLinecap="round">
@@ -151,19 +210,11 @@ export function TradeoffMap() {
   const slo = objectives.latencyP95Ms;
   const hovered = points.find((p) => p.runId === hover) ?? null;
   const showLabels = points.length <= 8;
-  // Direct labels sit right of their point; nudge overlapping ones down so close options stay readable.
-  const labelY = new Map<string, number>();
-  if (showLabels) {
-    const placed: { x0: number; x1: number; y: number }[] = [];
-    for (const p of [...points].sort((a, b) => sy(a.p95) - sy(b.p95))) {
-      const x0 = sx(p.cost) + 11;
-      const x1 = x0 + Math.min(p.label.length, 26) * 6.4;
-      let y = sy(p.p95);
-      for (let k = 0; k < 8 && placed.some((b) => Math.abs(b.y - y) < 12 && b.x0 < x1 && x0 < b.x1); k++) y += 12;
-      placed.push({ x0, x1, y });
-      labelY.set(p.runId, y);
-    }
-  }
+  // Direct labels for a handful of options; a hovered one shows its label however many there are.
+  const labels = placeLabels(
+    points.filter((p) => showLabels || p.runId === hover).map((p) => ({ id: p.runId, label: p.label, x: sx(p.cost), y: sy(p.p95) })),
+    { left: M.left, right: width },
+  );
   const tick = "font-mono text-[11px]";
 
   const select = (id: string) => {
@@ -258,6 +309,8 @@ export function TradeoffMap() {
                 const x = sx(p.cost);
                 const y = sy(p.p95);
                 const active = p.runId === activeRunId;
+                const label = labels.get(p.runId);
+                const side = label?.anchor === "end" ? -1 : 1;
                 return (
                   <g key={p.runId}>
                     {active && <circle cx={x} cy={y} r={11} fill="none" stroke="var(--accent)" strokeWidth={1.5} />}
@@ -269,13 +322,25 @@ export function TradeoffMap() {
                     ) : (
                       <circle cx={x} cy={y} r={6} fill={p.pass === true ? "var(--accent)" : "var(--ink-3)"} stroke="var(--surface)" strokeWidth={2} />
                     )}
-                    {(showLabels || hover === p.runId) && (
+                    {label && (
                       <>
-                        {Math.abs((labelY.get(p.runId) ?? y) - y) > 3 && (
-                          <path d={`M${x + 5},${y} L${x + 9},${labelY.get(p.runId) ?? y}`} stroke="var(--line-strong)" strokeWidth={1} fill="none" />
+                        {Math.abs(label.y - (y - LABEL_LIFT)) > 3 && (
+                          <path d={`M${x + 5 * side},${y} L${x + 9 * side},${label.y}`} stroke="var(--line-strong)" strokeWidth={1} fill="none" />
                         )}
-                        <text x={x + 11} y={labelY.get(p.runId) ?? y} dy="0.32em" className="font-mono text-[11px]" fill="var(--ink-2)">
-                          {p.label.length > 26 ? `${p.label.slice(0, 25)}…` : p.label}
+                        {/* the halo keeps grid and objective lines from running through the text */}
+                        <text
+                          x={label.x}
+                          y={label.y}
+                          dy="0.32em"
+                          textAnchor={label.anchor}
+                          className="font-mono text-[11px]"
+                          fill="var(--ink-2)"
+                          stroke="var(--surface)"
+                          strokeWidth={3}
+                          strokeLinejoin="round"
+                          paintOrder="stroke"
+                        >
+                          {label.text}
                         </text>
                       </>
                     )}
