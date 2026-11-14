@@ -1,0 +1,116 @@
+{
+ "provider": "aws",
+ "region": "sample-1",
+ "sources": [
+  {
+   "name": "AWS Price List bulk API",
+   "url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/index.json"
+  }
+ ],
+ "note": "Offer file versions: AmazonEC2 20261001000000. AWS: sample \u2014 \u00e9t\u00e9",
+ "compute": [
+  {
+   "sku": "c4.large",
+   "family": "c4",
+   "vcpu": 2.0,
+   "memoryGib": 3.75,
+   "hourly": {
+    "on_demand": 0.1
+   }
+  },
+  {
+   "sku": "m7g.large",
+   "family": "m7g",
+   "vcpu": 2.0,
+   "memoryGib": 8.0,
+   "hourly": {
+    "on_demand": 0.0816
+   }
+  },
+  {
+   "sku": "m7g.xlarge",
+   "family": "m7g",
+   "vcpu": 4.0,
+   "memoryGib": 16.0,
+   "hourly": {
+    "on_demand": 0.1632
+   }
+  },
+  {
+   "sku": "t4g.large",
+   "family": "t4g",
+   "vcpu": 2.0,
+   "memoryGib": 8.0,
+   "hourly": {
+    "on_demand": 0.0672
+   },
+   "burstable": true,
+   "baselineCpu": 0.3,
+   "creditVcpuHour": 0.04
+  }
+ ],
+ "databases": [
+  {
+   "sku": "db.m7g.large",
+   "family": "m7g",
+   "vcpu": 2.0,
+   "memoryGib": 8.0,
+   "hourly": {
+    "on_demand": 0.168
+   },
+   "engines": [
+    "mysql",
+    "postgresql"
+   ]
+  },
+  {
+   "sku": "db.t4g.micro",
+   "family": "t4g",
+   "vcpu": 2.0,
+   "memoryGib": 1.0,
+   "hourly": {
+    "on_demand": 0.016
+   },
+   "engines": [
+    "postgresql"
+   ],
+   "burstable": true,
+   "baselineCpu": 0.1
+  }
+ ],
+ "caches": [
+  {
+   "sku": "cache.r7g.large",
+   "family": "r7g",
+   "vcpu": 2.0,
+   "memoryGib": 13.07,
+   "hourly": {
+    "on_demand": 0.274
+   },
+   "engines": [
+    "redis"
+   ]
+  },
+  {
+   "sku": "cache.r7g.large",
+   "family": "r7g",
+   "vcpu": 2.0,
+   "memoryGib": 13.07,
+   "hourly": {
+    "on_demand": 0.219
+   },
+   "engines": [
+    "valkey"
+   ]
+  }
+ ],
+ "streams": [],
+ "rates": {
+  "storageGibMonth": 0.08,
+  "serverlessPerMillionRequests": 0.2,
+  "serverlessGbSecond": 1.66667e-05
+ },
+ "format": "archsim.prices/1",
+ "currency": "USD",
+ "snapshotDate": "2026-11-14"
+}

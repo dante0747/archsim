@@ -1,0 +1,73 @@
+{
+ "provider": "azure",
+ "region": "eastus",
+ "sources": [
+  {
+   "name": "Azure Retail Prices API",
+   "url": "https://prices.azure.com/api/retail/prices"
+  }
+ ],
+ "note": "Memory per vCPU from each series' published ratio (D 4, E 8, F 2 GiB).",
+ "compute": [
+  {
+   "sku": "Standard_D96ds_v6",
+   "family": "Ddsv6",
+   "vcpu": 96,
+   "memoryGib": 384,
+   "hourly": {
+    "on_demand": 5.0347
+   }
+  },
+  {
+   "sku": "Standard_D2s_v5",
+   "family": "Dsv5",
+   "vcpu": 2,
+   "memoryGib": 8,
+   "hourly": {
+    "on_demand": 0.096
+   }
+  },
+  {
+   "sku": "Standard_D4s_v5",
+   "family": "Dsv5",
+   "vcpu": 4,
+   "memoryGib": 16,
+   "hourly": {
+    "on_demand": 0.192
+   }
+  },
+  {
+   "sku": "Standard_E8as_v5",
+   "family": "Easv5",
+   "vcpu": 8,
+   "memoryGib": 64,
+   "hourly": {
+    "on_demand": 0.452
+   }
+  },
+  {
+   "sku": "Standard_E8s_v5",
+   "family": "Esv5",
+   "vcpu": 8,
+   "memoryGib": 64,
+   "hourly": {
+    "on_demand": 0.504
+   }
+  },
+  {
+   "sku": "Standard_F4s_v2",
+   "family": "Fsv2",
+   "vcpu": 4,
+   "memoryGib": 8,
+   "hourly": {
+    "on_demand": 0.169
+   }
+  }
+ ],
+ "format": "archsim.prices/1",
+ "currency": "USD",
+ "snapshotDate": "2026-11-14",
+ "databases": [],
+ "caches": [],
+ "streams": []
+}

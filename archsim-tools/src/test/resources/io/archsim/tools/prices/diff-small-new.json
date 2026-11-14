@@ -1,0 +1,74 @@
+{
+ "provider": "aws",
+ "region": "sample-1",
+ "snapshotDate": "2026-11-01",
+ "sources": [
+  {
+   "name": "sample",
+   "url": "https://example.com"
+  },
+  {
+   "name": "other",
+   "url": "https://example.org"
+  }
+ ],
+ "compute": [
+  {
+   "sku": "x9.large",
+   "family": "x9",
+   "vcpu": 2,
+   "memoryGib": 8,
+   "hourly": {
+    "on_demand": 0.11
+   }
+  },
+  {
+   "sku": "y9.large",
+   "family": "y9",
+   "vcpu": 2,
+   "memoryGib": 8,
+   "hourly": {
+    "on_demand": 0.09
+   }
+  }
+ ],
+ "databases": [
+  {
+   "sku": "db.y9.large",
+   "family": "db",
+   "vcpu": 2,
+   "memoryGib": 8,
+   "hourly": {
+    "on_demand": 0.25
+   },
+   "engines": [
+    "postgresql"
+   ]
+  },
+  {
+   "sku": "db.y9.large",
+   "family": "db",
+   "vcpu": 2,
+   "memoryGib": 8,
+   "hourly": {
+    "on_demand": 0.24
+   },
+   "engines": [
+    "mariadb",
+    "mysql"
+   ]
+  },
+  {
+   "sku": "db.free.large",
+   "family": "db",
+   "vcpu": 2,
+   "memoryGib": 8,
+   "hourly": {
+    "on_demand": 0
+   }
+  }
+ ],
+ "rates": {
+  "storageGibMonth": 0.07
+ }
+}
