@@ -130,7 +130,7 @@ StatefulSets) or Mermaid, as reviewed starting points.
   per-component drill-down, Calculations and Request traces, and the assumptions behind every
   number. A Markdown report is one click away.
 
-![Results → Compare: monthly cost against p95 for every scenario of the Black Friday template at AWS us-east-1 prices, with the p95 objective line and a table of the options; every scenario costs the same $825 a month, so they stand in one column, and every one misses the objectives](images/tradeoffs.jpg)
+![Results → Compare for the Right-size a catalog API template at AWS us-east-1 prices: monthly cost against p95 for its six sizings, from two API VMs at $622 a month and 42.8 ms to a read replica at $799 and 16.5 ms. The Pareto frontier steps down from the cheapest through the design as drawn and more database memory to the bigger database; five API VMs cost more without being faster; only the bigger database (15.3 ms, $787) and the read replica meet the 25 ms objective. A table of the options follows](images/tradeoffs.jpg)
 
 **Calculations** shows the maths behind the numbers: each formula written out, again with the run's
 own values, and the result, next to what the simulation measured (utilization, Little's law, the
@@ -224,7 +224,7 @@ read-only copy of one run's results that anyone with the link can open. The endp
 - Projects live in PostgreSQL, documents import and export as versioned JSON, and every run stores
   its input, seed, engine version and result digest so it can be re-run and verified bit for bit.
 
-![The templates gallery in the dark theme: category filters with their counts (All 25) and search, and the featured Black Friday on Kubernetes template, marked Labs, drawn as logo tiles (Shoppers, Kong API gateway, Go checkout, Redis catalog cache, PostgreSQL orders, payments API) beside its description and Built with list](images/templates.jpg)
+![The templates gallery in the dark theme: its counts (25 templates, 124 scenarios to compare, 40 technologies used), category filters with theirs (All 25, Scale 3, Data 6 and more) and search, and the featured Black Friday on Kubernetes template, marked Labs, drawn as logo tiles (Shoppers, Kong API gateway, Go checkout, Redis catalog cache, PostgreSQL orders, payments API) beside its description and Built with list](images/templates.jpg)
 
 ## Scope and limitations
 
