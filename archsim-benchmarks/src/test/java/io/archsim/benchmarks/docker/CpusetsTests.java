@@ -1,7 +1,12 @@
 package io.archsim.benchmarks.docker;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
@@ -60,6 +65,31 @@ class CpusetsTests {
 			.toList();
 
 		assertThat(cpus).doesNotHaveDuplicates();
+	}
+
+	// calibration reads the service's CPUs against the /stats of the one k6 calls
+	@ParameterizedTest
+	@CsvSource({ "java-mixed, api-java, 2", "go-mixed, api-go, 2", "python-mixed, api-python, 2", "chain, gateway, 1" })
+	void of_aHeldOutStacksService_hasItsCpus(String stack, String service, int cpus) {
+		Map<String, String> sets = COMPOSE.of(stack, Map.of());
+
+		assertThat(Cpusets.count(Objects.requireNonNull(sets.get(service)))).isEqualTo(cpus);
+	}
+
+	// benchmark.yml shares the hosted runner's few CPUs out by naming every cpuset's
+	// variable: a container it missed would keep compose.yaml's default
+	@Test
+	void variables_theBenchmarkWorkflow_namesEveryOne() throws IOException {
+		Path workflow = RepositoryLayout.current().root().resolve(".github/workflows/benchmark.yml");
+		String loop = Files.readAllLines(workflow, StandardCharsets.UTF_8)
+			.stream()
+			.filter((line) -> line.contains("for name in") && line.contains("BENCH_CPUS_"))
+			.findFirst()
+			.orElseThrow();
+		String names = loop.substring(loop.indexOf("for name in") + "for name in".length(), loop.indexOf(';'));
+
+		assertThat(COMPOSE.variables()).map((variable) -> variable.substring("BENCH_CPUS_".length()))
+			.containsExactlyInAnyOrder(names.strip().split("\\s+"));
 	}
 
 	@Test

@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
@@ -34,6 +36,28 @@ class ExperimentsTests {
 
 		assertThat(registrations)
 			.containsExactly(new HeldOut("2026-10-30", "ce2d109d534b9a9cd18a4a42690b71dcf86342f4"));
+	}
+
+	@Test
+	void standard_theHeldOutExperiments_runOnFourRuntimesEachOnAStackOfItsOwn() {
+		List<Experiment> heldOut = EXPERIMENTS.all().stream().filter(Experiment::isHeldOut).toList();
+
+		assertThat(heldOut).extracting(Experiment::runtime).containsExactly("java", "go", "python", "nodejs", "nodejs");
+		assertThat(heldOut).allSatisfy((experiment) -> assertThat(EXPERIMENTS.stacks().get(experiment.stack()))
+			.containsExactly(experiment.id()));
+	}
+
+	// pg-mixed's workload on three more runtimes, and chain the same through a gateway
+	@ParameterizedTest
+	@ValueSource(strings = { "java-mixed", "go-mixed", "python-mixed", "chain" })
+	void get_aHeldOutRunOfPgMixedsWorkload_hasItsTrafficAndCalibration(String id) {
+		Experiment experiment = EXPERIMENTS.get(id);
+		Experiment pgMixed = EXPERIMENTS.get("pg-mixed");
+
+		assertThat(experiment)
+			.extracting(Experiment::mix, Experiment::readRatio, Experiment::keys, Experiment::skew,
+					Experiment::calibration)
+			.containsExactly(pgMixed.mix(), pgMixed.readRatio(), pgMixed.keys(), pgMixed.skew(), pgMixed.calibration());
 	}
 
 	@Test

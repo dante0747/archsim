@@ -10,8 +10,10 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.jspecify.annotations.Nullable;
 
@@ -58,6 +60,15 @@ public final class Cpusets {
 			throw new UncheckedIOException(ex);
 		}
 		return new Cpusets(declared);
+	}
+
+	/**
+	 * The variables that set the cpusets, one a container: {@code BENCH_CPUS_POSTGRES}
+	 * and the like, as a runner with other CPUs sets them.
+	 * @return the variables
+	 */
+	public Set<String> variables() {
+		return this.declared.values().stream().map(Declared::variable).collect(Collectors.toUnmodifiableSet());
 	}
 
 	/**
