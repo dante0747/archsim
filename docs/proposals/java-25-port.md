@@ -7,7 +7,9 @@ Stage 1 (the design model) is built and its exit check passes (see
 and its exit check passes (see
 [Stage 2](#stage-2--the-api-on-spring-boot-engine-still-python-12-weeks)). Stages 3 to 6 are
 built, and the port ends there; [where the port ended](#where-the-port-ended) sums it up.
-Stage 7, the benchmark harness, follows it.
+Stage 7, the benchmark harness and the repository's tooling, is built too (see
+[Stage 7](#stage-7--the-benchmark-harness-after-the-port)): no Python is left but the
+benchmarked stacks (their services and that service's own test) and three trial records.
 
 **Why:** the owner works in Java and wants to maintain ArchSim. This is a port, not a redesign of
 what ArchSim does: the simulation model, the design format and the web app's behaviour stay the
@@ -298,7 +300,9 @@ doesn't change.
     `parity/fixtures/`.
   - The harness takes its fits, machine speeds, means and the report's version from one
     long-lived Java process, `archsim functions`
-    ([ADR-0061](../adr/0061-answer-the-harnesss-engine-calls-from-one-java-process.md)), and
+    ([ADR-0061](../adr/0061-answer-the-harnesss-engine-calls-from-one-java-process.md); stage 7
+    removed it with the Python harness,
+    [ADR-0073](../adr/0073-remove-archsim-functions-with-the-python-harness.md)), and
     simulates on the Java engine only
     ([ADR-0062](../adr/0062-make-the-java-engine-the-harnesss-default.md)).
   - What else needed the Python engine moved to Java: the sizing audit and the checks against
@@ -356,7 +360,7 @@ doesn't change.
 - **Exit:** the harness runs from Gradle, and the last Python code is deleted.
 - **Also:** the repository's tooling in `scripts/` moves to Java or goes
   ([ADR-0064](../adr/0064-keep-python-only-for-the-harness-and-the-repositorys-tooling.md)).
-- **Decisions** (proposed, 13 Nov 2026): the harness is a module, `archsim-benchmarks`, calling
+- **Decisions** (13 Nov 2026, all accepted): the harness is a module, `archsim-benchmarks`, calling
   the engine in process, with its data left in `benchmarks/`
   ([ADR-0068](../adr/0068-port-the-harness-to-a-module-that-calls-the-engine-in-process.md));
   it runs as `./gradlew :archsim-benchmarks:run --args="<command>"`, with `run.py`'s command
@@ -397,12 +401,35 @@ doesn't change.
   cache-aside's runs 4 and 5, show a harness bug: a ladder that still met the objective at its
   top was extended, and each extension step was saved into the sealed file after the seal, so
   the file no longer matches it. S7-6 fixes it in the Java harness, test first.
+- **Built (14 Nov 2026):** in slices S7-1 to S7-9. The exit is met: the harness runs from Gradle,
+  and no Python is left but the benchmarked stacks (their services and that service's own test)
+  and the three trial records.
+  - **The harness** is `archsim-benchmarks`, with every command `run.py` had. Its tests
+    regenerate every kept run's comparison, the validation page, its charts, both
+    `accuracy.json` and the Java parity page from the committed results, byte for byte, and
+    refit the knee's range; its parity task (`./gradlew :archsim-benchmarks:parity`) checks
+    every kept run again on the engine, the 65 development checks and W27's checks on a host
+    machine all as recorded (117 tests, 18 minutes).
+    A smoke run on Docker passes all nine experiments (238 s on 14 Nov 2026).
+  - **The tooling** is `archsim-tools`: the commit messages' check, which the hook and CI's
+    `commits` job run from its source, CI's changed parts and the price refresh. The recorders
+    of CPython's behaviour retired; the tag `cpython-recorders` keeps them, with the Python
+    harness and the scripts.
+  - **Python removed:** `benchmarks/*.py` and their tests, ported to Java first; `scripts/`,
+    `pyproject.toml`, `uv.lock` and `.python-version`; CI's Python job and the Makefile's and
+    the workflows' uv steps. `archsim functions`, which only the Python harness called, left the
+    CLI ([ADR-0073](../adr/0073-remove-archsim-functions-with-the-python-harness.md)).
+  - **Open:** the price refresh has not run against live offer files
+    ([ADR-0072](../adr/0072-move-the-repositorys-tooling-to-java-and-retire-the-cpython-recorders.md)'s
+    note), and CI's Java steps for the commits, the changed parts, the benchmarks and the prices
+    have not run on GitHub while Actions cannot start jobs.
 
 ## Where the port ended
 
 - **In Java:** the design model, the engine (1.0.0), the API with its worker, seed and migrate
-  roles, the CLI, the MCP server and the `archsim-check` action's CLI. The web app stays Next.js
-  and talks to the Java API unchanged.
+  roles, the CLI, the MCP server and the `archsim-check` action's CLI; since stage 7, the
+  benchmark harness and the repository's tooling too. The web app stays Next.js and talks to the
+  Java API unchanged.
 - **Kept:** the design format (schema 1.7), the HTTP API's contract
   ([ADR-0034](../adr/0034-keep-the-fastapi-http-contract-in-spring-mvc.md)), the CLI's output
   ([ADR-0055](../adr/0055-the-java-clis-output-contract.md)) and the MCP tools. The Java
@@ -412,12 +439,14 @@ doesn't change.
   [archsim-app's README](../../archsim-app/README.md#differences-from-the-python-api), the
   CLI's in [archsim-cli's README](../../archsim-cli/README.md), and the Unicode version (Java
   25's 16.0 against Python 3.12's 15.0) in `IMPLEMENTATION_STATUS.md`'s known limitations.
-- **Still Python:** the benchmark harness (`benchmarks/`, stage 7) and the repository's scripts
-  (`scripts/`); the benchmarked stacks under `benchmarks/service-*` are what the harness measures,
-  not part of ArchSim.
+- **Still Python:** none of ArchSim or its tooling since stage 7. `benchmarks/service-python` is
+  one of the stacks the harness measures, not part of ArchSim: its service and that service's own
+  test, run by hand. Three trial records under `benchmarks/results/trials/` keep the scripts the
+  W23 and W26 trials ran, as recorded.
 - **Tags:** `engine-0.16.0` keeps the frozen engine, its MCP server and the Python API's tests;
   `alembic-0008` keeps the Alembic migrations, `archsim-api migrate` and the schema-snapshot
-  script.
+  script; `cpython-recorders` keeps the Python harness, the repository's scripts and the
+  recorders of CPython's own answers.
 - **Not done:** stage 0's exit was never run in full against the Python API, which is gone; the
   black-box suite passes in full against the Java API (137 tests). CI has not run on GitHub
   since Actions stopped starting jobs on 5 Nov 2026; every CI command runs locally.

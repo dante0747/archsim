@@ -1,13 +1,52 @@
 # Implementation status
 
-State as of 2026-11-12 (engine 1.0.0, the Java engine, which reproduces the frozen engine 0.16.0
-measured on the held-out experiments; schema 1.7, report 1.15; the API, the engine, the CLI and
-the MCP server in Java, and Python left only for the benchmark harness and the repository's
-scripts). This file separates what is implemented,
+State as of 2026-11-14 (engine 1.0.0, the Java engine, which reproduces the frozen engine 0.16.0
+measured on the held-out experiments; schema 1.7, report 1.15; the API, the engine, the CLI, the
+MCP server, the benchmark harness and the repository's tooling in Java, and no Python left but the
+benchmarked stacks and three trial records). This file separates what is implemented,
 how it was verified, what is known to be limited, and what comes next. Nothing listed under
 "Implemented" is a stub or a mock.
 
 ## Implemented and covered by automated tests
+
+**The benchmark harness and the repository's tooling in Java: stage 7 of the Java port
+(2026-11-14).**
+
+- The harness is `archsim-benchmarks`, which calls the engine in process
+  ([ADR 0068](docs/adr/0068-port-the-harness-to-a-module-that-calls-the-engine-in-process.md)),
+  runs as `./gradlew :archsim-benchmarks:run --args="<command>"` with `run.py`'s command names
+  ([ADR 0069](docs/adr/0069-run-the-harness-from-gradle-with-picocli-commands.md)), and writes
+  every file as the Python harness did, byte for byte
+  ([ADR 0070](docs/adr/0070-write-the-harnesss-files-as-python-wrote-them.md)), with Python's
+  statistics ported exactly ([ADR 0071](docs/adr/0071-python-statistics-in-the-harness.md)):
+  - `compare`, the reports and the Java parity page (`9d67b6ae`, `98513c1a`, `9f92296a`);
+  - the model inputs and the designs, simulated in process, `resimulate`, `resources` and the
+    knee's range (`04f1ff9e`, `3f04edbb`, `10d9a6e9`);
+  - `smoke`, then calibration, prediction and measurement on Docker, with the prediction seal's
+    fix (`9d014ee5`, `44174af8`); the load curve's log form, the fitted host, `envcheck` and
+    `contention` (`690c89a7`, `577d3aba`, `0b588837`);
+  - the Python harness's last tests, ported before it was deleted (`6f54456e`).
+- The tooling is `archsim-tools`
+  ([ADR 0072](docs/adr/0072-move-the-repositorys-tooling-to-java-and-retire-the-cpython-recorders.md)):
+  the commit messages' check, which the hook and CI's `commits` job run from its source
+  (`62c68ba4`), CI's changed parts (`fe749d6d`) and the price refresh (`aa1633e4`, `1634ba9e`).
+  The recorders of CPython's behaviour retired, and the archsim-check action's test is Java
+  (`335ffbd7`); the tag `cpython-recorders` keeps them, with the Python harness and the scripts.
+  The hook drops `JAVA_HOME`'s trailing separator, which Windows often adds, and its refusal of
+  an older Java names the folder whole under dash too (`b0b9a599`); the tooling's tests rerun
+  when CI's workflow or the check action changes (`79337fbe`).
+- Python is removed (`004950cb`, a breaking change): `benchmarks/*.py` and their tests,
+  `scripts/`, `pyproject.toml`, `uv.lock` and `.python-version`, CI's Python job, and the
+  Makefile's and the workflows' uv steps. `archsim functions`, which only the Python harness
+  called, left the CLI (`73fbedef`, a breaking change;
+  [ADR 0073](docs/adr/0073-remove-archsim-functions-with-the-python-harness.md)). No Python is
+  left but the benchmarked stacks (their services and `service-python`'s own test of its shared
+  statistics, run by hand) and the three trial records.
+- The exit, on 14 Nov 2026: `./gradlew build` passes (15,032 tests, 16 skipped: the
+  archsim-check action's Linux-only tests and an engine test Windows cannot run); the parity task
+  checks every kept run again, the 65 development checks and W27's checks on a host machine all
+  as recorded (117 tests); a smoke run passes all nine experiments on Docker (238 s); and the web
+  app's lint, build, type check and tests (334) pass.
 
 **After the port: sign-in on Spring Security
 ([ADR 0065](docs/adr/0065-move-sign-in-to-spring-security-after-the-port.md)), a plain database
@@ -2079,9 +2118,9 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
   not measured in a visible window.
 - Technology presets are illustrative starting points, not vendor benchmarks. Prices are AWS
   us-east-1 on-demand list prices for templates and new projects (other regions and providers
-  have scripts but no shipped snapshot), and generic illustrative rates for documents without a
-  snapshot; neither includes discounts, savings plans, data transfer, load balancer capacity
-  units or multi-AZ pricing. See [docs/pricing.md](docs/pricing.md).
+  have refresh commands but no shipped snapshot), and generic illustrative rates for documents
+  without a snapshot; neither includes discounts, savings plans, data transfer, load balancer
+  capacity units or multi-AZ pricing. See [docs/pricing.md](docs/pricing.md).
 - The breaking-point sweep uses short steps: autoscaled services start each step at their
   configured replica count, so it measures capacity before the scaler reacts (the page says
   so).
@@ -2134,15 +2173,15 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 
 ## Next steps
 
-1. The Java 25 port ([proposal](docs/proposals/java-25-port.md), ADRs 0005–0016): stages 0–6
-   are built (engine 1.0.0; everything ArchSim ships in Java, and Python left for the benchmark
-   harness and the scripts). Next, before anything is published, the owner's review: ADR 0063,
-   sign-in on Spring Security (ADR 0065), and what `docs/proposals/java-25-port.md`'s "where the
-   port ended" lists. Stage 7, the harness in Java, follows. Its price refresh (archsim-tools'
-   `prices`) has not run against live offer files yet: until `aws.py` and `prices aws` have run
-   on the same cached files, the first real refresh (`prices.yml`, idle while Actions cannot
-   start jobs) is that check, and its snapshot is compared with the shipped one before it is
-   taken (ADR-0072).
+1. The Java 25 port ([proposal](docs/proposals/java-25-port.md), ADRs 0005–0016): stages 0–7
+   are built (engine 1.0.0; everything ArchSim ships, its benchmark harness and its tooling in
+   Java, and no Python left but the benchmarked stacks and three trial records). Next, before
+   anything is published, the owner's review: ADR 0063, sign-in on Spring Security (ADR 0065),
+   and what `docs/proposals/java-25-port.md`'s "where the port ended" lists. The price refresh
+   (archsim-tools' `prices`) has not run against live offer files yet: until `aws.py`, from the
+   tag `cpython-recorders`, and `prices aws` have run on the same cached files, the first real
+   refresh (`prices.yml`, idle while Actions cannot start jobs) is that check, and its snapshot
+   is compared with the shipped one before it is taken (ADR-0072).
 2. W25 (accuracy over time on /accuracy). Engine 0.14.0 did not predict the held-out
    experiments before they were measured (the harness can't predict with a second engine), so a
    before-and-after on them can only re-simulate 0.14.0, labelled as such.
