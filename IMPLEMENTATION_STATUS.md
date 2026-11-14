@@ -2079,13 +2079,15 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
   those scripts match `\w` and change case where Python's did not. `repr()` already follows
   Python's own table. Matching would take Python's Unicode 15.0 tables for digits, letters and
   case; only text in scripts encoded in 2023 and 2024 is affected.
-- A service's CPU per request is one number at every rate, but a real Node.js event loop gets
-  cheaper per request as load rises (0.48 to 0.21 ms in pg-mixed). W17's fit weights it toward
-  the busiest times, so light-load CPU reads low (0.13 cores against 0.27 at 560 req/s), and in
-  the benchmarks the predicted knee is one core divided by the calibrated cost, which is why
-  three of four under-predict capacity. Calibration notes when the quiet and busy quarters of
-  the range differ by more than 25%. Caches have no CPU share yet (Redis used about 8x its
-  command time).
+- A service's CPU per request follows its calibrated load curve (`serviceTimeByLoad`) only
+  inside the measured range: above it the last point's cost holds, although real stacks often
+  keep getting cheaper, so calibrate up to the load you size for
+  ([docs/simulation-model.md](docs/simulation-model.md)). A part without that setting keeps one
+  CPU cost per request, weighted to the busiest times, and calibration notes when that cost
+  changes with load. In the benchmarks this is why cache-aside's knee is predicted 23% low
+  (median, tuned on), and pg-mixed's latency climbs before its core fills (+16%); see
+  [Where the model is wrong, and why](docs/validation.md#where-the-model-is-wrong-and-why). The
+  Kafka broker and its consumers have no CPU or memory in the model.
 - Still open after the review fixes: sampled mode checks the
   2M request limit against the full run, so the CLI and MCP refuse the 6M-request design
   (`scripts/perf.py` ran it on the Python engine with the limit raised; it has not been run on
@@ -2105,11 +2107,14 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 - Calibration fits one time range at a time (peaks and quiet periods blend unless you pick
   the range), needs a hand-written mapping and reads OTLP as JSON only (not protobuf);
   histogram buckets limit how precise the fitted quantiles are. See [docs/calibration.md](docs/calibration.md).
-- Only a core set of technologies is ArchSim's focus, and none is validated yet: on one
-  machine and one run, the benchmarks (docs/validation.md) put the knee error at -10%
-  (pg-mixed), -14% (cache-aside), +6% (Kafka) and +97% (hot-row), inside run-to-run noise and
-  short of the proposed thresholds; the others are marked experimental. docs/assumptions.md
-  lists every illustrative number.
+- Only a core set of technologies is ArchSim's focus, and none is validated yet; the others are
+  marked experimental. On one laptop, three to six runs per experiment, the median error in the
+  predicted knee is -6% to +70% on the five held-out experiments, four of which over-predict
+  capacity (java-mixed +70%, go-mixed +67%, chain +30%, python-mixed +29%; cache-ttl -6%), and
+  -23% to +16% on the four tuned on (Kafka -3%, pg-hot-row -10%, pg-mixed +16%, cache-aside
+  -23%). No experiment meets every proposed tier threshold: criterion 3b needs a second machine
+  ([docs/validation.md](docs/validation.md)). [docs/assumptions.md](docs/assumptions.md) lists
+  every illustrative number.
 - Technology behaviour uses documented defaults where vendors publish them; GC pauses, JIT
   warm-up, per-runtime cold starts, replica replay cost and log flush times are illustrative
   typical values (labelled in the UI), not measurements. Row locks follow the workload's Zipf
