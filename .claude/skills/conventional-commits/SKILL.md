@@ -28,7 +28,7 @@ type(scope)!: description of a breaking change
   | `docs` | documentation only (including ADRs) |
   | `style` | formatting only, no code change |
   | `perf` | faster or leaner, same behaviour |
-  | `build` | the build, dependencies, Gradle, uv, npm |
+  | `build` | the build, dependencies, Gradle, npm |
   | `ci` | CI workflows |
   | `chore` | anything else that ships nothing (tooling, housekeeping) |
   | `revert` | reverting an earlier commit |
