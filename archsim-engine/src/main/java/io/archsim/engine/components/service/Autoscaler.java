@@ -6,7 +6,6 @@ import java.util.Optional;
 import io.archsim.engine.kernel.Simulation;
 import io.archsim.engine.metrics.Gauge;
 import io.archsim.engine.numeric.FloatSum;
-import io.archsim.model.component.service.ServiceConfig;
 
 /**
  * An autoscaling service's control loop, as a Kubernetes HPA scales: every interval it
@@ -26,9 +25,6 @@ final class Autoscaler {
 	static final String SCALE_DOWNS = "scaleDowns";
 
 	private static final double MS_PER_SECOND = 1000.0;
-
-	/** Absorbs floating-point error in the wanted replicas, as the Python engine does. */
-	private static final double ROUNDING_TOLERANCE = 1e-9;
 
 	/** The low readings in a row that scale down. */
 	private static final int LOW_READINGS_TO_SCALE_DOWN = 3;
@@ -98,10 +94,7 @@ final class Autoscaler {
 
 	// the replicas wanted at a utilization, within the service's bounds
 	private int wanted(double utilization, int active) {
-		ServiceConfig config = this.service.config();
-		int wanted = (utilization > 0)
-				? (int) Math.ceil(active * utilization / config.targetUtilization() - ROUNDING_TOLERANCE) : 0;
-		return Math.min(Math.max(wanted, config.minReplicas()), config.maxReplicas());
+		return this.service.config().wantedReplicas(active * utilization);
 	}
 
 	// the busy handlers over the handlers taking requests since the last evaluation; with

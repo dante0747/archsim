@@ -51,6 +51,22 @@ describe("decision report", () => {
     expect(md).toContain("Error budget: 10 failed requests against 20 allowed");
   });
 
+  it("prices an hour at the peak beside the month billed at the base load", () => {
+    const report = fakeReport();
+    report.cost = {
+      monthly: 824.8,
+      perMillionRequests: 1.06,
+      hourly: { base: 1.13, peak: 1.65 },
+      byNode: [],
+      notes: [],
+      hasCost: true,
+    };
+
+    const md = decisionReportMarkdown({ doc, catalog, objectives: {}, report, run: { label: "Baseline" } as never });
+
+    expect(md).toContain("Total $825 per month (730 hours). $1.06 per million successful requests. An hour at the peak costs $1.65, against $1.13 at the base load.");
+  });
+
   it("marks experimental technologies in the design and the assumptions", () => {
     expect(decisionReportMarkdown({ doc, catalog, objectives: {} })).not.toContain("xperimental");
     const mongo = structuredClone(doc);

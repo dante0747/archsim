@@ -16,6 +16,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import picocli.CommandLine;
 
 import io.archsim.benchmarks.results.ResultFiles;
+import io.archsim.engine.version.EngineVersions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -76,7 +77,8 @@ class BenchmarksTests {
 
 		assertThat(exitCode).isZero();
 		assertThat(out.toString().lines()).last()
-			.isEqualTo("[12:34:56] wrote benchmarks/results/dev/1.0.0/kafka/2026-10-30T11-20-01Z.json");
+			.isEqualTo("[12:34:56] wrote benchmarks/results/dev/" + EngineVersions.ENGINE
+					+ "/kafka/2026-10-30T11-20-01Z.json");
 	}
 
 	@ParameterizedTest
@@ -100,9 +102,9 @@ class BenchmarksTests {
 		assertThat(exitCode).isZero();
 		assertThat(ResultFiles.read(root.resolve("benchmarks/knee-range.json")).orElseThrow().get("runs").intValue())
 			.isZero();
-		assertThat(out.toString().lines()).startsWith(
-				"[12:34:56] range fit, engine 1.0.0: 0 calibrations, 0 with engine 1.0.0's development checks, 0 to "
-						+ "derive (or in the cache)")
+		assertThat(out.toString().lines())
+			.startsWith("[12:34:56] range fit, engine " + EngineVersions.ENGINE + ": 0 calibrations, 0 with engine "
+					+ EngineVersions.ENGINE + "'s development checks, 0 to derive (or in the cache)")
 			.endsWith("[12:34:56] range fit: inSample: 0 of 0 runs inside the 80% range",
 					"[12:34:56] range fit: leaveRunOut: 0 of 0 runs inside the 80% range",
 					"[12:34:56] range fit: leaveExperimentOut: 0 of 0 runs inside the 80% range",

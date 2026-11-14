@@ -64,10 +64,10 @@ final class CostNotes {
 				+ NumberText.plain(GenericRates.STORAGE_GIB_MONTH) + " per GiB-month of storage).";
 	}
 
-	private static String perRequest(double baseRps, BaseLoad base) {
+	private static String perRequest(double baseRps, LevelLoad base) {
 		String how = switch (base) {
-			case BaseLoad.Estimated _ -> ESTIMATED;
-			case BaseLoad.Measured _ -> MEASURED;
+			case LevelLoad.Estimated _ -> ESTIMATED;
+			case LevelLoad.Measured _ -> MEASURED;
 		};
 		return "Per-request prices and cost per request are at the steady base load of " + HalfUp.fixed(baseRps, 1)
 				+ " req/s as if it lasted all " + CostEstimator.HOURS_PER_MONTH + " hours of a month: " + how
@@ -94,7 +94,7 @@ final class CostNotes {
 	 * cost per million requests is known
 	 * @param base each part's usage at the base load: estimated, or measured in a run
 	 */
-	record Context(PriceSnapshot snapshot, String option, double baseRps, boolean perRequest, BaseLoad base) {
+	record Context(PriceSnapshot snapshot, String option, double baseRps, boolean perRequest, LevelLoad base) {
 	}
 
 }

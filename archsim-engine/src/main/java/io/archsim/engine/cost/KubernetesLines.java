@@ -63,8 +63,8 @@ final class KubernetesLines {
 	 * @return its line, free
 	 */
 	static CostLine onCluster(CostPart part, String cluster) {
-		return new CostLine(part.id(), part.label(), part.type(), part.technology(), 0, null, null, CostUnit.HOUR, 0.0,
-				"runs on " + cluster, null, null, null, null, null);
+		return new CostLine(part.id(), part.label(), part.type(), part.technology(), 0, null, null, null, CostUnit.HOUR,
+				0.0, "runs on " + cluster, null, null, null, null, null);
 	}
 
 	/**
@@ -80,7 +80,7 @@ final class KubernetesLines {
 		String basis = count.basis().replace("replica", "pod") + " on implied " + pods.sku().sku()
 				+ " nodes (no cluster in the design): " + HalfUp.fixed(pods.share(), 2) + " of a node each, "
 				+ CostText.percent(CostEstimator.KUBERNETES_ALLOCATABLE) + " of a node allocatable";
-		return new CostLine(part.id(), part.label(), part.type(), part.technology(), count.count(), unitPrice,
+		return new CostLine(part.id(), part.label(), part.type(), part.technology(), count.count(), null, unitPrice,
 				PriceBasis.SNAPSHOT, CostUnit.HOUR, pods.perHour() * count.count() * CostEstimator.HOURS_PER_MONTH,
 				basis, null, null, pods.sku().sku(), snapshotDate, null);
 	}
@@ -93,7 +93,7 @@ final class KubernetesLines {
 	 */
 	static CostLine controlPlane(double plane, @Nullable String snapshotDate) {
 		return new CostLine("kubernetes-control-plane", "Kubernetes control plane", KubernetesClusterSpec.TYPE, null, 1,
-				plane, PriceBasis.SNAPSHOT, CostUnit.HOUR, plane * CostEstimator.HOURS_PER_MONTH,
+				null, plane, PriceBasis.SNAPSHOT, CostUnit.HOUR, plane * CostEstimator.HOURS_PER_MONTH,
 				"1 managed control plane, for the pods without a cluster in the design", null, null, null, snapshotDate,
 				List.of(CostItem.of("control plane-hours", CostEstimator.HOURS_PER_MONTH, plane, "hour")));
 	}

@@ -8,7 +8,7 @@ import { SINGLE_SERIES } from "@/components/results/charts";
 import { Button } from "@/components/ui/button";
 import { TierBadge } from "@/components/ui/TierBadge";
 import { SignOffPanel } from "@/components/team/SignOff";
-import { formatUsd, priceSource } from "@/lib/cost";
+import { formatUsd, peakCount, peakHour, priceSource } from "@/lib/cost";
 import { fmtPct, fmtRps } from "@/lib/format";
 import { type SloCheck, type SloKey, evaluateSlo, formatSloValue, sloChecks } from "@/lib/slo";
 import type { Objectives, Report } from "@/lib/types";
@@ -170,6 +170,7 @@ function CostPanel({ report }: { report: Report }) {
   }
   const max = Math.max(...cost.byNode.map((c) => c.monthly), 1e-9);
   const source = priceSource(cost);
+  const hour = peakHour(cost);
   return (
     <Panel title="Cost per month">
       {!cost.hasCost ? (
@@ -192,6 +193,16 @@ function CostPanel({ report }: { report: Report }) {
             Prices: <span className={cn("font-mono", source.illustrative ? "text-ink-3" : "text-ink")}>{source.label}</span>
             {!source.illustrative && <span className="text-ink-3"> · on-demand list prices</span>}
           </p>
+          {hour && (
+            <p
+              className="mt-1 text-xs text-ink-2"
+              data-testid="cost-peak-hour"
+              title="The month is billed at the steady base load. At the peak, autoscaled parts run more instances and per-request parts handle more requests."
+            >
+              An hour at the peak: <span className="tabular font-mono text-ink">{formatUsd(hour.peak)}</span>
+              <span className="text-ink-3"> · {formatUsd(hour.base)} at the base load</span>
+            </p>
+          )}
           <ul className="mt-4 space-y-2.5" aria-label="Cost by component">
             {cost.byNode.map((c) => (
               <li key={c.id}>
@@ -234,6 +245,11 @@ function CostPanel({ report }: { report: Report }) {
                     {c.basis}
                   </span>
                 </div>
+                {peakCount(c) && (
+                  <p className="mt-0.5 text-right font-mono text-[11px] leading-4 text-ink-3" data-testid="cost-peak-count">
+                    {peakCount(c)}
+                  </p>
+                )}
                 {c.items && c.items.length > 0 && (
                   <p className="mt-0.5 font-mono text-[11px] leading-4 text-ink-3" data-testid="cost-units" title={c.basis}>
                     {c.items.map((i) => i.text).join(" + ")}

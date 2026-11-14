@@ -157,6 +157,10 @@
   "cost": {
     "monthly": 333.61,
     "perMillionRequests": null,
+    "hourly": {
+      "base": 0.457,
+      "peak": 0.457
+    },
     "byNode": [
       {
         "id": "api",
@@ -164,6 +168,7 @@
         "type": "service",
         "technology": "generic",
         "instances": 2.0,
+        "peakInstances": 2.0,
         "unitPrice": 0.136,
         "priceSource": "snapshot",
         "unit": "hour",
@@ -178,6 +183,7 @@
         "type": "database",
         "technology": "postgresql",
         "instances": 1.0,
+        "peakInstances": 1.0,
         "unitPrice": 0.1606,
         "priceSource": "snapshot",
         "unit": "hour",
@@ -192,6 +198,7 @@
         "type": "cache",
         "technology": "redis",
         "instances": 1.0,
+        "peakInstances": 1.0,
         "unitPrice": 0.016,
         "priceSource": "snapshot",
         "unit": "hour",
@@ -206,6 +213,7 @@
         "type": "load_balancer",
         "technology": "generic",
         "instances": 1.0,
+        "peakInstances": 1.0,
         "unitPrice": 0.0084,
         "priceSource": "snapshot",
         "unit": "hour",

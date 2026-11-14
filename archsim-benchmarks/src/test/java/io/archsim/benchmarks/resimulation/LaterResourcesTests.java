@@ -19,6 +19,7 @@ import io.archsim.benchmarks.HarnessLog;
 import io.archsim.benchmarks.RepositoryLayout;
 import io.archsim.benchmarks.designs.Simulations;
 import io.archsim.benchmarks.results.ResultFiles;
+import io.archsim.engine.version.EngineVersions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -62,7 +63,7 @@ class LaterResourcesTests {
 		JsonNode file = ResultFiles.read(results.resolve("cache-ttl/resources-predicted.json")).orElseThrow();
 		assertThat(file.get("experiment").stringValue()).isEqualTo("cache-ttl");
 		assertThat(file.get("at").stringValue()).isEqualTo("2026-11-13T12:34:56Z");
-		assertThat(file.get("engineVersion").stringValue()).isEqualTo("1.0.0");
+		assertThat(file.get("engineVersion").stringValue()).isEqualTo(EngineVersions.ENGINE);
 	}
 
 	@Test

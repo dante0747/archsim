@@ -29,7 +29,7 @@ final class SnapshotLines {
 	 * @return the line, priced by the snapshot
 	 */
 	CostLine line(CostPart part, Billing billing, String basis, List<CostItem> items) {
-		return new CostLine(part.id(), part.label(), part.type(), part.technology(), billing.instances(),
+		return new CostLine(part.id(), part.label(), part.type(), part.technology(), billing.instances(), null,
 				billing.unitPrice(), PriceBasis.SNAPSHOT, billing.unit(), billing.monthly(), basis, null, null, null,
 				this.snapshotDate, items);
 	}

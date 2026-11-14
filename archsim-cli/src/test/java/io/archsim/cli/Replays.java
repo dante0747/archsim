@@ -11,8 +11,10 @@ import org.junit.jupiter.api.DynamicTest;
 import tools.jackson.core.json.JsonReadFeature;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.cli.RecordedCases.Ran;
+import io.archsim.engine.parity.CostDepartures;
 import io.archsim.model.text.PythonJson;
 import io.archsim.parity.JsonDiff;
 
@@ -22,8 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * The recorded cases of a command ({@link RecordedCases}) as tests: Java must do what the
  * frozen engine's CLI did, word for word in its lines; its JSON with the same values as
  * the golden files compare them ({@link JsonDiff}: numbers to a relative 1e-9, an integer
- * and a float alike, keys in any order), laid out as {@code json.dumps(value, indent=2)}
- * lays it out.
+ * and a float alike, keys in any order; a cost as {@link CostDepartures} compares one,
+ * ADR-0074), laid out as {@code json.dumps(value, indent=2)} lays it out.
  */
 final class Replays {
 
@@ -31,6 +33,8 @@ final class Replays {
 	private static final JsonMapper JSON = JsonMapper.builder()
 		.enable(JsonReadFeature.ALLOW_NON_NUMERIC_NUMBERS)
 		.build();
+
+	private static final String COST = "cost";
 
 	private Replays() {
 	}
@@ -132,12 +136,24 @@ final class Replays {
 		}
 		JsonNode expected = JSON.readTree(python);
 		JsonNode printed = JSON.readTree(text);
+		JsonNode compared = withCostAsFrozen(expected, printed);
 		// both NaN is the same value: json.dumps and Java print it alike, but the golden
 		// files' comparison, like Python's, finds NaN unequal to itself
-		assertThat(JsonDiff.differences(expected, printed))
-			.filteredOn((pointer) -> !(isNan(expected.at(pointer)) && isNan(printed.at(pointer))))
+		assertThat(JsonDiff.differences(expected, compared))
+			.filteredOn((pointer) -> !(isNan(expected.at(pointer)) && isNan(compared.at(pointer))))
 			.isEmpty();
 		assertThat(text).isEqualTo(PythonJson.writeIndented(printed, indent(python)) + "\n");
+	}
+
+	// a design's analysis or a run's report holds a cost, compared with its departures
+	// put back
+	private static JsonNode withCostAsFrozen(JsonNode expected, JsonNode printed) {
+		if (!(printed instanceof ObjectNode object) || !object.path(COST).isObject()) {
+			return printed;
+		}
+		ObjectNode copy = object.deepCopy();
+		copy.set(COST, CostDepartures.comparable(expected.path(COST), object.path(COST), Map.of()));
+		return copy;
 	}
 
 	private static boolean isNan(JsonNode value) {

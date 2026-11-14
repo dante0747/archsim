@@ -87,6 +87,36 @@ measured while the offered load was at the base, scaled to it exactly, so fan-ou
 and retries are kept but a burst's retries are not; before one, the static load estimate at the
 base rate, so a design is priced before it runs.
 
+### What a month is
+
+The monthly cost is 730 hours at the workload's steady base load: a constant pattern's rate, a
+burst's rate outside the burst, a ramp's low end, a trace's median. The peak is priced beside it
+([ADR-0074](adr/0074-bill-the-peak-for-the-hours-a-month-it-lasts.md)): `cost.hourly` has an hour
+at the base load (`base`, the month ÷ 730) and an hour at the pattern's peak (`peak`: a burst's
+rate, a ramp's high end, a trace's highest point), and each cost line's `peakInstances` its
+instances there. An hour at the peak is priced as the base is: after a run, each part's rate
+measured while the offered load was at the peak, scaled to it; before one, the static load
+estimate at the peak rate; and a burstable type's surplus CPU credits for the cores it keeps busy
+at the peak, as if it had no credits saved.
+
+A part that scales is billed at each load the count it settles at once that load holds:
+
+- **An autoscaled service**: the replicas its autoscaler wants there, as a Kubernetes HPA computes
+  them, the work in busy replicas (the larger of its slots' and its CPU's utilization × its
+  replicas) ÷ `targetUtilization`, rounded up, within `minReplicas`–`maxReplicas`. The busy
+  replicas per request are what the run measured (before a run, what the instant estimate gives),
+  times the part's requests at that load. A service that starts above its minimum is billed its
+  minimum at a light base load, not the count it starts with.
+- **A Kubernetes cluster with its autoscaler**: the nodes its pods at that load need, packed first
+  fit, the largest first, as the cluster autoscaler packs them, within `minNodes`–`maxNodes`.
+  Without its autoscaler, its `nodes`.
+- **A serverless function**: per invocation; with no rate for it, its average concurrency in the
+  run, scaled to the load.
+
+Black Friday on Kubernetes (`examples/black-friday-kubernetes.json`, 300 → 1,500 req/s): the HPA
+design and the `fixed-pods` scenario both cost $824.80 a month, the checkout on its 3 pods at the
+base load; an hour at the peak shows what the HPA adds there.
+
 **Checked by hand**, the serverless template (150 req/s with a burst to 1,500): DynamoDB with
 100 RCU and 60 WCU provisioned is 100 × $0.00013 × 730 + 60 × $0.00065 × 730 = $37.96 a month;
 the function at 150 invocations/s, 1,769 MB (1 vCPU) and about 40 ms each at the base load is

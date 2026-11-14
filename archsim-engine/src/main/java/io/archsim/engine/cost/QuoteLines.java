@@ -24,12 +24,12 @@ final class QuoteLines {
 	 * @param part the part
 	 * @param quote its price per instance-hour
 	 * @param count its billable instances
-	 * @param context the snapshot and the part's CPU at the base load
+	 * @param context the snapshot and the part's CPU at the load
 	 * @return the line
 	 */
 	static CostLine of(CostPart part, Quote quote, InstanceCount count, Context context) {
 		Credits credits = (quote.basis() == PriceBasis.SNAPSHOT)
-				? Credits.of(sku(context.snapshot(), quote.sku()), context.baseBusy(), count.count()) : null;
+				? Credits.of(sku(context.snapshot(), quote.sku()), context.busy(), count.count()) : null;
 		String note = note(part, quote, credits, context.snapshot());
 		double monthly = hourly(quote, count) + ((credits != null) ? credits.monthly() : 0.0);
 		String basis = count.basis() + ((note != null) ? "; " + note : "");
@@ -41,7 +41,7 @@ final class QuoteLines {
 			monthly += planeMonthly;
 			basis += "; + its managed control plane at $" + NumberText.plain(plane) + "/h";
 		}
-		return new CostLine(part.id(), part.label(), part.type(), part.technology(), count.count(), quote.price(),
+		return new CostLine(part.id(), part.label(), part.type(), part.technology(), count.count(), null, quote.price(),
 				quote.basis(), CostUnit.HOUR, monthly, basis, surplus(credits), planeMonthly, quote.sku(),
 				(quote.sku() != null) ? context.snapshot().snapshotDate() : null, null);
 	}
@@ -115,10 +115,10 @@ final class QuoteLines {
 	 * What a line is priced with.
 	 *
 	 * @param snapshot the price snapshot
-	 * @param baseBusy the CPU cores one instance keeps busy at the base load;
-	 * {@code null} when unknown
+	 * @param busy the CPU cores one instance keeps busy at the load; {@code null} when
+	 * unknown
 	 */
-	record Context(PriceSnapshot snapshot, @Nullable Double baseBusy) {
+	record Context(PriceSnapshot snapshot, @Nullable Double busy) {
 	}
 
 }

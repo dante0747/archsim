@@ -15,9 +15,10 @@ import tools.jackson.databind.json.JsonMapper;
 
 import io.archsim.engine.estimate.InstantEstimate;
 import io.archsim.engine.estimate.InstantEstimator;
+import io.archsim.engine.parity.CostDepartures;
 import io.archsim.engine.report.RunReport;
 import io.archsim.engine.scenario.ScenarioResolver;
-import io.archsim.engine.sizing.BaseBusy;
+import io.archsim.engine.sizing.CoresBusy;
 import io.archsim.engine.sizing.PartSize;
 import io.archsim.model.DesignDocuments;
 import io.archsim.model.codec.RecordCodec;
@@ -38,7 +39,8 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
  * in {@code cases.json} (recorded from the frozen engine by
  * {@code scripts/export_cost_cases.py}, since deleted) holds the design, the design as
  * simulated, and the cost and sizing summary the Python engine 0.16.0 gives, worked out
- * as its {@code analyze_document} does; the Java must match them as the golden files do.
+ * as its {@code analyze_document} does; the Java must match them as the golden files do,
+ * its cost compared as {@link CostDepartures} compares one (ADR-0074).
  * {@code SizingSummariesTests} checks the summaries. A cost after a run is checked with
  * the report functions; here only what it refuses.
  */
@@ -69,9 +71,11 @@ class CostEstimatorTests {
 		return cases().valueStream().map((entry) -> DynamicTest.dynamicTest(entry.path("name").asString(), () -> {
 			Inputs inputs = inputs(entry);
 			CostEstimate cost = this.costs.estimate(inputs.resolved(), provenance(inputs.resolved()),
-					BaseBusy.of(inputs.sizes()), inputs.estimate());
+					CoresBusy.of(inputs.sizes()), inputs.estimate());
 
-			assertThat(JsonDiff.differences(entry.path("cost"), RecordCodec.write(cost))).isEmpty();
+			assertThat(JsonDiff.differences(entry.path("cost"),
+					CostDepartures.comparable(entry.path("cost"), RecordCodec.write(cost), Map.of())))
+				.isEmpty();
 		}));
 	}
 
@@ -81,7 +85,7 @@ class CostEstimatorTests {
 		RunReport report = RunReport.read(JSON.readTree(REPORT_WITHOUT_PARTS));
 
 		assertThatIllegalArgumentException()
-			.isThrownBy(() -> this.costs.estimateAfterRun(design, Map.of(), Map.of(), report))
+			.isThrownBy(() -> this.costs.estimateAfterRun(design, Map.of(), BusyCores.none(), report))
 			.withMessage("a run's report lists the parts of the design it ran");
 	}
 

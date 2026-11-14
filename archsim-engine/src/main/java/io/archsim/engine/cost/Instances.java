@@ -53,25 +53,21 @@ final class Instances {
 	}
 
 	/**
-	 * The billable instances of a part in a run: an autoscaled service's or cluster's
-	 * average active instances times the scale, at least its minimum; any other part's as
-	 * before a run.
+	 * The billable instances of a part in a run: a serverless function's average active
+	 * instances times the load's scale, at least its replicas; any other part's as before
+	 * a run. An autoscaled service and a cluster are billed their {@link SettledCounts}
+	 * instead.
 	 * @param part the part
 	 * @param registry the component types, for the part's family
-	 * @param measured the part in the run's report; {@code null} when the report does not
-	 * have it
-	 * @param scale the base load ÷ the run's offered load
+	 * @param load the load in the run: its level, the run's report and the scale to it
 	 * @return its instances and how they were counted
 	 */
-	static InstanceCount of(CostPart part, ComponentRegistry registry, @Nullable ReportNode measured, double scale) {
-		if (measured != null) {
-			Optional<InstanceCount> averaged = switch (part.type()) {
-				case ServiceSpec.TYPE ->
-					averaged(measured.series("replicas"), part.valueNumber("replicas"), scale, "active instance");
-				case KubernetesClusterSpec.TYPE ->
-					averaged(measured.series("nodes"), part.valueNumber("minNodes"), scale, "node");
-				default -> Optional.empty();
-			};
+	static InstanceCount of(CostPart part, ComponentRegistry registry, LevelLoad.Measured load) {
+		@Nullable ReportNode measured = load.run().report().node(part.id()).orElse(null);
+		if (measured != null && ServiceSpec.TYPE.equals(part.type())) {
+			double scale = (load.run().scale() != 0) ? load.run().scale() : 1.0;
+			Optional<InstanceCount> averaged = averaged(measured.series("replicas"), part.valueNumber("replicas"),
+					scale, load.level());
 			if (averaged.isPresent()) {
 				return averaged.get();
 			}
@@ -80,26 +76,27 @@ final class Instances {
 	}
 
 	/**
-	 * A part's average active instances in a run, scaled to the base load.
+	 * A function's average active instances in a run, scaled to a load.
 	 * @param series its active instances per time bucket
 	 * @param minimum the fewest it runs; {@code null} when unset
-	 * @param scale the base load ÷ the run's offered load
-	 * @param word what an instance is called, such as {@code node}
+	 * @param scale the load's rate ÷ the run's offered load
+	 * @param level the load
 	 * @return the instances; empty when the run measured none
 	 */
 	private static Optional<InstanceCount> averaged(List<@Nullable Double> series, @Nullable Double minimum,
-			double scale, String word) {
+			double scale, LoadLevel level) {
 		List<Double> measured = series.stream().filter(Objects::nonNull).toList();
 		if (measured.isEmpty()) {
 			return Optional.empty();
 		}
 		double count = FloatSum.of(measured.stream().mapToDouble(Double::doubleValue)) / measured.size();
-		String atBase = "";
+		String atLoad = "";
 		if (Math.abs(scale - 1.0) > UNSCALED) {
 			count = Math.max(atLeastOne(minimum), count * scale);
-			atBase = " at the base load";
+			atLoad = " at the " + level.words();
 		}
-		return Optional.of(new InstanceCount(count, "avg " + CostText.plural(HalfUp.round(count, 1), word) + atBase));
+		return Optional
+			.of(new InstanceCount(count, "avg " + CostText.plural(HalfUp.round(count, 1), "active instance") + atLoad));
 	}
 
 	private static InstanceCount cluster(CostPart part) {

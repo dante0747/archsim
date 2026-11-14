@@ -9,6 +9,7 @@ import org.junit.jupiter.api.TestFactory;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.engine.GoldenDepartures;
 import io.archsim.engine.parity.ReportComparison;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,7 +29,9 @@ class SimulationCasesTests {
 			.map((recorded) -> DynamicTest.dynamicTest(recorded.get("name").stringValue(), () -> {
 				ObjectNode report = SimulationCases.simulate(recorded);
 
-				assertThat(ReportComparison.differences(recorded.get("report"), report)).isEmpty();
+				assertThat(ReportComparison.differences(recorded.get("report"), report,
+						GoldenDepartures.counts(recorded.get("name").stringValue())))
+					.isEmpty();
 			}));
 	}
 
@@ -38,10 +41,12 @@ class SimulationCasesTests {
 
 		JsonNode report = SimulationCases.simulate(recorded);
 
+		// pinned, where other tests read EngineVersions: this test says what the versions
+		// are
 		JsonNode provenance = report.get("provenance");
 		assertThat(List.of(provenance.get("engineVersion").stringValue(), report.get("reportVersion").stringValue(),
 				provenance.get("reportVersion").stringValue(), provenance.get("java").stringValue()))
-			.containsExactly("1.0.0", "1.15", "1.15", System.getProperty("java.version"));
+			.containsExactly("1.1.0", "1.16", "1.16", System.getProperty("java.version"));
 		assertThat(provenance.get("wallSeconds").doubleValue()).isNotNegative();
 	}
 

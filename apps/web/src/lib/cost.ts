@@ -5,7 +5,7 @@
  * engine's rules so the inspector can word a price before the next analysis arrives.
  */
 import type { PricingSource } from "@/lib/api";
-import type { ComponentType, CostEstimate, InputProvenance, NodeConfig, Pricing } from "@/lib/types";
+import type { ComponentType, CostEstimate, InputProvenance, NodeConfig, NodeCost, Pricing } from "@/lib/types";
 
 const PROVIDERS: Record<string, string> = { aws: "AWS", azure: "Azure", gcp: "Google Cloud" };
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -54,6 +54,22 @@ export function priceSource(cost: Pick<CostEstimate, "rates" | "pricing" | "byNo
     detail: "ArchSim's illustrative on-demand rates, not a cloud's price list.",
     illustrative: true,
   };
+}
+
+/**
+ * An hour at the workload's peak beside an hour at its base load, which the month is billed at
+ * (engine 1.1+, ADR-0074): null when the report has no hourly figures or the peak costs what the
+ * base does.
+ */
+export function peakHour(cost: Pick<CostEstimate, "hourly"> | null | undefined): { base: number; peak: number } | null {
+  const hourly = cost?.hourly;
+  return hourly && hourly.peak !== hourly.base ? { base: hourly.base, peak: hourly.peak } : null;
+}
+
+/** How many instances a part that scales runs at the peak, "12 at the peak"; null when it runs as many as at the base. */
+export function peakCount(line: Pick<NodeCost, "instances" | "peakInstances">): string | null {
+  const peak = line.peakInstances;
+  return peak != null && peak !== line.instances ? `${Math.round(peak * 10) / 10} at the peak` : null;
 }
 
 /**

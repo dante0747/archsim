@@ -8,6 +8,17 @@ for when that version changes.
 
 ## [Unreleased]
 
+### Changed
+
+- **Cost of autoscaling (engine 1.1.0, report 1.16).** An autoscaled service is billed at the
+  replicas its autoscaler settles at for the base load's work, within `minReplicas`–`maxReplicas`,
+  no longer at the run's average replicas scaled to the base load and floored at the count it
+  starts with; a Kubernetes cluster with its autoscaler is billed the nodes its pods need there,
+  and one without it its `nodes`. Beside the month, every cost now prices an hour at the peak
+  (`cost.hourly`), with each line's instances there (`peakInstances`), so the peak's cost is in
+  sight ([ADR-0074](docs/adr/0074-bill-the-peak-for-the-hours-a-month-it-lasts.md),
+  [What a month is](docs/pricing.md#what-a-month-is)). No template's monthly cost changes.
+
 ## [1.0.0] - Draft, not released yet
 
 The first public release. ArchSim predicts how a system design behaves under load, failures and

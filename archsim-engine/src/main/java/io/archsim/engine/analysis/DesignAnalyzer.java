@@ -18,7 +18,7 @@ import io.archsim.engine.review.Finding;
 import io.archsim.engine.run.QuickCheck;
 import io.archsim.engine.scenario.ResolvedDesign;
 import io.archsim.engine.scenario.ScenarioResolver;
-import io.archsim.engine.sizing.BaseBusy;
+import io.archsim.engine.sizing.CoresBusy;
 import io.archsim.engine.sizing.SizingSummaries;
 import io.archsim.engine.technology.PartTechnology;
 import io.archsim.engine.technology.TechnologyTiers;
@@ -89,7 +89,7 @@ public final class DesignAnalyzer {
 		InstantEstimate estimate = this.estimator.estimate(resolved);
 		return new DesignAnalysis(resolution.scenario().map(Scenario::id).orElse(null), resolved.workload().peakRate(),
 				this.summaries.of(design, resolved, resolution.sizes(), estimate),
-				this.costs.estimate(resolved, provenanceKinds(resolved), BaseBusy.of(resolution.sizes()), estimate),
+				this.costs.estimate(resolved, provenanceKinds(resolved), CoresBusy.of(resolution.sizes()), estimate),
 				findings, technologies, inputs, estimate,
 				this.confidence.of(estimate, inputs, technologies, resolved.architecture()),
 				QuickCheck.of(resolved.workload()), design.calibration());

@@ -861,8 +861,10 @@ export interface NodeCost {
   label: string;
   type: string;
   technology: string | null;
-  /** Instances billed per hour (0 for per-call pricing). */
+  /** Instances billed per hour (0 for per-call pricing): an autoscaled part's at the base load. */
   instances: number;
+  /** Instances at the workload's peak: an autoscaled part's count there (engine 1.1+, ADR-0074). */
+  peakInstances?: number;
   /** $/instance-hour, or $/million calls when `unit` is "million". null = no price set. */
   unitPrice: number | null;
   /** Where a price came from: set on the part by the user, a snapshot's instance type or rate, a
@@ -887,6 +889,8 @@ export interface CostEstimate {
   monthly: number;
   /** $ per one million successful requests at the run's throughput; null without a run. */
   perMillionRequests: number | null;
+  /** An hour at the base load, which the month is billed at, and an hour at the peak (engine 1.1+, ADR-0074). */
+  hourly?: { base: number; peak: number };
   byNode: NodeCost[];
   notes: string[];
   /** True when at least one component carries a price. */

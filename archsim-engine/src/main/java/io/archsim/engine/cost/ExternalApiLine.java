@@ -37,7 +37,7 @@ final class ExternalApiLine {
 	}
 
 	private static CostLine line(CostPart part, Charge charge, String basis) {
-		return new CostLine(part.id(), part.label(), part.type(), part.technology(), 0, charge.unitPrice(),
+		return new CostLine(part.id(), part.label(), part.type(), part.technology(), 0, null, charge.unitPrice(),
 				charge.source(), CostUnit.MILLION, charge.monthly(), basis, null, null, null, null, charge.items());
 	}
 

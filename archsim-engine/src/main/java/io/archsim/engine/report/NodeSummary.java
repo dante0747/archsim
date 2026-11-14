@@ -39,6 +39,8 @@ import org.jspecify.annotations.Nullable;
  * @param maxReplicationLagMs the furthest a data store's replicas fell behind, in
  * milliseconds
  * @param meanLockWaitMs a data store's wait for row locks on average, in milliseconds
+ * @param replicasMean the instances it ran on average, for an autoscaled service or a
+ * serverless function
  * @param replicasPeak the most instances it ran at once
  * @param coldStartsTotal a serverless function's cold starts in the whole run
  * @param backlogAtEnd the messages a queue still held at the end
@@ -54,8 +56,9 @@ public record NodeSummary(@Nullable Long arrivals, @Nullable Double arrivalRps, 
 		Map<String, Long> rejected, @Nullable Long rejectedTotal, Map<String, Long> counters, @Nullable Double hitRatio,
 		@Nullable Long podsPendingEnd, @Nullable Long podsPendingPeak, @Nullable Double cpuRequestedRatio,
 		@Nullable Double meanPendingS, @Nullable Double maxPendingS, @Nullable Double maxReplicationLagMs,
-		@Nullable Double meanLockWaitMs, @Nullable Long replicasPeak, @Nullable Long coldStartsTotal,
-		@Nullable Long backlogAtEnd, @Nullable Double p95QueueWaitMs, @Nullable Double p95MessageAgeMs) {
+		@Nullable Double meanLockWaitMs, @Nullable Double replicasMean, @Nullable Long replicasPeak,
+		@Nullable Long coldStartsTotal, @Nullable Long backlogAtEnd, @Nullable Double p95QueueWaitMs,
+		@Nullable Double p95MessageAgeMs) {
 
 	/**
 	 * Copies the counts by reason and by name; a part without them has none.

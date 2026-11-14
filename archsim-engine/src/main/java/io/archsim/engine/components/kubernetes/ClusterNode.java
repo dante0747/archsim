@@ -3,6 +3,7 @@ package io.archsim.engine.components.kubernetes;
 import java.util.HashSet;
 import java.util.Set;
 
+import io.archsim.model.component.kubernetes.NodePacking;
 import io.archsim.model.component.kubernetes.PodRequest;
 
 /**
@@ -10,11 +11,6 @@ import io.archsim.model.component.kubernetes.PodRequest;
  * what its pods reserve, the images it has pulled, and since when it has been empty.
  */
 public final class ClusterNode {
-
-	/**
-	 * Absorbs floating-point error in what a node has left, as the Python engine does.
-	 */
-	static final double ROUNDING_TOLERANCE = 1e-9;
 
 	private final double cpu;
 
@@ -48,8 +44,8 @@ public final class ClusterNode {
 	 * @return {@code true} when both its CPU and its memory fit
 	 */
 	boolean fits(PodRequest request) {
-		return this.cpu - this.usedCpu >= request.cpu() - ROUNDING_TOLERANCE
-				&& this.memoryGib - this.usedMemoryGib >= request.memoryGib() - ROUNDING_TOLERANCE;
+		return this.cpu - this.usedCpu >= request.cpu() - NodePacking.ROUNDING_TOLERANCE
+				&& this.memoryGib - this.usedMemoryGib >= request.memoryGib() - NodePacking.ROUNDING_TOLERANCE;
 	}
 
 	/**

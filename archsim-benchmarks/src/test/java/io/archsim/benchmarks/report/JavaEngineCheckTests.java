@@ -17,6 +17,7 @@ import io.archsim.benchmarks.experiments.Engines;
 import io.archsim.benchmarks.results.DevChecks;
 import io.archsim.benchmarks.results.KeptRun;
 import io.archsim.benchmarks.results.KneePairs;
+import io.archsim.engine.version.EngineVersions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -31,10 +32,10 @@ class JavaEngineCheckTests {
 		JsonNode check = JavaEngineCheck.of(LAYOUT.results(), ENGINES).orElseThrow();
 
 		assertThat(check).isEqualTo(JsonText.read("""
-				{"version": "1.0.0", "reproduces": "0.16.0", "sameKnees": 65, "keptCalibrations": 65,
-				 "text": "Re-simulated, in-sample: engine 1.0.0 (Java) re-simulates every kept calibration \
+				{"version": "%1$s", "reproduces": "0.16.0", "sameKnees": 65, "keptCalibrations": 65,
+				 "text": "Re-simulated, in-sample: engine %1$s (Java) re-simulates every kept calibration \
 				with exactly 0.16.0's knees (65 of 65); the latest predictions shown are 0.16.0's, which \
-				1.0.0 reproduces."}"""));
+				%1$s reproduces."}""".formatted(EngineVersions.ENGINE)));
 	}
 
 	@Test
@@ -66,9 +67,9 @@ class JavaEngineCheckTests {
 
 		assertThat(check.get("sameKnees").intValue()).isEqualTo(1);
 		assertThat(check.get("keptCalibrations").intValue()).isEqualTo(3);
-		assertThat(check.get("text").stringValue()).isEqualTo("Re-simulated, in-sample: engine 1.0.0 (Java) "
-				+ "re-simulates 1 of 3 kept calibrations with exactly 0.16.0's knees; the latest predictions shown are "
-				+ "0.16.0's.");
+		assertThat(check.get("text").stringValue()).isEqualTo("Re-simulated, in-sample: engine " + EngineVersions.ENGINE
+				+ " (Java) re-simulates 1 of 3 kept calibrations with exactly 0.16.0's knees; the latest predictions "
+				+ "shown are 0.16.0's.");
 	}
 
 	@Test

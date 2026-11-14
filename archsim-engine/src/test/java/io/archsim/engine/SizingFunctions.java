@@ -12,7 +12,7 @@ import io.archsim.engine.scenario.ResolvedDesign;
 import io.archsim.engine.scenario.ScenarioResolver;
 import io.archsim.engine.simulation.SimulationLimits;
 import io.archsim.engine.sizing.AutoSizer;
-import io.archsim.engine.sizing.BaseBusy;
+import io.archsim.engine.sizing.CoresBusy;
 import io.archsim.engine.sizing.SizedDocument;
 import io.archsim.engine.sizing.SizingSummaries;
 import io.archsim.engine.sweep.SweepRange;
@@ -72,7 +72,7 @@ final class SizingFunctions {
 
 	private static JsonNode baseBusy(GoldenEntry entry) {
 		ObjectNode output = GoldenJson.NODES.objectNode();
-		BaseBusy.of(GoldenSizes.read(entry.input("sizes"))).forEach(output::put);
+		CoresBusy.of(GoldenSizes.read(entry.input("sizes"))).base().forEach(output::put);
 		return output;
 	}
 

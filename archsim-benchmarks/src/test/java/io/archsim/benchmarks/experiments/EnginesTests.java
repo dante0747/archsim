@@ -98,7 +98,7 @@ class EnginesTests {
 		List<JsonNode> engines = COMMITTED.entries();
 
 		assertThat(engines).extracting((engine) -> engine.get("version").stringValue())
-			.containsExactly("0.14.0", "0.16.0", "1.0.0");
+			.containsExactly("0.14.0", "0.16.0", EngineVersions.ENGINE);
 		assertThat(engines).allSatisfy((engine) -> {
 			assertThat(engine.propertyNames()).contains("version", "engineTree", "frozenAt", "tag", "tunedOn");
 			assertThat(engine.get("tunedOn").valueStream().map(JsonNode::stringValue)).containsExactly("pg-mixed",

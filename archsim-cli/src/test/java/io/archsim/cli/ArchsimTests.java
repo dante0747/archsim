@@ -8,6 +8,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.archsim.engine.version.EngineVersions;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -25,7 +27,8 @@ class ArchsimTests {
 
 		int exitCode = Archsim.commandLine().setOut(new PrintWriter(out)).execute("--version");
 
-		assertThat(List.of(exitCode, out.toString().strip())).containsExactly(0, "archsim, engine 1.0.0");
+		assertThat(List.of(exitCode, out.toString().strip())).containsExactly(0,
+				"archsim, engine " + EngineVersions.ENGINE);
 	}
 
 	// ADR-0073: the command only the Python harness called went with it

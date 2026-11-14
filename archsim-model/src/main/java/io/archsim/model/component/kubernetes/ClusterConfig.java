@@ -1,5 +1,7 @@
 package io.archsim.model.component.kubernetes;
 
+import java.util.List;
+
 import io.archsim.model.codec.Default;
 import io.archsim.model.codec.Description;
 import io.archsim.model.codec.Ge;
@@ -101,6 +103,20 @@ public record ClusterConfig(
 	 */
 	public double allocatableMemoryGib() {
 		return this.nodeMemoryGib * this.allocatableShare;
+	}
+
+	/**
+	 * The nodes the cluster settles at for some pods while the load holds: with its
+	 * autoscaler, as many as they need within its bounds; without, its nodes.
+	 * @param pods what each pod requests
+	 * @return the nodes
+	 */
+	public int nodesFor(List<PodRequest> pods) {
+		if (!this.clusterAutoscaler) {
+			return this.nodes;
+		}
+		int needed = NodePacking.nodesFor(pods, allocatableCpu(), allocatableMemoryGib());
+		return Math.min(Math.max(needed, this.minNodes), this.maxNodes);
 	}
 
 }

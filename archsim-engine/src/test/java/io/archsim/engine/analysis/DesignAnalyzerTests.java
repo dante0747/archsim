@@ -2,6 +2,7 @@ package io.archsim.engine.analysis;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
@@ -11,7 +12,9 @@ import org.junit.jupiter.api.TestFactory;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.engine.parity.CostDepartures;
 import io.archsim.engine.review.ReviewRule;
 import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.model.issue.DocumentInvalidException;
@@ -28,7 +31,8 @@ import static org.assertj.core.api.Assertions.catchThrowableOfType;
  * weighed by the inputs alone; quick checks of every kind; a scenario with a calibration
  * record; a document that cannot be read. Each case ({@code analysis/cases.json},
  * recorded from the frozen engine by {@code scripts/export_analysis_cases.py}, since
- * deleted) has the analysis the Python engine 0.16.0 gives, or the error it raises.
+ * deleted) has the analysis the Python engine 0.16.0 gives, or the error it raises; its
+ * cost is compared as {@link CostDepartures} compares one (ADR-0074).
  */
 class DesignAnalyzerTests {
 
@@ -68,7 +72,11 @@ class DesignAnalyzerTests {
 	private void assertAnalysis(JsonNode entry) {
 		DesignAnalysis analysis = this.analyzer.analyze(entry.path("design"), scenario(entry));
 
-		assertThat(JsonDiff.differences(entry.path("analysis").path("output"), analysis.toJson())).isEmpty();
+		JsonNode expected = entry.path("analysis").path("output");
+		ObjectNode actual = analysis.toJson();
+		actual.set("cost", CostDepartures.comparable(expected.path("cost"), actual.path("cost"), Map.of()));
+
+		assertThat(JsonDiff.differences(expected, actual)).isEmpty();
 	}
 
 	private void assertRefusal(JsonNode entry) {

@@ -7,6 +7,7 @@ import java.util.function.Function;
 
 import tools.jackson.databind.JsonNode;
 
+import io.archsim.engine.cost.BusyCores;
 import io.archsim.engine.cost.CostEstimator;
 import io.archsim.engine.estimate.InstantEstimator;
 import io.archsim.engine.report.RunReport;
@@ -54,12 +55,14 @@ final class CostFunctions {
 		entry.input("baseBusy")
 			.properties()
 			.forEach((busy) -> baseBusy.put(busy.getKey(), busy.getValue().doubleValue()));
+		// the frozen engine knew the busy cores at the base load only
+		BusyCores busy = new BusyCores(baseBusy, Map.of());
 		Map<String, ProvenanceKind> provenance = provenance(entry.input("provenance"));
 		JsonNode report = entry.input("report");
 		if (report.isNull()) {
-			return RecordCodec.write(COSTS.estimate(document, provenance, baseBusy, ESTIMATOR.estimate(document)));
+			return RecordCodec.write(COSTS.estimate(document, provenance, busy, ESTIMATOR.estimate(document)));
 		}
-		return RecordCodec.write(COSTS.estimateAfterRun(document, provenance, baseBusy, RunReport.read(report)));
+		return RecordCodec.write(COSTS.estimateAfterRun(document, provenance, busy, RunReport.read(report)));
 	}
 
 	private static Map<String, ProvenanceKind> provenance(JsonNode kinds) {

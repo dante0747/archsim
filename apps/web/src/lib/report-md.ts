@@ -3,7 +3,7 @@
  * objectives, what it costs, and what to look at. Meant to be pasted into a design doc or PR.
  */
 import { CONFIDENCE_LABEL, KIND_LABEL, compareEstimate, countsText } from "./confidence";
-import { formatUsd, priceSource } from "./cost";
+import { formatUsd, peakHour, priceSource } from "./cost";
 import { replayVerdict } from "./document";
 import { type SeedRun, seedCappedConfidence, seedResultLines, seedSummaryLines } from "./report-md-seeds";
 import { isDistribution, shortDistribution } from "./distributions";
@@ -274,7 +274,7 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
         ]),
       ),
       "",
-      `Total ${formatUsd(cost.monthly)} per month (730 hours).${cost.perMillionRequests != null ? ` ${formatUsd(cost.perMillionRequests)} per million successful requests.` : ""} Prices: ${priceSource(cost).detail}`,
+      `Total ${formatUsd(cost.monthly)} per month (730 hours).${cost.perMillionRequests != null ? ` ${formatUsd(cost.perMillionRequests)} per million successful requests.` : ""}${peakHourText(cost)} Prices: ${priceSource(cost).detail}`,
       "",
     );
     for (const n of cost.notes) lines.push(`> ${n}`);
@@ -349,4 +349,10 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
     lines.push(`Experimental technologies (${experimental.map((n) => n.label || n.id).join(", ")}): ${tierNote(catalog?.tierNote)}`, "");
   }
   return lines.join("\n");
+}
+
+/** " An hour at the peak costs $1.65, against $1.13 at the base load." when the peak costs more. */
+function peakHourText(cost: Pick<CostEstimate, "hourly">): string {
+  const hour = peakHour(cost);
+  return hour ? ` An hour at the peak costs ${formatUsd(hour.peak)}, against ${formatUsd(hour.base)} at the base load.` : "";
 }

@@ -124,6 +124,36 @@ class ServiceConfigTests {
 			.initialReplicas()).isEqualTo(6);
 	}
 
+	@Test
+	void wantedReplicas_workAboveTheTarget_getsTheReplicasThatRunItAtTheTarget() {
+		assertThat(autoscaling().wantedReplicas(6.77)).isEqualTo(12);
+	}
+
+	@Test
+	void wantedReplicas_littleWork_keepsTheMinimum() {
+		assertThat(autoscaling().wantedReplicas(1.35)).isEqualTo(3);
+	}
+
+	@Test
+	void wantedReplicas_noWork_keepsTheMinimum() {
+		assertThat(autoscaling().wantedReplicas(0)).isEqualTo(3);
+	}
+
+	@Test
+	void wantedReplicas_moreWorkThanTheMaximumRunsAtTheTarget_stopsAtTheMaximum() {
+		assertThat(autoscaling().wantedReplicas(20)).isEqualTo(14);
+	}
+
+	@Test
+	void wantedReplicas_workExactlyAtTheTarget_addsNoReplicaForFloatingPointError() {
+		assertThat(autoscaling().wantedReplicas(0.6 * 7)).isEqualTo(7);
+	}
+
+	private static ServiceConfig autoscaling() {
+		return config("{\"autoscaling\": true, \"replicas\": 3, \"minReplicas\": 3, \"maxReplicas\": 14, "
+				+ "\"targetUtilization\": 0.6}");
+	}
+
 	private static ServiceConfig config(String json) {
 		return RecordCodec.read((ObjectNode) JSON.readTree(json), ServiceConfig.class);
 	}

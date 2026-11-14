@@ -25,19 +25,19 @@ which an ArchUnit rule checks, and the digests keep the Python engine's definiti
 ([ADR-0050](../docs/adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)).
 The app simulates on it: a calibration's replay, through `ReplaySimulator.of`, and the runs its
 worker role claims ([ADR-0053](../docs/adr/0053-simulate-runs-in-the-java-apps-worker-role.md)).
-It is engine 1.0.0, and stage 4 is done: its exit is checked off in the port plan.
+It is engine 1.1.0, and stage 4 is done: its exit is checked off in the port plan.
 
 ## Packages
 
 | Package | What |
 | --- | --- |
-| `cost` | the cost estimate, before a run or after one: `CostEstimator` (each part's price per instance-hour, set on it, a price snapshot's instance type, a preset's, its size's at generic rates or the default; managed and per-request parts at the snapshot's rates; implied Kubernetes nodes; burstable types' surplus CPU credits: `CostEstimate`; after a run, `estimateAfterRun` prices per-request parts at each part's rate the run measured at the base load, `MeasuredUsage`, autoscaled services and clusters at their average active instances, and gives the cost per million successful requests), `SizePricing` (the price of a part's size) |
+| `cost` | the cost estimate, before a run or after one: `CostEstimator` (each part's price per instance-hour, set on it, a price snapshot's instance type, a preset's, its size's at generic rates or the default; managed and per-request parts at the snapshot's rates; implied Kubernetes nodes; burstable types' surplus CPU credits: `CostEstimate`; after a run, `estimateAfterRun` prices per-request parts at each part's rate the run measured at the base load, `MeasuredUsage`, and gives the cost per million successful requests; the month is billed at the base load, priced by `LevelPricing`, with an hour at the peak beside it, `HourlyCost`, and an autoscaled service or a cluster at each load the count it settles at there, `SettledCounts`, ADR-0074), `SizePricing` (the price of a part's size) |
 | `estimate` | the instant estimate: `InstantEstimator` (what textbook queueing formulas predict for a design at its peak, without a run: each part's utilization and wait, each request path's latency and a rough p95, where an average request's time goes, and where the design saturates: `InstantEstimate`) |
 | `analysis` | the static analysis of a design: `DesignAnalyzer` (its sizes, cost, review, technology tiers, inputs, instant estimate and confidence, and whether a quick check can answer it, as a run would use them: `DesignAnalysis`, which `POST /analyze` answers) |
 | `run` | preparing a run before it is queued: `RunPreparer` (the design resolved, its seed replaced, validated, and its requests counted against the run's limit: `PreparedRun`, or `SimulationLimitException`), `QuickCheck` (whether sampled mode can answer a run) |
 | `review` | the design review: `DesignReview` (an architecture linter over a design as a run simulates it: single points of failure, missing timeouts, stacked retries, timeout inversion, pool exhaustion, unbounded queues, CPU at the peak and more, each a `Finding` with the design's numbers), `ReviewRule` (the rules and their titles), `SeverityCounts` |
 | `scenario` | `ScenarioResolver`: the document a run simulates, a design or one of its scenarios with its defaults in full, its prices pinned and its empty specs auto-sized (`ResolvedDesign`) |
-| `sizing` | auto-sizing: `AutoSizer` (each part's CPU, memory and storage for the design's own peak, snapped to an instance type or a standard shape, with what it needs and why: `PartSize`), one sizer per kind of part, `BaseBusy`, `SizingSummaries` (each part's specs and where they came from, its needs against its instance, the price of its size) |
+| `sizing` | auto-sizing: `AutoSizer` (each part's CPU, memory and storage for the design's own peak, snapped to an instance type or a standard shape, with what it needs and why: `PartSize`), one sizer per kind of part, `CoresBusy` (the CPU one instance of each part keeps busy at the base load and at the peak, for its credits), `SizingSummaries` (each part's specs and where they came from, its needs against its instance, the price of its size) |
 | `numeric` | arithmetic as Python does it: `ExactSum` (`math.fsum`), `FloatSum` (the built-in `sum()` of floats, compensated since Python 3.12), `PythonRound` (`round(x, n)`), `FloorDivision` (`//` on floats), `TrueDivision` (`/` on floats, an error on zero), `Median`, `Erf` (the complementary error function, as fdlibm and Python compute it) |
 | `text` | how the engine writes numbers, and reads text as Python did: `NumberText` (formulas, percentages, short figures, latencies) and `HalfUp` (rounding halves away from zero, as the Python engine does, and JavaScript's `Math.round` as the Python engine computes it); `PythonStrings` (texts folded as Python 3.12 folds them, from `casefold.tsv`, which Python recorded once ([parity/README.md](../parity/README.md#pythons-own-answers)), ordered by code point, and split into words as `str.split()` splits them); `PythonJsonReader` (JSON read as Python's `json.loads` reads it, refused in its words where no value starts or something follows the value (`JsonDecodeException`) and in Jackson's past the first character, with Python's line, column and character; deeper than 1,000 levels, a `JsonTooDeepException`: [ADR-0044](../docs/adr/0044-read-terraform-json-with-jackson-as-python-json-reads-it.md)); and `Utf8` (where bytes stop being UTF-8: the `UndecodableBytes`, described in CPython's words) |
 | `files` | `PythonFiles`: the files the CLI's `calibrate` and `check` read and write, as Python's `read_text`, `json.loads` and `write_text` did, named as `pathlib` named them and refused in the words of Python's `OSError`, codec and `json` (a `PythonFileException`); the engine's only access to the file system ([ADR-0059](../docs/adr/0059-read-files-as-python-did-in-the-engine.md)) |
@@ -70,7 +70,7 @@ It is engine 1.0.0, and stage 4 is done: its exit is checked off in the port pla
 | `yaml` | YAML from anyone (imported files, calibration mappings): `YamlDocuments` (read as PyYAML reads it through SnakeYAML, within the Python engine's bounds; [ADR-0043](../docs/adr/0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md)), what is wrong with a text is one of four exceptions, as Python told them apart: `InvalidYamlException` (not valid YAML), `YamlValueException` (a value Python refuses, or beyond the bounds), `YamlKeyException` (a scalar Python looks up in vain) and `YamlScalarException` (another scalar Python fails to read) |
 | `calibration` | calibration, as the Python engine's `calibration` package, deterministic but for its HTTP client (`prometheus.http`): `mapping` (`MappingLoader`: the mapping file read into a `CalibrationMapping` of each part's, link's and the workload's sources, refused in the Python engine's words without the text or its values; `TimeRange.parse`), `prometheus` (`PrometheusSeries`: a range query's series as a `Histogram`, one figure, or summed per timestamp; `RecordingPrometheus`: a client's responses kept, written as the Python engine's `RecordingPrometheus` saved them for `--recorded` to replay), `prometheus.http` (`HttpPrometheus`: range queries over HTTP, each pinned to the address it checks, under one deadline and a size cap, failing in the Python engine's words; `PrometheusServer`, the server and how it is called, and `PrometheusUrls`, what a policy asks of a URL: [ADR-0046](../docs/adr/0046-call-prometheus-with-apache-httpclient-5.md), [ADR-0057](../docs/adr/0057-move-the-prometheus-client-into-the-engine.md)), `fit` (`LatencyFits`: a histogram's or samples' latencies fitted to a lognormal or an empirical table, with the fit's error; `NormalQuantile`, Python's `NormalDist().inv_cdf`), `resources` (`CpuFits`: `cpuShare` from CPU in use against the request rate; `LoadCurves`: CPU per request against load, fitted never rising; `CurveExtensions`: how that curve continues above its top rate; `MemoryFits`: the working set against the request rate and requests held, by non-negative least squares), `otlp` (`OtlpSpans`: the spans of an OTLP JSON export; `TraceSummaries`: each service's own time, each database's reads and writes, the call graph and CPU time; `OtlpMappings`: services and databases to parts) `ReplaySummary` (the line on how well a calibrated model reproduces what was observed), and the whole calibrations: `PrometheusCalibration` (a design calibrated from a `PrometheusClient`'s range queries: `RecordedPrometheus` reads recorded responses, `Matrices` checks a response as the Python engine did) and `OtlpCalibration` (from an OTLP export, named in the result by its `OtlpRequest`'s source: `UNNAMED_SOURCE`, `OpenTelemetry traces`, for the app, and `sourceNamed(file)`, `OpenTelemetry traces file.json`, for the CLI), each giving a `CalibrationOutcome` and replaying the calibrated design through a `ReplaySimulator`, with the time it stamps from a `Clock`; a range's times are read as Python 3.12's C `datetime.fromisoformat` reads them (`IsoFormat`, checked against Python on 120,000 generated texts) |
 | `assumptions` | `AssumptionsPage`: `docs/assumptions.md`, every number ArchSim uses without the user typing it (technology tiers and defaults, preset numbers, the defaults of a new part, from the catalog the editor reads) and where each comes from, documented or illustrative; `EngineConstants`: the engine-wide constants behind sizing, prices and the component models, read from the code that uses them, each an `EngineConstant` named as the Python engine named it |
-| `version` | `EngineVersions`: the engine's version (1.0.0) and its reports' (1.15), which every run and `GET /meta` record; runs the Python worker stored name the frozen Python engine (0.16.0, report 1.14), and runs the Java worker stored before 1.0.0 name 0.16.0 with report 1.15 |
+| `version` | `EngineVersions`: the engine's version (1.1.0) and its reports' (1.16), which every run and `GET /meta` record; runs the Python worker stored name the frozen Python engine (0.16.0, report 1.14), runs the Java worker stored before 1.0.0 name 0.16.0 with report 1.15, and runs before ADR-0074 name 1.0.0 with report 1.15 |
 | `report` | reading a run's report: `RunReport` and its parts, records of what the engine reads, each read by its own `read` ([ADR-0039](../docs/adr/0039-engine-reads-reports-as-partial-records.md)); `ReportDigest`; the words a report is written with: `ModelNotes`, `FailureReason` |
 
 Where a Python function parses a node's config, the Java reads it as its type's record; where it
@@ -125,25 +125,43 @@ Java gives a result instead (the owner's decision):
   strictly; every other table is the Python's
   (`LatencyFitsTests.fitHistogram_empiricalSharesThatRoundAlike_keepTheLastOfEachSoTheTableIsValid`).
 
-A report differs from the Python engine's in five ways, none in a digest
+A report differs from the Python engine's in six ways, none in a digest
 ([ADR-0050](../docs/adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)):
 
-- it names engine 1.0.0, where Python's named 0.16.0, so the golden files' `ENGINE_VERSION` is
+- it names its own engine, 1.1.0, where Python's named 0.16.0, so the golden files' `ENGINE_VERSION` is
   not checked (the assumptions page names the engine too, and the golden page is checked
   rendered for 0.16.0, the version its file records; the page also names the command that writes
   it, `./gradlew :archsim-engine:generate` where Python's named `scripts/gen_assumptions.py`, and
   the golden page is checked with those two lines put back to Python's);
-- it is report 1.15, where Python's were 1.14, so the golden files' `REPORT_VERSION` is not
+- it is report 1.16, where Python's were 1.14, so the golden files' `REPORT_VERSION` is not
   checked;
 - its provenance names the Java runtime (`java`, the `java.version` property) where Python's
   named `python` and `simpy`;
 - a cost line's `instances` is always a number with a fraction, where Python wrote a literal `0`
   or `1` on a line billed per use or by the hour;
 - a cost item's `quantity` is always a number with a fraction, where Python wrote the literal
-  `730` on a load balancer's and a control plane's hours.
+  `730` on a load balancer's and a control plane's hours;
+- its cost bills a part that scales at the count it settles at under each load, and prices an hour
+  at the peak beside the month
+  ([ADR-0074](../docs/adr/0074-bill-the-peak-for-the-hours-a-month-it-lasts.md)): the cost has
+  `hourly` and each line `peakInstances`, which Python's did not; an autoscaled service's or a
+  cluster's line says how it was counted in its own words (`3 replicas at the base load
+  (autoscaling 3–14)`, where Python wrote `avg 3 active instances at the base load` after a run
+  and `3 replicas` before one); and where the count is not Python's, the cost departs by that
+  part's price. No template's count moves (their recorded runs are too short to scale, and each
+  starts at its minimum), but sixteen hand-made cases' do, each listed with why in
+  `GoldenDepartures`: in ten report cases a cluster no pod runs on keeps its minimum of 1 node,
+  where Python billed the nodes the run measured, scaled to the base load; in five recorded
+  simulations an autoscaled service or cluster is billed what its work at the base load needs,
+  where Python billed the run's average, which lags it while replicas and nodes start or go; and a
+  cluster without its autoscaler is billed its nodes. Every comparison of a cost with Python's
+  (the golden files' `estimate_cost` and `analyze_document`, the report, analysis and cost cases,
+  the recorded runs and calibration replays) goes through `CostDepartures`, which leaves the new
+  figures out, puts Python's words back for those lines' counts (the rest of each basis is
+  compared), and prices a listed count back at Python's, so the rest still matches exactly.
 
 A run comparison of a Python run and a Java run names the two engines, and their two versions
-(0.16.0 and 1.0.0), as it names any two engine versions.
+(0.16.0 and 1.1.0), as it names any two engine versions.
 
 The importers read YAML as PyYAML reads it
 ([ADR-0043](../docs/adr/0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md)), and

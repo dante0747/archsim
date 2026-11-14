@@ -16,7 +16,7 @@ import io.archsim.engine.provenance.Input;
 import io.archsim.engine.report.RunReport;
 import io.archsim.engine.review.DesignReview;
 import io.archsim.engine.run.PreparedRun;
-import io.archsim.engine.sizing.BaseBusy;
+import io.archsim.engine.sizing.CoresBusy;
 import io.archsim.engine.sizing.SizingSummaries;
 import io.archsim.model.codec.RecordCodec;
 import io.archsim.model.component.ComponentRegistry;
@@ -83,7 +83,7 @@ final class RunAnalyses {
 				RecordCodec.write(this.sizing.of(prepared.document(), resolved, prepared.sizes(), estimate)));
 		report.set("input", input);
 		report.set("cost", RecordCodec.write(this.costs.estimateAfterRun(simulated, provenanceKinds(resolved),
-				BaseBusy.of(prepared.sizes()), report.read())));
+				CoresBusy.of(prepared.sizes()), report.read())));
 		ArrayNode findings = Figures.NODES.arrayNode();
 		this.review.review(simulated).forEach((finding) -> findings.add(RecordCodec.write(finding)));
 		report.set("review", findings);

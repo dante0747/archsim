@@ -11,6 +11,8 @@ import tools.jackson.databind.node.ObjectNode;
  * @param monthly the monthly cost
  * @param perMillionRequests the cost per million successful requests; {@code null} before
  * a run
+ * @param hourly an hour at the base load, which the month is billed at, and an hour at
+ * the peak
  * @param byNode each part's cost, the largest first
  * @param notes how it was priced and what it leaves out
  * @param hasCost whether any part has a price
@@ -20,8 +22,9 @@ import tools.jackson.databind.node.ObjectNode;
  * snapshot's
  * @param pricing the prices it used: the snapshot, the purchase option and the families
  */
-public record CostEstimate(double monthly, @Nullable Double perMillionRequests, List<CostLine> byNode,
-		List<String> notes, boolean hasCost, String currency, int hoursPerMonth, ObjectNode rates, ObjectNode pricing) {
+public record CostEstimate(double monthly, @Nullable Double perMillionRequests, HourlyCost hourly,
+		List<CostLine> byNode, List<String> notes, boolean hasCost, String currency, int hoursPerMonth,
+		ObjectNode rates, ObjectNode pricing) {
 
 	/**
 	 * Copies the lists and the rates and prices, so the record does not change.

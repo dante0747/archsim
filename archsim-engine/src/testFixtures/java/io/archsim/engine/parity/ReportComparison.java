@@ -2,6 +2,7 @@ package io.archsim.engine.parity;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -15,7 +16,8 @@ import io.archsim.parity.JsonDiff;
  * counts, events processed and digests exactly, numbers to a relative 1e-9, and an
  * integer where Python wrote one (but for two fields, below). Left out are only what the
  * Java writes as its own (ADR-0050): the engine's and the report's versions, the
- * wall-clock time, and the runtime that ran it.
+ * wall-clock time, and the runtime that ran it; and its cost is compared as
+ * {@link CostDepartures} compares a cost (ADR-0074).
  */
 public final class ReportComparison {
 
@@ -42,6 +44,8 @@ public final class ReportComparison {
 	private static final Pattern KIND_BY_LINE = Pattern
 		.compile("/cost/byNode/[0-9]+/(instances|items/[0-9]+/quantity)");
 
+	private static final String COST = "cost";
+
 	private ReportComparison() {
 	}
 
@@ -52,7 +56,23 @@ public final class ReportComparison {
 	 * @return each difference, by JSON Pointer; none when the reports agree
 	 */
 	public static List<String> differences(JsonNode python, JsonNode java) {
-		Compared compared = new Compared(comparable(python, PYTHON_RUNTIME), comparable(java, JAVA_RUNTIME));
+		return differences(python, java, Map.of());
+	}
+
+	/**
+	 * Where the Java report differs from Python's, where the counts of some parts that
+	 * scale depart from Python's.
+	 * @param python the frozen engine's report
+	 * @param java the Java simulator's report of the same run
+	 * @param counts what the Java counts where it departs, by cost line id
+	 * @return each difference, by JSON Pointer; none when the reports agree
+	 */
+	public static List<String> differences(JsonNode python, JsonNode java, Map<String, Double> counts) {
+		ObjectNode javaReport = (ObjectNode) comparable(java, JAVA_RUNTIME);
+		if (javaReport.has(COST)) {
+			javaReport.set(COST, CostDepartures.comparable(python.path(COST), javaReport.get(COST), counts));
+		}
+		Compared compared = new Compared(comparable(python, PYTHON_RUNTIME), javaReport);
 		List<String> differences = new ArrayList<>(JsonDiff.differences(compared.expected(), compared.actual()));
 		numberKinds("", compared, differences);
 		return differences;

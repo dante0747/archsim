@@ -598,7 +598,12 @@ Specs also feed the calculations around a run:
   its size at illustrative on-demand rates ($0.037 per vCPU-hour, $0.0028 per GiB-hour, $0.08 per
   GiB-month of storage); without a size, the catalog default. A price equal to the catalog
   default counts as not set (saved runs store every default). The cost table marks size-priced
-  parts.
+  parts. The month is 730 hours at the workload's steady base load, with an hour at its peak
+  priced beside it (`cost.hourly`); an autoscaled service is billed at each load the replicas its
+  autoscaler settles at there (its work in busy replicas ÷ `targetUtilization`, rounded up, within
+  `minReplicas`–`maxReplicas`), and a cluster with its autoscaler the nodes its pods there need,
+  within `minNodes`–`maxNodes` ([pricing.md](pricing.md#what-a-month-is),
+  [ADR-0074](adr/0074-bill-the-peak-for-the-hours-a-month-it-lasts.md)).
 - **Design review (`DesignReview`, before a run)**: a static estimate of the peak load at each part (peak
   rate split by read/write mix and client share, spread over load-balancer targets by replicas,
   cache misses at the fixed hit ratio) is compared with its CPU: high when the CPU would be over

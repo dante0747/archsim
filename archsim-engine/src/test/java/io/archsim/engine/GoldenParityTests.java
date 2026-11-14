@@ -11,7 +11,6 @@ import org.junit.jupiter.api.TestFactory;
 
 import io.archsim.parity.GoldenEntry;
 import io.archsim.parity.GoldenFile;
-import io.archsim.parity.Parity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -51,14 +50,8 @@ class GoldenParityTests {
 		assertThat(checked).containsExactlyInAnyOrderElementsOf(EngineFunctions.names());
 	}
 
-	/**
-	 * Checks an entry exactly, or as its departure says.
-	 * @param entry the entry
-	 */
 	private static void check(GoldenEntry entry) {
-		GoldenDepartures.of(entry)
-			.ifPresentOrElse((departure) -> departure.check(entry, EngineFunctions::call),
-					() -> Parity.check(entry, EngineFunctions::call));
+		GoldenDepartures.check(entry, EngineFunctions::call);
 	}
 
 	private static List<GoldenEntry> ported(GoldenFile file) {

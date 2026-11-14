@@ -198,6 +198,9 @@ public record ServiceConfig(
 	 */
 	private static final double ROUNDING_TOLERANCE = 1e-9;
 
+	/** Taken off before rounding up, so floating-point error does not cost a replica. */
+	private static final double WANTED_TOLERANCE = 1e-9;
+
 	public ServiceConfig {
 		serviceTimeByLoad = List.copyOf(serviceTimeByLoad);
 		if (minReplicas > maxReplicas) {
@@ -247,6 +250,17 @@ public record ServiceConfig(
 			return this.replicas;
 		}
 		return Math.min(Math.max(this.replicas, this.minReplicas), this.maxReplicas);
+	}
+
+	/**
+	 * The replicas autoscaling wants for some work: enough to run it at the target
+	 * utilization, within the bounds, as a Kubernetes HPA computes them.
+	 * @param busyReplicas the replicas the work keeps busy (utilization × replicas)
+	 * @return the replicas
+	 */
+	public int wantedReplicas(double busyReplicas) {
+		int wanted = (busyReplicas > 0) ? (int) Math.ceil(busyReplicas / this.targetUtilization - WANTED_TOLERANCE) : 0;
+		return Math.min(Math.max(wanted, this.minReplicas), this.maxReplicas);
 	}
 
 	/**

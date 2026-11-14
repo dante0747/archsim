@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
 import io.archsim.parity.GoldenEntry;
-import io.archsim.parity.Parity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -36,7 +35,7 @@ class ReportCasesTests {
 	Stream<DynamicTest> reportFunction_everyCase_givesTheFrozenEnginesOutput() {
 		return ENTRIES.stream()
 			.map((entry) -> DynamicTest.dynamicTest(entry.function() + " " + entry.pointer(),
-					() -> Parity.check(entry, EngineFunctions::call)));
+					() -> GoldenDepartures.check(entry, EngineFunctions::call)));
 	}
 
 	@Test

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import catalogJson from "@/test/fixtures/catalog.json";
 import type { PricingSource } from "@/lib/api";
 import type { Catalog, CostEstimate, NodeCost } from "@/lib/types";
-import { formatUsd, paretoFrontier, priceOrigin, priceSource, snapshotInUse } from "./cost";
+import { formatUsd, paretoFrontier, peakCount, peakHour, priceOrigin, priceSource, snapshotInUse } from "./cost";
 
 const catalog = catalogJson as unknown as Catalog;
 
@@ -12,6 +12,28 @@ describe("formatUsd", () => {
     expect(formatUsd(1234.5)).toBe("$1,235");
     expect(formatUsd(123456, { compact: true })).toBe("$123.5K");
     expect(formatUsd(null)).toBe("–");
+  });
+});
+
+describe("peakHour", () => {
+  it("prices an hour at the peak beside an hour at the base load", () => {
+    expect(peakHour({ hourly: { base: 1.13, peak: 1.65 } })).toEqual({ base: 1.13, peak: 1.65 });
+  });
+  it("has nothing to add when the peak costs what the base does, or a report from before engine 1.1", () => {
+    expect(peakHour({ hourly: { base: 1.13, peak: 1.13 } })).toBeNull();
+    expect(peakHour({})).toBeNull();
+    expect(peakHour(null)).toBeNull();
+  });
+});
+
+describe("peakCount", () => {
+  it("says how many instances a part runs at the peak when it scales", () => {
+    expect(peakCount({ instances: 3, peakInstances: 12 })).toBe("12 at the peak");
+    expect(peakCount({ instances: 3, peakInstances: 4.5 })).toBe("4.5 at the peak");
+  });
+  it("says nothing for a part that runs as many at the peak, or a report without the count", () => {
+    expect(peakCount({ instances: 3, peakInstances: 3 })).toBeNull();
+    expect(peakCount({ instances: 3 })).toBeNull();
   });
 });
 
