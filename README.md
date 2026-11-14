@@ -113,6 +113,7 @@ archsim run examples/cache-aside-starter.json --scenario one-api-replica
 
 ```text
 offered 398.9 req/s | throughput 286.8 req/s | success 71.90% | p50 217.0 ms | p95 269.8 ms | ...
+  ...
   [critical] API Servers is the primary bottleneck: On average 100% of its 4 workers were busy. ...
 ```
 
@@ -169,7 +170,8 @@ predicted where each would break, and only then was the breaking point measured 
 
 These are three to six runs per experiment on one laptop (engine 0.16.0, whose results the Java
 engine 1.0.0 reproduces exactly). No technology counts as validated yet: that needs a second
-machine. [docs/validation.md](docs/validation.md) shows every run, where the model is wrong and why.
+machine. [docs/validation.md](docs/validation.md) shows every run, where the model is wrong and why,
+and [how to rerun the benchmarks](docs/validation.md#reproduce) on your own machine.
 
 > **Results are estimates, not production guarantees.** Every number comes from the model you drew
 > and the assumptions you entered. Without calibration, trust comparisons between scenarios more
