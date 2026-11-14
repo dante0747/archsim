@@ -3,15 +3,25 @@
 #   git config core.hooksPath .githooks      (or: make hooks)
 # Java's source launcher runs the check from its source, without a build (ADR-0072): Java 22 or
 # later, $JAVA_HOME's when it is set.
-java="${JAVA_HOME:+$JAVA_HOME/bin/}java"
+if [ -n "$JAVA_HOME" ]; then
+  # without the trailing separator JAVA_HOME often has on Windows
+  home=${JAVA_HOME%/}
+  home=${home%\\}
+  java="$home/bin/java"
+  named="the Java in JAVA_HOME, $home,"
+else
+  java=java
+  named=java
+fi
 # the version from $JAVA_HOME's release file, else from java itself
-if [ -n "$JAVA_HOME" ] && [ -f "$JAVA_HOME/release" ]; then
-  version=$(sed -n 's/^JAVA_VERSION="\([0-9]*\).*/\1/p' "$JAVA_HOME/release")
+if [ -n "$JAVA_HOME" ] && [ -f "$home/release" ]; then
+  version=$(sed -n 's/^JAVA_VERSION="\([0-9]*\).*/\1/p' "$home/release")
 else
   version=$("$java" -version 2>&1 | sed -n 's/^[^"]*version "\([0-9]*\).*/\1/p' | head -n 1)
 fi
 if [ -z "$version" ] || [ "$version" -lt 22 ]; then
-  echo "commit-msg: the commit message check needs Java 22 or later; $java is ${version:-not found}" >&2
+  # printf, not echo: dash's echo reads a Windows path's backslashes as escapes
+  printf 'commit-msg: the commit message check needs Java 22 or later; %s is %s\n' "$named" "${version:-not found}" >&2
   exit 1
 fi
 exec "$java" archsim-tools/src/main/java/io/archsim/tools/commits/CheckCommits.java --file "$1"

@@ -133,4 +133,6 @@ step in bash with a stand-in for `docker`, from a file as GitHub runs a step, on
 step reads `/proc/sys/kernel/random/uuid`). They run the commit and CI
 commands through Java's source launcher too, so nothing beyond the JDK creeps into them, and
 compare the price refresh's snapshots and summaries with what `scripts/prices` wrote for the same
-samples, recorded once (`src/test/resources/io/archsim/tools/prices/`).
+samples, recorded once (`src/test/resources/io/archsim/tools/prices/`). `CommitMsgHookTests` runs
+the `commit-msg` hook itself in `sh`, with a `JAVA_HOME` that ends in a backslash as Windows often
+sets it, and is skipped where there is no `sh`.

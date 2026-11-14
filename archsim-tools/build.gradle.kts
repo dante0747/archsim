@@ -28,6 +28,8 @@ tasks.named<JavaExec>("run") {
 }
 
 tasks.test {
-    // the CI rules' tests read ci.yml and check every path a rule names
+    // the CI rules' tests read ci.yml and check every path a rule names; the hook's tests run it
     systemProperty("archsim.repoRoot", rootDir.absolutePath)
+    inputs.file(rootDir.resolve(".githooks/commit-msg")).withPropertyName("commitMsgHook")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
 }
