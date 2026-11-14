@@ -32,6 +32,11 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      # the check runs from its source with Java's source launcher, no build (ADR-0072)
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
       - name: Check commit messages
         env:
           BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
@@ -43,7 +48,7 @@ jobs:
           else
             RANGE="$HEAD_SHA"
           fi
-          python3 scripts/check_commits.py --range "$RANGE"
+          java archsim-tools/src/main/java/io/archsim/tools/commits/CheckCommits.java --range "$RANGE"
 
   changes:
     # which of the jobs below this change needs; the log says which file needs each one

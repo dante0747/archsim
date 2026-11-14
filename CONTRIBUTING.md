@@ -140,7 +140,7 @@ held to the same checks and review as anyone's.
   `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`; mark a
   breaking change with `!` after the type or scope. Commits carry no AI co-author trailer.
   `make hooks` (or `git config core.hooksPath .githooks`) checks each message as you commit,
-  and CI checks every commit of a pull request (`scripts/check_commits.py`).
+  and CI checks every commit of a pull request (`archsim-tools`' `CheckCommits`, which the hook runs too).
 - Do not commit secrets, `.env` files, local databases (`*.db`) or generated reports.
 - New dependencies need a reason in the PR description. No telemetry, no paid services.
 - If you change component metadata (fields, ports, defaults), regenerate the web test fixture

@@ -160,9 +160,9 @@ CHANGES REQUESTED. People's changes get the same review in their pull request.
 ## Commits
 
 [Conventional Commits](https://www.conventionalcommits.org), as [CONTRIBUTING.md](../CONTRIBUTING.md)
-describes and `scripts/check_commits.py` checks: `type(scope): description`, imperative, starting
-in lower case, at most 100 characters, with no AI co-author trailer. One logical change per commit,
-and each commit builds.
+describes and the `commit-msg` hook and CI check (`archsim-tools`' `CheckCommits`):
+`type(scope): description`, imperative, starting in lower case, at most 100 characters, with no AI
+co-author trailer. One logical change per commit, and each commit builds.
 
 ## Exceptions to a rule
 
