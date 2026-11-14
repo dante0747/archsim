@@ -28,7 +28,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/cache-outage.gif" alt="Demo: the cache-aside starter (clients, load balancer, API servers, Redis, PostgreSQL) is simulated, then the Lose Redis Cache chaos pad is pressed; the replay shows the API servers saturating while every read goes to PostgreSQL, and the test plan turns to Didn't hold up" width="800">
+  <img src="docs/images/cache-outage.gif" alt="Demo: the cache-aside starter (clients, load balancer, API servers, Redis, PostgreSQL) is opened from the templates gallery and the Lose Redis Cache chaos pad is pressed, which simulates the outage; the replay shows the API servers saturating while every read goes to PostgreSQL, the test plan says Didn't hold up, and the answer is No, it doesn't hold up" width="800">
   <br>
   <sub>Losing Redis on the cache-aside starter: press a chaos pad and the verdict flips within seconds.</sub>
 </p>
@@ -55,12 +55,12 @@
 
 <table>
 <tr>
-<td width="50%" valign="top"><img src="docs/images/build.jpg" alt="Design workspace: the Black Friday diagram with a PostgreSQL database selected; the inspector shows its replica lag, settings and a real db.m6g.xlarge instance at its hourly price" width="380"><br><b>Design with real technologies</b><br>Pick PostgreSQL, Kafka or a Go service on Kubernetes, and see how it behaves and what it costs.</td>
+<td width="50%" valign="top"><img src="docs/images/build.jpg" alt="Design workspace: the Black Friday diagram with a PostgreSQL database selected; the inspector shows its replica lag, settings and a real db.t4g.xlarge instance at its hourly price" width="380"><br><b>Design with real technologies</b><br>Pick PostgreSQL, Kafka or a Go service on Kubernetes, and see how it behaves and what it costs.</td>
 <td width="50%" valign="top"><img src="docs/images/editor-results.jpg" alt="Test workspace: a Kubernetes checkout service scaled to 3 pods mid-ramp, live request rates on the links, and a timeline of traffic, events, latency and failures beside a test plan that did not hold up" width="380"><br><b>Test with traffic and failures</b><br>Ramp the load, drop a cache, slow a database, then scrub the replay to any second.</td>
 </tr>
 <tr>
 <td width="50%" valign="top"><img src="docs/images/scorecard.jpg" alt="Results Answer tab: No, it doesn't hold up, with p95 561 ms against a 500 ms objective, availability 98.8% against 99.5%, the primary bottleneck, a confidence note and the monthly cost" width="380"><br><b>Get a straight answer</b><br>The verdict, the objective that failed, the bottleneck, what to fix first and the bill.</td>
-<td width="50%" valign="top"><img src="docs/images/tradeoffs.jpg" alt="Results Compare tab: monthly cost plotted against p95 latency for every scenario, with the objective line and the Pareto frontier" width="380"><br><b>Compare the options</b><br>Every scenario on a cost-against-latency map, then a load sweep to find where it breaks.</td>
+<td width="50%" valign="top"><img src="docs/images/tradeoffs.jpg" alt="Results Compare tab: monthly cost plotted against p95 latency for every scenario, all at the same monthly cost, with the objective line and a table of the options" width="380"><br><b>Compare the options</b><br>Every scenario on a cost-against-latency map, then a load sweep to find where it breaks.</td>
 </tr>
 <tr>
 <td width="50%" valign="top"><img src="docs/images/dashboard.jpg" alt="Dashboard workspace: Grafana-style panels for throughput, p95, errors, saturation and cost, with a crosshair synced across latency and queue-wait charts" width="380"><br><b>Watch it like production</b><br>A Grafana-style dashboard with per-component signals: lag, lock waits, GC pauses, 503s.</td>

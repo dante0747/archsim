@@ -2160,9 +2160,9 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
 - "Queue kept growing" needs at least 4 time buckets inside the measurement window.
 - Sign-in is optional (`ARCHSIM_AUTH_MODE=oauth`, GitHub and Google); without it the app is
   single-user, so keep it bound to localhost. Real OAuth apps have not been tried yet.
-- README screenshots and the demo GIF (`docs/images/cache-outage.gif`, about a minute, 7 MB)
-  were retaken on 2026-10-27 from `main` with `npm run e2e:capture`; retake them after visible
-  changes.
+- README screenshots and the demo GIF (`docs/images/cache-outage.gif`, 46 s, 7 MB) were
+  retaken on 2026-11-14 with `npm run e2e:capture`, on engine 1.0.0 and the current logo;
+  retake them after visible changes.
 - The UI was checked by hand in one browser engine (Chromium in the desktop app): earlier looks
   at 1280x800 and 1440x900, the Studio look at 1440x900, 1100x760 and 375x812, in dark and
   light. The one end-to-end test covers the main path in Chromium at 1440x900; there are no
