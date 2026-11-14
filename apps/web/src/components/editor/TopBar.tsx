@@ -121,7 +121,7 @@ function RunControl() {
           <button
             type="button"
             aria-label="Choose what to simulate"
-            className="flex max-w-40 items-center gap-1 rounded-r-[9px] border border-line-strong bg-surface-2 px-2 text-[13px] text-ink-2 transition-colors hover:bg-surface-3 hover:text-ink"
+            className="flex max-w-32 items-center gap-1 rounded-r-[9px] 2xl:max-w-40 border border-line-strong bg-surface-2 px-2 text-[13px] text-ink-2 transition-colors hover:bg-surface-3 hover:text-ink"
           >
             {target ? <span className="truncate">{target.name}</span> : <span className="sr-only">Current design</span>}
             <ChevronDown className="size-3.5 shrink-0" />
@@ -158,6 +158,37 @@ function RunControl() {
         </MenuContent>
       </Menu>
     </div>
+  );
+}
+
+/**
+ * The project's name, edited in place. It is as wide as its text, up to 20rem, and is what gives
+ * way when the top bar is short of room: cut short, it ends in an ellipsis and shows in full on
+ * hover.
+ */
+function ProjectName({ name, onChange }: { name: string; onChange: (name: string) => void }) {
+  const text = "border border-transparent px-1.5 text-[14px] font-semibold tracking-[-0.01em]";
+  return (
+    // An invisible copy of the name sizes the grid's one column, which minmax(0, auto) lets shrink
+    // below the text, down to min-w-16; the input fills the column (size={1}: its default width of
+    // 20 characters would widen the column).
+    <span className="grid min-w-16 max-w-[20rem] grid-cols-[minmax(0,auto)]">
+      <span aria-hidden className={cn(text, "invisible col-start-1 row-start-1 overflow-hidden whitespace-pre")}>
+        {name || " "}
+      </span>
+      <input
+        value={name}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label="Project name"
+        title={name}
+        maxLength={120}
+        size={1}
+        className={cn(
+          text,
+          "col-start-1 row-start-1 h-7 w-full min-w-0 truncate rounded-md bg-transparent text-ink transition-colors hover:border-line focus-visible:border-accent focus-visible:bg-surface-2 focus-visible:outline-none",
+        )}
+      />
+    </span>
   );
 }
 
@@ -239,31 +270,28 @@ export function TopBar({
   const labs = useUi((s) => s.labs);
   const setLabs = useUi((s) => s.setLabs);
 
+  // Only the project name gives way when the bar is short of room: the groups beside it keep their
+  // width, so the workspace tabs, the transport and the run controls never run into one another.
+  // Below 2xl (1536 px) they make room for it: the theme moves into the menu, the scenario's name
+  // and the transport's display get shorter.
   return (
     <header className="island relative z-30 flex h-[60px] shrink-0 items-center gap-3 !overflow-visible border-b border-line px-3">
-      <div className="flex min-w-0 shrink items-center gap-1.5 xl:shrink-0">
+      <div className="flex shrink items-center gap-1.5">
         <Tip content="All projects">
-          <Link href="/projects" aria-label="Back to projects" className="rounded-md p-1 hover:bg-surface-2">
+          <Link href="/projects" aria-label="Back to projects" className="shrink-0 rounded-md p-1 hover:bg-surface-2">
             <LogoMark className="size-6" />
           </Link>
         </Tip>
-        <input
-          value={name}
-          onChange={(e) => setMetadata({ name: e.target.value }, "name")}
-          aria-label="Project name"
-          maxLength={120}
-          style={{ width: `calc(${Math.min(Math.max(name.length, 8), 20)}ch + 14px)` }}
-          className="h-7 min-w-0 max-w-[20vw] rounded-md xl:max-w-[28vw] border border-transparent bg-transparent px-1.5 text-[14px] font-semibold tracking-[-0.01em] text-ink transition-colors hover:border-line focus-visible:border-accent focus-visible:bg-surface-2 focus-visible:outline-none"
-        />
+        <ProjectName name={name} onChange={(value) => setMetadata({ name: value }, "name")} />
         <Tip content={saving ? "Saving…" : dirty ? "Unsaved changes" : "All changes saved"}>
           <span className={cn("size-1.5 shrink-0 rounded-full", saving ? "bg-accent pulse-soft" : dirty ? "bg-warning" : "bg-ink-3/50")} aria-label={saving ? "saving" : dirty ? "unsaved" : "saved"} />
         </Tip>
-        <span className="ml-2 hidden xl:block">
+        <span className="ml-2 hidden shrink-0 xl:block">
           <WorkspaceSwitch />
         </span>
       </div>
 
-      <div className="flex min-w-0 flex-1 items-center justify-center gap-2">
+      <div className="flex flex-1 items-center justify-center gap-2">
         <span className="xl:hidden">
           <WorkspaceSwitch />
         </span>
@@ -293,7 +321,7 @@ export function TopBar({
             e.target.value = "";
           }}
         />
-        <span className="hidden xl:inline-flex">
+        <span className="hidden 2xl:inline-flex">
           <ThemeMenu />
         </span>
         <Menu>
@@ -306,7 +334,7 @@ export function TopBar({
             <MenuItem onSelect={() => void save()} disabled={saving} className="xl:hidden">
               <Save /> Save <Kbd className="ml-auto">Ctrl S</Kbd>
             </MenuItem>
-            <MenuItem onSelect={toggleTheme} className="xl:hidden">
+            <MenuItem onSelect={toggleTheme} className="2xl:hidden">
               <Moon /> Switch light / dark
             </MenuItem>
             <MenuItem onSelect={() => setPaletteOpen(true)}>

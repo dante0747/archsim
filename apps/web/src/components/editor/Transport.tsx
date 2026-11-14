@@ -32,9 +32,9 @@ function ms(v: number | null | undefined): string {
   return v >= 10_000 ? `${(v / 1000).toFixed(1)}s` : v >= 100 ? String(Math.round(v)) : v.toFixed(1);
 }
 
-function Cell({ label, children, last }: { label: string; children: React.ReactNode; last?: boolean }) {
+function Cell({ label, children, last, className }: { label: string; children: React.ReactNode; last?: boolean; className?: string }) {
   return (
-    <div className={cn("flex flex-col justify-center whitespace-nowrap px-3", !last && "border-r border-[color:var(--lcd-line)]")}>
+    <div className={cn("flex flex-col justify-center whitespace-nowrap px-3", !last && "border-r border-[color:var(--lcd-line)]", className)}>
       <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-ink-3">{label}</span>
       <span className="font-readout text-[16px] leading-tight text-ink">{children}</span>
     </div>
@@ -73,11 +73,12 @@ export function TransportLcd() {
       aria-label={report ? (live ? `Replay at ${clock(playhead)}` : "Last run") : "No run yet"}
       data-testid="transport-lcd"
     >
+      {/* The top bar has room for the run's length from 2xl (1536 px), for the throughput from 1440 px. */}
       <Cell label="Time">
         {clock(live ? playhead : report ? total : 0)}
-        <span className="text-[11px] text-ink-3"> / {clock(total).slice(0, 5)}</span>
+        <span className="hidden text-[11px] text-ink-3 2xl:inline"> / {clock(total).slice(0, 5)}</span>
       </Cell>
-      <Cell label="Throughput">
+      <Cell label="Throughput" className="hidden min-[1440px]:flex">
         <span style={{ color: report ? "var(--accent-2)" : undefined }}>{rate(thr)}</span>
         <span className="text-[11px] text-ink-3"> req/s</span>
       </Cell>

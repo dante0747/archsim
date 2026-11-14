@@ -212,9 +212,11 @@ read-only copy of one run's results that anyone with the link can open. The endp
 - A "Studio" look, modelled on pro audio and design apps: charcoal panels, part families in Apple's
   system colours, a dot-grid canvas, and a transport bar at the top with replay buttons and an LCD
   readout (time, throughput, p95 against the goal, success) next to a red record-style Simulate
-  button. The replay timeline shows one arrangement lane per part, in its family colour. Dark by
-  default, with a matching light theme: the sun/moon button at the top right picks one or follows
-  the system ([ui-redesign.md](ui-redesign.md)).
+  button; on screens narrower than 1440 px the readout leaves out the throughput, and a long
+  project name ends in an ellipsis rather than crowd the bar. The replay timeline shows one
+  arrangement lane per part, in its family colour. Dark by default, with a matching light theme:
+  the sun/moon button at the top right picks one or follows the system; below 1536 px the ⋯ menu
+  switches between them instead ([ui-redesign.md](ui-redesign.md)).
 - A templates gallery (`/templates`): each card draws the design with its technology logos and
   flowing traffic, says what you will see happen, its level and key numbers, with category
   filters, search and a featured template. Your saved projects are on their own page
