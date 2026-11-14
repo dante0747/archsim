@@ -113,4 +113,4 @@ what the repository shows.
 | [0069](0069-run-the-harness-from-gradle-with-picocli-commands.md) | Run the harness from Gradle, as picocli commands named as `run.py` named them | Accepted | 2026-11-13 |
 | [0070](0070-write-the-harnesss-files-as-python-wrote-them.md) | Write the harness's files as the Python harness wrote them, byte for byte | Accepted | 2026-11-13 |
 | [0071](0071-python-statistics-in-the-harness.md) | Reduce the results with Python's statistics, ported exactly | Accepted | 2026-11-13 |
-| [0072](0072-move-the-repositorys-tooling-to-java-and-retire-the-cpython-recorders.md) | Move the repository's tooling to Java, and retire the recorders of CPython's behaviour | Proposed | 2026-11-13 |
+| [0072](0072-move-the-repositorys-tooling-to-java-and-retire-the-cpython-recorders.md) | Move the repository's tooling to Java, and retire the recorders of CPython's behaviour | Accepted | 2026-11-13 |
