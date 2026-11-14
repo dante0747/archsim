@@ -419,10 +419,11 @@ doesn't change.
     `pyproject.toml`, `uv.lock` and `.python-version`; CI's Python job and the Makefile's and
     the workflows' uv steps. `archsim functions`, which only the Python harness called, left the
     CLI ([ADR-0073](../adr/0073-remove-archsim-functions-with-the-python-harness.md)).
-  - **Open:** the price refresh has not run against live offer files
+  - **Open:** CI's Java steps for the commits, the changed parts, the benchmarks and the prices
+    have not run on GitHub while Actions cannot start jobs. The price refresh matched `aws.py`
+    on live offer files on 14 Nov 2026, byte for byte
     ([ADR-0072](../adr/0072-move-the-repositorys-tooling-to-java-and-retire-the-cpython-recorders.md)'s
-    note), and CI's Java steps for the commits, the changed parts, the benchmarks and the prices
-    have not run on GitHub while Actions cannot start jobs.
+    note).
 
 ## Where the port ended
 

@@ -79,11 +79,15 @@ program from its source files without a build.
 - `parity/README.md` names the tag `cpython-recorders` (commit `1634ba9e`) as the last commit
   with the CPython recorders.
 
-Two confirmations wait. CI's `changes` and `commits` jobs have run only locally while Actions
-cannot start jobs. The price refresh has run against the parsers' samples, where it writes what
-`aws.py` wrote byte for byte, but not yet against live offer files: running `aws.py` and
-`prices aws` on the same cached files is the check left, `aws.py` from the tag
-`cpython-recorders` (`git worktree add <dir> cpython-recorders`, then `uv sync` there).
+One confirmation waits: CI's `changes` and `commits` jobs have run only locally while Actions
+cannot start jobs. The price refresh's came on 14 Nov 2026, against live offer files: `aws.py`,
+from the tag `cpython-recorders` (`git worktree add <dir> cpython-recorders`, then `uv sync`
+there), and `prices aws` read the same cached us-east-1 files (309 MiB, EC2's version
+20261114012926) and wrote the same snapshot, byte for byte (1,107 compute types, 394 databases,
+188 caches and 16 streams). That snapshot was not taken. Against the shipped one of 28 Oct it
+changes no price and adds 79 database types: 9 `db.r9g`, and 70 of earlier generations (`db.m1`
+to `db.m4`, `db.r3`, `db.r4`, `db.t1`, `db.t2`) whose rows the RDS file now also lists with no
+`Current Generation`, which both refreshes keep, as they drop only the rows marked `No`.
 
 ### Consequences
 
