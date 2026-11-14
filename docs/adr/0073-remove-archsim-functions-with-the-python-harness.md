@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-11-14
 decision-makers: Majid Abarghooei (owner)
 ---
@@ -43,5 +43,4 @@ answers are unchanged. The harness's tests and its parity task, which call the e
 
 ## More Information
 
-- Supersedes [ADR-0061](0061-answer-the-harnesss-engine-calls-from-one-java-process.md) once
-  accepted.
+- Supersedes [ADR-0061](0061-answer-the-harnesss-engine-calls-from-one-java-process.md).

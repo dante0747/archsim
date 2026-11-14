@@ -102,7 +102,7 @@ what the repository shows.
 | [0058](0058-serve-mcp-with-the-official-mcp-java-sdk.md) | Serve ArchSim's MCP tools with the official MCP Java SDK | Accepted | 2026-11-11 |
 | [0059](0059-read-files-as-python-did-in-the-engine.md) | Read files as Python did in the engine, for the CLI and the MCP server | Accepted | 2026-11-11 |
 | [0060](0060-run-the-check-action-in-an-image-the-job-builds.md) | Run the archsim-check action's CLI in an image the job builds | Accepted | 2026-11-11 |
-| [0061](0061-answer-the-harnesss-engine-calls-from-one-java-process.md) | Answer the benchmark harness's engine calls from one Java process | Accepted | 2026-11-11 |
+| [0061](0061-answer-the-harnesss-engine-calls-from-one-java-process.md) | Answer the benchmark harness's engine calls from one Java process | Superseded by [0073](0073-remove-archsim-functions-with-the-python-harness.md) | 2026-11-11 |
 | [0062](0062-make-the-java-engine-the-harnesss-default.md) | Make the Java engine the benchmark harness's default | Accepted | 2026-11-11 |
 | [0063](0063-retire-alembic-older-databases-upgrade-from-a-tag.md) | Retire Alembic: a database below revision 0008 upgrades first from the tag `alembic-0008` | Accepted | 2026-11-12 |
 | [0064](0064-keep-python-only-for-the-harness-and-the-repositorys-tooling.md) | Keep Python only for the benchmark harness and the repository's tooling, until stage 7 | Accepted | 2026-11-12 |
@@ -114,4 +114,4 @@ what the repository shows.
 | [0070](0070-write-the-harnesss-files-as-python-wrote-them.md) | Write the harness's files as the Python harness wrote them, byte for byte | Accepted | 2026-11-13 |
 | [0071](0071-python-statistics-in-the-harness.md) | Reduce the results with Python's statistics, ported exactly | Accepted | 2026-11-13 |
 | [0072](0072-move-the-repositorys-tooling-to-java-and-retire-the-cpython-recorders.md) | Move the repository's tooling to Java, and retire the recorders of CPython's behaviour | Accepted | 2026-11-13 |
-| [0073](0073-remove-archsim-functions-with-the-python-harness.md) | Remove `archsim functions` with the Python harness | Proposed | 2026-11-14 |
+| [0073](0073-remove-archsim-functions-with-the-python-harness.md) | Remove `archsim functions` with the Python harness | Accepted | 2026-11-14 |
