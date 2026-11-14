@@ -2,9 +2,9 @@
 
 The built-in templates (`examples/*.json`) are the first designs most people simulate, so a
 modelling mistake in one of them is the fastest way to lose the engineers ArchSim wants to
-convince. The October 2026 inspection found one (H-4: the starter modelled Redis as reading
-PostgreSQL by itself). This page records the audit of the first ten that followed (workstream W5):
-what was checked, what changed and why, and a line for outside experts to sign.
+convince. A review of ArchSim in October 2026 found one: the starter modelled Redis as reading
+PostgreSQL by itself. This page records the audit of the first ten templates that followed: what
+was checked, what changed and why, and a line for outside experts to sign.
 
 Five more were added on 28 October 2026 to show what the first ten did not: several client
 groups with their own timeouts and retries, a circuit breaker and an egress proxy's route timeout,
@@ -19,12 +19,15 @@ variety of architecture ([below](#ten-more-architectures-28-october-2026)).
 How the numbers were made: engine 0.12.0 (0.11.0 plus the analysis changes below), prices from the AWS
 us-east-1 snapshot of 2026-10-27, each template's own seed. Every scenario was simulated with
 the Python engine's `archsim run examples/<template>.json --scenario <scenario>`; the tables come
-straight from those reports, a record of that engine.
+straight from those reports, a record of that engine. That engine has since been replaced by
+the Java one, so the file names this page gives (`analysis.py`, `cost.py`, `test_pricing` and
+the like) are the Python engine's of the time.
 
 ## How to review a template
 
 1. Read the template's section below, then open the template and press Simulate on each
-   scenario (or run the command above).
+   scenario, or run the same command with today's [command line](getting-started.md#the-command-line).
+   Today's engine can give different numbers from the tables, which are engine 0.12.0's.
 2. Go through the checklist and the "For reviewers" questions. Judge the design as you would a
    design review at work: would you build it like this, and do the numbers look like your
    production systems?
@@ -78,9 +81,9 @@ These came up while reading the templates' results. Each has a test.
 
 Clients, a load balancer, two API replicas, Redis and PostgreSQL at 400 req/s.
 
-**Checked.** Redis is cache-aside since the H-4 fix: the API looks reads up (250 ms timeout,
-carries on if Redis fails), reads PostgreSQL on a miss and writes the value back; writes go to
-PostgreSQL first, then invalidate the key. Timeouts nest: the client's 2 s covers the API queue
+**Checked.** Redis is cache-aside since the October review's fix: the API looks reads up (250 ms
+timeout, carries on if Redis fails), reads PostgreSQL on a miss and writes the value back; writes
+go to PostgreSQL first, then invalidate the key. Timeouts nest: the client's 2 s covers the API queue
 (500 ms) plus the PostgreSQL link (1.5 s, above the database's 1 s pool wait). On AWS: load
 balancer c6g.medium, API 2 x c6g.xlarge, Redis cache.m6g.large, PostgreSQL db.m6g.large.
 
@@ -118,8 +121,8 @@ row, then the payment), the cache pattern, payment timeouts and retries, the HPA
 60% target, 15 s interval, 20 s pod start), the rate limit, replica lag.
 
 **Changed.**
-- *Redis read PostgreSQL by itself (read-through), the H-4 mistake.* Now cache-aside, and a
-  failed lookup counts as a miss. Before, "Lose the cache for 20 s" failed every catalog read
+- *Redis read PostgreSQL by itself (read-through), the October review's finding.* Now
+  cache-aside, and a failed lookup counts as a miss. Before, "Lose the cache for 20 s" failed every catalog read
   (success fell to 21% in the window) although its description said reads fall through to
   PostgreSQL; now they do, and the system absorbs the outage.
 - *The payment retry could not fit in the client's timeout:* 2 attempts x 2,000 ms + 200 ms of
@@ -681,9 +684,9 @@ Ten templates added the same day for variety: each is a different kind of system
 delivery, search, a multi-tenant SaaS on SQL Server, MySQL replicas, notifications, live
 telemetry, API authentication, a microservice call chain, a serverless pipeline and an LLM
 assistant), with five scenarios each (six for the call chain), 51 in all. They were built against
-the same checklist and to a written brief that carried the lessons of the five above (a burst
-belongs in the baseline when auto-sizing must cover it; CPU, not CPU and memory, is set on a
-machine part; one-queue technologies need their preset's partitions). Every scenario was
+the same checklist, with the lessons of the five above written down first (a burst belongs in the
+baseline when auto-sizing must cover it; CPU, not CPU and memory, is set on a machine part;
+one-queue technologies need their preset's partitions). Every scenario was
 simulated while it was tuned, and every number in a description comes from the final runs,
 re-run once more to confirm. Same conditions: engine 0.12.0, the AWS us-east-1 snapshot of
 2026-10-27, each template's own seed.
@@ -1091,7 +1094,7 @@ cuts a slow consumer off when its outbound buffer passes `max_pending`. The temp
 for the queue group; is that fair? The two loss scenarios headline "No component is saturated", the fault finding says the
 system "absorbed" the slowdown and the queue's lag finding is informational, while half the events are dropped (see
 Follow-ups); only the queue's `dropped` counter tells. The design review's "Match history (DynamoDB) has no replica" does not apply to a managed table that keeps three copies
-itself. DynamoDB is priced as an instance (the known follow-up), and
+itself. DynamoDB is priced as an instance (see Follow-ups), and
 JetStream costs the same as core NATS here because stream storage is not priced.
 
 Results (engine 0.12.0, seed as in the template):
@@ -1451,9 +1454,9 @@ scope):
   the size the analysis reports for it without a price snapshot is not rounded to a standard shape
   (2 vCPU and 2 GiB for the right-size template's API, 1 vCPU and 16 GiB for the social feed's
   cache), which `test_pricing` checks for every template; those templates leave the memory, or
-  the whole cache, on auto. Worth a look in the sizing rework.
+  the whole cache, on auto. Worth a look when sizing is next reworked.
 
-Found while building the ten templates of the second batch (none fixed here; engine code was out
+Found while building the ten templates added for variety (none fixed here; engine code was out
 of scope):
 
 - **The headline misses refused calls and planned outages.** When a third-party provider's quota
