@@ -85,9 +85,13 @@ from the tag `cpython-recorders` (`git worktree add <dir> cpython-recorders`, th
 there), and `prices aws` read the same cached us-east-1 files (309 MiB, EC2's version
 20261114012926) and wrote the same snapshot, byte for byte (1,107 compute types, 394 databases,
 188 caches and 16 streams). That snapshot was not taken. Against the shipped one of 28 Oct it
-changes no price and adds 79 database types: 9 `db.r9g`, and 70 of earlier generations (`db.m1`
-to `db.m4`, `db.r3`, `db.r4`, `db.t1`, `db.t2`) whose rows the RDS file now also lists with no
-`Current Generation`, which both refreshes keep, as they drop only the rows marked `No`.
+changes no price and adds 79 database entries: 9 for the new `db.r9g` types, and 70 for 35 types
+of earlier generations (`db.m1` to `db.m4`, `db.r3`, `db.r4`, `db.t1`, `db.t2`). Those came from
+rows new to the RDS file: beside each instance hour, an unused capacity reservation's hour
+(`UnusedBox:`) at its price but with no `Current Generation`, which both refreshes read as an
+instance hour. `prices aws` now skips those rows (14 Nov 2026), a deliberate difference from
+`aws.py`: on the same RDS file it keeps the shipped snapshot's 261 database types and the 9
+`db.r9g`, and no earlier generation.
 
 ### Consequences
 

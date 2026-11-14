@@ -261,12 +261,13 @@ GOOGLE_API_KEY=... ./gradlew :archsim-tools:run --args="prices gcp --region us-c
   storage, Lambda, SQS standard, Application and Network Load Balancers (hours and capacity
   units), DynamoDB (request units, capacity units, storage), API Gateway REST API requests and
   the EKS control plane, each rate at its first paid tier. Burstable types get their baseline CPU
-  from a table in the refresh (AWS's instance tables; the price list does not have it). The EC2 file is
-  about 300 MB; downloads are cached in `.cache/aws-prices` by AWS's file version. A region's
-  file also lists Outposts and Local Zone prices, Capacity Blocks and extended-support
-  surcharges; only the region's own on-demand rows are kept, and the same type at two prices
-  stops the refresh rather than letting snapping pick the wrong one. Types that differ only in
-  engine are stored once (an ElastiCache type costs the same for Redis and Memcached).
+  from a table in the refresh (AWS's instance tables; the price list does not have it). The EC2
+  file is about 300 MB; downloads are cached in `.cache/aws-prices` by AWS's file version. A
+  region's file also lists Outposts and Local Zone prices, Capacity Blocks, unused capacity
+  reservations and extended-support surcharges; only the region's own on-demand instance hours
+  are kept, and the same type at two prices stops the refresh rather than letting snapping pick
+  the wrong one. Types that differ only in engine are stored once (an ElastiCache type costs the
+  same for Redis and Memcached).
 - **Azure**: virtual machines of the D v3-v6, E v3-v6 and F v2 series (Linux, pay-as-you-go).
   The API returns prices but not shapes, so memory comes from each series' published ratio.
 - **GCP**: Compute Engine N2, N2D, E2 and C3 machine types, priced per vCPU-hour plus per

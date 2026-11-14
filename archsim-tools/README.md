@@ -94,12 +94,16 @@ then `archsim-tools/build/install/archsim-tools/bin/archsim-tools prices ...`, s
 
 ### What the port changed
 
-Snapshots and summaries are `scripts/prices`' own, but for one case no snapshot has had; the
-rest is how the commands fail and wait:
+Snapshots and summaries are `scripts/prices`' own but in two cases, the first of which no
+snapshot has had; the rest is how the commands fail and wait:
 
 - Two entries of one type, shape and price with no engines are merged without an `engines`
   key; `common.dedupe` added `"engines": []` at the entry's end. Azure's and GCP's types never
   repeat, and the shipped AWS snapshots have no such pair.
+- RDS rows whose usage type, after the region prefix, starts with `UnusedBox:` are skipped:
+  an unused capacity reservation's hour, which the RDS file has listed beside each instance
+  hour since November 2026, at its price but with no `Current Generation`. `aws.py` read them
+  as instance hours, which let 35 previous-generation types back in.
 - A failure the price lists or the machine cause (a download, a file, a price list or
   snapshot that does not read as expected) prints its message, or its class when it has none,
   and exits with 1, as the scripts' traceback did; anything else is a bug and keeps its stack

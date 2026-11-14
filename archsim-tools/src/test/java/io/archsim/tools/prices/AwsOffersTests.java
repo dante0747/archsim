@@ -18,7 +18,8 @@ import static org.assertj.core.api.Assertions.tuple;
  * The AWS offer files' parsers on {@code test_price_refresh_scripts.py}'s samples, which
  * copy the rows that tripped the first run against the live price lists: Outposts and
  * Capacity Block rows, previous generations, MSK's own column names, free and volume
- * tiers, a trust store's hours.
+ * tiers, a trust store's hours. One test builds its own rows instead, for where the Java
+ * refresh reads a file unlike the scripts: RDS's unused capacity reservations.
  */
 class AwsOffersTests {
 
@@ -77,6 +78,33 @@ class AwsOffersTests {
 		assertThat(databases).filteredOn((type) -> type.sku().equals("db.t4g.micro"))
 			.extracting((type) -> type.burst().baselineCpu(), (type) -> type.burst().creditVcpuHour())
 			.containsExactly(tuple(0.1, 0.075));
+	}
+
+	// RDS has listed unused capacity reservation hours since November 2026, with no
+	// Current Generation: read as instance hours, they let old generations back in
+	@Test
+	void databases_unusedCapacityReservationRows_areNotInstanceHours() {
+		String offer = """
+				"FormatVersion","v1.0"
+				"Disclaimer","sample"
+				"Publication Date","2026-11-13T00:00:00Z"
+				"Version","20261113000000"
+				"OfferCode","AmazonRDS"
+				"SKU","TermType","Unit","PricePerUnit","Product Family","Location Type","Current Generation",\
+				"Instance Type","vCPU","Memory","Database Engine","Deployment Option","usageType"
+				"S1","OnDemand","Hrs","0.25","Database Instance","AWS Region","Yes",\
+				"db.y9.large","2","16 GiB","PostgreSQL","Single-AZ","InstanceUsage:db.y9.large"
+				"S2","OnDemand","Hrs","0.25","Database Instance","AWS Region","",\
+				"db.y9.large","2","16 GiB","PostgreSQL","Single-AZ","UnusedBox:db.y9.large"
+				"S3","OnDemand","Hrs","0.18","Database Instance","AWS Region","No",\
+				"db.y4.large","2","8 GiB","PostgreSQL","Single-AZ","InstanceUsage:db.y4.large"
+				"S4","OnDemand","Hrs","0.18","Database Instance","AWS Region","",\
+				"db.y4.large","2","8 GiB","PostgreSQL","Single-AZ","USE2-UnusedBox:db.y4.large"
+				""";
+
+		List<Sku> databases = RdsPrices.databases(rows(offer));
+
+		assertThat(databases).extracting(Sku::sku, Sku::hourly).containsExactly(tuple("db.y9.large", 0.25));
 	}
 
 	@Test

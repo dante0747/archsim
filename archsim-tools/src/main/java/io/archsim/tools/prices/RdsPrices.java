@@ -13,12 +13,18 @@ import java.util.stream.Stream;
 /**
  * RDS's prices from its offer file: Single-AZ instance-hours for each engine, the surplus
  * CPU credits of the db.t types (RDS runs them in unlimited mode), and the gp3 storage of
- * a Single-AZ instance.
+ * a Single-AZ instance. Unused capacity reservations' hours are not instance-hours.
  */
 final class RdsPrices {
 
 	private static final Map<String, String> ENGINES = Map.of("PostgreSQL", "postgresql", "MySQL", "mysql", "MariaDB",
 			"mariadb");
+
+	/**
+	 * How an unused capacity reservation hour's usage type starts, after the region
+	 * prefix ({@code UnusedBox:db.m5.large}).
+	 */
+	private static final String UNUSED_RESERVATION_USAGE = "UnusedBox:";
 
 	private RdsPrices() {
 	}
@@ -82,7 +88,18 @@ final class RdsPrices {
 	private static boolean isSingleAzHour(OfferRow row) {
 		boolean hour = row.is("Product Family", "Database Instance") && row.is("Deployment Option", "Single-AZ")
 				&& row.is("Unit", "Hrs");
-		return hour && row.isOnDemand() && row.isRegional();
+		return hour && row.isOnDemand() && row.isRegional() && !isUnusedReservation(row);
+	}
+
+	/**
+	 * Whether a row prices an unused capacity reservation's hour, which RDS lists beside
+	 * the instance hour at its price but without its Current Generation, so that a
+	 * previous generation's type would pass for a current one.
+	 * @param row the offer file's row
+	 * @return whether it is an unused reservation's hour, in any region
+	 */
+	private static boolean isUnusedReservation(OfferRow row) {
+		return row.usage().startsWith(UNUSED_RESERVATION_USAGE);
 	}
 
 	private static boolean isSingleAzGp3(OfferRow row) {
