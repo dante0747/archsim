@@ -62,8 +62,8 @@ class ChangedPartsTests {
 		int exitCode = run(folder, "--base", base, "--head", "HEAD", "--github-output", output.toString());
 
 		assertThat(exitCode).isZero();
-		assertThat(Files.readAllLines(output)).containsExactly("python=false", "benchmark_tests=false", "java=false",
-				"archsim_check=false", "web=false", "e2e=false");
+		assertThat(Files.readAllLines(output)).containsExactly("java=false", "archsim_check=false", "web=false",
+				"e2e=false");
 	}
 
 	@Test
@@ -75,9 +75,8 @@ class ChangedPartsTests {
 
 		run(folder, "--base", base, "--head", "HEAD");
 
-		assertThat(this.out.toString().lines()).containsExactly("1 changed file(s)", "  python: skipped",
-				"  benchmark_tests: skipped", "  java: skipped", "  archsim_check: skipped", "  web: skipped",
-				"  e2e: skipped");
+		assertThat(this.out.toString().lines()).containsExactly("1 changed file(s)", "  java: skipped",
+				"  archsim_check: skipped", "  web: skipped", "  e2e: skipped");
 	}
 
 	@Test
@@ -108,8 +107,8 @@ class ChangedPartsTests {
 
 		run(folder, arguments.toArray(String[]::new));
 
-		assertThat(Files.readAllLines(output)).containsExactly("python=true", "benchmark_tests=true", "java=true",
-				"archsim_check=true", "web=true", "e2e=true");
+		assertThat(Files.readAllLines(output)).containsExactly("java=true", "archsim_check=true", "web=true",
+				"e2e=true");
 		assertThat(this.out.toString().lines())
 			.containsExactly("every job: a run by hand, or no usable base to compare with");
 	}

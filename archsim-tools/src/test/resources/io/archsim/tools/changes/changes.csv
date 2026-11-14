@@ -1,36 +1,34 @@
 # each change: its files, then the jobs it needs (none when empty), separated by spaces
 archsim-app/src/main/java/io/archsim/app/runs/Comparisons.java | java e2e
 archsim-api-tests/src/main/java/io/archsim/apitests/Examples.java | java
-# the archsim-check action builds the CLI from its modules and the Gradle build, and the
-# benchmarks' tests simulate on it
-archsim-cli/src/main/java/io/archsim/cli/RunCommand.java | java archsim_check python benchmark_tests
-archsim-engine/src/main/java/io/archsim/engine/check/CheckRunner.java | java e2e archsim_check python benchmark_tests
-gradle/libs.versions.toml | java e2e archsim_check python benchmark_tests
-build-logic/src/main/kotlin/archsim.java-conventions.gradle.kts | java e2e archsim_check python benchmark_tests
-# a module's own tests, test fixtures and README are not in the CLI the benchmarks' tests run;
-# its build file is
+# the archsim-check action builds the CLI from its modules and the Gradle build
+archsim-cli/src/main/java/io/archsim/cli/RunCommand.java | java archsim_check
+archsim-engine/src/main/java/io/archsim/engine/check/CheckRunner.java | java e2e archsim_check
+gradle/libs.versions.toml | java e2e archsim_check
+build-logic/src/main/kotlin/archsim.java-conventions.gradle.kts | java e2e archsim_check
+# a module's tests, test fixtures, README and build file run what its sources do
 archsim-cli/README.md | java archsim_check
 archsim-engine/src/testFixtures/java/io/archsim/engine/Fixture.java | java e2e archsim_check
-archsim-model/build.gradle.kts | java e2e archsim_check python benchmark_tests
+archsim-model/build.gradle.kts | java e2e archsim_check
 archsim-cli/src/test/java/io/archsim/cli/RunCommandTests.java | java archsim_check
 archsim-engine/src/test/java/io/archsim/engine/settings/LoadCurveTests.java | java e2e archsim_check
 archsim-model/src/test/java/io/archsim/model/codec/RecordCodecTests.java | java e2e archsim_check
 archsim-mcp/src/main/java/io/archsim/mcp/McpTools.java | java
-# the harness asks the Java engine for these functions: the benchmarks' tests check them
-archsim-cli/src/main/java/io/archsim/cli/HarnessFunctions.java | java archsim_check python benchmark_tests
-archsim-cli/src/main/java/io/archsim/cli/FunctionsCommand.java | java archsim_check python benchmark_tests
-archsim-cli/src/main/java/io/archsim/cli/Archsim.java | java archsim_check python benchmark_tests
-archsim-model/src/main/java/io/archsim/model/codec/RecordCodec.java | java e2e archsim_check python benchmark_tests
-archsim-engine/src/main/java/io/archsim/engine/settings/LoadCurve.java | java e2e archsim_check python benchmark_tests
-archsim-engine/src/main/java/io/archsim/engine/host/HostMachine.java | java e2e archsim_check python benchmark_tests
-archsim-model/src/main/java/io/archsim/model/distribution/LogNormal.java | java e2e archsim_check python benchmark_tests
+archsim-cli/src/main/java/io/archsim/cli/HarnessFunctions.java | java archsim_check
+archsim-cli/src/main/java/io/archsim/cli/FunctionsCommand.java | java archsim_check
+archsim-cli/src/main/java/io/archsim/cli/Archsim.java | java archsim_check
+archsim-model/src/main/java/io/archsim/model/codec/RecordCodec.java | java e2e archsim_check
+archsim-engine/src/main/java/io/archsim/engine/settings/LoadCurve.java | java e2e archsim_check
+archsim-engine/src/main/java/io/archsim/engine/host/HostMachine.java | java e2e archsim_check
+archsim-model/src/main/java/io/archsim/model/distribution/LogNormal.java | java e2e archsim_check
 # the API and app tests read the fixtures, in the Java job
 parity/fixtures/calibration/starter-mapping.yaml | java
 config/checkstyle/checkstyle.xml gradlew.bat | java e2e
-# the Python job checks the table repr reads against Python
-archsim-model/src/main/resources/io/archsim/model/text/nonprintable.tsv | java e2e archsim_check python benchmark_tests
+# the table repr reads, one of the model's main resources
+archsim-model/src/main/resources/io/archsim/model/text/nonprintable.tsv | java e2e archsim_check
 apps/web/src/app/page.tsx apps/web/package-lock.json | web e2e
-apps/web/src/data/accuracy.json | python benchmark_tests web e2e java
+# the Java harness's report tests compare the accuracy page's copy with docs/validation/
+apps/web/src/data/accuracy.json | web e2e java
 # the Java engine's tests check the web fixtures; the Java model's tests read the starter
 apps/web/src/test/fixtures/starter.json | web java e2e
 apps/web/src/test/fixtures/catalog.json | web java e2e
@@ -38,26 +36,22 @@ apps/web/src/test/fixtures/analysis-starter.json | web java e2e
 apps/web/src/test/fixtures/share.ts | web e2e
 # the end-to-end launcher starts the worker, whose command line the Java tests check
 apps/web/e2e/api-server.mjs | web java e2e
-scripts/check_commits.py scripts/tests/test_check_commits.py | python
-# CI no longer runs the Python one: the Python job tests it until it goes
-scripts/ci_changes.py | python
-benchmarks/report.py benchmarks/run.py | python benchmark_tests
 # the kept results, which the Java harness's tests reduce again
-benchmarks/report.py benchmarks/results/pg-mixed/run-5/measured.json | python benchmark_tests java
+benchmarks/results/pg-mixed/run-5/measured.json | java
 archsim-benchmarks/src/main/java/io/archsim/benchmarks/comparison/Comparison.java | java
+# the stacks and their load, which the Java harness's tests read
+benchmarks/k6/load.js benchmarks/service-python/app.py | java
 # the tooling's own tests, which the Java build runs; the commit check always runs
 archsim-tools/src/main/java/io/archsim/tools/commits/CheckCommits.java | java
-scripts/prices/aws.py scripts/tests/test_price_refresh_scripts.py | python
 # the frozen engine's golden files and simulation baselines, which the Java tests read
 parity/golden/manifest.json parity/simulation/manifest.json | java e2e
 # the Java harness's report tests read them too
-docs/validation.md docs/validation/accuracy.json | python benchmark_tests java
-benchmarks/engines.json | python benchmark_tests java
-benchmarks/compose.yaml | python benchmark_tests java
-benchmarks/knee-range.json | python benchmark_tests java
-# stage 4's parity page, which the Java harness writes and checks and a benchmark test reads,
-# and its runs, which only the Java harness reads
-docs/validation/java-parity.md | python benchmark_tests java
+docs/validation.md docs/validation/accuracy.json | java
+benchmarks/engines.json | java
+benchmarks/compose.yaml | java
+benchmarks/knee-range.json | java
+# stage 4's parity page, which the Java harness writes and checks, and its runs
+docs/validation/java-parity.md | java
 docs/validation/simulation-parity.json | java
 # the engines' speed, which only the parity page's test reads, and the earlier measurements,
 # which nothing does
@@ -67,13 +61,11 @@ benchmarks/perf/baseline.json |
 docs/assumptions.md | java
 .github/actions/archsim-check/action.yml | java archsim_check
 .github/actions/archsim-check/sticky-comment.js | java archsim_check
-.github/workflows/benchmark.yml | python benchmark_tests
-# the Python environment runs the jobs that run Python
-uv.lock | python benchmark_tests
-pyproject.toml | python benchmark_tests
+# the Java harness's tests read its cpuset loop
+.github/workflows/benchmark.yml | java
 # files no job reads
 docs/architecture.md docs/adr/0026-component-specs-and-price-snapshots-in-the-model.md |
 README.md AGENTS.md CLAUDE.md .claude/skills/test-first/SKILL.md |
 .github/dependabot.yml .github/workflows/prices.yml .github/PULL_REQUEST_TEMPLATE.md |
 # files from several parts run what any of them needs
-apps/web/src/app/page.tsx scripts/check_commits.py | web e2e python
+apps/web/src/app/page.tsx archsim-mcp/src/main/java/io/archsim/mcp/McpTools.java | web e2e java

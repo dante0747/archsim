@@ -47,11 +47,11 @@ java archsim-tools/src/main/java/io/archsim/tools/changes/ChangedParts.java --al
 | `Job` | the jobs that run only when a change needs them | `JOBS` |
 | `GitDiff` | the files a change touched through `git diff`, none without a usable base | `changed_files` |
 
-The rules are `ci_changes.py`'s but for CI itself, which is now this package
-(`scripts/ci_changes.py` falls under `scripts/`, which the Python job tests),
-`archsim-tools/`, which the Java job tests, and `.github/actions/`, whose step's test moved from
-the Python job to the Java job (`ArchsimCheckActionTests`). On main's last 80 commits before the
-test moved, both gave the same report but for the two that changed `scripts/ci_changes.py`.
+The rules began as `ci_changes.py`'s, but for CI itself, which became this package, and
+`archsim-tools/`, which the Java job tests: on main's last 80 commits then, both gave the same
+report but for the two that changed `scripts/ci_changes.py`. With the Python gone (stage 7's last
+slice) they hold the Java, archsim-check, web and end-to-end jobs alone, and a change to
+`.github/actions/` runs the Java job, where `ArchsimCheckActionTests` runs the action's step.
 
 ## The price refresh
 

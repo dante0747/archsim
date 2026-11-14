@@ -4,7 +4,8 @@ The accuracy benchmarks' harness: it calibrates a stack at low load, predicts it
 measures it with k6, compares, and writes the validation page from the results
 ([`docs/validation.md`](../docs/validation.md) describes the protocol). It is the Java port of the
 Python harness (`benchmarks/run.py`, `benchmarks/report.py` and `scripts/java_parity_report.py`),
-stage 7 of the [Java port](../docs/proposals/java-25-port.md). It is not shipped.
+stage 7 of the [Java port](../docs/proposals/java-25-port.md), whose last slice deleted the Python
+(the tag `cpython-recorders` keeps it). It is not shipped.
 
 - **Code** here; **data** in [`benchmarks/`](../benchmarks): the stacks, k6's script,
   `compose.yaml`, `engines.json`, `knee-range.json` and the recorded `results/`, which are never
@@ -69,8 +70,8 @@ stage 7 of the [Java port](../docs/proposals/java-25-port.md). It is not shipped
 ./gradlew :archsim-benchmarks:test
 ```
 
-They are ported from `benchmarks/tests` and `scripts/tests/test_java_parity_report.py`, one Java
-test per Python assertion group, and the parity
+They are ported from the Python harness's `benchmarks/tests` and
+`scripts/tests/test_java_parity_report.py`, one Java test per Python assertion group, and the parity
 tests read the committed results: `CommittedComparisonsTests` recomputes all 67 kept runs'
 comparisons byte for byte, `ReportParityTests` regenerates `docs/validation.md`, its nine
 charts, both `accuracy.json` and both development pages, `CommittedParityPageTests`

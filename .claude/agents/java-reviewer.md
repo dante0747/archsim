@@ -36,9 +36,10 @@ Read first, so you judge against the project's own rules:
    transactions (boundaries, isolation, `SELECT ... FOR UPDATE SKIP LOCKED` used correctly),
    time zones (UTC, `Instant`/`OffsetDateTime`), integer overflow, floating-point comparisons.
 2. **Contract.** For the HTTP API: the routes, JSON (names, nulls, number formats), status codes,
-   headers, cookies and error bodies must match today's Python API exactly (the black-box suite
-   in `archsim-api-tests` and `docs/api.md` are the contract). For the database: the tables are
-   shared with the Python API, so SQL must read and write exactly the columns and values it does.
+   headers, cookies and error bodies must match the Python API's contract exactly (ADR-0034; the
+   black-box suite in `archsim-api-tests` and `docs/api.md` are the contract). For the database:
+   Flyway owns the schema (ADR-0032), so SQL must read and write exactly the columns and values
+   its migrations define.
    For the model: golden-file parity, messages word for word.
 3. **Security.** Input validation, SQL built only with bind parameters, no secrets in logs or
    errors, CSRF and session handling, token hashing, constant-time comparisons, outbound calls,
@@ -66,7 +67,7 @@ Run what the change touches, and report what you ran:
 ```bash
 ./gradlew format check            # or :<module>:check
 ./gradlew :archsim-app:test       # when the app changed
-uv run python scripts/check_commits.py --range main..HEAD   # when commits are under review
+java archsim-tools/src/main/java/io/archsim/tools/commits/CheckCommits.java --range main..HEAD   # when commits are under review
 ```
 
 If a check fails, that is a blocking finding. If you cannot run something (it needs Docker or a

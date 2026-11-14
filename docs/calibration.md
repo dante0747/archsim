@@ -175,7 +175,7 @@ median rate.
   linearly in log(rate), at most as far above the top as those rates span below it and never
   past where the CPUs fill, as one more point. Below 30% busy part of the fall is the host's
   power management, which does not continue. Neither `archsim calibrate` nor the benchmarks use
-  it by default yet (`benchmarks/run.py`, `CURVE_FORM`). A service that autoscales, or runs
+  it by default yet (the harness's `CurveForm`). A service that autoscales, or runs
   serverless, gets a note instead (its rate per replica is not known), and so does a database
   (it has no such setting).
 - **More CPU than service time.** CPU spent outside the handler time you measured (HTTP parsing,

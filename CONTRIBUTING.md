@@ -11,8 +11,7 @@ through [SECURITY.md](SECURITY.md), not public issues.
 ## Repository layout
 
 ```
-benchmarks/        Python: the accuracy benchmarks' harness, on the Java engine's CLI.
-scripts/           Python: developer scripts (CI's changed parts, commit messages, prices).
+benchmarks/        The accuracy benchmarks' stacks, k6 load and results.
 apps/web/          Next.js 16 + React Flow editor and results UI.
 examples/          Example architecture documents (served by the API, used by tests).
 docs/              Design and reference documentation.
@@ -26,20 +25,19 @@ archsim-api-tests/ Java: black-box tests of the HTTP API.
 archsim-cli/       Java: the `archsim` command line.
 archsim-mcp/       Java: the MCP server for AI coding agents.
 archsim-benchmarks/ Java: the accuracy benchmarks' harness; its data stays in benchmarks/.
-                   build-logic/ and gradle/ hold the build.
+archsim-tools/     Java: the repository's tooling (commit messages, CI's changed parts,
+                   the price refresh). build-logic/ and gradle/ hold the build.
 parity/            What the Python engine 0.16.0 recorded before stage 5 deleted it (golden
                    files, simulation baselines, test fixtures): the Java tests' reference.
 ```
 
 ## Development setup
 
-Prerequisites: a JDK 25, Python 3.11+ (3.12 recommended), [uv](https://docs.astral.sh/uv/),
-Node.js 24 with npm, and PostgreSQL 16 (Docker Compose starts one).
+Prerequisites: a JDK 25, Node.js 24 with npm, and PostgreSQL 16 (Docker Compose starts one).
+The `commit-msg` hook runs with `$JAVA_HOME`'s Java when it is set, else `java`, and needs 22
+or later: with an older JDK on `JAVA_HOME`, point it at the JDK 25 for your commits.
 
 ```bash
-# Python environment (the dev tools the harness and scripts use) into .venv
-uv sync
-
 # Web app
 cd apps/web && npm ci && cd ../..
 
@@ -62,22 +60,13 @@ both to use another. The `Makefile` wraps these commands (`make setup`, `make de
 `make`, run the underlying commands shown in the Makefile directly; nothing depends on a POSIX
 shell.
 
-**Windows path length.** If the checkout lives in a very deep directory, loading compiled
-Python extensions (for example mypy's) can fail with "The filename or extension is too
-long". Clone into a short path such as `C:\src\archsim`, or point uv at a short environment
-directory: `set UV_PROJECT_ENVIRONMENT=C:\venvs\archsim` before `uv sync`.
-
 ## Checks
 
 Run everything CI runs before opening a pull request:
 
 ```bash
-# Python
-uv run ruff check benchmarks scripts
-uv run ruff format --check benchmarks scripts
-uv run mypy benchmarks
-./gradlew :archsim-cli:installDist             # the benchmarks' tests call it: a Java 25 on JAVA_HOME or the PATH
-uv run pytest                                   # the benchmarks and the scripts
+# The branch's commit messages
+java archsim-tools/src/main/java/io/archsim/tools/commits/CheckCommits.java --range main..HEAD
 
 # Web
 cd apps/web
@@ -115,9 +104,8 @@ On a failure, `npx playwright show-trace apps/web/test-results/<test>/trace.zip`
 by step. `npm run e2e:capture` retakes the README images in `docs/images/` and
 records the demo GIF (it needs ffmpeg for the GIF and takes a few minutes).
 
-`uv run ruff format benchmarks scripts` fixes the Python formatting. Tests must not
-depend on wall-clock speed beyond generous limits, and simulations in tests should use short
-durations.
+Tests must not depend on wall-clock speed beyond generous limits, and simulations in tests
+should use short durations.
 
 ## Working with AI assistants
 
@@ -140,7 +128,8 @@ held to the same checks and review as anyone's.
   `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`; mark a
   breaking change with `!` after the type or scope. Commits carry no AI co-author trailer.
   `make hooks` (or `git config core.hooksPath .githooks`) checks each message as you commit,
-  and CI checks every commit of a pull request (`archsim-tools`' `CheckCommits`, which the hook runs too).
+  and CI checks every commit of a pull request (`archsim-tools`' `CheckCommits`, which the hook
+  runs too).
 - Do not commit secrets, `.env` files, local databases (`*.db`) or generated reports.
 - New dependencies need a reason in the PR description. No telemetry, no paid services.
 - If you change component metadata (fields, ports, defaults), regenerate the web test fixture

@@ -82,7 +82,8 @@ program from its source files without a build.
 Two confirmations wait. CI's `changes` and `commits` jobs have run only locally while Actions
 cannot start jobs. The price refresh has run against the parsers' samples, where it writes what
 `aws.py` wrote byte for byte, but not yet against live offer files: running `aws.py` and
-`prices aws` on the same cached files is the check left before stage 7 deletes `aws.py`.
+`prices aws` on the same cached files is the check left, `aws.py` from the tag
+`cpython-recorders` (`git worktree add <dir> cpython-recorders`, then `uv sync` there).
 
 ### Consequences
 

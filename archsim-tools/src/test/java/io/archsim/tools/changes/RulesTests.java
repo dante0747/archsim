@@ -47,12 +47,6 @@ class RulesTests {
 	}
 
 	@Test
-	void standard_theBenchmarkTests_runOnlyWithThePythonJobTheyArePartOf() {
-		assertThat(Rules.STANDARD)
-			.noneMatch((rule) -> rule.jobs().contains(Job.BENCHMARK_TESTS) && !rule.jobs().contains(Job.PYTHON));
-	}
-
-	@Test
 	void standard_everyPathARuleNames_exists() throws IOException {
 		List<String> missing = new ArrayList<>();
 		for (Rule rule : Rules.STANDARD) {

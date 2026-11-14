@@ -1,9 +1,8 @@
 # Thin wrappers around the documented commands. On Windows without make, run the commands
 # after each target directly.
-.PHONY: setup hooks image api worker web dev-db seed test test-py test-web lint fmt typecheck benchmark
+.PHONY: setup hooks image api worker web dev-db seed test test-java test-web lint fmt typecheck benchmark
 
-setup:            ## install Python and web dependencies, and the commit-message hook
-	uv sync
+setup:            ## install the web app's dependencies, and the commit-message hook (JDK 22 or later)
 	cd apps/web && npm ci
 	git config core.hooksPath .githooks
 
@@ -31,27 +30,24 @@ seed:             ## create one project per example in the default workspace (st
 	./gradlew :archsim-app:bootJar
 	java -jar archsim-app/build/libs/archsim-app.jar seed
 
-test: test-py test-web
+test: test-java test-web
 
-test-py:
-	uv run pytest
+test-java:        ## the Java build: formatting, Checkstyle, Error Prone and NullAway, tests
+	./gradlew build
 
 test-web:
 	cd apps/web && npm test
 
 lint:
-	uv run ruff check benchmarks scripts
-	uv run ruff format --check benchmarks scripts
+	./gradlew checkFormat checkstyleMain checkstyleTest
 	cd apps/web && npm run lint
 
 fmt:
-	uv run ruff check --fix benchmarks scripts
-	uv run ruff format benchmarks scripts
+	./gradlew format
 
 typecheck:
 	cd apps/web && npm run typecheck
-	uv run mypy benchmarks
 
 benchmark:        ## accuracy benchmarks (Docker; about 1.5 hours, machine otherwise idle), then rewrite docs/validation.md and accuracy.json
-	uv run python benchmarks/run.py all
-	uv run python benchmarks/report.py --json
+	./gradlew :archsim-benchmarks:run --args="all"
+	./gradlew :archsim-benchmarks:run --args="report --json"

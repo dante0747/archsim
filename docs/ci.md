@@ -148,27 +148,17 @@ the month resets ("The job was not started because ... your spending limit needs
 increased"). In November 2026 a full CI run on every push to main, about 44 billed minutes
 each, used the month's minutes in five days. So:
 
-- **CI runs only the jobs a change can affect.** The `changes` job runs `scripts/ci_changes.py` on
-  the files a pull request or push changes; its log says which file needs each job. A change to docs
-  (other than the ones the Python tests read), the README or `.claude/` runs no job but
-  `Commit messages`; a web change runs Web and End-to-end; a Java change runs Java and
-  End-to-end, and a change to the CLI, the engine, the model or the Gradle build (Dependabot's
-  Gradle updates included) also runs `ArchSim check`, whose image build (several minutes cold,
-  [ADR-0060](adr/0060-run-the-check-action-in-an-image-the-job-builds.md)) costs more than the
-  Python action's set-up did. A path no rule names runs every job, and so does a change to CI
-  itself, a push that starts a branch or rewrites history, and a run started by hand (Actions > CI >
-  Run workflow). When a test starts reading a file from another part of the repository, add it to
-  the script's `RULES`.
-- **The benchmarks' tests run only when they can fail.** They are most of the Python job's
-  minutes. They calibrate, simulate and render `docs/validation.md` with the Java engine
-  ([ADR-0062](adr/0062-make-the-java-engine-the-harnesss-default.md)), so the Python job runs
-  them (step `Benchmark tests`) only on a change to the Java engine (what its CLI is built
-  from), the Python environment, the templates or a file they read (`benchmark_tests` in the
-  script's `RULES`). They also ask the Java engine for the engine's functions
-  ([ADR-0061](adr/0061-answer-the-harnesss-engine-calls-from-one-java-process.md)), so the job
-  installs a Java 25 and the CLI before them. A change to a script runs the rest of the Python
-  tests, about a minute. The Python engine's tests went with it at stage 5 of the Java port, and
-  the Alembic migrations' at stage 6.
+- **CI runs only the jobs a change can affect.** The `changes` job runs archsim-tools'
+  `ChangedParts`, from its source, on the files a pull request or push changes; its log says which
+  file needs each job. A change to docs (other than the ones the Java tests read), the README or
+  `.claude/` runs no job but `Commit messages`; a web change runs Web and End-to-end; a Java change
+  runs Java and End-to-end, and a change to the CLI, the engine, the model or the Gradle build
+  (Dependabot's Gradle updates included) also runs `ArchSim check`, whose image build (several
+  minutes cold, [ADR-0060](adr/0060-run-the-check-action-in-an-image-the-job-builds.md)) costs more
+  than the Python action's set-up did. A path no rule names runs every job, and so does a change to
+  CI itself, a push that starts a branch or rewrites history, and a run started by hand (Actions >
+  CI > Run workflow). When a test starts reading a file from another part of the repository, add it
+  to archsim-tools' `Rules`.
 - **Pushes to main never cancel one another**, since each push's run tests only what that push
   changed. A pull request's new commits still cancel its older run. A later push that skips a
   job does not retest it: when a job fails, its failure is in that push's run, and the job only

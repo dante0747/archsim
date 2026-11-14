@@ -55,8 +55,6 @@ jobs:
     name: Changed parts
     runs-on: ubuntu-latest
     outputs:
-      python: ${{ steps.jobs.outputs.python }}
-      benchmark_tests: ${{ steps.jobs.outputs.benchmark_tests }}
       java: ${{ steps.jobs.outputs.java }}
       archsim_check: ${{ steps.jobs.outputs.archsim_check }}
       web: ${{ steps.jobs.outputs.web }}
@@ -81,43 +79,6 @@ jobs:
           else
             java archsim-tools/src/main/java/io/archsim/tools/changes/ChangedParts.java --base "$BASE_SHA" --head "$HEAD_SHA" --github-output "$GITHUB_OUTPUT"
           fi
-
-  python:
-    name: Python (harness, scripts)
-    needs: changes
-    if: needs.changes.outputs.python == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-      - run: uv sync --frozen
-      - name: Lint
-        run: uv run ruff check benchmarks scripts
-      - name: Format
-        run: uv run ruff format --check benchmarks scripts
-      - name: Tests
-        # every testpath but the benchmarks' (--ignore does not apply to a testpath itself)
-        run: uv run pytest --deselect benchmarks/tests
-      # The benchmarks' tests, about 9 minutes: they calibrate and simulate with the Java engine
-      # (ADR-0062), and ask it for its functions (ADR-0061), through the CLI installed here. Only a
-      # change to the engine or to a file they read can change their result (archsim-tools' Rules).
-      - uses: actions/setup-java@v6
-        if: needs.changes.outputs.benchmark_tests == 'true'
-        with:
-          distribution: temurin
-          java-version: 25
-      - uses: gradle/actions/setup-gradle@v6
-        if: needs.changes.outputs.benchmark_tests == 'true'
-      - name: Install the Java CLI
-        if: needs.changes.outputs.benchmark_tests == 'true'
-        run: ./gradlew :archsim-cli:installDist
-      - name: Benchmark tests
-        if: needs.changes.outputs.benchmark_tests == 'true'
-        run: uv run pytest benchmarks/tests
-      - name: Type check the benchmark scripts
-        run: uv run mypy benchmarks
 
   java:
     # the Java build (Spring's formatting, Checkstyle, Error Prone and NullAway, unit tests,

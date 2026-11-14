@@ -16,19 +16,20 @@ archsim-api-tests/  Java black-box tests of the HTTP API
 archsim-cli/        Java command line, `archsim`
 archsim-mcp/        Java MCP server for AI coding agents
 archsim-benchmarks/ Java accuracy benchmarks' harness; its data stays in benchmarks/
+archsim-tools/      Java tooling: the commit message check, CI's changed parts, the price refresh
 build-logic/        The Gradle build's shared conventions (with gradle/ and config/checkstyle/)
 apps/web/           Next.js editor: canvas, inspector, results, dashboard and comparison
 examples/           Example architectures (versioned JSON) with scenarios: the templates
 parity/             What the Python engine 0.16.0 recorded: the Java tests' reference data
-benchmarks/         The accuracy benchmarks' harness (k6 against real stacks), on the Java engine
-scripts/            Developer scripts (which CI jobs a change needs, the commit message check, ...)
+benchmarks/         The accuracy benchmarks' stacks, k6 load and results
 docs/               Documentation, the ADRs and the accuracy report
 ```
 
 Each Java module has a README of its own: [archsim-model](../archsim-model/README.md),
 [archsim-engine](../archsim-engine/README.md), [archsim-app](../archsim-app/README.md),
 [archsim-api-tests](../archsim-api-tests/README.md), [archsim-cli](../archsim-cli/README.md),
-[archsim-mcp](../archsim-mcp/README.md) and [archsim-benchmarks](../archsim-benchmarks/README.md);
+[archsim-mcp](../archsim-mcp/README.md), [archsim-benchmarks](../archsim-benchmarks/README.md) and
+[archsim-tools](../archsim-tools/README.md);
 so do the [web app](../apps/web/README.md) and the [parity data](../parity/README.md). How to run
 the benchmarks is in [validation.md](validation.md#reproduce).
 
@@ -36,11 +37,7 @@ the benchmarks is in [validation.md](validation.md#reproduce).
 
 ```bash
 ./gradlew build                                 # the Java code: format, Checkstyle, Error Prone, tests
-./gradlew :archsim-cli:installDist              # the benchmarks' tests call the CLI
-uv run pytest                                   # the benchmarks and the scripts
-uv run ruff check benchmarks scripts
-uv run ruff format --check benchmarks scripts
-uv run mypy benchmarks
+java archsim-tools/src/main/java/io/archsim/tools/commits/CheckCommits.java --range main..HEAD
 cd apps/web && npm test && npm run lint && npm run typecheck && npm run build
 ```
 

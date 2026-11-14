@@ -2,19 +2,11 @@ package io.archsim.tools.changes;
 
 /**
  * The jobs of {@code .github/workflows/ci.yml} that run only when a change needs them, in
- * the order the {@code changes} job reports them. {@code benchmark_tests} is a step of
- * the Python job, about 9 of its minutes on a hosted runner: the accuracy benchmarks'
- * tests, which calibrate, simulate and render {@code docs/validation.md} with the Java
- * engine (ADR-0062). Only a change to the engine or to a file they read can change their
- * result.
+ * the order the {@code changes} job reports them: the Java build, the archsim-check
+ * action's own check, the web app and the end-to-end tests. The commit messages' check
+ * always runs and is not one of them.
  */
 enum Job {
-
-	/** Python (harness, scripts). */
-	PYTHON("python"),
-
-	/** The accuracy benchmarks' tests, a step of the Python job. */
-	BENCHMARK_TESTS("benchmark_tests"),
 
 	/** The Java build. */
 	JAVA("java"),

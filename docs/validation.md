@@ -141,38 +141,38 @@ power and set the power mode to Best performance: the runner records the mode, a
 different modes are not compared with each other:
 
 ```bash
-uv run python benchmarks/run.py postgres   # pg-mixed and pg-hot-row
-uv run python benchmarks/run.py cache      # cache-aside
-uv run python benchmarks/run.py kafka      # kafka
-uv run python benchmarks/run.py java-mixed # a held-out stack: needs a frozen engine (below)
-uv run python benchmarks/run.py all --runs 3  # three independent runs of each, rotating
-uv run python benchmarks/report.py --json  # rewrite this page's tables, charts and accuracy.json
+./gradlew :archsim-benchmarks:run --args="postgres"       # pg-mixed and pg-hot-row
+./gradlew :archsim-benchmarks:run --args="cache"          # cache-aside
+./gradlew :archsim-benchmarks:run --args="kafka"          # kafka
+./gradlew :archsim-benchmarks:run --args="java-mixed"     # a held-out stack: needs a frozen engine (below)
+./gradlew :archsim-benchmarks:run --args="all --runs 3"   # three independent runs of each, rotating
+./gradlew :archsim-benchmarks:run --args="report --json"  # rewrite this page's tables, charts and accuracy.json
 ```
 
-`make benchmark` runs all of them. `uv run python benchmarks/run.py compare` recomputes every
+`make benchmark` runs all of them. The harness's `compare` recomputes every
 `comparison.json` from the committed measurements and predictions without Docker;
-`run.py resources` first predicts CPU and memory for results whose predictions have none
+`resources` first predicts CPU and memory for results whose predictions have none
 (see [Resources](#resources-cpu-and-memory)). Results depend
-on the machine: rerun on yours before quoting numbers. `run.py --archive` first moves each
+on the machine: rerun on yours before quoting numbers. `--archive` first moves each
 experiment's latest results into its next `run-N/` folder, so the history below keeps them.
 
 Three commands check the model and the machine rather than measure accuracy:
 
-- `run.py resimulate` derives every kept run's inputs again from its calibration passes, with
+- `resimulate` derives every kept run's inputs again from its calibration passes, with
   today's code, and simulates its measured steps with today's engine (no Docker, about 10
-  minutes). It writes `results/dev/<engine>/`, and `report.py --dev` turns that into
+  minutes). It writes `results/dev/<engine>/`, and `report --dev` turns that into
   [`docs/validation/dev-checks.md`](validation/dev-checks.md): each run's knee, measured and
   simulated by every engine checked. These checks are in-sample, designed after the
   measurements were seen, so they show what a model change does without claiming accuracy; this
   page's tables never use them. With engine 0.14.0 they reproduce every run calibrated under v3
   or v4 exactly, step by step, which shows the re-simulation itself is faithful.
-- `run.py envcheck` characterises the machine (about 8 minutes of Docker): which CPUs share a
+- `envcheck` characterises the machine (about 8 minutes of Docker): which CPUs share a
   physical core inside Docker's VM, how much CPU the VM loses to steal, and the service's and
   PostgreSQL's CPU per request and p95 across 50 to 1,600 req/s, with k6 on the CPUs the runner
   gives it and again with the service's physical core left to the service alone. It writes
   `results/envcheck/<time>.json`. Each run's `environment.json` also records how its cpusets fall
   on physical cores (`topology`).
-- `run.py contention` measures how this machine turns CPUs into capacity (about 12 minutes of
+- `contention` measures how this machine turns CPUs into capacity (about 12 minutes of
   Docker): pg-mixed's service at rest, from a quarter of its core to past it and at half of it
   with background work on the other CPUs, with k6's own CPU; then a fixed unit of V8 work on one
   CPU, alone and with its hyperthread sibling, other cores or every CPU busy, and at a part of
@@ -180,17 +180,17 @@ Three commands check the model and the machine rather than measure accuracy:
   it, the actual frequency, power and thermal limits) are read every second meanwhile. It writes
   `results/envcheck/<time>-contention.json`. With `BENCH_HOST=on` the benchmark designs take
   their host machine from it (`architecture.host`, engine 0.16.0); by default they have none,
-  as before (see [What the machine itself does](#environment)). `run.py contention
+  as before (see [What the machine itself does](#environment)). `contention
   --service-only` takes only the machine at rest and the service at three rates (about 4
   minutes).
 
-`report.py --json` also writes the same numbers as data, to `docs/validation/accuracy.json` and a
+`report --json` also writes the same numbers as data, to `docs/validation/accuracy.json` and a
 copy in `apps/web/src/data/` (the web image is built from `apps/web` alone; a test keeps the two
 equal). The web app's public `/accuracy` page is built from that copy.
 
 A GitHub Actions workflow (`.github/workflows/benchmark.yml`) runs everything on a hosted runner
 every week, on every release tag (`v*`) and by hand: it archives the previous results, measures,
-runs `report.py --json`, uploads the raw results as an artifact and opens a pull request for a
+runs `report --json`, uploads the raw results as an artifact and opens a pull request for a
 person to review and merge. The repository is private, so each automatic run uses about 1.5 hours
 of billed Actions minutes: the weekly and release-tag triggers sit in a marked block at the top of
 the workflow, to comment out to turn them off. **It has not completed a run yet:** two manual
@@ -202,7 +202,7 @@ it, untested on Linux).
 
 ## Protocol
 
-Each experiment (`benchmarks/run.py`) runs on a fresh stack (`benchmarks/compose.yaml`): a small
+Each experiment (the harness, `archsim-benchmarks`) runs on a fresh stack (`benchmarks/compose.yaml`): a small
 Node.js service (`benchmarks/service/server.js`, no framework), PostgreSQL 16, Redis 7 and Kafka
 3.8 as each experiment needs, and k6 as the open-loop load generator (constant arrival rate,
 like ArchSim's clients). Every container is pinned to its own CPUs.
@@ -237,12 +237,12 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
    those, a query's time in PostgreSQL is its CPU per query, the rest of the round trip the
    service measured (its driver and the network) is the link to the database, and a WAL flush
    takes what PostgreSQL measured; runs without the statistics fit the flush in the model to the
-   wait the service measured (`run.py`, `database_inputs`, W22). Each top pass, with the
+   wait the service measured (the harness's `DatabaseInputs`, W22). Each top pass, with the
    auxiliary mixes run right after it, gives one replicate set of model inputs: CPU per request
    is the pass's CPU net of what the process burns at rest, timings come from the pass, and the
    one input not measured directly (the client-to-service latency) is set so the model
    reproduces the pass's median. Before that, the service time's spread is checked the same way
-   (W29, after the v6 campaign; `run.py` `anchor_spread`): its shape (p95 over median) comes from
+   (W29, after the v6 campaign; the harness's `Anchoring`): its shape (p95 over median) comes from
    the handler's own time, which is under a tenth of the CPU per request, and where replies come
    back in batches (Redis's) it holds the wait behind the requests resolved ahead of it, which
    the model then simulates again: cache-aside's spread 11 to 13 times from median to p95,
@@ -255,11 +255,11 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
    replicates' medians; `cpuByLoad` keeps every rate's CPU per request, which since W21 (engine
    0.15.0) becomes the service's `serviceTimeByLoad`, relative to the top rate and kept at the
    top rate's cost above it. W26 added a way to carry a measured fall above the top
-   (`extend_load_curve`, `run.py` `CURVE_FORM = "log"`): fitted over every pass at the rates
+   (`extend_load_curve`, the harness's `CurveForm.LOG`): fitted over every pass at the rates
    that kept the core at least 30% busy, used only when the top kept it at least 45% busy and
    the fall is more than twice its standard error, continued linearly in log(rate) at most as
    far above the top as those rates span below it, and never past where the core fills. It is
-   **off by default** (`CURVE_FORM = "flat"`): it was checked only on staircases built from the
+   **off by default** (`CurveForm.FLAT`): it was checked only on staircases built from the
    kept runs' measured ladders, not on a v6 calibration (see "What would make it better next").
    Since W21 the Node.js service also reports V8's garbage
    collections: its mark-compact cycles in the top pass become the model's GC pauses
@@ -275,7 +275,7 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
    knee. Since W28 (1 Nov 2026) it also predicts an **80% range** for the knee: the measured knee
    should fall inside it in about four runs of five. The range is a lognormal around the
    predicted knee whose spread adds two parts, both fitted on the four in-sample experiments
-   only (`benchmarks/knee-range.json`, written by `run.py range-fit`; the fit and its check:
+   only (`benchmarks/knee-range.json`, written by `range-fit`; the fit and its check:
    [`docs/validation/knee-range.md`](validation/knee-range.md)):
    - **What a fresh calibration on another day would give.** The inputs move between
      calibrations of the same stack: the service's CPU per request by about 17% (one standard
@@ -334,7 +334,7 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
    the model's. A run whose ladder misses the objective at one step and meets it at a higher
    one was **disturbed**: a stable stack does not get faster with more load, and the knee is set
    by the first miss, so that knee is not the stack's. Such a run is kept and listed, but
-   `report.py` leaves it out of the criteria, the repeatability and the run-to-run spread. This
+   the report leaves it out of the criteria, the repeatability and the run-to-run spread. This
    rule was added on 31 Oct 2026, after the baseline campaign's first two pg-mixed runs: at
    2,112 and 2,550 req/s two of three repeats stalled, with every container's CPU per request
    rising 2 to 3 times at once while none was more than half busy, and the same runs then met
@@ -383,7 +383,7 @@ pg-mixed in two of three runs (2,453 and 2,502; the third reached 3,155), and th
 landed 25% below cache-aside's measured knee (median), 11% above pg-mixed's and 3% below
 Kafka's.
 
-Every kept run, compared the same way (`run.py compare`):
+Every kept run, compared the same way (`compare`):
 
 <!-- BEGIN GENERATED: history -->
 | Experiment | Results | Protocol | Calibrated (UTC) | Knee measured | Knee predicted | Knee error | Counted |
@@ -471,7 +471,7 @@ update and run 7 ran under Best performance. The run-to-run spread quoted here a
 - CPUs pinned per container (cpuset; k6 gets the CPUs the stack leaves free): java-mixed: service 2 (`2,3`), PostgreSQL 2 (`4,5`), k6 4 (`0,1,6,7`); go-mixed: service 2 (`2,3`), PostgreSQL 2 (`4,5`), k6 4 (`0,1,6,7`); python-mixed: service 2 (`2,3`), PostgreSQL 2 (`4,5`), k6 4 (`0,1,6,7`); chain: gateway 1 (`0`), API 1 (`2`), PostgreSQL 2 (`4,5`), k6 2 (`6,7`); cache-ttl: service 1 (`2`), PostgreSQL 2 (`4,5`), Redis 1 (`0`), k6 2 (`6,7`); pg-mixed and pg-hot-row: service 1 (`2`), PostgreSQL 2 (`4,5`), k6 4 (`0,1,6,7`); cache-aside: service 1 (`2`), PostgreSQL 2 (`4,5`), Redis 1 (`1`), k6 3 (`0,6,7`); kafka: producer 1 (`2`), consumer 1 (`3`), PostgreSQL 2 (`4,5`), Kafka 2 (`0,1`), k6 2 (`6,7`).
 <!-- END GENERATED: environment -->
 
-**What the machine itself does** (`run.py envcheck`, 30 Oct, Windows build 26300, pg-mixed's
+**What the machine itself does** (`envcheck`, 30 Oct, Windows build 26300, pg-mixed's
 workload, `results/envcheck/`):
 
 - **CPU per request falls steeply with the rate, in every container.** The Node.js service used
@@ -490,7 +490,7 @@ workload, `results/envcheck/`):
   physical core too, though the model gives it two cores; its CPU never came close to binding.
 - **No CPU steal** in Docker's VM, and no p95 near Windows' 15.6 ms timer tick at these rates.
 - **Every container shares the laptop's four physical cores, whatever its cpuset says**
-  (`run.py contention`, 1 Nov, `results/envcheck/2026-11-01T00-48-59Z-contention.json`).
+  (`contention`, 1 Nov, `results/envcheck/2026-11-01T00-48-59Z-contention.json`).
   Docker's VM numbers its CPUs as hyperthread pairs (2 and 3, 4 and 5, ...), but Windows
   schedules the VM's CPUs itself: a fixed unit of V8 work on CPU 2 with CPU 3 busy did 1.57 to
   1.70 times one CPU's work together, where two threads of one core do about 1.2. What sets how
@@ -517,17 +517,17 @@ test ArchSim on stacks it was never tuned on. They were **sealed** until an engi
 measured three times on 3-4 Nov 2026, the three runs rotating through the five stacks. The
 results, misses included, lead the [headline](#headline):
 
-- `run.py` refuses to calibrate or measure one unless the engine is one frozen in
+- The harness refuses to calibrate or measure one unless the engine is one frozen in
   `benchmarks/engines.json` and nothing in the engine or the harness is uncommitted. Its
   predictions are then saved before the first measured step, as for every experiment, so no
   model change can be tuned on its results first. Engine 0.16.0 was known by its source tree
   (`git rev-parse HEAD:packages/engine`); since stage 5 of the Java port deleted it, the harness
   runs the Java engine only, which keeps them sealed until its freeze says what identifies it
   ([ADR-0062](adr/0062-make-the-java-engine-the-harnesss-default.md)).
-- Before the freeze, `run.py smoke <experiment>` was the only way to start their stacks: 20
+- Before the freeze, `smoke <experiment>` was the only way to start their stacks: 20
   req/s for 10 s, checking that every request succeeded and that the services counted it. It
   keeps no latency and no results.
-- `report.py` labels each pair of engine and experiment `held-out` or `tuned-on`. An experiment
+- The report labels each pair of engine and experiment `held-out` or `tuned-on`. An experiment
   is held out for a frozen engine that does not list it in `tunedOn`. The held-out experiments
   lead this page's tables, and an engine tuned on them later must list them in `tunedOn`.
 - **Changed after registration, before any measurement (31 Oct 2026):** two library updates to
@@ -1043,10 +1043,10 @@ the real one; errors count only steps up to both knees.
 How it was measured: since run 5 the runner reads each container's CPU and memory every 5 s inside the
 window k6 measures (`ResourceSampler`). Run 4, kept in the `run-N/` folders, recorded each
 container's CPU over the whole k6 command, which includes k6's own container start and stop (the
-command took 4% to 67% longer than its 25 s of load). `run.py compare` scales those figures to
+command took 4% to 67% longer than its 25 s of load). `compare` scales those figures to
 the window by the service's own CPU counter (Node's `process.cpuUsage`, which matched its
 container's CPU within 1% in every calibration pass), assuming the containers idle while k6
-starts and stops, and `run.py resources` simulates their predicted CPU again from each run's
+starts and stops, and `resources` simulates their predicted CPU again from each run's
 calibration (`resources-predicted.json`), since run 4's predictions did not record it; no
 measured step feeds into it. The scaled figures had put pg-mixed's PostgreSQL within 8%; read
 inside the window it was 36% off, so treat run 4's scaled figures as rough.
@@ -1115,8 +1115,8 @@ From the baseline campaign (run 7: protocol v5, engine 0.14.0, three counted run
     two CPUs (hyperthread siblings of one physical core) with its CPU per query up from 0.16 to
     0.26 ms. So the likely cause is a CPU cost that rises near full load, in both processes at
     once: on this laptop its clock falls from about 4,050 to 2,950 MHz as its 8 logical
-    processors fill, and past one busy thread per core the threads share cores (`run.py
-    contention`, [Environment](#environment)). Giving the model's PostgreSQL its one physical
+    processors fill, and past one busy thread per core the threads share cores (`contention`,
+    [Environment](#environment)). Giving the model's PostgreSQL its one physical
     core instead of two logical CPUs does not move the model's knee, which stays Node's (W22's
     what-if). Engine 0.16.0 can model a machine's threads slowing each other
     (`architecture.host`), but the benchmark designs do not use it yet: re-simulated in-sample
@@ -1245,8 +1245,9 @@ What would make it better next, in order:
    on staircases built from the kept ladders it moved cache-aside's core-full rate from 18% to
    10% below the knee (median, ladders cut at 70% of the core; cut at 65% it fired in one run
    of three), left pg-mixed alone and does not fire on Kafka's or hot-row's v6 staircases (under
-   45% busy). It is off by default until the v6 campaign's own runs show the same
-   (`CURVE_FORM = "log"`, then `run.py resimulate`).
+   45% busy). It is off by default until the v6 campaign's own runs show the same (the log
+   form, passed the staircase and the service's CPUs as the harness's `CurveForm` describes,
+   then `resimulate`).
 3. A calibration whose inputs move less from run to run: much of the service's CPU variation
    is where the staircase stopped (W26 calibrates closer to the knee). The predicted range (W28)
    now carries that variation and the model's error; it holds 9 of the 12 runs in-sample and
@@ -1285,7 +1286,7 @@ which a prediction that was too low could never fail. pg-mixed and Kafka passed 
 fail it now: pg-mixed at 3,788 req/s (2.0 ms predicted, 30.7 measured) and Kafka at 1,894 and
 2,272 req/s (2.8 and 4.7 ms predicted, 14.5 and 28.7 measured).
 
-Computed by `benchmarks/report.py` from each experiment's latest run and its kept runs:
+Computed by the harness's `report` from each experiment's latest run and its kept runs:
 
 <!-- BEGIN GENERATED: tiers -->
 | Experiment | 1. Median knee error within ±25% (3+ runs) | 2. p95 within a factor of two or 3 ms at or below the measured knee (2 of 3 runs) | 3a. No unstable step at or below the measured knee (2 of 3 runs) | 3b. Reproduced on a second machine, same protocol | All three |

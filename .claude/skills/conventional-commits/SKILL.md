@@ -6,8 +6,9 @@ description: Write and check ArchSim commit messages as Conventional Commits (ty
 # Conventional Commits
 
 Every commit message in ArchSim follows [Conventional Commits](https://www.conventionalcommits.org).
-`archsim-tools`' `CheckCommits` checks it, from its source with Java 22 or later: the `commit-msg` hook on each commit (`make hooks` or
-`git config core.hooksPath .githooks`), and CI on every commit of a pull request.
+`archsim-tools`' `CheckCommits` checks it, from its source with Java 22 or later: the
+`commit-msg` hook on each commit (`make hooks` or `git config core.hooksPath .githooks`), and CI
+on every commit of a pull request.
 
 ## The header
 
@@ -67,5 +68,5 @@ ci(java): build the Java code and run the black-box API tests in CI
 ## Check before pushing
 
 ```bash
-uv run python scripts/check_commits.py --range main..HEAD
+java archsim-tools/src/main/java/io/archsim/tools/commits/CheckCommits.java --range main..HEAD
 ```

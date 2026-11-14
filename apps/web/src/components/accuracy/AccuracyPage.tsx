@@ -757,7 +757,7 @@ export function AccuracyPage({ data }: { data: Accuracy }) {
                 "Measure your own knee.",
                 <>
                   Load-test one step past the predicted knee in a staging environment, or run this page&apos;s benchmarks on your hardware (
-                  <code className="font-code text-[13px] text-ink">uv run python benchmarks/run.py all</code>).
+                  <code className="font-code text-[13px] text-ink">./gradlew :archsim-benchmarks:run --args=&quot;all&quot;</code>).
                 </>,
               ],
             ].map(([head, body], i) => (

@@ -3,16 +3,6 @@ version: 2
 # rebase of one when main moves, runs CI on billed Actions minutes. Security updates still open
 # as soon as an advisory is published; the schedule does not apply to them.
 updates:
-  - package-ecosystem: uv
-    directory: /
-    schedule:
-      interval: monthly
-    commit-message:
-      prefix: build
-      include: scope
-    groups:
-      python:
-        patterns: ["*"]
   - package-ecosystem: npm
     directory: /apps/web
     schedule:

@@ -4,13 +4,13 @@ name: Accuracy benchmarks
 # (about 1.5 hours) and noisy on shared runners, so never on pull requests: it runs by hand only
 # for now (the weekly and release-tag runs below are off, see NOT YET RUN ON LINUX). Each run keeps
 # the previous results in run-N/ folders
-# (run.py --archive), measures again, regenerates docs/validation.md, its charts and
-# docs/validation/accuracy.json with the web app's copy (report.py --json, which the /accuracy
+# (the harness's --archive), measures again, regenerates docs/validation.md, its charts and
+# docs/validation/accuracy.json with the web app's copy (report --json, which the /accuracy
 # page is built from), uploads the raw results as an artifact and opens a pull request. A person
 # reviews and merges it; nothing here changes main by itself.
 #
 # NOT YET RUN ON LINUX. Every run so far was on Windows with Docker Desktop; on a hosted runner the
-# k6 container writes its summary as uid 12345 (run.py makes benchmarks/results/.k6
+# k6 container writes its summary as uid 12345 (the harness makes benchmarks/results/.k6
 # world-writable for it, untested on Linux). The scheduled run on 2026-11-02 hit the 120-minute
 # timeout and was cancelled, and the hand-started runs on 2026-10-28 failed. Get a run started by
 # hand (Actions > Accuracy benchmarks > Run workflow) to pass, and check its artifact and pull
@@ -50,19 +50,18 @@ concurrency:
   group: benchmark
   cancel-in-progress: false
 
-env:
-  UV_PYTHON: "3.12"
-
 jobs:
   benchmark:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/setup-java@v6
         with:
-          enable-cache: true
-      - run: uv sync --frozen
+          distribution: temurin
+          java-version: 25
+      # also checks the committed Gradle wrapper against Gradle's published checksums
+      - uses: gradle/actions/setup-gradle@v6
       - name: Benchmarks
         env:
           STACK: ${{ inputs.stack || 'all' }}
@@ -73,9 +72,9 @@ jobs:
           cpus="0-$(( $(nproc) - 1 ))"
           for name in POSTGRES REDIS REDIS_TTL KAFKA SERVICE CONSUMER GATEWAY CHAIN_API JAVA GO PYTHON K6; do export "BENCH_CPUS_$name=$cpus"; done
           echo "every container shares CPUs $cpus"
-          uv run python benchmarks/run.py "$STACK" --archive
+          ./gradlew :archsim-benchmarks:run --args="$STACK --archive"
       - name: Report
-        run: uv run python benchmarks/report.py --json
+        run: ./gradlew :archsim-benchmarks:run --args="report --json"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -97,32 +96,29 @@ jobs:
             echo "Linux runner ([run](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID});"
             echo "raw results in its artifact). The previous results are kept in \`run-N/\` folders."
             echo
-            uv run python - <<'EOF'
-          import re
-          import sys
-          from pathlib import Path
-
-          sys.stdout.reconfigure(encoding="utf-8")
-          doc = Path("docs/validation.md").read_text(encoding="utf-8")
-          for name in ("summary", "tiers"):
-              m = re.search(rf"<!-- BEGIN GENERATED: {name} -->\n(.*?)\n<!-- END GENERATED", doc, re.S)
-              print(m.group(1) if m else f"(no {name} block)")
-              print()
-          EOF
+            # the page's generated summary and tiers, as they stand after the run
+            for name in summary tiers; do
+              awk -v begin="<!-- BEGIN GENERATED: $name -->" -v name="$name" '
+                $0 == begin { inside = 1; found = 1; next }
+                inside && index($0, "<!-- END GENERATED") == 1 { inside = 0 }
+                inside { print }
+                END { if (!found) print "(no " name " block)" }' docs/validation.md
+              echo
+            done
             echo "---"
             echo "Opened by .github/workflows/benchmark.yml. Before merging:"
             echo
             echo "- [ ] The numbers are plausible (no stack failed to start, no step without requests)."
             echo "- [ ] The hand-written text in docs/validation.md (headline bullets, protocol history, \"Where the model is wrong\") matches the new numbers."
-            echo "- [ ] Tests that pin the committed numbers are updated (benchmarks/tests: \`*_on_the_committed_results\`, \`test_experiment_block_*\`)."
+            echo "- [ ] Tests that pin the committed numbers are updated (archsim-benchmarks: \`Committed*Tests\`, \`ReportParityTests\`)."
             echo "- [ ] CI passes; /accuracy is rebuilt from apps/web/src/data/accuracy.json on the next web build."
           } > "$RUNNER_TEMP/body.md"
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
           git switch -c "$branch"
           git add benchmarks/results docs/validation.md docs/validation apps/web/src/data/accuracy.json
-          git commit -m "Benchmarks: results of ${date} (${STACK}, ${TRIGGER})"
+          git commit -m "chore(benchmarks): record the results of ${date} (${STACK}, ${TRIGGER})"
           git push origin "$branch"
           base="$(gh repo view "$GITHUB_REPOSITORY" --json defaultBranchRef -q .defaultBranchRef.name)"
           gh pr create --base "$base" --head "$branch" \
-            --title "Benchmarks: results of ${date} (${STACK}, ${TRIGGER})" --body-file "$RUNNER_TEMP/body.md"
+            --title "chore(benchmarks): record the results of ${date} (${STACK}, ${TRIGGER})" --body-file "$RUNNER_TEMP/body.md"
