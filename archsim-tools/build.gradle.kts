@@ -4,3 +4,8 @@
 plugins {
     id("archsim.java-conventions")
 }
+
+tasks.test {
+    // the CI rules' tests read ci.yml and check every path a rule names
+    systemProperty("archsim.repoRoot", rootDir.absolutePath)
+}

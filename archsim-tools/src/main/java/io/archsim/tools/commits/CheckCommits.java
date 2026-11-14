@@ -28,6 +28,7 @@ public final class CheckCommits {
 	/** What {@code -h} prints, as argparse printed it. */
 	private static final String HELP = USAGE + """
 
+
 			Check commit messages against Conventional Commits (https://www.conventionalcommits.org).
 
 			A header is `type(scope)!: description`: a known type, an optional lower-case scope, an optional
