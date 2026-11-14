@@ -44,7 +44,7 @@ public record ArchitectureDocument(@Default(SCHEMA_VERSION) @Const(SCHEMA_VERSIO
 		@Nullable CalibrationRecord calibration, @Default("{}") Pricing pricing) {
 
 	/** The schema version of documents this model reads and writes. */
-	public static final String SCHEMA_VERSION = "1.7";
+	public static final String SCHEMA_VERSION = "1.8";
 
 	/** What every design document's {@code kind} says. */
 	public static final String KIND = "archsim.architecture";

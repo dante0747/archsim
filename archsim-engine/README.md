@@ -31,7 +31,7 @@ It is engine 1.1.0, and stage 4 is done: its exit is checked off in the port pla
 
 | Package | What |
 | --- | --- |
-| `cost` | the cost estimate, before a run or after one: `CostEstimator` (each part's price per instance-hour, set on it, a price snapshot's instance type, a preset's, its size's at generic rates or the default; managed and per-request parts at the snapshot's rates; implied Kubernetes nodes; burstable types' surplus CPU credits: `CostEstimate`; after a run, `estimateAfterRun` prices per-request parts at each part's rate the run measured at the base load, `MeasuredUsage`, and gives the cost per million successful requests; the month is billed at the base load, priced by `LevelPricing`, with an hour at the peak beside it, `HourlyCost`, and an autoscaled service or a cluster at each load the count it settles at there, `SettledCounts`, ADR-0074), `SizePricing` (the price of a part's size) |
+| `cost` | the cost estimate, before a run or after one: `CostEstimator` (each part's price per instance-hour, set on it, a price snapshot's instance type, a preset's, its size's at generic rates or the default; managed and per-request parts at the snapshot's rates; implied Kubernetes nodes; burstable types' surplus CPU credits: `CostEstimate`; after a run, `estimateAfterRun` prices per-request parts at each part's rate the run measured at the base load, `MeasuredUsage`, and gives the cost per million successful requests; each load priced by `LevelPricing`, and the month, `MonthlyCost`, the workload's peak hours billed at the peak and the rest at the base load, with an hour at each beside it, `HourlyCost`; an autoscaled service or a cluster is billed at each load the count it settles at there, `SettledCounts`, ADR-0074), `SizePricing` (the price of a part's size) |
 | `estimate` | the instant estimate: `InstantEstimator` (what textbook queueing formulas predict for a design at its peak, without a run: each part's utilization and wait, each request path's latency and a rough p95, where an average request's time goes, and where the design saturates: `InstantEstimate`) |
 | `analysis` | the static analysis of a design: `DesignAnalyzer` (its sizes, cost, review, technology tiers, inputs, instant estimate and confidence, and whether a quick check can answer it, as a run would use them: `DesignAnalysis`, which `POST /analyze` answers) |
 | `run` | preparing a run before it is queued: `RunPreparer` (the design resolved, its seed replaced, validated, and its requests counted against the run's limit: `PreparedRun`, or `SimulationLimitException`), `QuickCheck` (whether sampled mode can answer a run) |
@@ -125,7 +125,7 @@ Java gives a result instead (the owner's decision):
   strictly; every other table is the Python's
   (`LatencyFitsTests.fitHistogram_empiricalSharesThatRoundAlike_keepTheLastOfEachSoTheTableIsValid`).
 
-A report differs from the Python engine's in six ways, none in a digest
+A report differs from the Python engine's in seven ways, none in a result digest
 ([ADR-0050](../docs/adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)):
 
 - it names its own engine, 1.1.0, where Python's named 0.16.0, so the golden files' `ENGINE_VERSION` is
@@ -144,10 +144,10 @@ A report differs from the Python engine's in six ways, none in a digest
 - its cost bills a part that scales at the count it settles at under each load, and prices an hour
   at the peak beside the month
   ([ADR-0074](../docs/adr/0074-bill-the-peak-for-the-hours-a-month-it-lasts.md)): the cost has
-  `hourly` and each line `peakInstances`, which Python's did not; an autoscaled service's or a
-  cluster's line says how it was counted in its own words (`3 replicas at the base load
-  (autoscaling 3–14)`, where Python wrote `avg 3 active instances at the base load` after a run
-  and `3 replicas` before one); and where the count is not Python's, the cost departs by that
+  `peakHours`, `hourly` and each line `peakInstances`, which Python's did not; an autoscaled
+  service's or a cluster's line says how it was counted in its own words (`3 replicas at the base
+  load (autoscaling 3–14)`, where Python wrote `avg 3 active instances at the base load` after a
+  run and `3 replicas` before one); and where the count is not Python's, the cost departs by that
   part's price. No template's count moves (their recorded runs are too short to scale, and each
   starts at its minimum), but sixteen hand-made cases' do, each listed with why in
   `GoldenDepartures`: in ten report cases a cluster no pod runs on keeps its minimum of 1 node,
@@ -158,7 +158,15 @@ A report differs from the Python engine's in six ways, none in a digest
   (the golden files' `estimate_cost` and `analyze_document`, the report, analysis and cost cases,
   the recorded runs and calibration replays) goes through `CostDepartures`, which leaves the new
   figures out, puts Python's words back for those lines' counts (the rest of each basis is
-  compared), and prices a listed count back at Python's, so the rest still matches exactly.
+  compared), and prices a listed count back at Python's, so the rest still matches exactly;
+- its design is schema 1.8, which adds `workload.peakHoursPerMonth` (ADR-0074) and leaves it out
+  while it is 0, so the report's `input` and `provenance` name 1.8 where Python's named 1.7, and
+  its `inputDigest`, the digest of that input, differs. The model's `SchemaDepartures` (see
+  [archsim-model's README](../archsim-model/README.md#tests)) gives the recorded documents to the
+  Java at 1.8 and reads its outputs back at 1.7. `ReportComparison` also checks that a report's
+  `inputDigest` is its input's digest, then compares the digest of that input at 1.7 with
+  Python's. The cases that read recorded documents themselves, and the calibration replays, do the
+  same.
 
 A run comparison of a Python run and a Java run names the two engines, and their two versions
 (0.16.0 and 1.1.0), as it names any two engine versions.

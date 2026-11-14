@@ -42,11 +42,30 @@ sealed interface LevelLoad {
 	InstanceCount instances(CostPart part, ComponentRegistry registry);
 
 	/**
+	 * The successful requests a second at the load.
+	 * @return the rate; {@code null} before a run, or when the run measured none
+	 */
+	@Nullable Double successfulRps();
+
+	/**
 	 * The cost per million successful requests at the load.
 	 * @param monthly the monthly cost
 	 * @return the cost; {@code null} before a run, or when no request succeeded
 	 */
-	@Nullable Double perMillion(double monthly);
+	default @Nullable Double perMillion(double monthly) {
+		return perMillion(monthly, successfulRps());
+	}
+
+	/**
+	 * The cost per million successful requests of a month at one load.
+	 * @param monthly the monthly cost
+	 * @param successfulRps the successful requests a second; {@code null} when unknown
+	 * @return the cost; {@code null} when no request succeeded or it is unknown
+	 */
+	static @Nullable Double perMillion(double monthly, @Nullable Double successfulRps) {
+		return (successfulRps != null && successfulRps > 0)
+				? monthly / (successfulRps * CostEstimator.SECONDS_PER_MONTH / CostItem.MILLION) : null;
+	}
 
 	/**
 	 * A load before a run: the static load estimate at its rate.
@@ -74,7 +93,7 @@ sealed interface LevelLoad {
 		}
 
 		@Override
-		public @Nullable Double perMillion(double monthly) {
+		public @Nullable Double successfulRps() {
 			return null;
 		}
 
@@ -119,20 +138,13 @@ sealed interface LevelLoad {
 		}
 
 		/**
-		 * The cost per million successful requests: the run's throughput scaled to the
-		 * load the month is priced at.
-		 * @param monthly the monthly cost
-		 * @return the cost; {@code null} when the run measured no successful request
+		 * The successful requests a second: the run's throughput scaled to the load.
+		 * @return the rate; {@code null} when the run measured no throughput
 		 */
 		@Override
-		public @Nullable Double perMillion(double monthly) {
+		public @Nullable Double successfulRps() {
 			Double throughput = this.run.report().summary().throughputRps();
-			if (throughput == null) {
-				return null;
-			}
-			double successful = throughput * this.run.scale();
-			return (successful > 0) ? monthly / (successful * CostEstimator.SECONDS_PER_MONTH / CostItem.MILLION)
-					: null;
+			return (throughput != null) ? throughput * this.run.scale() : null;
 		}
 
 	}

@@ -133,12 +133,19 @@ final class FieldDescriptors {
 	}
 
 	/**
-	 * The record's defaults, as JSON.
-	 * @param config the config record
-	 * @return the config the record reads from an empty object, written back
+	 * A record's defaults as JSON: its default value written, and a field that writing
+	 * leaves out while it is its default given its declared default.
+	 * @param config the record
+	 * @return each field's default by its name in the JSON
 	 */
 	private static ObjectNode defaults(Class<? extends Record> config) {
-		return RecordCodec.write(RecordCodec.read(NODES.objectNode(), config));
+		ObjectNode written = RecordCodec.write(RecordCodec.read(NODES.objectNode(), config));
+		RecordCodec.defaults(config).properties().forEach((field) -> {
+			if (!written.has(field.getKey())) {
+				written.set(field.getKey(), field.getValue());
+			}
+		});
+		return written;
 	}
 
 	private static ObjectNode hints(RecordComponent component) {

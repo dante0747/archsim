@@ -2,6 +2,7 @@ package io.archsim.model.codec;
 
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
@@ -70,6 +71,23 @@ public final class RecordCodec {
 			throw new IllegalArgumentException(member.getClass().getSimpleName() + " is not a tagged record");
 		}
 		return tag.value();
+	}
+
+	/**
+	 * The defaults of a record's fields as JSON, each written as its JSON Schema writes a
+	 * default (which it shows only for a scalar): a field the record's JSON leaves out
+	 * while it is its default ({@link OmitWhenDefault}) included.
+	 * @param type the record
+	 * @return each field's default by its name in the JSON; a required field is left out
+	 */
+	public static ObjectNode defaults(Class<? extends Record> type) {
+		ObjectNode defaults = JsonNodeFactory.instance.objectNode();
+		for (Field field : Shapes.record(type).fields()) {
+			if (!field.fieldDefault().required()) {
+				defaults.set(field.name(), field.shape().write(field.fieldDefault().value()));
+			}
+		}
+		return defaults;
 	}
 
 	/**

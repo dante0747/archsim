@@ -12,6 +12,7 @@ import io.archsim.model.codec.Ge;
 import io.archsim.model.codec.Gt;
 import io.archsim.model.codec.Le;
 import io.archsim.model.codec.MaxItems;
+import io.archsim.model.codec.OmitWhenDefault;
 import io.archsim.model.codec.Ui;
 
 /**
@@ -29,6 +30,8 @@ import io.archsim.model.codec.Ui;
  * @param keySkew the Zipf exponent of key popularity (0 = uniform)
  * @param drainS time after arrivals stop for in-flight requests; {@code null}: automatic
  * @param faults the faults injected during the run, with unique ids
+ * @param peakHoursPerMonth the hours a month at the pattern's peak, the rest of the month
+ * at its base load, for the monthly cost (ADR-0074)
  */
 @Description("Synthetic traffic driving the (single) traffic source.")
 public record Workload(
@@ -55,7 +58,10 @@ public record Workload(
 		@Description(Descriptions.WORKLOAD_DRAIN_S) @Ui(label = "Drain time", unit = "s",
 				group = Descriptions.WORKLOAD_RUN_GROUP) @Ge(0) @Le(600) @Nullable Double drainS,
 		@Default("[]") @Description(Descriptions.WORKLOAD_FAULTS) @Ui(label = "Faults", kind = "faults",
-				group = Descriptions.WORKLOAD_CHAOS_GROUP, hidden = true) @MaxItems(20) List<Fault> faults) {
+				group = Descriptions.WORKLOAD_CHAOS_GROUP, hidden = true) @MaxItems(20) List<Fault> faults,
+		@Default("0.0") @OmitWhenDefault @Description(Descriptions.WORKLOAD_PEAK_HOURS) @Ui(
+				label = "Peak hours a month", unit = "h",
+				group = Descriptions.WORKLOAD_TRAFFIC_GROUP) @Ge(0) @Le(730) double peakHoursPerMonth) {
 
 	/** The largest seed the engine takes: 2<sup>32</sup> - 1. */
 	public static final long MAX_SEED = 4_294_967_295L;

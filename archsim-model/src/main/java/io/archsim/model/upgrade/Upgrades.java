@@ -47,7 +47,10 @@ public final class Upgrades {
 			Upgrade.additive("1.6", "1.7",
 					"1.7 adds architecture.host (empty by default: each part's vCPUs are its own, as before)"
 							+ " and the service, database and cache setting siblingSpeed (empty by default: every"
-							+ " vCPU a full core, as before)"));
+							+ " vCPU a full core, as before)"),
+			Upgrade.additive("1.7", "1.8",
+					"1.8 adds workload.peakHoursPerMonth (0 by default: the month is billed at the base load,"
+							+ " as before)"));
 
 	private static final String CURRENT = ArchitectureDocument.SCHEMA_VERSION;
 

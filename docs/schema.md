@@ -1,4 +1,4 @@
-# Architecture document format (schema 1.7)
+# Architecture document format (schema 1.8)
 
 An ArchSim project is one human-readable JSON document. It is what the editor saves, what
 `GET /api/v1/projects/{id}/export` downloads and what `POST /api/v1/projects/import` accepts.
@@ -18,7 +18,7 @@ are here for explanation only):
 
 ```jsonc
 {
-  "schemaVersion": "1.7",                 // required; drives migrations
+  "schemaVersion": "1.8",                 // required; drives migrations
   "kind": "archsim.architecture",
   "metadata": { "name": "Cache-aside web API", "description": "...", "tags": ["starter"] },
 
@@ -135,6 +135,7 @@ Used for service times and latencies, always in milliseconds:
 | `keySkew` | number 0-3 | 0.99 | Zipf exponent of key popularity (0 = uniform). |
 | `drainS` | number 0-600? | automatic | Time after arrivals stop for in-flight requests to finish. |
 | `faults` | array (max 20) | `[]` | Faults injected during the run (chaos experiments), see below. |
+| `peakHoursPerMonth` | number 0-730 | 0 | 1.8. Hours a month the traffic runs at the pattern's peak (a burst's rate, a ramp's high end, a trace's highest point), for the monthly cost; the rest of the 730 hours runs at the base load ([pricing.md](pricing.md#what-a-month-is), ADR-0074). Left out of the JSON while 0, which bills the peak for no hour. A constant pattern has one rate, so it changes nothing there. It changes no simulated result. |
 
 ### Faults
 
@@ -184,13 +185,14 @@ overrides in `provenance`.
 ## Versioning and migrations
 
 - `schemaVersion` follows `MAJOR.MINOR`. The engine supports documents up to its
-  `SCHEMA_VERSION` (currently `1.7`). 1.0 to 1.1 only adds optional fields (`provenance`,
+  `SCHEMA_VERSION` (currently `1.8`). 1.0 to 1.1 only adds optional fields (`provenance`,
   `calibration`, the `empirical` distribution and the `trace` pattern), 1.1 to 1.2 adds
   `pricing`, 1.2 to 1.3 the cache-aside link settings, 1.3 to 1.4 a part's optional
   `instanceType`, 1.4 to 1.5 the service settings `cpuShare` and `memoryPerRpsMb`, 1.5 to
   1.6 the service setting `serviceTimeByLoad` and the message-queue settings `consumerConcurrency`
-  and `fetchOverheadMs`, and 1.6 to 1.7 `architecture.host` and the service, database and cache
-  setting `siblingSpeed`, so older documents load unchanged.
+  and `fetchOverheadMs`, 1.6 to 1.7 `architecture.host` and the service, database and cache
+  setting `siblingSpeed`, and 1.7 to 1.8 `workload.peakHoursPerMonth`, so older documents load
+  unchanged.
 - `architecture.host` (1.7; empty by default, left out of the JSON: each part's vCPUs are its
   own, as before): the one machine every part with a CPU size runs on, such as docker compose on
   one VM or a benchmark on a laptop. `physicalCores` (required, 1 to 512), `threadsPerCore` (1 or

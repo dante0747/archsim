@@ -2,7 +2,7 @@
 
 State as of 2026-11-14 (engine 1.1.0, the Java engine: 1.0.0 reproduces the frozen engine 0.16.0
 measured on the held-out experiments, and 1.1.0 changes only how the cost counts autoscaled parts
-and prices the peak, ADR-0074; schema 1.7, report 1.16; the API, the engine, the CLI, the
+and prices the peak, ADR-0074; schema 1.8, report 1.16; the API, the engine, the CLI, the
 MCP server, the benchmark harness and the repository's tooling in Java, and no Python left but the
 benchmarked stacks and three trial records). This file separates what is implemented,
 how it was verified, what is known to be limited, and what comes next. Nothing listed under

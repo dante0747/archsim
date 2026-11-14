@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.UnaryOperator;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DynamicTest;
@@ -17,6 +18,7 @@ import io.archsim.cli.RecordedCases.Ran;
 import io.archsim.engine.parity.CostDepartures;
 import io.archsim.model.text.PythonJson;
 import io.archsim.parity.JsonDiff;
+import io.archsim.parity.SchemaDepartures;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -25,7 +27,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * frozen engine's CLI did, word for word in its lines; its JSON with the same values as
  * the golden files compare them ({@link JsonDiff}: numbers to a relative 1e-9, an integer
  * and a float alike, keys in any order; a cost as {@link CostDepartures} compares one,
- * ADR-0074), laid out as {@code json.dumps(value, indent=2)} lays it out.
+ * ADR-0074), laid out as {@code json.dumps(value, indent=2)} lays it out. What it prints
+ * is compared as the frozen engine would have printed it at its schema
+ * ({@link SchemaDepartures}).
  */
 final class Replays {
 
@@ -35,6 +39,8 @@ final class Replays {
 		.build();
 
 	private static final String COST = "cost";
+
+	private static final Pattern INPUT_DIGEST = Pattern.compile("inputDigest=[0-9a-f]{12}");
 
 	private Replays() {
 	}
@@ -75,8 +81,8 @@ final class Replays {
 			.map((recorded) -> DynamicTest.dynamicTest(recorded.get("name").stringValue(), () -> {
 				Ran java = RecordedCases.run(recorded, folder);
 
-				assertThat(List.of(java.exitCode(), java.err())).containsExactly(recorded.get("exitCode").intValue(),
-						asJavaPrints.apply(recorded.get("stderr").stringValue()));
+				assertThat(List.of(java.exitCode(), SchemaDepartures.asRecordedText(java.err()))).containsExactly(
+						recorded.get("exitCode").intValue(), asJavaPrints.apply(recorded.get("stderr").stringValue()));
 				assertSameText(asJavaPrints.apply(recorded.get("stdout").stringValue()), java.out());
 				assertSameFiles(recorded.path("files"), java.written(), asJavaPrints);
 			}));
@@ -131,12 +137,12 @@ final class Replays {
 	private static void assertSameText(String python, String java) {
 		String text = java.replace("\r\n", "\n");
 		if (!python.startsWith("{") && !python.startsWith("[")) {
-			assertThat(text).isEqualTo(python);
+			assertThat(withoutInputDigest(SchemaDepartures.asRecordedText(text))).isEqualTo(withoutInputDigest(python));
 			return;
 		}
 		JsonNode expected = JSON.readTree(python);
 		JsonNode printed = JSON.readTree(text);
-		JsonNode compared = withCostAsFrozen(expected, printed);
+		JsonNode compared = withCostAsFrozen(expected, SchemaDepartures.asRecorded(printed));
 		// both NaN is the same value: json.dumps and Java print it alike, but the golden
 		// files' comparison, like Python's, finds NaN unequal to itself
 		assertThat(JsonDiff.differences(expected, compared))
@@ -154,6 +160,13 @@ final class Replays {
 		ObjectNode copy = object.deepCopy();
 		copy.set(COST, CostDepartures.comparable(expected.path(COST), object.path(COST), Map.of()));
 		return copy;
+	}
+
+	// archsim run prints the digest of its input, a schema 1.8 design where Python's
+	// was 1.7 (ADR-0074), so its text is compared without it; a report written to a
+	// file checks the digest (ReportComparison)
+	private static String withoutInputDigest(String text) {
+		return INPUT_DIGEST.matcher(text).replaceAll("inputDigest=");
 	}
 
 	private static boolean isNan(JsonNode value) {

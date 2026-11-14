@@ -17,6 +17,7 @@ import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.model.document.ArchitectureDocument;
 import io.archsim.model.pricing.PriceSnapshots;
 import io.archsim.parity.JsonDiff;
+import io.archsim.parity.SchemaDepartures;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -46,7 +47,9 @@ class InstantEstimatorTests {
 		return cases().valueStream()
 			.map((entry) -> DynamicTest.dynamicTest(entry.path("name").asString(),
 					() -> assertThat(JsonDiff.differences(entry.path("estimate"),
-							this.estimator.estimate(DesignDocuments.parse(entry.path("resolved"))).toJson()))
+							this.estimator
+								.estimate(DesignDocuments.parse(SchemaDepartures.asCurrent(entry.path("resolved"))))
+								.toJson()))
 						.isEmpty()));
 	}
 

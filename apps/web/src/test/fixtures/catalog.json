@@ -6089,6 +6089,20 @@
       "headline": false,
       "group": "Chaos",
       "hidden": true
+    },
+    {
+      "key": "peakHoursPerMonth",
+      "label": "Peak hours a month",
+      "kind": "number",
+      "nullable": false,
+      "description": "Hours a month the traffic runs at the pattern's peak (a burst's rate, a ramp's high end, a trace's highest point), for the monthly cost; the rest of the month runs at the base load. 0: the peak is billed for no hour.",
+      "default": 0.0,
+      "assumption": false,
+      "headline": false,
+      "min": 0,
+      "max": 730,
+      "unit": "h",
+      "group": "Traffic"
     }
   ],
   "tierNote": "Behaviour based on documentation and illustrative numbers; not yet validated against measurements."

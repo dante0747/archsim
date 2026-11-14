@@ -94,7 +94,7 @@ class DesignDocumentsTests {
 				() -> DesignDocuments.load(JSON.readTree("{\"schemaVersion\": \"9\"}")));
 		assertThat(invalid.issues()).extracting(Issue::code, Issue::message)
 			.containsExactly(tuple("document.version",
-					"this document uses schema 9, newer than the supported 1.7. Upgrade ArchSim to open it."));
+					"this document uses schema 9, newer than the supported 1.8. Upgrade ArchSim to open it."));
 	}
 
 	@Test

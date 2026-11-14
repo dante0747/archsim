@@ -37,6 +37,7 @@ import io.archsim.model.pricing.PriceSnapshots;
 import io.archsim.model.text.PythonText;
 import io.archsim.parity.GoldenEntry;
 import io.archsim.parity.JsonDiff;
+import io.archsim.parity.SchemaDepartures;
 
 /**
  * The calibrations themselves, which the golden files record with their simulations and
@@ -143,7 +144,8 @@ final class CalibrateFunctions {
 			}
 			ObjectNode simulated = DesignDocuments
 				.simulationInput(RESOLVER.resolve(DesignDocuments.load(document), null).document());
-			List<String> differences = JsonDiff.differences(report.path("input"), simulated);
+			List<String> differences = JsonDiff.differences(report.path("input"),
+					SchemaDepartures.asRecorded(simulated));
 			if (!differences.isEmpty()) {
 				throw new IllegalStateException("the design replayed is not the one Python simulated: " + differences);
 			}

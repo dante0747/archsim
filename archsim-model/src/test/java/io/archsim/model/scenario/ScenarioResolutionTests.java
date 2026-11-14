@@ -20,6 +20,7 @@ import io.archsim.model.issue.Issue;
 import io.archsim.parity.GoldenEntry;
 import io.archsim.parity.GoldenFile;
 import io.archsim.parity.JsonDiff;
+import io.archsim.parity.SchemaDepartures;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -57,7 +58,7 @@ class ScenarioResolutionTests {
 		}
 		DocumentInvalidException invalid = catchThrowableOfType(DocumentInvalidException.class,
 				() -> resolve(document, scenarioId));
-		assertThat(JsonDiff.differences(entry.expectedError(), error(invalid)))
+		assertThat(JsonDiff.differences(entry.expectedError(), SchemaDepartures.asRecorded(error(invalid))))
 			.as("%s: the error differs from the Python engine's at", entry)
 			.isEmpty();
 	}

@@ -82,22 +82,37 @@ prices with its unit price (`items`, shown in the cost panel as "394.20 M reques
 | Services on Kubernetes without a cluster in the design | implied nodes: each pod's share of the cheapest general node type that fits it at 90% allocatable (not burstable, HPC or bare-metal types), plus one managed control plane (`kubernetesControlPlaneHour`). A cluster in the design also pays for its control plane. |
 
 Per-request lines are priced at the workload's steady **base** load as if it lasted the whole
-month (a burst's or a ramp's peak is not billed all month): after a run, each part's rate
-measured while the offered load was at the base, scaled to it exactly, so fan-out, cache misses
-and retries are kept but a burst's retries are not; before one, the static load estimate at the
-base rate, so a design is priced before it runs.
+month, unless the workload says how many hours a month it runs at its peak (below): after a run,
+each part's rate measured while the offered load was at the base, scaled to it exactly, so
+fan-out, cache misses and retries are kept but a burst's retries are not; before one, the static
+load estimate at the base rate, so a design is priced before it runs.
 
 ### What a month is
 
-The monthly cost is 730 hours at the workload's steady base load: a constant pattern's rate, a
-burst's rate outside the burst, a ramp's low end, a trace's median. The peak is priced beside it
-([ADR-0074](adr/0074-bill-the-peak-for-the-hours-a-month-it-lasts.md)): `cost.hourly` has an hour
-at the base load (`base`, the month ÷ 730) and an hour at the pattern's peak (`peak`: a burst's
-rate, a ramp's high end, a trace's highest point), and each cost line's `peakInstances` its
-instances there. An hour at the peak is priced as the base is: after a run, each part's rate
-measured while the offered load was at the peak, scaled to it; before one, the static load
-estimate at the peak rate; and a burstable type's surplus CPU credits for the cores it keeps busy
-at the peak, as if it had no credits saved.
+A month is 730 hours: `workload.peakHoursPerMonth` of them at the pattern's peak (a burst's rate,
+a ramp's high end, a trace's highest point), and the rest at the steady base load (a constant
+pattern's rate, a burst's rate outside the burst, a ramp's low end, a trace's median)
+([ADR-0074](adr/0074-bill-the-peak-for-the-hours-a-month-it-lasts.md)). The hours default to 0,
+which bills the whole month at the base load, as before schema 1.8: say how long your peak lasts
+(a sale day, an evening rush on every weekday) to bill it. A constant pattern has one rate, so the
+hours change nothing there.
+
+Each line is its base load's cost for the base's hours plus its peak's for the peak's: its
+instances, its per-request items (their quantities are both loads' for their hours) and its
+surplus CPU credits. Its `instances` stay the base's, beside `peakInstances`. Its basis says how
+many run at the peak and for how long (`3 pods at the base load (autoscaling 3–14) and 12 pods at
+the peak for 24 hours a month`), or, for a line whose count is the same at both loads but whose
+cost is not (a per-request part, a load balancer's capacity units), ends `; at the peak for 24
+hours a month`. A unit price that differs between the loads is the month's own: its cost over its
+hours, or over its requests. The cost per million successful requests divides the month by both
+loads' requests. `cost.peakHours` says how many hours the month billed at the peak (the
+workload's, or 0 for a constant pattern, which has no peak), and `cost.hourly` has an hour at the
+base load and an hour at the peak, whatever the hours.
+
+An hour at the peak is priced as the base is: after a run, each part's rate measured while the
+offered load was at the peak, scaled to it; before one, the static load estimate at the peak
+rate; and a burstable type's surplus CPU credits for the cores it keeps busy at the peak, as if it
+had no credits saved.
 
 A part that scales is billed at each load the count it settles at once that load holds:
 
@@ -113,9 +128,11 @@ A part that scales is billed at each load the count it settles at once that load
 - **A serverless function**: per invocation; with no rate for it, its average concurrency in the
   run, scaled to the load.
 
-Black Friday on Kubernetes (`examples/black-friday-kubernetes.json`, 300 → 1,500 req/s): the HPA
-design and the `fixed-pods` scenario both cost $824.80 a month, the checkout on its 3 pods at the
-base load; an hour at the peak shows what the HPA adds there.
+Black Friday on Kubernetes (`examples/black-friday-kubernetes.json`, 300 → 1,500 req/s): with no
+peak hours, the HPA design and the `fixed-pods` scenario both cost $824.80 a month, the checkout
+on its 3 pods at the base load. An hour at the peak costs $1.91 for the HPA design (12 checkout
+pods) and $1.23 for `fixed-pods`, against $1.13 at the base, so each peak hour in the month adds
+what the HPA runs there.
 
 **Checked by hand**, the serverless template (150 req/s with a burst to 1,500): DynamoDB with
 100 RCU and 60 WCU provisioned is 100 × $0.00013 × 730 + 60 × $0.00065 × 730 = $37.96 a month;

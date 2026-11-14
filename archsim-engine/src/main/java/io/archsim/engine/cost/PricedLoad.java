@@ -10,14 +10,14 @@ import tools.jackson.databind.node.ObjectNode;
  *
  * @param lines each part's line at the load, the dearest first
  * @param monthly a month at the load
- * @param perMillion the cost per million successful requests at the load; {@code null}
- * before a run, or when no request succeeded
+ * @param successfulRps the successful requests a second at the load; {@code null} before
+ * a run, or when the run measured none
  * @param notes how it was priced and what it leaves out
  * @param hasCost whether any part has a price
  * @param rates the rates it was priced at
  * @param pricing the prices it used
  */
-record PricedLoad(List<CostLine> lines, double monthly, @Nullable Double perMillion, List<String> notes,
+record PricedLoad(List<CostLine> lines, double monthly, @Nullable Double successfulRps, List<String> notes,
 		boolean hasCost, ObjectNode rates, ObjectNode pricing) {
 
 	/**

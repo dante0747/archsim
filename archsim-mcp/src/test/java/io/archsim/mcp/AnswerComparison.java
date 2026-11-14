@@ -11,6 +11,7 @@ import io.archsim.engine.parity.ReportComparison;
 import io.archsim.engine.version.EngineVersions;
 import io.archsim.model.text.PythonJson;
 import io.archsim.parity.JsonDiff;
+import io.archsim.parity.SchemaDepartures;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -126,7 +127,7 @@ final class AnswerComparison {
 			assertSameResource(expected.get("contents"), actual.get("contents"));
 		}
 		else {
-			assertThat(JsonDiff.differences(python, java)).isEmpty();
+			assertThat(JsonDiff.differences(python, SchemaDepartures.asRecorded(java))).isEmpty();
 		}
 	}
 
@@ -143,11 +144,11 @@ final class AnswerComparison {
 				JsonNode value = McpSession.JSON.readTree(expected);
 				assertThat(PythonJson.writeIndented(value, 1)).isEqualTo(expected);
 				JsonNode written = McpSession.JSON.readTree(actual);
-				assertThat(JsonDiff.differences(value, written)).isEmpty();
+				assertThat(JsonDiff.differences(value, SchemaDepartures.asRecorded(written))).isEmpty();
 				assertThat(actual).isEqualTo(PythonJson.writeIndented(written, 1));
 			}
 			else {
-				assertThat(actual).isEqualTo(expected);
+				assertThat(SchemaDepartures.asRecordedText(actual)).isEqualTo(expected);
 			}
 		}
 	}
@@ -166,8 +167,9 @@ final class AnswerComparison {
 		}
 	}
 
-	// JSON by its values, written as pydantic_core.to_json(value, indent=2) wrote
-	// Python's: the writer gives Python's text from Python's value, Java's from Java's
+	// JSON by its values, the Java's read as the frozen engine would have written it at
+	// its schema (SchemaDepartures), and each laid out as pydantic_core.to_json(value,
+	// indent=2) lays its own value out
 	private static void assertSameText(String python, String java) {
 		if (python.startsWith("{") || python.startsWith("[")) {
 			JsonNode value = McpSession.JSON.readTree(python);
@@ -177,7 +179,7 @@ final class AnswerComparison {
 			assertThat(java).isEqualTo(PythonJson.writePydantic(written, 2));
 		}
 		else {
-			assertThat(java).isEqualTo(python);
+			assertThat(SchemaDepartures.asRecordedText(java)).isEqualTo(python);
 		}
 	}
 
@@ -186,7 +188,7 @@ final class AnswerComparison {
 			assertThat(ReportComparison.differences(python, java)).isEmpty();
 		}
 		else {
-			assertThat(JsonDiff.differences(python, java)).isEmpty();
+			assertThat(JsonDiff.differences(python, SchemaDepartures.asRecorded(java))).isEmpty();
 		}
 	}
 

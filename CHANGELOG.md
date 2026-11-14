@@ -19,6 +19,15 @@ for when that version changes.
   sight ([ADR-0074](docs/adr/0074-bill-the-peak-for-the-hours-a-month-it-lasts.md),
   [What a month is](docs/pricing.md#what-a-month-is)). No template's monthly cost changes.
 
+### Added
+
+- **Peak hours a month (schema 1.8).** `workload.peakHoursPerMonth` says how many hours a month
+  the traffic runs at its pattern's peak; the monthly cost bills those hours at the peak and the
+  rest at the base load, line by line, and the cost per million requests counts both loads'
+  requests; `cost.peakHours` reports the hours it billed. It defaults to 0 (the whole month at
+  the base load, as before), is left out of a document while 0, and is set in Design → Traffic
+  for a burst, a ramp or a trace. Older documents upgrade with no other change.
+
 ## [1.0.0] - Draft, not released yet
 
 The first public release. ArchSim predicts how a system design behaves under load, failures and

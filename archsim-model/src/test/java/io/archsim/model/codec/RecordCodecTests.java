@@ -291,6 +291,27 @@ class RecordCodecTests {
 	}
 
 	@Nested
+	@DisplayName("Defaults")
+	class Defaults {
+
+		@Test
+		void defaults_aFieldLeftOutWhileItIsItsDefault_isItsDeclaredDefault() {
+			assertThat(RecordCodec.defaults(Settings.class).path("mode").stringValue()).isEqualTo("auto");
+		}
+
+		@Test
+		void defaults_aNullableFieldWithoutADefault_isNull() {
+			assertThat(RecordCodec.defaults(Settings.class).get("extra").isNull()).isTrue();
+		}
+
+		@Test
+		void defaults_aRequiredField_isLeftOut() {
+			assertThat(RecordCodec.defaults(Part.class).propertyNames()).containsExactly("readRatio");
+		}
+
+	}
+
+	@Nested
 	@DisplayName("JSON Schema")
 	class Schema {
 

@@ -16,6 +16,7 @@ import io.archsim.model.codec.RecordCodec;
 import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.model.document.ArchitectureDocument;
 import io.archsim.parity.JsonDiff;
+import io.archsim.parity.SchemaDepartures;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -62,7 +63,7 @@ class DesignReviewTests {
 	}
 
 	private static ArchitectureDocument design(JsonNode entry) {
-		return DesignDocuments.parse(entry.path("doc"));
+		return DesignDocuments.parse(SchemaDepartures.asCurrent(entry.path("doc")));
 	}
 
 	private static Stream<JsonNode> cases() throws IOException {

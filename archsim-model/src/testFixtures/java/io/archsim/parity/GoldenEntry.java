@@ -27,9 +27,13 @@ public record GoldenEntry(String file, String pointer, String fn, ObjectNode inp
 		}
 	}
 
-	/** The parameter {@code name}. */
+	/**
+	 * The parameter {@code name}: as recorded, but a document, or a report's design, at
+	 * the current schema ({@link SchemaDepartures#asGiven}).
+	 */
 	public JsonNode input(String name) {
-		return Objects.requireNonNull(this.input.get(name), () -> this.pointer + " has no input " + name);
+		return SchemaDepartures.asGiven(name,
+				Objects.requireNonNull(this.input.get(name), () -> this.pointer + " has no input " + name));
 	}
 
 	public boolean raised() {

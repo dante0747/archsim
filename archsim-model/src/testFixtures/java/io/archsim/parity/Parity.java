@@ -8,7 +8,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /**
- * Checks a Java function against one golden entry: the same output, or the same error.
+ * Checks a Java function against one golden entry: the same output, or the same error, as
+ * the frozen engine would have written it at its schema ({@link SchemaDepartures}).
  */
 public final class Parity {
 
@@ -34,7 +35,7 @@ public final class Parity {
 		if (entry.raised()) {
 			fail("%s: the Python engine raised %s, Java returned %s", entry, entry.expectedError(), actual);
 		}
-		assertThat(JsonDiff.differences(entry.expectedOutput(), actual))
+		assertThat(JsonDiff.differences(entry.expectedOutput(), SchemaDepartures.asRecorded(actual)))
 			.as("%s: the output differs from the Python engine's at", entry)
 			.isEmpty();
 	}
@@ -44,7 +45,7 @@ public final class Parity {
 			Throwable thrown = error.getCause();
 			throw new AssertionError(entry + ": the Python engine returned, Java threw " + thrown, thrown);
 		}
-		assertThat(JsonDiff.differences(entry.expectedError(), error.error()))
+		assertThat(JsonDiff.differences(entry.expectedError(), SchemaDepartures.asRecorded(error.error())))
 			.as("%s: the error differs from the Python engine's at", entry)
 			.isEmpty();
 	}

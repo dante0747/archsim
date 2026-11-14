@@ -20,6 +20,7 @@ import io.archsim.model.issue.DocumentInvalidException;
 import io.archsim.model.issue.Issue;
 import io.archsim.model.pricing.PriceSnapshots;
 import io.archsim.parity.JsonDiff;
+import io.archsim.parity.SchemaDepartures;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
@@ -64,7 +65,8 @@ class RunPreparerTests {
 			.put("seed", run.seed());
 		answer.set("document", DesignDocuments.toJson(run.document()));
 		answer.set("quickCheck", RecordCodec.write(run.quickCheck()));
-		assertThat(JsonDiff.differences(entry.path("prepared").path("output"), answer)).isEmpty();
+		assertThat(JsonDiff.differences(entry.path("prepared").path("output"), SchemaDepartures.asRecorded(answer)))
+			.isEmpty();
 	}
 
 	private void assertInvalid(JsonNode entry) {

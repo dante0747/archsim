@@ -9,15 +9,19 @@ import java.util.regex.Pattern;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.engine.report.ReportDigest;
 import io.archsim.parity.JsonDiff;
+import io.archsim.parity.SchemaDepartures;
 
 /**
  * A report of the Java simulator against the frozen engine's report of the same run:
  * counts, events processed and digests exactly, numbers to a relative 1e-9, and an
  * integer where Python wrote one (but for two fields, below). Left out are only what the
  * Java writes as its own (ADR-0050): the engine's and the report's versions, the
- * wall-clock time, and the runtime that ran it; and its cost is compared as
- * {@link CostDepartures} compares a cost (ADR-0074).
+ * wall-clock time, and the runtime that ran it; its cost is compared as
+ * {@link CostDepartures} compares a cost, and its design as the frozen engine would have
+ * written it at its schema ({@link SchemaDepartures}), its input digest checked by its
+ * definition and then taken over that design (ADR-0074).
  */
 public final class ReportComparison {
 
@@ -46,6 +50,8 @@ public final class ReportComparison {
 
 	private static final String COST = "cost";
 
+	private static final String INPUT_DIGEST = "inputDigest";
+
 	private ReportComparison() {
 	}
 
@@ -68,7 +74,8 @@ public final class ReportComparison {
 	 * @return each difference, by JSON Pointer; none when the reports agree
 	 */
 	public static List<String> differences(JsonNode python, JsonNode java, Map<String, Double> counts) {
-		ObjectNode javaReport = (ObjectNode) comparable(java, JAVA_RUNTIME);
+		ObjectNode javaReport = (ObjectNode) SchemaDepartures
+			.asRecorded(withRecordedInputDigest(comparable(java, JAVA_RUNTIME)));
 		if (javaReport.has(COST)) {
 			javaReport.set(COST, CostDepartures.comparable(python.path(COST), javaReport.get(COST), counts));
 		}
@@ -109,6 +116,24 @@ public final class ReportComparison {
 		else if (!actual.isNumber() || expected.doubleValue() != actual.doubleValue()) {
 			differences.add(where + " (not exactly Python's " + expected + ")");
 		}
+	}
+
+	/**
+	 * The report with its input digest taken over its design as the frozen engine would
+	 * have written it, once the digest is checked to be its design's.
+	 * @param report the Java's report
+	 * @return a copy, its digest as recorded; the report as it is when its digest is not
+	 * its design's, so the difference shows
+	 */
+	private static JsonNode withRecordedInputDigest(JsonNode report) {
+		JsonNode input = report.path("input");
+		ObjectNode copy = (ObjectNode) report.deepCopy();
+		if (input.isObject()
+				&& ReportDigest.of(input).equals(report.path("provenance").path(INPUT_DIGEST).stringValue(""))) {
+			((ObjectNode) copy.get("provenance")).put(INPUT_DIGEST,
+					ReportDigest.of(SchemaDepartures.asRecorded(input)));
+		}
+		return copy;
 	}
 
 	private static JsonNode comparable(JsonNode report, Set<String> keys) {

@@ -156,6 +156,10 @@ final class Descriptions {
 
 	static final String WORKLOAD_FAULTS = "Faults injected during the run (outages, slowdowns, network latency)";
 
+	static final String WORKLOAD_PEAK_HOURS = "Hours a month the traffic runs at the pattern's peak (a burst's rate, "
+			+ "a ramp's high end, a trace's highest point), for the monthly cost; the rest of the month runs at the "
+			+ "base load. 0: the peak is billed for no hour.";
+
 	private Descriptions() {
 	}
 

@@ -19,6 +19,7 @@ import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.model.document.ArchitectureDocument;
 import io.archsim.model.pricing.PriceSnapshots;
 import io.archsim.parity.JsonDiff;
+import io.archsim.parity.SchemaDepartures;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -48,8 +49,8 @@ class SizingSummariesTests {
 	}
 
 	private void assertSummary(JsonNode entry) {
-		ArchitectureDocument design = DesignDocuments.parse(entry.path("design"));
-		ArchitectureDocument resolved = DesignDocuments.parse(entry.path("resolved"));
+		ArchitectureDocument design = DesignDocuments.parse(SchemaDepartures.asCurrent(entry.path("design")));
+		ArchitectureDocument resolved = DesignDocuments.parse(SchemaDepartures.asCurrent(entry.path("resolved")));
 		JsonNode scenario = entry.path("scenarioId");
 		Map<String, PartSize> sizes = this.resolver.resolve(design, scenario.isString() ? scenario.asString() : null)
 			.sizes();

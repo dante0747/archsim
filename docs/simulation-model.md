@@ -598,7 +598,8 @@ Specs also feed the calculations around a run:
   its size at illustrative on-demand rates ($0.037 per vCPU-hour, $0.0028 per GiB-hour, $0.08 per
   GiB-month of storage); without a size, the catalog default. A price equal to the catalog
   default counts as not set (saved runs store every default). The cost table marks size-priced
-  parts. The month is 730 hours at the workload's steady base load, with an hour at its peak
+  parts. The month is 730 hours: `workload.peakHoursPerMonth` of them at the pattern's peak and
+  the rest at the steady base load (0 by default: all at the base load), with an hour at each
   priced beside it (`cost.hourly`); an autoscaled service is billed at each load the replicas its
   autoscaler settles at there (its work in busy replicas ÷ `targetUtilization`, rounded up, within
   `minReplicas`–`maxReplicas`), and a cluster with its autoscaler the nodes its pods there need,

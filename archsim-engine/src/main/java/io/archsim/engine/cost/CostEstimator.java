@@ -1,9 +1,7 @@
 package io.archsim.engine.cost;
 
-import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import io.archsim.engine.estimate.InstantEstimate;
 import io.archsim.engine.load.LoadEstimator;
@@ -19,9 +17,9 @@ import io.archsim.model.pricing.PriceSnapshots;
  * A design's monthly cost, from each part's price per instance-hour ({@link Quotes}),
  * managed and per-request parts at a price snapshot's rates ({@link ManagedLines}),
  * third-party APIs per call ({@link ExternalApiLine}), and services on Kubernetes
- * ({@link KubernetesLines}). The month is billed at the workload's steady base load, with
- * an hour at its peak beside it (ADR-0074): before a run, from the static load estimate
- * at each rate; after one, from the rates the run measured at each
+ * ({@link KubernetesLines}). A month bills the workload's peak hours at its peak and the
+ * rest at its steady base load ({@link MonthlyCost}, ADR-0074): before a run, from the
+ * static load estimate at each rate; after one, from the rates the run measured at each
  * ({@link MeasuredUsage}), with the cost per million successful requests. An autoscaled
  * service or cluster is billed at each load the count it settles at there
  * ({@link SettledCounts}). These are planning estimates, not quotes.
@@ -50,8 +48,11 @@ public final class CostEstimator {
 	public static final String NOT_MODELLED = "Not modelled: Multi-AZ deployments, reserved instances and savings "
 			+ "plans, data transfer and NAT, and free tiers.";
 
+	/** The seconds in an hour. */
+	public static final double SECONDS_PER_HOUR = 3600.0;
+
 	/** The seconds a month's per-request costs are counted over. */
-	public static final double SECONDS_PER_MONTH = HOURS_PER_MONTH * 3600.0;
+	public static final double SECONDS_PER_MONTH = HOURS_PER_MONTH * SECONDS_PER_HOUR;
 
 	private final LevelPricing.Catalog catalog;
 
@@ -81,7 +82,7 @@ public final class CostEstimator {
 	 */
 	public CostEstimate estimate(ArchitectureDocument document, Map<String, ProvenanceKind> provenance, BusyCores busy,
 			InstantEstimate estimate) {
-		return cost(document, new LevelPricing.Inputs(provenance, busy),
+		return cost(document, new LevelPricing.Inputs(provenance, busy, billedPeakHours(document)),
 				(level) -> EstimatedUsage.of(document, this.loads, estimate, level));
 	}
 
@@ -99,13 +100,13 @@ public final class CostEstimator {
 	 */
 	public CostEstimate estimateAfterRun(ArchitectureDocument document, Map<String, ProvenanceKind> provenance,
 			BusyCores busy, RunReport report) {
-		return cost(document, new LevelPricing.Inputs(provenance, busy),
+		return cost(document, new LevelPricing.Inputs(provenance, busy, billedPeakHours(document)),
 				(level) -> MeasuredUsage.of(document, this.loads, report, level));
 	}
 
 	/**
-	 * A design priced at its base load, with its peak beside it: priced again at the
-	 * peak, unless the pattern's peak is its base.
+	 * A design priced at its base load and at its peak, unless the pattern's peak is its
+	 * base, for a month of its peak hours at the peak and the rest at the base load.
 	 * @param document the design as simulated
 	 * @param inputs the provenance of its values and the CPU its parts keep busy
 	 * @param loads what each part handles at a load
@@ -114,32 +115,26 @@ public final class CostEstimator {
 	private CostEstimate cost(ArchitectureDocument document, LevelPricing.Inputs inputs,
 			Function<LoadLevel, LevelLoad> loads) {
 		PricedLoad base = LevelPricing.priced(this.catalog, document, inputs, loads.apply(LoadLevel.BASE));
-		Workload workload = document.workload();
-		PricedLoad peak = (LoadLevel.PEAK.rate(workload) == LoadLevel.BASE.rate(workload)) ? base
-				: LevelPricing.priced(this.catalog, document, inputs, loads.apply(LoadLevel.PEAK));
-		return withPeak(base, peak);
+		if (!hasPeak(document.workload())) {
+			return MonthlyCost.of(base, base, inputs.peakHours());
+		}
+		PricedLoad peak = LevelPricing.priced(this.catalog, document, inputs, loads.apply(LoadLevel.PEAK));
+		return MonthlyCost.of(base, peak, inputs.peakHours());
 	}
 
 	/**
-	 * The month billed at the base load, with each line's instances at the peak and an
-	 * hour at each load.
-	 * @param base the design priced at the base load
-	 * @param peak the design priced at the peak
-	 * @return the cost
+	 * The hours of the month billed at the peak: the workload's, or none for a pattern
+	 * whose peak is its base, which is one load all month.
+	 * @param document the design
+	 * @return the hours
 	 */
-	private static CostEstimate withPeak(PricedLoad base, PricedLoad peak) {
-		// two parts share an id only in a design that is not valid (validation says so),
-		// which is still priced: the first one's count at the peak stands for both
-		Map<String, Double> atPeak = peak.lines()
-			.stream()
-			.collect(Collectors.toMap(CostLine::id, CostLine::instances, (first, second) -> first));
-		List<CostLine> lines = base.lines()
-			.stream()
-			.map((line) -> line.withPeakInstances(atPeak.getOrDefault(line.id(), line.instances())))
-			.toList();
-		HourlyCost hourly = new HourlyCost(base.monthly() / HOURS_PER_MONTH, peak.monthly() / HOURS_PER_MONTH);
-		return new CostEstimate(base.monthly(), base.perMillion(), hourly, lines, base.notes(), base.hasCost(), "USD",
-				HOURS_PER_MONTH, base.rates(), base.pricing());
+	private static double billedPeakHours(ArchitectureDocument document) {
+		Workload workload = document.workload();
+		return hasPeak(workload) ? workload.peakHoursPerMonth() : 0.0;
+	}
+
+	private static boolean hasPeak(Workload workload) {
+		return LoadLevel.PEAK.rate(workload) != LoadLevel.BASE.rate(workload);
 	}
 
 }

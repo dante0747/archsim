@@ -66,6 +66,22 @@ export function peakHour(cost: Pick<CostEstimate, "hourly"> | null | undefined):
   return hourly && hourly.peak !== hourly.base ? { base: hourly.base, peak: hourly.peak } : null;
 }
 
+/** The hours a month the engine bills (engine 1.1.0, report 1.16). */
+const HOURS_PER_MONTH = 730;
+
+/**
+ * Which month a cost bills: its peak hours at the peak and the rest at the base load, or all
+ * of it at the base load (schema 1.8's `peakHoursPerMonth`, ADR-0074).
+ */
+export function monthText(cost: Pick<CostEstimate, "peakHours"> | null | undefined): string {
+  const hours = cost?.peakHours ?? 0;
+  if (hours <= 0) {
+    return "The month is billed at the steady base load: set Peak hours a month in Design → Traffic to bill the peak.";
+  }
+  const rest = Math.round((HOURS_PER_MONTH - hours) * 10) / 10;
+  return `The month bills ${hours} ${hours === 1 ? "hour" : "hours"} at the peak and the other ${rest} at the base load.`;
+}
+
 /** How many instances a part that scales runs at the peak, "12 at the peak"; null when it runs as many as at the base. */
 export function peakCount(line: Pick<NodeCost, "instances" | "peakInstances">): string | null {
   const peak = line.peakInstances;

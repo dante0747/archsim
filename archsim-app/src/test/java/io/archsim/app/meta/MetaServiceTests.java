@@ -34,7 +34,7 @@ class MetaServiceTests {
 		Meta meta = this.service.meta();
 
 		assertThat(meta).extracting(Meta::engineVersion, Meta::schemaVersion, Meta::reportVersion, Meta::database)
-			.containsExactly(EngineVersions.ENGINE, "1.7", EngineVersions.REPORT, "postgresql");
+			.containsExactly(EngineVersions.ENGINE, "1.8", EngineVersions.REPORT, "postgresql");
 	}
 
 	@Test

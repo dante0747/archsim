@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import io.archsim.engine.load.BaseRate;
 import io.archsim.engine.load.ComponentFamily;
 import io.archsim.engine.numeric.FloatSum;
 import io.archsim.model.catalog.ComponentFacts;
@@ -28,6 +27,8 @@ final class LevelPricing {
 	private final Catalog catalog;
 
 	private final Map<String, Double> busy;
+
+	private final double peakHours;
 
 	private final List<String> notes = new ArrayList<>();
 
@@ -53,6 +54,7 @@ final class LevelPricing {
 		this.document = document;
 		this.catalog = catalog;
 		this.busy = inputs.busy().at(load.level());
+		this.peakHours = inputs.peakHours();
 		this.pricing = DesignPricing.of(document.pricing(), catalog.prices());
 		this.pricing.note().ifPresent(this.notes::add);
 		this.snapshot = this.pricing.snapshot();
@@ -89,16 +91,18 @@ final class LevelPricing {
 		if (this.flags.impliedPods() && plane != null && plane != 0) {
 			this.lines.add(KubernetesLines.controlPlane(plane, this.snapshot.snapshotDate()));
 		}
-		this.lines.sort(LevelPricing::dearestFirst);
+		this.lines.sort(CostLine::dearestFirst);
 	}
 
 	private PricedLoad result() {
 		double monthly = FloatSum.of(this.lines.stream().mapToDouble(CostLine::monthly));
 		Double perMillion = this.load.perMillion(monthly);
-		CostNotes.add(this.notes, this.flags, new CostNotes.Context(this.snapshot, this.pricing.purchase().option(),
-				BaseRate.of(this.document.workload()), perRequest() || perMillion != null, this.load));
-		return new PricedLoad(this.lines, monthly, perMillion, this.notes, this.flags.priced(), this.pricing.rates(),
-				this.pricing.toJson());
+		CostNotes.add(this.notes, this.flags,
+				new CostNotes.Context(this.snapshot, this.pricing.purchase().option(),
+						new CostNotes.BilledMonth(this.document.workload(), this.peakHours),
+						perRequest() || perMillion != null, this.load));
+		return new PricedLoad(this.lines, monthly, this.load.successfulRps(), this.notes, this.flags.priced(),
+				this.pricing.rates(), this.pricing.toJson());
 	}
 
 	/**
@@ -183,20 +187,6 @@ final class LevelPricing {
 	}
 
 	/**
-	 * Dearest first. Equal costs keep their order, as in Python's sort: {@code -0.0} and
-	 * {@code 0.0} are equal there, where {@link Double#compare} orders them.
-	 * @param first a line
-	 * @param second another line
-	 * @return the order of the two
-	 */
-	private static int dearestFirst(CostLine first, CostLine second) {
-		if (first.monthly() > second.monthly()) {
-			return -1;
-		}
-		return (first.monthly() < second.monthly()) ? 1 : 0;
-	}
-
-	/**
 	 * What prices a design: the component types, what they are, and the price snapshots.
 	 *
 	 * @param registry the component types
@@ -212,8 +202,9 @@ final class LevelPricing {
 	 * @param provenance the document's provenance kind by path: a price marked measured
 	 * or assumed is the user's, whatever its value
 	 * @param busy the CPU cores one instance of each part keeps busy at each load
+	 * @param peakHours the hours of the month billed at the peak
 	 */
-	record Inputs(Map<String, ProvenanceKind> provenance, BusyCores busy) {
+	record Inputs(Map<String, ProvenanceKind> provenance, BusyCores busy, double peakHours) {
 	}
 
 }

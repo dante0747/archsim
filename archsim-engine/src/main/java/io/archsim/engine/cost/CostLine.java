@@ -54,4 +54,18 @@ public record CostLine(String id, String label, String type, @Nullable String te
 				this.sku, this.snapshotDate, this.items);
 	}
 
+	/**
+	 * Dearest first. Equal costs keep their order, as in Python's sort: {@code -0.0} and
+	 * {@code 0.0} are equal there, where {@link Double#compare} orders them.
+	 * @param first a line
+	 * @param second another line
+	 * @return the order of the two
+	 */
+	static int dearestFirst(CostLine first, CostLine second) {
+		if (first.monthly() > second.monthly()) {
+			return -1;
+		}
+		return (first.monthly() < second.monthly()) ? 1 : 0;
+	}
+
 }

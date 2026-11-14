@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import catalogJson from "@/test/fixtures/catalog.json";
 import type { PricingSource } from "@/lib/api";
 import type { Catalog, CostEstimate, NodeCost } from "@/lib/types";
-import { formatUsd, paretoFrontier, peakCount, peakHour, priceOrigin, priceSource, snapshotInUse } from "./cost";
+import { formatUsd, monthText, paretoFrontier, peakCount, peakHour, priceOrigin, priceSource, snapshotInUse } from "./cost";
 
 const catalog = catalogJson as unknown as Catalog;
 
@@ -23,6 +23,18 @@ describe("peakHour", () => {
     expect(peakHour({ hourly: { base: 1.13, peak: 1.13 } })).toBeNull();
     expect(peakHour({})).toBeNull();
     expect(peakHour(null)).toBeNull();
+  });
+});
+
+describe("monthText", () => {
+  it("says the month bills its peak hours at the peak and the rest at the base load", () => {
+    expect(monthText({ peakHours: 24 })).toBe("The month bills 24 hours at the peak and the other 706 at the base load.");
+    expect(monthText({ peakHours: 1 })).toBe("The month bills 1 hour at the peak and the other 729 at the base load.");
+  });
+  it("says the whole month is at the base load when no hour is at the peak, or the report predates the hours", () => {
+    const allAtTheBase = "The month is billed at the steady base load: set Peak hours a month in Design → Traffic to bill the peak.";
+    expect(monthText({ peakHours: 0 })).toBe(allAtTheBase);
+    expect(monthText({})).toBe(allAtTheBase);
   });
 });
 

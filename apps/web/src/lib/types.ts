@@ -216,6 +216,8 @@ export interface Workload {
   keySkew: number;
   drainS?: number | null;
   faults?: Fault[];
+  /** Hours a month at the pattern's peak, the rest at the base load, for the monthly cost (schema 1.8, ADR-0074). */
+  peakHoursPerMonth?: number;
 }
 
 /** Service-level objectives the design should meet (evaluated by the UI, not the engine). */
@@ -278,7 +280,7 @@ export interface HostSpec {
 }
 
 export interface ArchitectureDocument {
-  schemaVersion: "1.0" | "1.1" | "1.2" | "1.3" | "1.4" | "1.5" | "1.6" | "1.7";
+  schemaVersion: "1.0" | "1.1" | "1.2" | "1.3" | "1.4" | "1.5" | "1.6" | "1.7" | "1.8";
   kind: "archsim.architecture";
   metadata: DocMetadata;
   /** false: empty CPU/memory/storage specs are not modelled (default: auto-sized by the engine).
@@ -889,8 +891,10 @@ export interface CostEstimate {
   monthly: number;
   /** $ per one million successful requests at the run's throughput; null without a run. */
   perMillionRequests: number | null;
-  /** An hour at the base load, which the month is billed at, and an hour at the peak (engine 1.1+, ADR-0074). */
+  /** An hour at the base load and an hour at the peak (engine 1.1+, ADR-0074). */
   hourly?: { base: number; peak: number };
+  /** The hours of the month billed at the peak, the rest at the base load (schema 1.8, ADR-0074). */
+  peakHours?: number;
   byNode: NodeCost[];
   notes: string[];
   /** True when at least one component carries a price. */

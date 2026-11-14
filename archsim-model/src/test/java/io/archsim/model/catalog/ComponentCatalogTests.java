@@ -20,6 +20,7 @@ import io.archsim.model.component.ComponentSpec;
 import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.parity.GoldenFile;
 import io.archsim.parity.JsonDiff;
+import io.archsim.parity.SchemaDepartures;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
@@ -64,7 +65,24 @@ class ComponentCatalogTests {
 
 	@Test
 	void of_workloadSettings_areDescribedAsThePythonEngineDoes() {
-		assertThat(JsonDiff.differences(GOLDEN.path("workloadFields"), CATALOG.path("workloadFields"))).isEmpty();
+		assertThat(JsonDiff.differences(GOLDEN.path("workloadFields"),
+				SchemaDepartures.asRecorded(CATALOG).path("workloadFields")))
+			.isEmpty();
+	}
+
+	@Test
+	void of_peakHoursPerMonth_isDescribedWithItsDefaultAndBounds() {
+		JsonNode hours = CATALOG.path("workloadFields")
+			.valueStream()
+			.filter((field) -> "peakHoursPerMonth".equals(field.path("key").stringValue("")))
+			.findFirst()
+			.orElseThrow();
+
+		assertThat(List.of(hours.path("default").doubleValue(), hours.path("nullable").booleanValue(),
+				hours.path("min").doubleValue(), hours.path("max").doubleValue(), hours.path("unit").stringValue(""),
+				hours.path("group").stringValue("")))
+			.containsExactly(0.0, false, 0.0, 730.0, "h", "Traffic");
+		assertThat(hours.path("default").isNumber()).isTrue();
 	}
 
 	@Test

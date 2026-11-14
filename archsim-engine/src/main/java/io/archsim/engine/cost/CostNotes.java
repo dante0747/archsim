@@ -6,16 +6,12 @@ import java.util.stream.Collectors;
 
 import io.archsim.engine.text.HalfUp;
 import io.archsim.engine.text.NumberText;
+import io.archsim.model.document.Workload;
 import io.archsim.model.pricing.PriceSnapshot;
 import io.archsim.model.pricing.PriceSource;
 
 /** The cost estimate's notes: how it was priced and what it leaves out, in order. */
 final class CostNotes {
-
-	private static final String MEASURED = "each part's rate measured while the run's offered load was at the base, "
-			+ "scaled to it exactly, so fan-out, cache misses and retries are kept";
-
-	private static final String ESTIMATED = "the static load estimate at that rate (run a simulation to measure it)";
 
 	private CostNotes() {
 	}
@@ -48,7 +44,7 @@ final class CostNotes {
 					+ "rate.");
 		}
 		if (context.perRequest()) {
-			notes.add(perRequest(context.baseRps(), context.base()));
+			notes.add(perRequest(context.month(), context.base()));
 		}
 		if (flags.snapshotPriced()) {
 			notes.add(CostEstimator.NOT_MODELLED);
@@ -64,14 +60,45 @@ final class CostNotes {
 				+ NumberText.plain(GenericRates.STORAGE_GIB_MONTH) + " per GiB-month of storage).";
 	}
 
-	private static String perRequest(double baseRps, LevelLoad base) {
-		String how = switch (base) {
-			case LevelLoad.Estimated _ -> ESTIMATED;
-			case LevelLoad.Measured _ -> MEASURED;
+	/**
+	 * How per-request prices and the cost per request count the month: all of it at the
+	 * base load, or its peak hours at the peak and the rest at the base load.
+	 * @param month the workload and the hours of the month billed at its peak
+	 * @param base each part's usage at the base load: estimated, or measured in a run
+	 * @return the note
+	 */
+	private static String perRequest(BilledMonth month, LevelLoad base) {
+		Workload workload = month.workload();
+		String baseRps = HalfUp.fixed(LoadLevel.BASE.rate(workload), 1);
+		if (month.peakHours() == 0) {
+			return "Per-request prices and cost per request are at the steady base load of " + baseRps
+					+ " req/s as if it lasted all " + CostEstimator.HOURS_PER_MONTH + " hours of a month: "
+					+ how(base, "the base", "that") + ". A burst's or ramp's peak is not billed all month.";
+		}
+		return "Per-request prices and cost per request are at the steady base load of " + baseRps + " req/s for "
+				+ hours(CostEstimator.HOURS_PER_MONTH - month.peakHours()) + " of a month and at the peak of "
+				+ HalfUp.fixed(LoadLevel.PEAK.rate(workload), 1) + " req/s for " + hours(month.peakHours()) + ": "
+				+ how(base, "each of them", "each") + ".";
+	}
+
+	/**
+	 * How each part's rate at a load was found.
+	 * @param base each part's usage at the base load: estimated, or measured in a run
+	 * @param where the load or loads a run measured at, such as {@code the base}
+	 * @param which the rate or rates estimated at, such as {@code that}
+	 * @return the words
+	 */
+	private static String how(LevelLoad base, String where, String which) {
+		return switch (base) {
+			case LevelLoad.Estimated _ ->
+				"the static load estimate at " + which + " rate (run a simulation to measure it)";
+			case LevelLoad.Measured _ -> "each part's rate measured while the run's offered load was at " + where
+					+ ", scaled to it exactly, so fan-out, cache misses and retries are kept";
 		};
-		return "Per-request prices and cost per request are at the steady base load of " + HalfUp.fixed(baseRps, 1)
-				+ " req/s as if it lasted all " + CostEstimator.HOURS_PER_MONTH + " hours of a month: " + how
-				+ ". A burst's or ramp's peak is not billed all month.";
+	}
+
+	private static String hours(double hours) {
+		return CostText.plural(HalfUp.round(hours, 1), "hour");
 	}
 
 	private static String prices(PriceSnapshot snapshot, String option) {
@@ -89,12 +116,21 @@ final class CostNotes {
 	 *
 	 * @param snapshot the price snapshot
 	 * @param option the purchase option
-	 * @param baseRps the workload's steady base load
+	 * @param month the workload and the hours of the month billed at its peak
 	 * @param perRequest whether a line is priced per request and costs something, or the
 	 * cost per million requests is known
 	 * @param base each part's usage at the base load: estimated, or measured in a run
 	 */
-	record Context(PriceSnapshot snapshot, String option, double baseRps, boolean perRequest, LevelLoad base) {
+	record Context(PriceSnapshot snapshot, String option, BilledMonth month, boolean perRequest, LevelLoad base) {
+	}
+
+	/**
+	 * The month a cost bills.
+	 *
+	 * @param workload the workload, with its base load and its peak
+	 * @param peakHours the hours of the month billed at the peak
+	 */
+	record BilledMonth(Workload workload, double peakHours) {
 	}
 
 }

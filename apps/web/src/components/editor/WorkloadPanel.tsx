@@ -241,6 +241,8 @@ export function WorkloadPanel() {
           </div>
         )}
         <LoadPreview w={workload} />
+        {/* the monthly cost bills the peak for these hours (ADR-0074); a constant load has no peak */}
+        {kind !== "constant" && renderField("peakHoursPerMonth")}
       </section>
 
       <section aria-label="Reads and writes" className="space-y-1.5">

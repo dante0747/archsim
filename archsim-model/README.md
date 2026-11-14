@@ -9,7 +9,7 @@ It is stage 1 of the [Java port](../docs/proposals/java-25-port.md#stage-1--desi
 ```java
 ArchitectureDocument design = DesignDocuments.load(json);          // any schema from 1.0 on
 ValidationResult result = DocumentValidator.standard().validate(design);
-ObjectNode written = DesignDocuments.toJson(design);               // schema 1.7, defaults filled in
+ObjectNode written = DesignDocuments.toJson(design);               // schema 1.8, defaults filled in
 ObjectNode schema = DesignDocuments.jsonSchema();                  // what GET /schema/architecture serves
 ```
 
@@ -30,9 +30,9 @@ Each package uses only those below it, and ArchUnit checks it
 | `catalog` | `ComponentCatalog`: the component catalog the editor renders (`GET /components`), from the specifications and each type's `catalog/<type>.json`; `ComponentFacts`: the same facts typed, for code that reads them (each type's `Setting`s, defaults, `Preset`s, suggested link settings, its technologies' defaults and their documentation); each technology's `TechnologyTrait`s, which a run's report lists for each part (`ComponentCatalog.technologyTraits`) | [0031](../docs/adr/0031-component-catalog-facts-and-presentation.md) |
 | `component` | `ComponentSpec` (ports, config, routing, rules), `ComponentRegistry`, technology profiles; one package per type, and `standard` assembles ArchSim's eleven | [0026](../docs/adr/0026-component-specs-and-price-snapshots-in-the-model.md) |
 | `pricing` | price snapshots: the `archsim.prices/1` format, which there are, which a document uses | [0026](../docs/adr/0026-component-specs-and-price-snapshots-in-the-model.md) |
-| `upgrade` | the chain of upgrades from schema 1.0 to 1.7, on the JSON | [0023](../docs/adr/0023-upgrade-chain-on-the-json.md) |
+| `upgrade` | the chain of upgrades from schema 1.0 to 1.8, on the JSON | [0023](../docs/adr/0023-upgrade-chain-on-the-json.md) |
 | `issue` | `Issue`, `Severity`, `DocumentInvalidException`; codec errors as issues | [0024](../docs/adr/0024-validation-issues-with-stable-codes.md) |
-| `document`, `distribution` | the records of schema 1.7 | [0022](../docs/adr/0022-records-and-a-pydantic-compatible-codec.md) |
+| `document`, `distribution` | the records of schema 1.8 | [0022](../docs/adr/0022-records-and-a-pydantic-compatible-codec.md) |
 | `codec` | `RecordCodec`: records to JSON and back as pydantic does, and their JSON Schema; unions told apart by a property (`@Tagged`) or by which key an object has (`@TaggedByKey`), maps keyed by text or by a `JsonEnum` | [0022](../docs/adr/0022-records-and-a-pydantic-compatible-codec.md), [0025](../docs/adr/0025-json-schema-generated-from-the-records.md) |
 | `text` | Python's way of writing numbers and values: `repr` (a string's characters escaped as Python 3.12's `str.isprintable()` judges them, from `nonprintable.tsv`, which Python recorded once ([parity/README.md](../parity/README.md#pythons-own-answers))), `format`, `json.dumps` | [0027](../docs/adr/0027-python-text-conventions-in-one-package.md) |
 
@@ -61,6 +61,16 @@ shipped byte for byte.
   lists technologies and preset settings in it, so they keep the Python engine's order: each
   type's technology profiles in the order they are added, and each preset's settings in
   `catalog/<type>.json` as the Python engine defines them.
+- The schema has moved on from the 1.7 the frozen engine wrote: 1.8 adds
+  `workload.peakHoursPerMonth` ([ADR-0074](../docs/adr/0074-bill-the-peak-for-the-hours-a-month-it-lasts.md)),
+  left out of a document while it is 0, so a document differs from Python's by its version
+  alone. Every golden comparison (`Parity`, and the tests that compare with `JsonDiff`
+  themselves) goes through `SchemaDepartures`. It gives a recorded document (a parameter named
+  `doc`, `document` or `resolved`, or a report's design) to the Java at 1.8. It reads the Java's
+  output as Python would have written it at 1.7: a document's `schemaVersion` and the schema's own
+  version as 1.7, no note for the upgrade from 1.7 to 1.8, a message naming the supported schema
+  with 1.7, and the JSON Schema and the catalog's workload settings without `peakHoursPerMonth`.
+  The rest is compared exactly.
 - The other tests specify the parts: the pydantic rules the codec copies, the upgrades, each
   check of validation, Python's number formats, the component types, the price snapshots; jqwik
   properties feed random and mutated documents and numbers.

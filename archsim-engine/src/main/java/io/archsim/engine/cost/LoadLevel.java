@@ -4,8 +4,8 @@ import io.archsim.engine.load.BaseRate;
 import io.archsim.model.document.Workload;
 
 /**
- * A load a design is priced at: the workload's steady base, which a month is billed at,
- * or its peak, which an hour is priced at beside it (ADR-0074).
+ * A load a design is priced at: the workload's steady base, or its peak, which a month
+ * bills for the workload's peak hours (ADR-0074).
  */
 enum LoadLevel {
 

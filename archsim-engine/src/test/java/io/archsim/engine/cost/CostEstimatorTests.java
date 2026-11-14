@@ -27,6 +27,7 @@ import io.archsim.model.document.ArchitectureDocument;
 import io.archsim.model.document.ProvenanceKind;
 import io.archsim.model.pricing.PriceSnapshots;
 import io.archsim.parity.JsonDiff;
+import io.archsim.parity.SchemaDepartures;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
@@ -49,7 +50,7 @@ class CostEstimatorTests {
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
 	private static final String DESIGN = """
-			{"schemaVersion": "1.7", "kind": "archsim.architecture", "metadata": {"name": "case"},
+			{"schemaVersion": "1.8", "kind": "archsim.architecture", "metadata": {"name": "case"},
 			 "architecture": {"nodes": [{"id": "clients", "type": "traffic_source"}, {"id": "api", "type": "service"}],
 			                  "edges": [{"id": "clients-api", "source": "clients", "target": "api"}]},
 			 "workload": {"rps": 100}}""";
@@ -96,8 +97,8 @@ class CostEstimatorTests {
 	 * @return its inputs
 	 */
 	private Inputs inputs(JsonNode entry) {
-		ArchitectureDocument design = DesignDocuments.parse(entry.path("design"));
-		ArchitectureDocument resolved = DesignDocuments.parse(entry.path("resolved"));
+		ArchitectureDocument design = DesignDocuments.parse(SchemaDepartures.asCurrent(entry.path("design")));
+		ArchitectureDocument resolved = DesignDocuments.parse(SchemaDepartures.asCurrent(entry.path("resolved")));
 		JsonNode scenario = entry.path("scenarioId");
 		Map<String, PartSize> sizes = this.resolver.resolve(design, scenario.isString() ? scenario.asString() : null)
 			.sizes();

@@ -13,8 +13,9 @@ import tools.jackson.databind.node.ObjectNode;
  * Where a cost of the Java engine departs from the frozen engine's, by ADR-0074, and how
  * it is compared with it all the same.
  * <ul>
- * <li>The cost adds an hour at each load ({@code hourly}) and each line's instances at
- * the peak ({@code peakInstances}): left out.</li>
+ * <li>The cost adds the hours it bills at the peak ({@code peakHours}), an hour at each
+ * load ({@code hourly}) and each line's instances at the peak ({@code peakInstances}):
+ * left out.</li>
  * <li>A line whose count is the one a part settles at (a cluster's, or an autoscaled
  * service's, whose basis says {@code (autoscaling 2–20)}) says how it was counted in the
  * Java's words: Python's are put in their place, the leading count only (up to the first
@@ -58,6 +59,7 @@ public final class CostDepartures {
 		}
 		ObjectNode copy = (ObjectNode) java.deepCopy();
 		copy.remove("hourly");
+		copy.remove("peakHours");
 		double hours = java.path("hoursPerMonth").doubleValue();
 		double repriced = 0.0;
 		for (JsonNode line : copy.path(BY_NODE)) {

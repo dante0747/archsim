@@ -13,6 +13,7 @@ import io.archsim.parity.GoldenEntry;
 import io.archsim.parity.JsonDiff;
 import io.archsim.parity.Parity;
 import io.archsim.parity.PythonError;
+import io.archsim.parity.SchemaDepartures;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
@@ -22,7 +23,8 @@ import static org.assertj.core.api.Assertions.fail;
  * still matches: the same kind of error, and its message up to where the Python's and the
  * Java's libraries word it differently; and a cost, compared as {@link CostDepartures}
  * compares it (ADR-0074), with the counts of the parts that scale that depart, each with
- * why. Every other entry of a ported function must match exactly.
+ * why. Every other entry of a ported function must match exactly. Every output is read as
+ * the frozen engine would have written it at its schema ({@link SchemaDepartures}).
  */
 public final class GoldenDepartures {
 
@@ -84,7 +86,8 @@ public final class GoldenDepartures {
 			JsonNode expected = entry.expectedOutput();
 			// a case file names an entry by its case (CaseFiles), a golden file by its
 			// place, which no departing case shares
-			assertThat(JsonDiff.differences(expected, comparable(expected, call.apply(entry), cost, entry.pointer())))
+			JsonNode actual = SchemaDepartures.asRecorded(call.apply(entry));
+			assertThat(JsonDiff.differences(expected, comparable(expected, actual, cost, entry.pointer())))
 				.as("%s: the output differs from the Python engine's at", entry)
 				.isEmpty();
 		}

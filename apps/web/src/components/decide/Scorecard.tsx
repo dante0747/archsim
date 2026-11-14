@@ -8,7 +8,7 @@ import { SINGLE_SERIES } from "@/components/results/charts";
 import { Button } from "@/components/ui/button";
 import { TierBadge } from "@/components/ui/TierBadge";
 import { SignOffPanel } from "@/components/team/SignOff";
-import { formatUsd, peakCount, peakHour, priceSource } from "@/lib/cost";
+import { formatUsd, monthText, peakCount, peakHour, priceSource } from "@/lib/cost";
 import { fmtPct, fmtRps } from "@/lib/format";
 import { type SloCheck, type SloKey, evaluateSlo, formatSloValue, sloChecks } from "@/lib/slo";
 import type { Objectives, Report } from "@/lib/types";
@@ -197,10 +197,16 @@ function CostPanel({ report }: { report: Report }) {
             <p
               className="mt-1 text-xs text-ink-2"
               data-testid="cost-peak-hour"
-              title="The month is billed at the steady base load. At the peak, autoscaled parts run more instances and per-request parts handle more requests."
+              title={`${monthText(cost)} At the peak, autoscaled parts run more instances and per-request parts handle more requests.`}
             >
               An hour at the peak: <span className="tabular font-mono text-ink">{formatUsd(hour.peak)}</span>
               <span className="text-ink-3"> · {formatUsd(hour.base)} at the base load</span>
+              {(cost.peakHours ?? 0) > 0 && (
+                <span className="text-ink-3">
+                  {" "}
+                  · {cost.peakHours} peak {cost.peakHours === 1 ? "hour" : "hours"} a month
+                </span>
+              )}
             </p>
           )}
           <ul className="mt-4 space-y-2.5" aria-label="Cost by component">
