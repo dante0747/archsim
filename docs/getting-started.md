@@ -18,7 +18,7 @@ Then take [the five-minute tour](#a-five-minute-tour).
 | Run everything in Docker | Docker with Compose, and a JDK 17 or later to start Gradle, which builds the API's image (it downloads JDK 25 for the build when none is installed) |
 | Run from source | A JDK 25, Node.js 20.9 or later (24 recommended) with npm, and PostgreSQL 16, which Docker Compose can start for you |
 | Use the CLI or the MCP server | A JDK 25 to build and run them |
-| Work on ArchSim | The above, plus Python 3.11+ and [uv](https://docs.astral.sh/uv/) for the benchmark harness and the repository's scripts ([CONTRIBUTING.md](../CONTRIBUTING.md)) |
+| Work on ArchSim | The same as running from source: the benchmark harness and the repository's tools are Java too, built by Gradle, and the accuracy benchmarks run their stacks in Docker ([CONTRIBUTING.md](../CONTRIBUTING.md)) |
 
 Commands below are for a POSIX shell (Linux, macOS, Git Bash). On Windows, `./gradlew` also runs in
 PowerShell; the differences are noted where they matter.

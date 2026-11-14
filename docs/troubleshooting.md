@@ -32,11 +32,6 @@ first and stall. Use `127.0.0.1`, as the defaults do.
 a console on a legacy code page shows it garbled. Switch the console to UTF-8 (`chcp 65001`)
 first.
 
-**`DLL load failed ... The filename or extension is too long`.** This is the Python development
-environment (the benchmark harness and the scripts): the checkout path is too deep for Windows'
-path limit. Clone into a short path such as `C:\src\archsim`, or put the virtual environment
-somewhere short with `UV_PROJECT_ENVIRONMENT`.
-
 ## Privacy
 
 **Next.js telemetry.** Neither the API nor the web app phones home, and the npm scripts and the

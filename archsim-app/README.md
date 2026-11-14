@@ -85,13 +85,14 @@ Flyway owns the schema. `V1` reproduces Alembic's revision 0008 exactly; a datab
 is taken over at that revision ([ADR-0032](../docs/adr/0032-flyway-takes-over-from-alembic.md)).
 One at an older revision is refused before Flyway writes anything, with the way to bring it to
 0008: the Alembic migrations are gone, but the tag `alembic-0008` keeps them
-([ADR-0063](../docs/adr/0063-retire-alembic-older-databases-upgrade-from-a-tag.md)). Run them
-from a worktree of that tag, with Python 3.11 or later and [uv](https://docs.astral.sh/uv/), and
-the database's URL in SQLAlchemy's form (`postgresql+psycopg://`), the one the tag reads:
+([ADR-0063](../docs/adr/0063-retire-alembic-older-databases-upgrade-from-a-tag.md)). They are
+Python, so this one step needs Python 3.11 or later and [uv](https://docs.astral.sh/uv/), which
+nothing else in this version does. Run them from a worktree of that tag, not from this checkout,
+with the database's URL in SQLAlchemy's form (`postgresql+psycopg://`), the one the tag reads:
 
 ```bash
 git worktree add ../archsim-alembic-0008 alembic-0008
-cd ../archsim-alembic-0008
+cd ../archsim-alembic-0008   # the tag's checkout, which has the Python migrations
 uv sync
 ARCHSIM_DATABASE_URL=postgresql+psycopg://user:password@host:5432/archsim uv run archsim-api migrate
 cd - && git worktree remove --force ../archsim-alembic-0008
