@@ -47,6 +47,39 @@ class GitBaselineTests {
 			.withMessage(refusal);
 	}
 
+	@ParameterizedTest
+	@ValueSource(strings = { "CreateProcess error=2, The system cannot find the file specified",
+			"error=2, No such file or directory", "Exec failed, error: 2 (No such file or directory) " })
+	void notStarted_programNotFound_isRefusedInTheWordsOfPythonsOsError(String jdkWords) {
+		String refusal = OS.WINDOWS.isCurrentOs() ? "[WinError 2] The system cannot find the file specified"
+				: "[Errno 2] No such file or directory: 'git'";
+
+		assertThat(GitBaseline.notStarted(startFailure("/tmp/x", jdkWords), "git")).isEqualTo(refusal);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "error=13, Permission denied", "Exec failed, error: 13 (Permission denied) " })
+	void notStarted_anotherError_isRefusedInTheSystemsWords(String jdkWords) {
+		IOException failure = startFailure("/tmp/x", jdkWords);
+
+		assertThat(GitBaseline.notStarted(failure, "git")).isEqualTo(failure.getMessage());
+	}
+
+	// the folder, the design's, is the user's to name: only the JDK's words count
+	@Test
+	void notStarted_aFolderNamedLikeTheError_isNotTakenForIt() {
+		IOException failure = startFailure("/tmp/error: 2", "Exec failed, error: 13 (Permission denied) ");
+
+		assertThat(GitBaseline.notStarted(failure, "git")).isEqualTo(failure.getMessage());
+	}
+
+	// what ProcessBuilder.start throws when it cannot start git in a folder: its words
+	// for the program and the folder, and the JDK's for the error, which it wraps
+	private static IOException startFailure(String folder, String jdkWords) {
+		return new IOException("Cannot run program \"git\" (in directory \"" + folder + "\"): " + jdkWords,
+				new IOException(jdkWords));
+	}
+
 	@Test
 	void at_gitTakingLongerThanTheDeadline_isStoppedAndRefused(@TempDir Path folder) throws IOException {
 		Path design = Files.writeString(folder.resolve("design.json"), "{}");

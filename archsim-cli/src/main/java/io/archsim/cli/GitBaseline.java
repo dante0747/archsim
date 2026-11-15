@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -33,8 +34,12 @@ final class GitBaseline {
 	/** The longest one git command may take. */
 	static final Duration DEADLINE = Duration.ofSeconds(60);
 
-	/** What the system says when a program cannot be started: {@code error=2, ...}. */
-	private static final Pattern START_ERROR = Pattern.compile("error=(\\d+)");
+	/**
+	 * The error the JDK names when a program cannot be started: {@code error=2, ...} on
+	 * Windows, and on Linux before Java 25.0.5; {@code Exec failed, error: 2 (...)} on
+	 * Linux since.
+	 */
+	private static final Pattern START_ERROR = Pattern.compile("\\berror(?:=|: )(\\d+)");
 
 	private static final String NOT_FOUND = "2";
 
@@ -139,7 +144,7 @@ final class GitBaseline {
 			return process;
 		}
 		catch (IOException ex) {
-			throw new GitBaselineException(notStarted(ex), ex);
+			throw new GitBaselineException(notStarted(ex, this.git.getFirst()), ex);
 		}
 	}
 
@@ -151,14 +156,24 @@ final class GitBaseline {
 		}
 	}
 
-	// the FileNotFoundError Python's subprocess raised for a git that is not installed
-	private String notStarted(IOException ex) {
-		Matcher error = START_ERROR.matcher(String.valueOf(ex.getMessage()));
+	/**
+	 * What a program that could not be started is refused with: in the words of the
+	 * {@code FileNotFoundError} Python's subprocess raised when the program is not
+	 * installed, else in the system's.
+	 * @param ex why the JDK could not start it
+	 * @param program the program as it was named, which Python's words quote
+	 * @return the refusal
+	 */
+	static String notStarted(IOException ex, String program) {
+		// the JDK's own words for the error, which ProcessBuilder wraps in a message that
+		// names the program and the folder, the design's, which the user named
+		Throwable jdkError = Objects.requireNonNullElse(ex.getCause(), ex);
+		Matcher error = START_ERROR.matcher(String.valueOf(jdkError.getMessage()));
 		if (!error.find() || !NOT_FOUND.equals(error.group(1))) {
 			return String.valueOf(ex.getMessage());
 		}
 		return WINDOWS ? "[WinError 2] The system cannot find the file specified"
-				: "[Errno 2] No such file or directory: " + PythonText.repr(this.git.getFirst());
+				: "[Errno 2] No such file or directory: " + PythonText.repr(program);
 	}
 
 	private static byte[] readAll(InputStream stream) throws IOException {
