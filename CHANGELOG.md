@@ -8,48 +8,7 @@ for when that version changes.
 
 ## [Unreleased]
 
-### Changed
-
-- **Cost of autoscaling (engine 1.1.0, report 1.16).** An autoscaled service is billed at the
-  replicas its autoscaler settles at for the base load's work, within `minReplicas`–`maxReplicas`,
-  no longer at the run's average replicas scaled to the base load and floored at the count it
-  starts with; a Kubernetes cluster with its autoscaler is billed the nodes its pods need there,
-  and one without it its `nodes`. Beside the month, every cost now prices an hour at the peak
-  (`cost.hourly`), with each line's instances there (`peakInstances`), so the peak's cost is in
-  sight ([ADR-0074](docs/adr/0074-bill-the-peak-for-the-hours-a-month-it-lasts.md),
-  [What a month is](docs/pricing.md#what-a-month-is)). The count rule changes no template's monthly
-  cost.
-- **Black Friday's sale day.** The Black Friday on Kubernetes template bills 24 peak hours a
-  month, and a new scenario, "No autoscaling (14 fixed pods)", sizes the checkout for the peak all
-  month. Its month rises from $824.80 to $843.63 with the HPA, and the Cost vs. speed map sets
-  that against $1,434.02 for the 14 fixed pods. The templates now hold 125 scenarios.
-
-### Added
-
-- **Peak hours a month (schema 1.8).** `workload.peakHoursPerMonth` says how many hours a month
-  the traffic runs at its pattern's peak; the monthly cost bills those hours at the peak and the
-  rest at the base load, line by line, and the cost per million requests counts both loads'
-  requests; `cost.peakHours` reports the hours it billed. It defaults to 0 (the whole month at
-  the base load, as before), is left out of a document while 0, and is set in Design → Traffic
-  for a burst, a ramp or a trace. Older documents upgrade with no other change.
-
-### Fixed
-
-- **The base load's rates after a run (engine 1.1.1)**, the fault ADR-0074's More Information
-  notes. When no time bucket of a run's window is
-  at the base load (a ramp that passes it during the warm-up), the base's per-request rates come
-  from the buckets nearest it, no longer from the whole window's mean scaled down, which the
-  failures and timeouts at the peak moved: Black Friday's `fixed-pods` billed the payments API
-  for 38.9 calls/s at the base where the baseline billed 60.7, although at 300 req/s both make
-  the same calls. The peak's rates do the same when no bucket is at the peak. No template's
-  monthly cost changes: the two whose ramps pass their base during the warm-up, Black Friday and
-  the token introspection template, call third-party APIs priced at nothing.
-- **Labels on the Cost vs. speed map.** A run's label no longer covers another run's marker or
-  label, or the objective line's label: it moves to its point's other side, or a line down or up
-  with a leader to its point, and is left out (the table and the hover card still name the run)
-  only when nothing nearby is free. Runs drawn at one point share one label that names each.
-
-## [1.0.0] - Draft, not released yet
+## [1.0.0] - 2026-11-15
 
 The first public release. ArchSim predicts how a system design behaves under load, failures and
 cost, and publishes how accurate it is. Start with [Getting started](docs/getting-started.md).
@@ -71,6 +30,8 @@ cost, and publishes how accurate it is. Start with [Getting started](docs/gettin
   breaking point and the monthly cost on real AWS instance types.
 - **Published accuracy.** [docs/validation.md](docs/validation.md) checks predictions made before
   measuring against nine experiments on real services, misses included.
+- **One command to run it.** `docker compose up` starts the whole stack from ArchSim's release
+  images, for amd64 and arm64, with nothing but Docker installed.
 
 ### Added
 
@@ -100,8 +61,21 @@ cost, and publishes how accurate it is. Start with [Getting started](docs/gettin
 - **Teams (optional):** GitHub and Google sign-in, personal and team workspaces with viewer, editor
   and owner roles, invitations, API tokens, rate limits, comments, sign-offs, a history of every
   change and read-only share links ([docs/deployment.md](docs/deployment.md)).
+- **Peak hours a month (schema 1.8).** `workload.peakHoursPerMonth` says how many hours a month
+  the traffic runs at its pattern's peak; the monthly cost bills those hours at the peak and the
+  rest at the base load, line by line, and the cost per million requests counts both loads'
+  requests; `cost.peakHours` reports the hours it billed. It defaults to 0 (the whole month at
+  the base load), is left out of a document while 0, and is set in Design → Traffic for a burst, a
+  ramp or a trace ([ADR-0074](docs/adr/0074-bill-the-peak-for-the-hours-a-month-it-lasts.md)).
+- **ArchSim's own version**, 1.0.0, kept apart from the engine's: `archsim --version` prints
+  `archsim 1.0.0, engine 1.1.1`, `GET /meta` gives `version` beside `engineVersion`, and the MCP
+  server's `serverInfo.version` is ArchSim's
+  ([ADR-0076](docs/adr/0076-version-archsim-apart-from-its-engine.md)).
 - **Running it:** a Docker Compose stack (PostgreSQL, migrations, the API, workers and the web
-  app), and workers on any number of machines sharing a run queue in PostgreSQL.
+  app) from release images on GitHub's container registry, `ghcr.io/dante0747/archsim-app` and
+  `archsim-web`, for amd64 and arm64; `make up-local` runs your own build instead
+  ([ADR-0077](docs/adr/0077-publish-release-images-to-ghcr-and-run-them-from-compose.md)). Workers
+  run on any number of machines, sharing a run queue in PostgreSQL.
 
 ### Changed
 
@@ -110,6 +84,18 @@ cost, and publishes how accurate it is. Start with [Getting started](docs/gettin
   frozen Python engine 0.16.0's recorded runs figure for figure
   ([java-parity.md](docs/validation/java-parity.md)), about 14 times faster on the templates
   ([docs/performance.md](docs/performance.md)).
+- **Cost of autoscaling (engine 1.1.0, report 1.16).** An autoscaled service is billed at the
+  replicas its autoscaler settles at for the base load's work, within `minReplicas`–`maxReplicas`,
+  no longer at the run's average replicas scaled to the base load and floored at the count it
+  starts with; a Kubernetes cluster with its autoscaler is billed the nodes its pods need there,
+  and one without it its `nodes`. Beside the month, every cost prices an hour at the peak
+  (`cost.hourly`), with each line's instances there (`peakInstances`)
+  ([ADR-0074](docs/adr/0074-bill-the-peak-for-the-hours-a-month-it-lasts.md),
+  [What a month is](docs/pricing.md#what-a-month-is)).
+- **Black Friday's sale day.** The Black Friday on Kubernetes template bills 24 peak hours a
+  month, and a new scenario, "No autoscaling (14 fixed pods)", sizes the checkout for the peak all
+  month: $843.63 a month with the HPA against $1,434.02 for 14 fixed pods. The templates hold 125
+  scenarios.
 - The accuracy benchmarks' harness and the repository's tools moved from Python to Java as well:
   [archsim-benchmarks](archsim-benchmarks/README.md), run as
   `./gradlew :archsim-benchmarks:run --args="<command>"`, and [archsim-tools](archsim-tools/README.md)
@@ -119,6 +105,17 @@ cost, and publishes how accurate it is. Start with [Getting started](docs/gettin
   own container.
 - ArchSim is licensed under the GNU AGPL-3.0-only, with a commercial license available from the
   copyright holder ([ADR-0067](docs/adr/0067-license-under-agpl-3.0-with-a-commercial-license.md)).
+
+### Fixed
+
+- **The base load's rates after a run (engine 1.1.1).** When no time bucket of a run's window is
+  at the base load (a ramp that passes it during the warm-up), the base's per-request rates come
+  from the buckets nearest it, no longer from the whole window's mean scaled down, which the
+  failures and timeouts at the peak moved. The peak's rates do the same when no bucket is at the
+  peak. No template's monthly cost changes.
+- **Labels on the Cost vs. speed map.** A run's label no longer covers another run's marker or
+  label, or the objective line's label: it moves to its point's other side, or a line down or up
+  with a leader to its point. Runs drawn at one point share one label that names each.
 
 ### Removed
 
@@ -140,6 +137,9 @@ cost, and publishes how accurate it is. Start with [Getting started](docs/gettin
   takes it from there ([ADR-0063](docs/adr/0063-retire-alembic-older-databases-upgrade-from-a-tag.md)).
 - An MCP client set up with `uv run --directory /path/to/archsim archsim-mcp` needs the Java
   server's command instead ([docs/agents.md](docs/agents.md)).
+- `docker compose up` runs the release images and builds nothing: run your own build with
+  `make image` and `make up-local` (`docker-compose.local.yml`) instead of
+  `docker compose up --build` ([docs/getting-started.md](docs/getting-started.md#your-own-build)).
 - The `commit-msg` hook checks messages with Java's source launcher and needs JDK 22 or later: it
   runs `$JAVA_HOME`'s Java when that is set, else `java` on the `PATH`
   ([CONTRIBUTING.md](CONTRIBUTING.md#development-setup)).
@@ -159,4 +159,5 @@ cost, and publishes how accurate it is. Start with [Getting started](docs/gettin
 - Exports are scaffolding to review, not production configuration.
 - The editor is designed for desktop screens.
 
-[Unreleased]: https://github.com/dante0747/archsim/commits/main
+[Unreleased]: https://github.com/dante0747/archsim/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/dante0747/archsim/releases/tag/v1.0.0
