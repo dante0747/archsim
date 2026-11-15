@@ -33,6 +33,13 @@ for when that version changes.
   the base load, as before), is left out of a document while 0, and is set in Design → Traffic
   for a burst, a ramp or a trace. Older documents upgrade with no other change.
 
+### Fixed
+
+- **Labels on the Cost vs. speed map.** A run's label no longer covers another run's marker or
+  label, or the objective line's label: it moves to its point's other side, or a line down or up
+  with a leader to its point, and is left out (the table and the hover card still name the run)
+  only when nothing nearby is free. Runs drawn at one point share one label that names each.
+
 ## [1.0.0] - Draft, not released yet
 
 The first public release. ArchSim predicts how a system design behaves under load, failures and

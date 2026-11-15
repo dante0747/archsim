@@ -32,16 +32,27 @@ const M = { top: 20, right: 28, bottom: 44, left: 64 };
 
 /** A point's direct label: longer ones end in an ellipsis. */
 const LABEL_CHARS = 40;
-/** The width of a character of the labels' 11 px monospace. */
+/** The width of a character of the labels' 11 px text. */
 const CHAR_W = 6.4;
-/** From a point's centre to its label. */
-const LABEL_GAP = 11;
+/** A marker's half-width: a point is drawn 7 px across its centre, and a pixel is kept around it. */
+const MARKER_R = 8;
+/** The half-width of the current run's marker, whose ring is drawn 11 px across its centre. */
+const ACTIVE_R = 12;
+/** From the edge of a point's marker to its label. */
+const LABEL_PAD = 3;
 /**
  * A label sits this far above its point: the frontier leaves each of its points to the right, at
  * the point's height, and would strike through a label beside it.
  */
 const LABEL_LIFT = 8;
+/** A line of the labels' text, which is how tall a label is. */
 const LINE = 12;
+/** The objective line's label. */
+const SLO_LABEL = "misses p95 objective ↑";
+/** Lines above or below its first place that a label may move before it is left out. */
+const MAX_LINES = 4;
+/** Points this close are drawn at one place. */
+const SAME_PLACE = 1;
 
 /** Where a point's label sits on the map, and what it says. */
 export interface PlacedLabel {
@@ -49,6 +60,23 @@ export interface PlacedLabel {
   y: number;
   anchor: "start" | "end";
   text: string;
+}
+
+/** A part of the map a label must not cover. */
+export interface Box {
+  x0: number;
+  x1: number;
+  y0: number;
+  y1: number;
+}
+
+/** A point to label: its marker's half-width `r` is the usual 8 px unless given. */
+interface LabelledPoint {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  r?: number;
 }
 
 /** A label cut to `chars` characters with an ellipsis, after its last whole word when that keeps most of it. */
@@ -59,32 +87,78 @@ function shorten(label: string, chars: number): string {
   return `${(words.length >= chars * 0.6 ? words : cut).trimEnd()}…`;
 }
 
+const overlap = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+
+/** What a point's marker covers: `r` either side of its centre, the usual 8 px unless given. */
+export function markerBox(p: { x: number; y: number; r?: number }): Box {
+  const r = p.r ?? MARKER_R;
+  return { x0: p.x - r, x1: p.x + r, y0: p.y - r, y1: p.y + r };
+}
+
+function labelBox(l: PlacedLabel): Box {
+  const width = l.text.length * CHAR_W;
+  const x0 = l.anchor === "start" ? l.x : l.x - width;
+  return { x0, x1: x0 + width, y0: l.y - LINE / 2, y1: l.y + LINE / 2 };
+}
+
+/** The points drawn at one place, as one point whose label names each of them, in their order. */
+function atOnePlace(points: LabelledPoint[]): LabelledPoint[] {
+  const places: LabelledPoint[][] = [];
+  for (const p of points) {
+    const place = places.find(([q]) => Math.abs(q.x - p.x) <= SAME_PLACE && Math.abs(q.y - p.y) <= SAME_PLACE);
+    if (place) place.push(p);
+    else places.push([p]);
+  }
+  return places.map((place) => ({
+    ...place[0],
+    label: [...new Set(place.map((p) => shorten(p.label, LABEL_CHARS)))].join(" · "),
+    r: Math.max(...place.map((p) => p.r ?? MARKER_R)),
+  }));
+}
+
 /**
- * The points' direct labels, just above each point: right of it, or left of it when the right
- * would run past the plot (cut to the wider side when neither fits). Placed top first, a label
- * that would overlap one already placed moves down a line.
+ * Where a point's label may go, best first. Just above the point: right of it, or left of it
+ * when the right would run past the plot (cut to the wider side when neither fits), then on its
+ * other side if the label fits there whole. Then the same a line lower, a line higher, two lines
+ * lower and so on, inside the plot's top and bottom.
+ */
+function placesFor(p: LabelledPoint, plot: { left: number; right: number; top?: number; bottom?: number }): PlacedLabel[] {
+  const gap = (p.r ?? MARKER_R) + LABEL_PAD;
+  const room = { start: plot.right - (p.x + gap), end: p.x - gap - plot.left };
+  const width = p.label.length * CHAR_W;
+  const first: PlacedLabel["anchor"] = width <= room.start || (width > room.end && room.start >= room.end) ? "start" : "end";
+  const other: PlacedLabel["anchor"] = first === "start" ? "end" : "start";
+  const sides = width <= room[other] ? [first, other] : [first];
+  const places: PlacedLabel[] = [];
+  for (let k = 0; k <= 2 * MAX_LINES; k++) {
+    const y = p.y - LABEL_LIFT + (k % 2 === 0 ? k / 2 : -(k + 1) / 2) * LINE;
+    if (y - LINE / 2 < (plot.top ?? -Infinity) || y + LINE / 2 > (plot.bottom ?? Infinity)) continue;
+    for (const anchor of sides) {
+      const text = width <= room[anchor] ? p.label : shorten(p.label, Math.max(Math.floor(room[anchor] / CHAR_W), 1));
+      places.push({ x: anchor === "start" ? p.x + gap : p.x - gap, y, anchor, text });
+    }
+  }
+  return places;
+}
+
+/**
+ * The points' direct labels, placed top first, each in the first of its places (see `placesFor`)
+ * that covers no point's marker, no label already placed and none of the `keepClear` boxes. A
+ * label with no such place is left out: the table and the hover card still name its point. Points
+ * drawn at one place share one label, on the first of them, that names each.
  */
 export function placeLabels(
-  points: { id: string; label: string; x: number; y: number }[],
-  plot: { left: number; right: number },
+  points: LabelledPoint[],
+  plot: { left: number; right: number; top?: number; bottom?: number },
+  keepClear: Box[] = [],
 ): Map<string, PlacedLabel> {
+  const taken = [...keepClear, ...points.map(markerBox)];
   const labels = new Map<string, PlacedLabel>();
-  const placed: { x0: number; x1: number; y: number }[] = [];
-  for (const p of [...points].sort((a, b) => a.y - b.y)) {
-    const full = shorten(p.label, LABEL_CHARS);
-    const rightRoom = plot.right - (p.x + LABEL_GAP);
-    const leftRoom = p.x - LABEL_GAP - plot.left;
-    const width = full.length * CHAR_W;
-    const anchor = width <= rightRoom || (width > leftRoom && rightRoom >= leftRoom) ? "start" : "end";
-    const room = anchor === "start" ? rightRoom : leftRoom;
-    const text = width <= room ? full : shorten(full, Math.max(Math.floor(room / CHAR_W), 1));
-    const x = anchor === "start" ? p.x + LABEL_GAP : p.x - LABEL_GAP;
-    const x0 = anchor === "start" ? x : x - text.length * CHAR_W;
-    const x1 = x0 + text.length * CHAR_W;
-    let y = p.y - LABEL_LIFT;
-    for (let k = 0; k < 8 && placed.some((b) => Math.abs(b.y - y) < LINE && b.x0 < x1 && x0 < b.x1); k++) y += LINE;
-    placed.push({ x0, x1, y });
-    labels.set(p.id, { x, y, anchor, text });
+  for (const p of atOnePlace(points).sort((a, b) => a.y - b.y)) {
+    const label = placesFor(p, plot).find((place) => !taken.some((box) => overlap(labelBox(place), box)));
+    if (!label) continue;
+    taken.push(labelBox(label));
+    labels.set(p.id, label);
   }
   return labels;
 }
@@ -210,10 +284,15 @@ export function TradeoffMap() {
   const slo = objectives.latencyP95Ms;
   const hovered = points.find((p) => p.runId === hover) ?? null;
   const showLabels = points.length <= 8;
+  const markers = points.map((p) => ({ id: p.runId, label: p.label, x: sx(p.cost), y: sy(p.p95), r: p.runId === activeRunId ? ACTIVE_R : MARKER_R }));
+  // the objective line's own label, "misses p95 objective ↑", at the plot's right end
+  const sloLabel: Box[] =
+    slo != null && slo <= ys.max ? [{ x0: M.left + iw - SLO_LABEL.length * CHAR_W, x1: M.left + iw, y0: sy(slo) - 6 - LINE, y1: sy(slo) - 3 }] : [];
   // Direct labels for a handful of options; a hovered one shows its label however many there are.
   const labels = placeLabels(
-    points.filter((p) => showLabels || p.runId === hover).map((p) => ({ id: p.runId, label: p.label, x: sx(p.cost), y: sy(p.p95) })),
-    { left: M.left, right: width },
+    markers.filter((m) => showLabels || m.id === hover),
+    { left: M.left, right: width, top: 0, bottom: M.top + ih },
+    [...sloLabel, ...markers.map(markerBox)],
   );
   const tick = "font-mono text-[11px]";
 
@@ -300,7 +379,7 @@ export function TradeoffMap() {
                 <g>
                   <line x1={M.left} x2={M.left + iw} y1={sy(slo)} y2={sy(slo)} stroke="var(--status-critical)" strokeWidth={1.5} strokeDasharray="5 4" />
                   <text x={M.left + iw} y={sy(slo) - 6} textAnchor="end" className="font-mono text-[11px]" fill="var(--ink-2)">
-                    misses p95 objective ↑
+                    {SLO_LABEL}
                   </text>
                 </g>
               )}
@@ -311,6 +390,8 @@ export function TradeoffMap() {
                 const active = p.runId === activeRunId;
                 const label = labels.get(p.runId);
                 const side = label?.anchor === "end" ? -1 : 1;
+                // a label moved off its first line is tied to its point, from the marker's edge
+                const edge = (active ? 11 : 7) * side;
                 return (
                   <g key={p.runId}>
                     {active && <circle cx={x} cy={y} r={11} fill="none" stroke="var(--accent)" strokeWidth={1.5} />}
@@ -325,7 +406,7 @@ export function TradeoffMap() {
                     {label && (
                       <>
                         {Math.abs(label.y - (y - LABEL_LIFT)) > 3 && (
-                          <path d={`M${x + 5 * side},${y} L${x + 9 * side},${label.y}`} stroke="var(--line-strong)" strokeWidth={1} fill="none" />
+                          <path d={`M${x + edge},${y} L${label.x - 2 * side},${label.y}`} stroke="var(--line-strong)" strokeWidth={1} fill="none" />
                         )}
                         {/* the halo keeps grid and objective lines from running through the text */}
                         <text
