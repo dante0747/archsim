@@ -213,7 +213,7 @@ class HttpPrometheusOutboundTests {
 	 */
 	@Test
 	void queryRange_pathThatLooksLikeAHost_isSentAsAPathToTheUrlsHost() {
-		try (StubPrometheus prometheus = StubPrometheus.answering(200, StubPrometheus.SUCCESS)) {
+		try (VerbatimPrometheus prometheus = VerbatimPrometheus.plain()) {
 			query(server(prometheus.url(NAME) + "//internal.svc:8080/x", List.of(NAME), false),
 					TableResolver.answering(NAME, List.of("127.0.0.1")));
 
@@ -226,7 +226,7 @@ class HttpPrometheusOutboundTests {
 
 	@Test
 	void queryRange_tlsWithAPathThatLooksLikeAHost_trustsTheUrlsHost() {
-		try (StubPrometheus prometheus = StubPrometheus.tls(forName.server())) {
+		try (VerbatimPrometheus prometheus = VerbatimPrometheus.tls(forName.server())) {
 			query(server(prometheus.url(NAME) + "//other.test/x", List.of(), false), forName.trusting(),
 					TableResolver.answering(NAME, List.of("127.0.0.1")));
 
@@ -236,7 +236,7 @@ class HttpPrometheusOutboundTests {
 
 	@Test
 	void queryRange_tlsCertificateForThePathsHost_isRefused() {
-		try (StubPrometheus prometheus = StubPrometheus.tls(forOtherName.server())) {
+		try (VerbatimPrometheus prometheus = VerbatimPrometheus.tls(forOtherName.server())) {
 			assertThatExceptionOfType(PrometheusException.class)
 				.isThrownBy(() -> query(server(prometheus.url(NAME) + "//other.test/x", List.of(), false),
 						forOtherName.trusting(), TableResolver.answering(NAME, List.of("127.0.0.1"))))

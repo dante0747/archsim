@@ -18,7 +18,9 @@ import com.sun.net.httpserver.HttpsServer;
 
 /**
  * A stand-in Prometheus on 127.0.0.1 that answers every request with one status and body,
- * and remembers what it was sent.
+ * and remembers what it was sent. It runs on the JDK's HttpServer, which since Java
+ * 25.0.5 refuses a request target that starts with {@code //} before its handler sees it:
+ * a test that sends one uses {@link VerbatimPrometheus}.
  */
 final class StubPrometheus implements AutoCloseable {
 
