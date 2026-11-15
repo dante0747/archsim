@@ -1,7 +1,8 @@
 # ArchSim documentation
 
 Everything about using, running, trusting and changing ArchSim. New here? Start with
-[Getting started](getting-started.md).
+[Getting started](getting-started.md). The docs are published with the website, at
+[archsim.io/docs](https://archsim.io/docs/).
 
 ## Start here
 
@@ -59,6 +60,7 @@ Everything about using, running, trusting and changing ArchSim. New here? Start 
 | [Developing ArchSim](development.md) | The repository layout and what the tests check |
 | [Java conventions](java-conventions.md) | How the Java code is written, and what the build enforces |
 | [Adding a component type](extending-components.md) | A new technology, from the model to the engine |
+| [The website](website.md) | How [archsim.io](https://archsim.io) is built from this repository, and how to preview it |
 | [Roadmap](roadmap.md) | Directions the design leaves room for |
 
 ## Records

@@ -31,6 +31,9 @@ Layout:
   history, assumptions
 - `src/test/fixtures/` - catalog and example used by unit tests
   (regenerate with `./gradlew :archsim-engine:generate` from the repo root)
+- `*.site.tsx`, `*.site.ts`, `src/components/site/`, `src/lib/site/` - the public website,
+  [archsim.io](https://archsim.io): a second, static build of this app (`npm run build:site`), which
+  the app's own build ignores; see [docs/website.md](../../docs/website.md)
 
 Inspector forms are generated from the component catalog (`GET /api/v1/components`), so new
 component types need no frontend changes. See the root [README](../../README.md).
