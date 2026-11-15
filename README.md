@@ -206,5 +206,6 @@ ArchSim is licensed under the [GNU Affero General Public License v3.0 only](LICE
 (`AGPL-3.0-only`). Using it, at work too, is free. If you ship ArchSim inside a product or offer a
 changed ArchSim over a network, the AGPL asks you to publish your source under the same license; a
 commercial license from the copyright holder lifts those obligations
-([ADR-0067](docs/adr/0067-license-under-agpl-3.0-with-a-commercial-license.md)). Third-party
-components keep their own licenses ([NOTICE](NOTICE)).
+([ADR-0067](docs/adr/0067-license-under-agpl-3.0-with-a-commercial-license.md)). To ask for one,
+write to [abarghooeimajid@gmail.com](mailto:abarghooeimajid@gmail.com). Third-party components keep
+their own licenses ([NOTICE](NOTICE)).
