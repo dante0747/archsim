@@ -39,6 +39,10 @@ the one compatible with the GPL (docs/adr/0067-license-under-agpl-3.0-with-a-com
   bundles: the app turns off Next.js's image optimizer, their only user.
 - The web UI uses the Geist and Geist Mono typefaces (SIL Open Font License 1.1), downloaded at
   build time and served by the app itself.
+- The website (archsim.io, a static export of apps/web) ships a subset of the web app's client
+  code and the same typefaces. Its pages are rendered from the repository's Markdown at build time
+  with unified, remark, rehype and their dependencies (MIT and ISC) and highlight.js (BSD 3-Clause),
+  none of which it ships.
 
 The accuracy benchmarks' harness (archsim-benchmarks) and the repository's tools (archsim-tools)
 are not part of ArchSim's product and ship in no image; the benchmarked services the harness

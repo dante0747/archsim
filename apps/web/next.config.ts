@@ -53,4 +53,20 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// The public website, archsim.io (ADR-0078): `ARCHSIM_SITE=1 next build` (npm run build:site)
+// exports the routes named *.site.tsx and *.site.ts to out/ as static files for GitHub Pages, and
+// nothing else; the app's build above sees none of them. A static host sends no headers, so
+// headers() is left out (the site's layout sets its policy in a meta tag). Type checking is left
+// to `npm run typecheck`, which checks the site's files with the app's: here the app's typed
+// routes (PageProps<"/projects/[id]">) would not exist.
+const siteConfig: NextConfig = {
+  output: "export",
+  trailingSlash: true,
+  pageExtensions: ["site.tsx", "site.ts"],
+  images: { unoptimized: true },
+  poweredByHeader: false,
+  typescript: { ignoreBuildErrors: true },
+  turbopack: nextConfig.turbopack,
+};
+
+export default process.env.ARCHSIM_SITE === "1" ? siteConfig : nextConfig;

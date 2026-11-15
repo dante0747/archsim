@@ -24,6 +24,18 @@ const CLIENT_TECH: [string, string][] = [
   ["rest", "REST / OpenAPI"],
 ];
 
+/** How many technology profiles the catalog has, by tier, and how many kinds of clients. */
+export function catalogStats(catalog: Catalog): { technologies: number; tiers: string; clientKinds: number } {
+  const tiers = catalog.components.flatMap((c) => (c.presets ?? []).map((p) => p.tier ?? null));
+  const count = (t: string | null) => tiers.filter((x) => x === t).length;
+  const thirdParty = count(null);
+  return {
+    technologies: tiers.length,
+    tiers: `${count("core")} core, ${count("experimental")} experimental${thirdParty ? `, ${thirdParty} third-party APIs` : ""}`,
+    clientKinds: catalog.components.filter((c) => c.isTrafficSource).length,
+  };
+}
+
 export function techChips(catalog: Catalog): Chip[] {
   const presets = catalog.components.flatMap((c) =>
     (c.presets ?? []).map((p) => ({ key: `${c.type}:${p.id}`, name: p.name, technology: p.technology, kind: kindOf(c.type, c.category) })),
