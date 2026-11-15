@@ -1,0 +1,52 @@
+name: CLA
+
+# Outside contributors sign ArchSim's Contributor License Agreement (CLA.md, ADR-0075) by commenting
+# on their pull request. CLA Assistant Lite records each signature in the `cla-signatures` branch
+# and sets the pull request's "Contributor License Agreement" check.
+#
+# OFF until the owner turns it on, once a lawyer has approved CLA.md: create the branch
+# (`git push origin origin/main:refs/heads/cla-signatures`), then set the repository variable
+# CLA_ENABLED to true (Settings > Secrets and variables > Actions > Variables). Without the
+# variable, the job is skipped and uses no minutes.
+#
+# pull_request_target runs with write access, so that a pull request from a fork can be commented
+# on: this workflow never checks out or runs the pull request's code.
+on:
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    types: [opened, closed, synchronize]
+
+permissions:
+  actions: write
+  contents: write # the signatures, in the cla-signatures branch
+  pull-requests: write
+  statuses: write
+
+jobs:
+  cla:
+    name: Contributor License Agreement
+    # a pull request's events, and on a pull request only the comments that sign or ask to recheck
+    if: >-
+      vars.CLA_ENABLED == 'true' && (github.event_name == 'pull_request_target' ||
+      (github.event.issue.pull_request && (github.event.comment.body == 'recheck' ||
+      github.event.comment.body == 'I have read the ArchSim Contributor License Agreement and I hereby sign it.')))
+    runs-on: ubuntu-latest
+    steps:
+      # pinned to v2.6.1's commit: it runs with write access
+      - uses: contributor-assistant/github-action@ca4a40a7d1004f18d9960b404b97e5f30a505a08 # v2.6.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          path-to-document: https://github.com/dante0747/archsim/blob/main/CLA.md
+          path-to-signatures: signatures/version1/cla.json
+          branch: cla-signatures
+          allowlist: dante0747,dependabot[bot],github-actions[bot]
+          custom-pr-sign-comment: I have read the ArchSim Contributor License Agreement and I hereby sign it.
+          custom-notsigned-prcomment: >-
+            Thank you for your pull request. Before it can be merged, please sign ArchSim's
+            [Contributor License Agreement](https://github.com/dante0747/archsim/blob/main/CLA.md)
+            by commenting with the sentence below. You sign once, and it covers your later
+            contributions.
+          custom-allsigned-prcomment: Every author of this pull request has signed the Contributor License Agreement. Thank you.
+          lock-pullrequest-aftermerge: false
