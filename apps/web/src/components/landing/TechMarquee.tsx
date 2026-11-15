@@ -2,38 +2,7 @@
 
 /** Two rows of real technology logos drifting in opposite directions (still for reduced motion). */
 import { TechIcon } from "@/components/TechIcon";
-import { kindOf, type Kind } from "@/lib/theme";
-import type { Catalog } from "@/lib/types";
-
-interface Chip {
-  key: string;
-  name: string;
-  technology: string | null;
-  kind: Kind;
-}
-
-/** Client technologies (they live on the client parts' technology field, not in presets). */
-const CLIENT_TECH: [string, string][] = [
-  ["ios", "iOS"],
-  ["android", "Android"],
-  ["react_native", "React Native"],
-  ["flutter", "Flutter"],
-  ["react", "React"],
-  ["nextjs", "Next.js"],
-  ["vue", "Vue"],
-  ["angular", "Angular"],
-  ["svelte", "Svelte"],
-  ["graphql", "GraphQL"],
-  ["rest", "REST / OpenAPI"],
-];
-
-export function techChips(catalog: Catalog): Chip[] {
-  const presets = catalog.components.flatMap((c) =>
-    (c.presets ?? []).map((p) => ({ key: `${c.type}:${p.id}`, name: p.name, technology: p.technology, kind: kindOf(c.type, c.category) })),
-  );
-  const clients = CLIENT_TECH.map(([technology, name]) => ({ key: `client:${technology}`, name, technology, kind: "traffic" as Kind }));
-  return [...presets, ...clients];
-}
+import type { Chip } from "@/lib/tech-chips";
 
 function Row({ chips, reverse }: { chips: Chip[]; reverse?: boolean }) {
   // The list is drawn twice so the loop is seamless at -50%.
@@ -53,8 +22,8 @@ function Row({ chips, reverse }: { chips: Chip[]; reverse?: boolean }) {
   );
 }
 
-export function TechMarquee({ catalog }: { catalog: Catalog }) {
-  const chips = techChips(catalog);
+/** The chips come from the catalog (`techChips`): fetched by the app, read at build time by the website. */
+export function TechMarquee({ chips }: { chips: Chip[] }) {
   if (chips.length === 0) return null;
   const half = Math.ceil(chips.length / 2);
   return (

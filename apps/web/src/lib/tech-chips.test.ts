@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import catalogJson from "@/test/fixtures/catalog.json";
 import type { Catalog } from "@/lib/types";
-import { techChips } from "./TechMarquee";
+import { techChips } from "./tech-chips";
 
 const catalog = catalogJson as unknown as Catalog;
 

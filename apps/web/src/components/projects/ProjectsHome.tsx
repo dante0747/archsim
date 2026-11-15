@@ -3,9 +3,9 @@
 import { ArrowRight, LoaderCircle, Play, Plus, Upload } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Logo, LogoMark } from "@/components/brand";
+import { Logo } from "@/components/brand";
 import { FeatureBento } from "@/components/landing/FeatureBento";
-import { HeroDemo } from "@/components/landing/HeroDemo";
+import { HeroShot } from "@/components/landing/HeroShot";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Reveal } from "@/components/landing/Reveal";
 import { TechMarquee } from "@/components/landing/TechMarquee";
@@ -17,6 +17,7 @@ import { Input, Label } from "@/components/ui/input";
 import { Dialog, DialogContent } from "@/components/ui/overlays";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { api } from "@/lib/api";
+import { techChips } from "@/lib/tech-chips";
 import type { ArchitectureDocument, Catalog, ExampleSummary, ProjectSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { MobileNav } from "@/components/ui/MobileNav";
@@ -184,31 +185,7 @@ export function ProjectsHome() {
           </p>
         </div>
 
-        {/* product shot on a console band */}
-        <div className="relative mt-14 sm:mt-20">
-          <div className="hero-band absolute inset-x-0 bottom-0 top-[30%]" aria-hidden />
-          <div className="relative mx-auto max-w-6xl px-4 pb-14 sm:px-6 sm:pb-20">
-            <Reveal>
-              <figure className="overflow-hidden rounded-2xl border border-line bg-surface shadow-float">
-                <div className="flex items-center gap-3 border-b border-line px-4 py-2.5">
-                  <LogoMark className="size-6" />
-                  <span className="hidden truncate text-[13px] font-semibold text-ink sm:inline">Black Friday on Kubernetes</span>
-                  <div className="mx-auto flex items-center gap-0.5 rounded-[9px] bg-[color:var(--seg)] p-[3px] text-[12px] font-medium">
-                    {["Design", "Test", "Results"].map((w) => (
-                      <span key={w} className={cn("rounded-[6px] px-2.5 py-1", w === "Test" ? "bg-[color:var(--seg-on)] text-ink" : "text-ink-3")}>
-                        {w}
-                      </span>
-                    ))}
-                  </div>
-                  <span className="hidden items-center gap-2 rounded-[8px] border border-[color:var(--record-line)] bg-[color:var(--record-fill)] px-2.5 py-1 text-[12px] font-semibold text-ink sm:inline-flex">
-                    <span className="size-2 rounded-full bg-[color:var(--record)]" /> Simulate
-                  </span>
-                </div>
-                <HeroDemo />
-              </figure>
-            </Reveal>
-          </div>
-        </div>
+        <HeroShot />
       </section>
 
       <main>
@@ -263,7 +240,7 @@ export function ProjectsHome() {
               </p>
             </Reveal>
             <div className="mt-12">
-              <TechMarquee catalog={catalog} />
+              <TechMarquee chips={techChips(catalog)} />
             </div>
           </section>
         )}
