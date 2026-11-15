@@ -440,12 +440,14 @@ and `costPerMillionRequests` (third-party APIs) never affect the simulation. The
 (`CostEstimator`) turns them into a monthly estimate (730 hours) and a cost per million successful
 requests; every report carries it as `cost`, and `POST /analyze` prices a design before it runs.
 A month is priced at the workload's steady **base** load (`load.base_rps`: a constant rate, the
-rate outside a burst, a ramp's low end, a trace's median), not at a burst's peak: per-request
-parts (third-party APIs, functions, API gateways, managed queues, DynamoDB on demand) at each
-part's rate while the run's offered load was at the base, scaled to it exactly (before a run,
-the static load estimate at the base rate), and autoscaled services at their average active
-instances scaled the same way. Managed and per-request lines list each priced quantity with its
-unit price (`items`: "394.20 M requests × $3.50/M"); see [pricing.md](pricing.md). A price you set on a part wins; a technology preset's `costPerHour` is
+rate outside a burst, a ramp's low end, a trace's median), but for the hours a month it runs at
+its peak (`workload.peakHoursPerMonth`, priced at the peak): per-request parts (third-party APIs,
+functions, API gateways, managed queues, DynamoDB on demand) at each part's rate while the run's
+offered load was at that load, scaled to it exactly (in the run's buckets nearest it when none
+is at it; before a run, the static load estimate at its rate), and autoscaled services at the
+count their autoscaler settles at there (see **Cost estimate** below). Managed and per-request
+lines list each priced quantity with its unit price (`items`: "394.20 M requests × $3.50/M"); see
+[pricing.md](pricing.md). A price you set on a part wins; a technology preset's `costPerHour` is
 illustrative, so with a price snapshot the part is priced at the instance type it snaps to (or
 the snapshot's managed rate) instead; parts without either are priced from their size at
 illustrative rates. Each cost line says which (`priceSource`), see

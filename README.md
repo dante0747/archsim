@@ -169,7 +169,7 @@ predicted where each would break, and only then was the breaking point measured 
 | **4 tuned on**, the model developed with their results in view | −23% to +16% |
 
 These are three to six runs per experiment on one laptop (engine 0.16.0, whose results the Java
-engine 1.0.0 reproduces exactly; 1.1.0 changes only the cost). No technology counts as validated yet: that needs a second
+engine 1.0.0 reproduces exactly; 1.1.0 and 1.1.1 change only the cost). No technology counts as validated yet: that needs a second
 machine. [docs/validation.md](docs/validation.md) shows every run, where the model is wrong and why,
 and [how to rerun the benchmarks](docs/validation.md#reproduce) on your own machine.
 

@@ -35,6 +35,15 @@ for when that version changes.
 
 ### Fixed
 
+- **The base load's rates after a run (engine 1.1.1)**, the fault ADR-0074's More Information
+  notes. When no time bucket of a run's window is
+  at the base load (a ramp that passes it during the warm-up), the base's per-request rates come
+  from the buckets nearest it, no longer from the whole window's mean scaled down, which the
+  failures and timeouts at the peak moved: Black Friday's `fixed-pods` billed the payments API
+  for 38.9 calls/s at the base where the baseline billed 60.7, although at 300 req/s both make
+  the same calls. The peak's rates do the same when no bucket is at the peak. No template's
+  monthly cost changes: the two whose ramps pass their base during the warm-up, Black Friday and
+  the token introspection template, call third-party APIs priced at nothing.
 - **Labels on the Cost vs. speed map.** A run's label no longer covers another run's marker or
   label, or the objective line's label: it moves to its point's other side, or a line down or up
   with a leader to its point, and is left out (the table and the hover card still name the run)

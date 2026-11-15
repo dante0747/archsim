@@ -5,13 +5,15 @@ package io.archsim.engine.version;
  * simulator, which every run has simulated since stage 4 of the Java port: 1.0.0 replays
  * the frozen Python engine 0.16.0 run for run (ADR-0049), and runs stored before it name
  * 0.16.0; 1.1.0 bills an autoscaled part at the count it settles at under each load
- * (ADR-0074). The report's version is the Java simulator's own too (ADR-0050). The design
- * schema's is the model's ({@code ArchitectureDocument.SCHEMA_VERSION}).
+ * (ADR-0074); 1.1.1 measures the base's per-request rates in the buckets nearest the base
+ * load when none is at it. The report's version is the Java simulator's own too
+ * (ADR-0050). The design schema's is the model's
+ * ({@code ArchitectureDocument.SCHEMA_VERSION}).
  */
 public final class EngineVersions {
 
 	/** The engine every run records. Bump it when what a simulation means changes. */
-	public static final String ENGINE = "1.1.0";
+	public static final String ENGINE = "1.1.1";
 
 	/**
 	 * The version of the report format the Java simulator writes: 1.16 adds the cost's

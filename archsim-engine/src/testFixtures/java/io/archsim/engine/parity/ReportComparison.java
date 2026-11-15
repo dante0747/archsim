@@ -2,7 +2,6 @@ package io.archsim.engine.parity;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -62,22 +61,22 @@ public final class ReportComparison {
 	 * @return each difference, by JSON Pointer; none when the reports agree
 	 */
 	public static List<String> differences(JsonNode python, JsonNode java) {
-		return differences(python, java, Map.of());
+		return differences(python, java, CostDepartures.Departing.NONE);
 	}
 
 	/**
-	 * Where the Java report differs from Python's, where the counts of some parts that
-	 * scale depart from Python's.
+	 * Where the Java report differs from Python's, where some of its cost lines depart
+	 * from Python's.
 	 * @param python the frozen engine's report
 	 * @param java the Java simulator's report of the same run
-	 * @param counts what the Java counts where it departs, by cost line id
+	 * @param departing the cost lines that depart
 	 * @return each difference, by JSON Pointer; none when the reports agree
 	 */
-	public static List<String> differences(JsonNode python, JsonNode java, Map<String, Double> counts) {
+	public static List<String> differences(JsonNode python, JsonNode java, CostDepartures.Departing departing) {
 		ObjectNode javaReport = (ObjectNode) SchemaDepartures
 			.asRecorded(withRecordedInputDigest(comparable(java, JAVA_RUNTIME)));
 		if (javaReport.has(COST)) {
-			javaReport.set(COST, CostDepartures.comparable(python.path(COST), javaReport.get(COST), counts));
+			javaReport.set(COST, CostDepartures.comparable(python.path(COST), javaReport.get(COST), departing));
 		}
 		Compared compared = new Compared(comparable(python, PYTHON_RUNTIME), javaReport);
 		List<String> differences = new ArrayList<>(JsonDiff.differences(compared.expected(), compared.actual()));

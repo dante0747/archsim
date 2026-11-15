@@ -24,6 +24,11 @@ import tools.jackson.databind.node.ObjectNode;
  * Java's count must be the one listed; the line, the month and the cost per million
  * requests are priced back at Python's count, and the lines put in Python's order, so the
  * rest is compared exactly.</li>
+ * <li>Where no bucket of a run's window is at the base load, the Java measures the base's
+ * per-request rates in the buckets nearest it, and Python over the whole window. A line
+ * whose rate departs so (the cases listed with their reasons) must say what is listed and
+ * cost what Python's costs, item by item; its basis and its items' quantities are then
+ * Python's.</li>
  * </ul>
  */
 public final class CostDepartures {
@@ -41,6 +46,10 @@ public final class CostDepartures {
 
 	private static final String PER_MILLION = "perMillionRequests";
 
+	private static final String BASIS = "basis";
+
+	private static final String ITEMS = "items";
+
 	private CostDepartures() {
 	}
 
@@ -48,15 +57,16 @@ public final class CostDepartures {
 	 * The Java's cost as it compares with the frozen engine's.
 	 * @param python the frozen engine's cost
 	 * @param java the Java's cost
-	 * @param counts the counts that depart from Python's, by line id: what the Java must
-	 * count; empty where none departs
+	 * @param departing the case's lines that depart from Python's
 	 * @return a copy of the Java's cost, its departures put back
-	 * @throws AssertionError when a listed count is not the Java's
+	 * @throws AssertionError when a listed count or basis is not the Java's, or a line
+	 * whose basis is listed costs other than Python's
 	 */
-	public static JsonNode comparable(JsonNode python, JsonNode java, Map<String, Double> counts) {
+	public static JsonNode comparable(JsonNode python, JsonNode java, Departing departing) {
 		if (!java.isObject() || !python.isObject()) {
 			return java;
 		}
+		Map<String, Double> counts = departing.counts();
 		ObjectNode copy = (ObjectNode) java.deepCopy();
 		copy.remove("hourly");
 		copy.remove("peakHours");
@@ -67,8 +77,10 @@ public final class CostDepartures {
 			javaLine.remove("peakInstances");
 			JsonNode pythonLine = lineOf(python, javaLine.path("id").stringValue());
 			if (pythonLine != null) {
+				String id = javaLine.path("id").stringValue();
 				putWords(javaLine, pythonLine);
-				repriced += putCount(javaLine, pythonLine, counts.get(javaLine.path("id").stringValue()), hours);
+				putRates(javaLine, pythonLine, departing.bases().get(id));
+				repriced += putCount(javaLine, pythonLine, counts.get(id), hours);
 			}
 		}
 		if (!counts.isEmpty()) {
@@ -79,17 +91,48 @@ public final class CostDepartures {
 	}
 
 	private static void putWords(ObjectNode javaLine, JsonNode pythonLine) {
-		String basis = javaLine.path("basis").stringValue("");
+		String basis = javaLine.path(BASIS).stringValue("");
 		boolean settled = "kubernetes_cluster".equals(javaLine.path("type").stringValue()) || basis.contains(SETTLED);
 		if (settled) {
-			String python = pythonLine.path("basis").stringValue("");
-			javaLine.put("basis", python.substring(0, countEnd(python)) + basis.substring(countEnd(basis)));
+			String python = pythonLine.path(BASIS).stringValue("");
+			javaLine.put(BASIS, python.substring(0, countEnd(python)) + basis.substring(countEnd(basis)));
 		}
 	}
 
 	// where a basis's leading count ends
 	private static int countEnd(String basis) {
 		return AFTER_THE_COUNT.stream().mapToInt(basis::indexOf).filter((at) -> at >= 0).min().orElse(basis.length());
+	}
+
+	/**
+	 * Puts Python's basis and item quantities in a line whose rates at the base load are
+	 * listed as departing, once it is shown to say what is listed and cost what Python's
+	 * costs, item by item.
+	 * @param javaLine the Java's line, changed in place
+	 * @param pythonLine Python's line
+	 * @param listed what the Java's line must say; {@code null} when its rates do not
+	 * depart
+	 */
+	private static void putRates(ObjectNode javaLine, JsonNode pythonLine, @Nullable String listed) {
+		if (listed == null) {
+			return;
+		}
+		String id = javaLine.path("id").stringValue();
+		String basis = javaLine.path(BASIS).stringValue();
+		if (!listed.equals(basis)) {
+			throw new AssertionError(id + ": the Java says \"" + basis + "\", not the \"" + listed + "\" listed");
+		}
+		if (!Priced.of(javaLine).equals(Priced.of(pythonLine))) {
+			throw new AssertionError(
+					id + ": the Java prices " + Priced.of(javaLine) + ", Python " + Priced.of(pythonLine));
+		}
+		JsonNode items = pythonLine.path(ITEMS);
+		javaLine.set(BASIS, pythonLine.path(BASIS));
+		for (int i = 0; i < items.size(); i++) {
+			ObjectNode item = (ObjectNode) javaLine.path(ITEMS).get(i);
+			item.set("quantity", items.get(i).path("quantity"));
+			item.set("text", items.get(i).path("text"));
+		}
 	}
 
 	/**
@@ -148,6 +191,49 @@ public final class CostDepartures {
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * What a cost line costs: its month, and each item's name, price and month.
+	 *
+	 * @param monthly the line's month
+	 * @param items its items, in order
+	 */
+	private record Priced(double monthly, List<Item> items) {
+
+		static Priced of(JsonNode line) {
+			List<Item> items = new ArrayList<>();
+			for (JsonNode item : line.path(ITEMS)) {
+				items.add(new Item(item.path("what").stringValue(""), item.path("unitPrice").doubleValue(),
+						item.path(MONTHLY).doubleValue()));
+			}
+			return new Priced(line.path(MONTHLY).doubleValue(), items);
+		}
+
+		/**
+		 * What one item costs.
+		 *
+		 * @param what what it counts
+		 * @param unitPrice its price
+		 * @param monthly its month
+		 */
+		record Item(String what, double unitPrice, double monthly) {
+		}
+
+	}
+
+	/**
+	 * The lines of one case that depart from the frozen engine's.
+	 *
+	 * @param counts what the Java counts where a part's count departs, by line id
+	 * @param bases what the Java's line says where its rates at the base load depart, by
+	 * line id
+	 */
+	public record Departing(Map<String, Double> counts, Map<String, String> bases) {
+
+		/** A case where no line departs. */
+		public static final Departing NONE = new Departing(Map.of(), Map.of());
+
 	}
 
 }

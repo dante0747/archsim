@@ -66,7 +66,7 @@ export function peakHour(cost: Pick<CostEstimate, "hourly"> | null | undefined):
   return hourly && hourly.peak !== hourly.base ? { base: hourly.base, peak: hourly.peak } : null;
 }
 
-/** The hours a month the engine bills (engine 1.1.0, report 1.16). */
+/** The hours a month the engine bills (engine 1.1+, report 1.16). */
 const HOURS_PER_MONTH = 730;
 
 /**

@@ -158,7 +158,8 @@ final class Replays {
 			return printed;
 		}
 		ObjectNode copy = object.deepCopy();
-		copy.set(COST, CostDepartures.comparable(expected.path(COST), object.path(COST), Map.of()));
+		copy.set(COST,
+				CostDepartures.comparable(expected.path(COST), object.path(COST), CostDepartures.Departing.NONE));
 		return copy;
 	}
 

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.TestFactory;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.engine.GoldenDepartures;
 import io.archsim.engine.parity.ReportComparison;
 import io.archsim.parity.GoldenFile;
 
@@ -28,12 +29,14 @@ class GoldenRunsTests {
 		return template.at("/runs")
 			.properties()
 			.stream()
-			.map((run) -> DynamicTest.dynamicTest(template.name() + " " + run.getKey(), () -> {
+			.map((run) -> DynamicTest.dynamicTest(GoldenDepartures.runCase(template.name(), run.getKey()), () -> {
 				JsonNode recorded = run.getValue();
 
 				ObjectNode report = SimulationCases.simulate(recorded.get("document"), recorded.get("scenarioId"));
 
-				assertThat(ReportComparison.differences(recorded.get("report"), report)).isEmpty();
+				assertThat(ReportComparison.differences(recorded.get("report"), report,
+						GoldenDepartures.departing(GoldenDepartures.runCase(template.name(), run.getKey()))))
+					.isEmpty();
 			}));
 	}
 

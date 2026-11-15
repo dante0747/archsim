@@ -4,6 +4,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
@@ -22,9 +24,10 @@ import static org.assertj.core.api.Assertions.fail;
  * The golden entries the Java does not match word for word, each with why, and what it
  * still matches: the same kind of error, and its message up to where the Python's and the
  * Java's libraries word it differently; and a cost, compared as {@link CostDepartures}
- * compares it (ADR-0074), with the counts of the parts that scale that depart, each with
- * why. Every other entry of a ported function must match exactly. Every output is read as
- * the frozen engine would have written it at its schema ({@link SchemaDepartures}).
+ * compares it (ADR-0074), with the counts of the parts that scale that depart and the
+ * lines whose rates at the base load depart, each with why. Every other entry of a ported
+ * function must match exactly. Every output is read as the frozen engine would have
+ * written it at its schema ({@link SchemaDepartures}).
  */
 public final class GoldenDepartures {
 
@@ -39,6 +42,9 @@ public final class GoldenDepartures {
 	 */
 	private static final Map<String, String> COSTS = Map.of("archsim_engine.cost.estimate_cost", "",
 			"archsim_engine.analyze.analyze_document", "cost");
+
+	/** Where a template's golden file records a run's entry, such as its cost. */
+	private static final Pattern RUN_ENTRY = Pattern.compile("/runs/([^/]+)/entries/.+");
 
 	private static final String EMPTY_CLUSTER = "no pod runs on the cluster, so its autoscaler keeps its minimum; "
 			+ "Python billed the nodes the run measured, scaled to the base load, or the nodes it starts with";
@@ -68,6 +74,33 @@ public final class GoldenDepartures {
 			Map.entry("anAutoscalingServiceWhosePodsWait", new Counts(Map.of("k8s", 2.0), SETTLED_NODES)),
 			Map.entry("aBalancerWhosePodsStayPending", new Counts(Map.of("k8s", 1.0), FIXED_CLUSTER)));
 
+	private static final String NEAREST_THE_BASE = "no bucket of the run's window is at the base load, so the "
+			+ "Java measures the base's rates in the buckets nearest it; Python scaled the whole window's down "
+			+ "to it, so the peak's failures and timeouts moved them; the line is free, so it costs the same";
+
+	private static final String ZERO_BASE = "no bucket is at a base load of 0, so the Java measures the "
+			+ "function's time a request in the buckets nearest it, Python over the whole window; its rate is "
+			+ "0 either way, so it costs the same";
+
+	private static final String BLACK_FRIDAY = "templates/black-friday-kubernetes";
+
+	private static final String AUTH_TOKEN = "templates/auth-token-introspection";
+
+	private static final String BF_PAYMENTS = "53.8 calls/s at the base load";
+
+	private static final String AUTH_IDP = "135.5 calls/s at the base load";
+
+	/**
+	 * The lines whose rates at the base load depart from the frozen engine's, by case: a
+	 * report case's name, or a recorded run's (its template's golden file and the run).
+	 */
+	private static final Map<String, Bases> BASES = Map.ofEntries(
+			nearestTheBase(runCase(BLACK_FRIDAY, "base"), "payments", BF_PAYMENTS),
+			nearestTheBase(runCase(BLACK_FRIDAY, "payments-slow"), "payments", BF_PAYMENTS),
+			nearestTheBase(runCase(AUTH_TOKEN, "base"), "idp", AUTH_IDP),
+			nearestTheBase(runCase(AUTH_TOKEN, "idp-down"), "idp", AUTH_IDP),
+			zeroBase("aBaseLoadOfZero", "fn", "0.0 invocations/s at the base load × 20.0 ms × 1,024 MB"));
+
 	private GoldenDepartures() {
 	}
 
@@ -87,7 +120,7 @@ public final class GoldenDepartures {
 			// a case file names an entry by its case (CaseFiles), a golden file by its
 			// place, which no departing case shares
 			JsonNode actual = SchemaDepartures.asRecorded(call.apply(entry));
-			assertThat(JsonDiff.differences(expected, comparable(expected, actual, cost, entry.pointer())))
+			assertThat(JsonDiff.differences(expected, comparable(expected, actual, cost, caseOf(entry))))
 				.as("%s: the output differs from the Python engine's at", entry)
 				.isEmpty();
 		}
@@ -97,13 +130,17 @@ public final class GoldenDepartures {
 	}
 
 	/**
-	 * The counts that depart in a case, by line id.
-	 * @param name the case: a report case's name, or a recorded simulation's
-	 * @return what the Java counts where it departs; empty when nothing departs
+	 * The cost lines that depart in a case.
+	 * @param name the case: a report case's name, a recorded simulation's, or a recorded
+	 * run's (its template's golden file and the run, such as
+	 * {@code templates/black-friday-kubernetes base})
+	 * @return what the Java counts and says where it departs; none when nothing departs
 	 */
-	public static Map<String, Double> counts(String name) {
+	public static CostDepartures.Departing departing(String name) {
 		Counts counts = COUNTS.get(name);
-		return (counts != null) ? counts.byLine() : Map.of();
+		Bases bases = BASES.get(name);
+		return new CostDepartures.Departing((counts != null) ? counts.byLine() : Map.of(),
+				(bases != null) ? bases.byLine() : Map.of());
 	}
 
 	/**
@@ -126,16 +163,45 @@ public final class GoldenDepartures {
 	// an output with its cost compared as CostDepartures compares it
 	private static JsonNode comparable(JsonNode expected, JsonNode actual, String cost, String name) {
 		if (cost.isEmpty()) {
-			return CostDepartures.comparable(expected, actual, counts(name));
+			return CostDepartures.comparable(expected, actual, departing(name));
 		}
 		ObjectNode copy = (ObjectNode) actual.deepCopy();
-		copy.set(cost, CostDepartures.comparable(expected.path(cost), actual.path(cost), counts(name)));
+		copy.set(cost, CostDepartures.comparable(expected.path(cost), actual.path(cost), departing(name)));
 		return copy;
+	}
+
+	/**
+	 * The case of a template's recorded run.
+	 * @param file the template's golden file, such as
+	 * {@code templates/black-friday-kubernetes}
+	 * @param run the run, such as {@code base}
+	 * @return its name, such as {@code templates/black-friday-kubernetes base}
+	 */
+	public static String runCase(String file, String run) {
+		return file + " " + run;
+	}
+
+	// the case of an entry: its run's for an entry of a template's recorded run; else its
+	// place, a case file's case
+	private static String caseOf(GoldenEntry entry) {
+		Matcher run = RUN_ENTRY.matcher(entry.pointer());
+		return run.matches() ? runCase(entry.file(), run.group(1)) : entry.pointer();
 	}
 
 	// a report case whose cluster, k8s, no pod runs on
 	private static Map.Entry<String, Counts> emptyCluster(String name) {
 		return Map.entry(name, new Counts(Map.of("k8s", 1.0), EMPTY_CLUSTER));
+	}
+
+	// a recorded run with no bucket at its base load, whose line priced per request says
+	// what is given
+	private static Map.Entry<String, Bases> nearestTheBase(String run, String line, String basis) {
+		return Map.entry(run, new Bases(Map.of(line, basis), NEAREST_THE_BASE));
+	}
+
+	// a report case with a base load of 0, whose function's line says what is given
+	private static Map.Entry<String, Bases> zeroBase(String name, String line, String basis) {
+		return Map.entry(name, new Bases(Map.of(line, basis), ZERO_BASE));
 	}
 
 	/**
@@ -145,6 +211,16 @@ public final class GoldenDepartures {
 	 * @param why why they depart
 	 */
 	record Counts(Map<String, Double> byLine, String why) {
+	}
+
+	/**
+	 * What the Java says of lines whose rates at the base load depart from the frozen
+	 * engine's.
+	 *
+	 * @param byLine each line's basis, by line id
+	 * @param why why they depart
+	 */
+	record Bases(Map<String, String> byLine, String why) {
 	}
 
 	/**

@@ -1,6 +1,7 @@
 package io.archsim.engine.cost;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,9 +21,9 @@ import io.archsim.model.document.Workload;
 
 /**
  * What each part handles at a load of the workload after a run: its rate measured in the
- * run's time buckets at that load (the whole window when no bucket is at it), scaled to
- * the load exactly, so fan-out, cache misses and retries are kept; split into reads and
- * writes as the static load estimate splits it; and the replicas it keeps busy there.
+ * run's time buckets at that load (those nearest it when none is), scaled to the load
+ * exactly, so fan-out, cache misses and retries are kept; split into reads and writes as
+ * the static load estimate splits it; and the replicas it keeps busy there.
  */
 final class MeasuredUsage {
 
@@ -152,8 +153,11 @@ final class MeasuredUsage {
 	private record Window(List<Integer> buckets, double rate, double offered, double scale) {
 
 		/**
-		 * The run's buckets inside its window whose offered rate is at the load; all of
-		 * those inside its window when none is.
+		 * The run's buckets inside its window whose offered rate is at the load; when
+		 * none is, those nearest it, as close to the lowest offered rate as a bucket at
+		 * the base is to the base (or to the highest, for the peak). A ramp that passes
+		 * its base during the warm-up is then priced at its first buckets, not at the
+		 * window's mean, which failures at its top would lower.
 		 * @param report the run's report
 		 * @param level the load
 		 * @param rate the load's rate
@@ -175,11 +179,34 @@ final class MeasuredUsage {
 					}
 				}
 			}
-			List<Integer> buckets = atLevel.isEmpty() ? inside : atLevel;
+			List<Integer> buckets = atLevel.isEmpty() ? nearest(level, inside, offered) : atLevel;
 			List<Double> offeredThere = at(offered, buckets);
 			Double runOffered = report.summary().offeredRps();
 			return new Window(buckets, rate, offeredThere.isEmpty() ? 0.0 : mean(offeredThere),
 					(runOffered != null && runOffered > 0) ? rate / runOffered : 1.0);
+		}
+
+		/**
+		 * The buckets nearest a load none is at.
+		 * @param level the load
+		 * @param inside the buckets inside the run's window
+		 * @param offered the run's offered rate in each bucket
+		 * @return those within the level's slack of the lowest offered rate (the base) or
+		 * the highest (the peak); none when none is inside the window
+		 */
+		private static List<Integer> nearest(LoadLevel level, List<Integer> inside, List<@Nullable Double> offered) {
+			List<Double> rates = at(offered, inside);
+			if (rates.isEmpty()) {
+				return inside;
+			}
+			double extreme = (level == LoadLevel.BASE) ? Collections.min(rates) : Collections.max(rates);
+			List<Integer> buckets = new ArrayList<>();
+			for (int bucket : inside) {
+				if (level.holds(Objects.requireNonNullElse(offered.get(bucket), 0.0), extreme)) {
+					buckets.add(bucket);
+				}
+			}
+			return buckets;
 		}
 
 		/**

@@ -31,6 +31,8 @@ class AutoscalingCostTests {
 
 	private static final String BURST = "{\"kind\": \"burst\", \"burstRps\": 1000, \"startS\": 10, \"durationS\": 10}";
 
+	private static final String RAMP = "{\"kind\": \"ramp\", \"startRps\": 100, \"endRps\": 1000}";
+
 	private static final String VM = "vm";
 
 	private static final String KUBERNETES = "kubernetes";
@@ -150,6 +152,48 @@ class AutoscalingCostTests {
 		// which cost $0.72 or $7.20 an hour
 		assertThat(cost.hourly().base()).isCloseTo(1.72, within(1e-9));
 		assertThat(cost.hourly().peak()).isCloseTo(8.2, within(1e-9));
+	}
+
+	@Test
+	void estimateAfterRun_noBucketAtTheBaseLoad_takesItsRatesFromTheBucketsNearestIt() {
+		ArchitectureDocument design = parse(calling(RAMP));
+		// the ramp passed its 100 req/s during the warm-up, and failures upstream cut the
+		// calls at its top
+		String payments = node("payments", "external_api", "", "\"arrivalRps\": [200, 400, 350, 300]");
+
+		CostEstimate cost = this.costs.estimateAfterRun(design, Map.of(), BusyCores.none(),
+				report(api(200, 400, 700, 1000) + ", " + payments, 200, 400, 700, 1000));
+
+		// a call a request at 200 req/s, the bucket nearest the base: 100 calls a second
+		// at the base, $0.72 an hour, not the window's 54
+		assertThat(cost.hourly().base()).isCloseTo(1.72, within(1e-9));
+	}
+
+	@Test
+	void estimateAfterRun_noBucketAtTheBaseLoad_averagesTheBucketsWithinItsSlackOfTheLowest() {
+		ArchitectureDocument design = parse(calling(RAMP));
+		// 200 and 240 req/s are within 25% of the lowest, 200; 260 is not
+		String payments = node("payments", "external_api", "", "\"arrivalRps\": [200, 120, 260, 300]");
+
+		CostEstimate cost = this.costs.estimateAfterRun(design, Map.of(), BusyCores.none(),
+				report(api(200, 240, 260, 1000) + ", " + payments, 200, 240, 260, 1000));
+
+		// 160 calls a second at 220 req/s: 72.7 at the base, $0.52 an hour
+		assertThat(cost.hourly().base()).isCloseTo(1.0 + 160.0 / 220 * 100 * 3600 * 2 / 1e6, within(1e-9));
+	}
+
+	@Test
+	void estimateAfterRun_noBucketAtThePeak_takesItsRatesFromTheBucketsNearestIt() {
+		ArchitectureDocument design = parse(calling(RAMP));
+		// the run ended before the ramp's 1,000 req/s
+		String payments = node("payments", "external_api", "", "\"arrivalRps\": [100, 200, 300, 350]");
+
+		CostEstimate cost = this.costs.estimateAfterRun(design, Map.of(), BusyCores.none(),
+				report(api(100, 200, 400, 700) + ", " + payments, 100, 200, 400, 700));
+
+		// a call for every other request at 700 req/s, the bucket nearest the peak: 500
+		// calls a second at the peak, $3.60 an hour, not the window's 679
+		assertThat(cost.hourly().peak()).isCloseTo(4.6, within(1e-9));
 	}
 
 	@Test

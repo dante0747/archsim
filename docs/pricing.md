@@ -85,7 +85,10 @@ Per-request lines are priced at the workload's steady **base** load as if it las
 month, unless the workload says how many hours a month it runs at its peak (below): after a run,
 each part's rate measured while the offered load was at the base, scaled to it exactly, so
 fan-out, cache misses and retries are kept but a burst's retries are not; before one, the static
-load estimate at the base rate, so a design is priced before it runs.
+load estimate at the base rate, so a design is priced before it runs. When no time bucket of the
+run's window is at the base (a ramp that passes it during the warm-up), the rates are measured in
+the buckets nearest it, so the failures and timeouts at the peak do not move them; the peak's are
+too, when no bucket is at the peak.
 
 ### What a month is
 

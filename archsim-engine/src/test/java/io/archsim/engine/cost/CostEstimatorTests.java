@@ -74,8 +74,8 @@ class CostEstimatorTests {
 			CostEstimate cost = this.costs.estimate(inputs.resolved(), provenance(inputs.resolved()),
 					CoresBusy.of(inputs.sizes()), inputs.estimate());
 
-			assertThat(JsonDiff.differences(entry.path("cost"),
-					CostDepartures.comparable(entry.path("cost"), RecordCodec.write(cost), Map.of())))
+			assertThat(JsonDiff.differences(entry.path("cost"), CostDepartures.comparable(entry.path("cost"),
+					RecordCodec.write(cost), CostDepartures.Departing.NONE)))
 				.isEmpty();
 		}));
 	}

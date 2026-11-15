@@ -2,7 +2,6 @@ package io.archsim.engine.analysis;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
@@ -74,7 +73,8 @@ class DesignAnalyzerTests {
 
 		JsonNode expected = entry.path("analysis").path("output");
 		ObjectNode actual = analysis.toJson();
-		actual.set("cost", CostDepartures.comparable(expected.path("cost"), actual.path("cost"), Map.of()));
+		actual.set("cost",
+				CostDepartures.comparable(expected.path("cost"), actual.path("cost"), CostDepartures.Departing.NONE));
 
 		assertThat(JsonDiff.differences(expected, actual)).isEmpty();
 	}
