@@ -1,0 +1,83 @@
+name: Website
+
+# The public website, https://archsim.io (ADR-0078): a static export of the web app's *.site.tsx
+# routes, with the docs and the changelog rendered from the repository's Markdown at build time.
+# A push to main that changes what the site is built from rebuilds it and deploys it to GitHub
+# Pages; a pull request that does builds it only, so a broken link or a README section the home
+# page reads fails before it merges. A run by hand (Actions > Website > Run workflow) on main
+# rebuilds and deploys.
+#
+# The build fails on any broken link (apps/web/scripts/site-check.mjs), and the browser checks
+# (apps/web/e2e-site) open every page on a phone and a desktop in both themes. The repository
+# variable ARCHSIM_SITE_DEMO_URL, when set, shows "Try it live" links to that hosted demo.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - "docs/**"
+      - "examples/**"
+      - "CHANGELOG.md"
+      - "README.md"
+      - "NOTICE"
+      - ".github/workflows/site.yml"
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - "docs/**"
+      - "examples/**"
+      - "CHANGELOG.md"
+      - "README.md"
+      - "NOTICE"
+      - ".github/workflows/site.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A pull request's new commits cancel its older build; deployments queue, the newest last.
+concurrency:
+  group: site-${{ github.event_name == 'pull_request' && github.ref || 'pages' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Build and check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run build:site
+        env:
+          ARCHSIM_SITE_DEMO_URL: ${{ vars.ARCHSIM_SITE_DEMO_URL }}
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e:site
+      - uses: actions/upload-pages-artifact@v5
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        with:
+          path: apps/web/out
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
