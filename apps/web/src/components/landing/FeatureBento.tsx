@@ -264,7 +264,7 @@ function MathsVisual() {
 export function FeatureBento() {
   const span = (n: 2 | 3 | 4) => cn(n === 2 && "lg:col-span-2", n === 3 && "lg:col-span-3", n === 4 && "lg:col-span-4");
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-6">
       <Tile className={span(4)} title="Watch it like production" text="A Grafana-style dashboard for every run: throughput, latency, saturation and every technology's own signals, replayed live with a synced crosshair.">
         <DashboardVisual />
       </Tile>
