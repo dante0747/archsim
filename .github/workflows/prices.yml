@@ -17,7 +17,7 @@ name: Price refresh
 # The snapshots are archsim-model's resources (ADR-0026), every file of their folder shipped. The
 # monthly schedule ("23 6 2 * *", 06:23 UTC on the 2nd) is off, and it is run by hand only: the
 # golden pricing entries and some sizing tests still expect 0.16.0's two snapshots to be the only
-# ones, so a new snapshot fails them until they stop assuming it; and Actions minutes are short.
+# ones, so a new snapshot fails them until they stop assuming it.
 on:
   workflow_dispatch:
 

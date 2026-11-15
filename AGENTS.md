@@ -47,6 +47,7 @@ java archsim-tools/src/main/java/io/archsim/tools/commits/CheckCommits.java --ra
 
 ## Rules that are never bent
 
-- The repository is private: never change its visibility or publish its content.
+- Never change the repository's visibility or settings, or publish anything outside it: those
+  are the owner's.
 - Commits use the configured git identity and carry no AI co-author trailer.
 - Never print or edit secrets (`.env*` files other than `.env.example`).

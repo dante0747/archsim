@@ -288,8 +288,7 @@ price changed it opens nothing. A person reviews and merges it. Older snapshots 
 design pinned to one reproduces. Its monthly schedule (the 2nd) is off, and it runs
 by hand only: the golden pricing entries and some sizing tests still expect 0.16.0's two
 snapshots to be the only ones, so a new snapshot fails them until they stop assuming it
-([ADR-0026](adr/0026-component-specs-and-price-snapshots-in-the-model.md)); and the repository's
-Actions minutes are short.
+([ADR-0026](adr/0026-component-specs-and-price-snapshots-in-the-model.md)).
 
 After the merge, **new projects** pin the new snapshot (the API pins the newest AWS us-east-1
 snapshot the model ships). **Templates** keep the date they name, because a new snapshot can

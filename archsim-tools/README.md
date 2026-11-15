@@ -30,8 +30,8 @@ second on the owner's laptop, most of it the launcher compiling the check.
 
 ## CI's changed parts
 
-The repository is private, so every CI minute is billed: CI's `changes` job works out which jobs a
-change can affect, and the others are skipped (`io.archsim.tools.changes`). It uses the JDK alone
+CI's `changes` job works out which jobs a change can affect, and the others are skipped, so that a
+run takes no longer than the change needs (`io.archsim.tools.changes`). It uses the JDK alone
 too, and the job runs it from its source after setting up Java 25:
 
 ```bash

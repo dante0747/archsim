@@ -160,13 +160,12 @@ their own token, with `packages: write`, and no other secret. To release:
 3. After the first release, make both packages public, once: the package's page on GitHub >
    Package settings > Change visibility. GHCR makes a new package private.
 
-## This repository's Actions minutes
+## Which jobs a change runs
 
-The repository is private, so its workflows run on the account's 2,000 included Actions minutes
-a month (a Windows minute counts as two). When they run out, GitHub stops starting jobs until
-the month resets ("The job was not started because ... your spending limit needs to be
-increased"). In November 2026 a full CI run on every push to main, about 44 billed minutes
-each, used the month's minutes in five days. So:
+Public repositories run on GitHub's standard runners free of charge. Until 1.0.0 this one was
+private, on the account's 2,000 included Actions minutes a month: in November 2026 a full CI run
+on every push to main, about 44 minutes each, used them in five days, and GitHub stopped starting
+jobs. CI still runs no more than a change needs, so that a run is short:
 
 - **CI runs only the jobs a change can affect.** The `changes` job runs archsim-tools'
   `ChangedParts`, from its source, on the files a pull request or push changes; its log says which
@@ -188,5 +187,4 @@ each, used the month's minutes in five days. So:
 - **Dependabot's version updates are monthly.** Every update pull request, and every rebase of
   one when main moves, runs CI.
 
-Usage so far this month: Settings > Billing and licensing > Usage, or the run times under
-Actions.
+The run times are under Actions.

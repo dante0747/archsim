@@ -1,9 +1,9 @@
 name: CI
 
-# The repository is private, so every minute here is billed (2,000 included a month). The
-# `changes` job (archsim-tools' ChangedParts) works out which jobs a change can affect and the others
-# are skipped: a docs change runs none, a web change runs Web and End-to-end. A run started by
-# hand (Actions > CI > Run workflow) runs every job.
+# The `changes` job (archsim-tools' ChangedParts) works out which jobs a change can affect, and the
+# others are skipped, so that a run takes no longer than the change needs: a docs change runs none,
+# a web change runs Web and End-to-end. A run started by hand (Actions > CI > Run workflow) runs
+# every job.
 on:
   pull_request:
   push:

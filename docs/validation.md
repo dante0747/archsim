@@ -189,9 +189,9 @@ equal). The web app's public `/accuracy` page is built from that copy.
 A GitHub Actions workflow (`.github/workflows/benchmark.yml`) runs everything on a hosted runner
 every week, on every release tag (`v*`) and by hand: it archives the previous results, measures,
 runs `report --json`, uploads the raw results as an artifact and opens a pull request for a
-person to review and merge. The repository is private, so each automatic run uses about 1.5 hours
-of billed Actions minutes: the weekly and release-tag triggers sit in a marked block at the top of
-the workflow, to comment out to turn them off. **It has not completed a run yet:** two manual
+person to review and merge. Each run takes a hosted runner about 1.5 hours; the weekly and
+release-tag triggers sit in a marked block at the top of the workflow, commented out until a run
+started by hand passes on Linux. **It has not completed a run yet:** two manual
 runs stopped before measuring (the second asked for more CPUs than the hosted runner's 2; the
 workflow now shares the runner's own CPUs between the containers). Every measured run so far was
 on Windows with Docker Desktop; on Linux, the local runs have not been tried (the k6 container
