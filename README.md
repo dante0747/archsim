@@ -60,7 +60,7 @@
 </tr>
 <tr>
 <td width="50%" valign="top"><img src="docs/images/scorecard.jpg" alt="Results Answer tab: No, it doesn't hold up, with p95 561 ms against a 500 ms objective, availability 98.8% against 99.5%, the primary bottleneck, a confidence note and the monthly cost" width="380"><br><b>Get a straight answer</b><br>The verdict, the objective that failed, the bottleneck, what to fix first and the bill.</td>
-<td width="50%" valign="top"><img src="docs/images/tradeoffs.jpg" alt="Results Compare tab: monthly cost plotted against p95 latency for six ways to size a catalog API, from $622 to $799 a month, with the Pareto frontier, the 25 ms objective line and a table of the options; only the bigger database and the read replica meet the objective" width="380"><br><b>Compare the options</b><br>Every scenario on a cost-against-latency map, then a load sweep to find where it breaks.</td>
+<td width="50%" valign="top"><img src="docs/images/tradeoffs.jpg" alt="Results Compare tab: monthly cost plotted against p95 latency for every Black Friday run, from 3 fixed pods at $827 a month to 14 fixed pods at $1,434, the only run that meets the objectives; the autoscaler costs $844 and misses the 500 ms p95 objective line, and a table of the runs follows" width="380"><br><b>Compare the options</b><br>Every scenario on a cost-against-latency map, then a load sweep to find where it breaks.</td>
 </tr>
 <tr>
 <td width="50%" valign="top"><img src="docs/images/dashboard.jpg" alt="Dashboard workspace: Grafana-style panels for throughput, p95, errors, saturation and cost, with a crosshair synced across latency and queue-wait charts" width="380"><br><b>Watch it like production</b><br>A Grafana-style dashboard with per-component signals: lag, lock waits, GC pauses, 503s.</td>
@@ -68,7 +68,7 @@
 </tr>
 <tr>
 <td width="50%" valign="top"><img src="docs/images/traces.jpg" alt="Request traces: a 169 ms write on a waterfall through the gateway, the checkout service, a database query with its log flush and a slow payment call" width="380"><br><b>Follow single requests</b><br>Sampled traces through every hop, wait, lock, log flush and GC pause.</td>
-<td width="50%" valign="top"><img src="docs/images/templates.jpg" alt="Templates gallery: 25 templates, 124 scenarios to compare and 40 technologies, category filters with their counts, search and a featured Black Friday on Kubernetes template drawn as technology logo tiles" width="380"><br><b>Start from a template</b><br>25 ready-made architectures, from a cache-aside starter to Kafka, Cassandra and serverless.</td>
+<td width="50%" valign="top"><img src="docs/images/templates.jpg" alt="Templates gallery: 25 templates, 125 scenarios to compare and 40 technologies, category filters with their counts, search and a featured Black Friday on Kubernetes template drawn as technology logo tiles" width="380"><br><b>Start from a template</b><br>25 ready-made architectures, from a cache-aside starter to Kafka, Cassandra and serverless.</td>
 </tr>
 </table>
 

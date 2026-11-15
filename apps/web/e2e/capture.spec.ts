@@ -3,11 +3,10 @@
  * (playwright.capture.config.ts; the default `npm run e2e` skips this file).
  *
  * The templates run at full length here. The shots come from the Black Friday template with every
- * scenario simulated, except the trade-offs map: its scenarios all cost the same (the bill is priced
- * at the ramp's 300 req/s base, where the autoscaler sits at its 3 pods), so the map plots the six
- * sizings of the right-sizing template instead. Each shot is its own test, so one broken shot
- * doesn't stop the rest. The video records the starter's cache-outage demo (about 60 s) and converts
- * it to a GIF with ffmpeg.
+ * scenario simulated. Its month bills 24 peak hours, so the trade-offs map sets the autoscaler, at
+ * the pods it scales to for those hours, against 3 and 14 fixed pods. Each shot is its own test,
+ * so one broken shot doesn't stop the rest. The video records the starter's cache-outage demo
+ * (about 60 s) and converts it to a GIF with ffmpeg.
  *
  * Writes docs/images/<name>.jpg (taken at 1440 × 900 and scaled to 800 × 500, the names the
  * README uses) and docs/images/cache-outage.gif. Set CAPTURE_OUT_DIR to write somewhere else.
@@ -21,7 +20,6 @@ import { type APIRequestContext, expect, type Page, test } from "@playwright/tes
 
 const OUT = path.resolve(process.env.CAPTURE_OUT_DIR ?? path.join(__dirname, "..", "..", "..", "docs", "images"));
 const SHOWCASE = "black-friday-kubernetes";
-const TRADEOFFS = "right-size-catalog-api";
 const HAS_FFMPEG = spawnSync("ffmpeg", ["-version"], { stdio: "ignore" }).status === 0;
 
 type Theme = "dark" | "light";
@@ -183,8 +181,8 @@ test("scorecard", async ({ page }) => {
 });
 
 test("tradeoffs", async ({ page }) => {
-  // six ways to run the catalog API, each at its own price
-  await openProject(page, TRADEOFFS, false, "db", "dark");
+  // the autoscaler against 3 and 14 fixed pods, each at its own price
+  await openShowcase(page, "dark");
   await openResults(page, "Compare");
   await page.getByRole("tab", { name: "Cost vs. speed" }).click();
   await expect(page.getByRole("img", { name: "Scatter of monthly cost against p95 latency per run" })).toBeVisible();

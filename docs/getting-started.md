@@ -104,7 +104,8 @@ The parts find each other with their defaults: PostgreSQL at
    exactly when and where it broke.
 4. Press **3** for **Results**. **Answer** gives the verdict, the objectives and a monthly cost
    estimate; **Compare → Simulate all scenarios** puts every scenario on the cost-against-latency
-   map (no autoscaling is cheaper but misses the objective).
+   map: 3 fixed pods are cheaper but fail a third of the requests, the autoscaler misses the p95
+   objective while its pods start, and 14 fixed pods meet both objectives at $590 a month more.
 5. **Breaking point** sweeps the load and finds the highest load that still meets the objectives.
    **Report** gives you a Markdown write-up; **Ctrl/⌘ K → Export** gives docker-compose,
    Kubernetes or Mermaid scaffolding.

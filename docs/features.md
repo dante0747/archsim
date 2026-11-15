@@ -116,7 +116,7 @@ StatefulSets) or Mermaid, as reviewed starting points.
 
 ## Results: answer, compare, breaking point, details
 
-![Results → Answer in the light theme: "No, it doesn't hold up." Latency p95 561 ms against at most 500 ms and availability 98.8% against at least 99.5%, a note that p95 is within 15% of the objective from one seed with a Check 5 seeds button, Checkout API as the primary bottleneck, "Low confidence: 29 of 42 inputs are illustrative defaults" with how to raise it and the measured accuracy, then 937 req/s handled, p95 561 ms (608 ms counting failures as timeouts), 98.8% success and $825 a month at AWS prices, the queueing-formula estimate, a Review panel and the first findings](images/scorecard.jpg)
+![Results → Answer in the light theme: "No, it doesn't hold up." Latency p95 561 ms against at most 500 ms and availability 98.8% against at least 99.5%, a note that p95 is within 15% of the objective from one seed with a Check 5 seeds button, Checkout API as the primary bottleneck, "Low confidence: 29 of 42 inputs are illustrative defaults" with how to raise it and the measured accuracy, then 937 req/s handled, p95 561 ms (608 ms counting failures as timeouts), 98.8% success and $844 a month at AWS prices, the queueing-formula estimate, a Review panel and the first findings](images/scorecard.jpg)
 
 - **Answer**: one sentence ("Yes, it holds up." or "No, it doesn't hold up." with the objective
   that failed and the bottleneck), the key numbers, what to fix first, objective tiles with
@@ -130,7 +130,7 @@ StatefulSets) or Mermaid, as reviewed starting points.
   per-component drill-down, Calculations and Request traces, and the assumptions behind every
   number. A Markdown report is one click away.
 
-![Results → Compare for the Right-size a catalog API template at AWS us-east-1 prices: monthly cost against p95 for its six sizings, from two API VMs at $622 a month and 42.8 ms to a read replica at $799 and 16.5 ms. The Pareto frontier steps down from the cheapest through the design as drawn and more database memory to the bigger database; five API VMs cost more without being faster; only the bigger database (15.3 ms, $787) and the read replica meet the 25 ms objective. A table of the options follows](images/tradeoffs.jpg)
+![Results → Compare for the Black Friday on Kubernetes template at AWS us-east-1 prices, each month with 24 peak hours: monthly cost against p95 for every run. The autoscaled checkout (HPA 3→14 pods) costs $844 a month at 561 ms, above the 500 ms objective line; 3 fixed pods cost $827 and fail a third of the requests; the gateway rate limit and the cache outage sit beside the baseline, and the slower payments provider beside the 3 fixed pods; only 14 fixed pods meet the objectives, at 370 ms and $1,434. A table of the runs follows](images/tradeoffs.jpg)
 
 **Calculations** shows the maths behind the numbers: each formula written out, again with the run's
 own values, and the result, next to what the simulation measured (utilization, Little's law, the
@@ -147,7 +147,7 @@ failures) through every hop, wait, lock, log flush and GC pause on a waterfall.
 
 ## Dashboard: a Grafana-style view of every run
 
-![The Dashboard workspace: overview panels (937 req/s, p95 561 ms against the 500 ms objective, 1.2% errors, 99% success, 79% peak saturation on Checkout API, $825 a month at AWS us-east-1 prices of October 2026), request and retry panels with a crosshair at 48 s, end-to-end latency, time in each component and queue wait per component](images/dashboard.jpg)
+![The Dashboard workspace: overview panels (937 req/s, p95 561 ms against the 500 ms objective, 1.2% errors, 99% success, 79% peak saturation on Checkout API, $844 a month at AWS us-east-1 prices of October 2026), request and retry panels with a crosshair at 48 s, end-to-end latency, time in each component and queue wait per component](images/dashboard.jpg)
 
 - Rows of panels for the overview (throughput, p95 against the objective, error and success rate,
   the most saturated part, monthly cost), traffic, latency, saturation and errors, then one row per
@@ -224,7 +224,7 @@ read-only copy of one run's results that anyone with the link can open. The endp
 - Projects live in PostgreSQL, documents import and export as versioned JSON, and every run stores
   its input, seed, engine version and result digest so it can be re-run and verified bit for bit.
 
-![The templates gallery in the dark theme: its counts (25 templates, 124 scenarios to compare, 40 technologies used), category filters with theirs (All 25, Scale 3, Data 6 and more) and search, and the featured Black Friday on Kubernetes template, marked Labs, drawn as logo tiles (Shoppers, Kong API gateway, Go checkout, Redis catalog cache, PostgreSQL orders, payments API) beside its description and Built with list](images/templates.jpg)
+![The templates gallery in the dark theme: its counts (25 templates, 125 scenarios to compare, 40 technologies used), category filters with theirs (All 25, Scale 3, Data 6 and more) and search, and the featured Black Friday on Kubernetes template, marked Labs, drawn as logo tiles (Shoppers, Kong API gateway, Go checkout, Redis catalog cache, PostgreSQL orders, payments API) beside its description and Built with list](images/templates.jpg)
 
 ## Scope and limitations
 

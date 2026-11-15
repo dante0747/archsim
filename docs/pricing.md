@@ -128,11 +128,13 @@ A part that scales is billed at each load the count it settles at once that load
 - **A serverless function**: per invocation; with no rate for it, its average concurrency in the
   run, scaled to the load.
 
-Black Friday on Kubernetes (`examples/black-friday-kubernetes.json`, 300 → 1,500 req/s): with no
-peak hours, the HPA design and the `fixed-pods` scenario both cost $824.80 a month, the checkout
-on its 3 pods at the base load. An hour at the peak costs $1.91 for the HPA design (12 checkout
-pods) and $1.23 for `fixed-pods`, against $1.13 at the base, so each peak hour in the month adds
-what the HPA runs there.
+Black Friday on Kubernetes (`examples/black-friday-kubernetes.json`, 300 → 1,500 req/s) bills 24
+peak hours a month, one sale day. After a run, the month at the base load is $824.80, the
+checkout on its 3 pods. An hour at the peak costs $0.7844 more for the HPA design: 9 more checkout
+pods (12 in all) and the database's surplus CPU credits, $0.1044. So its month is $824.80 +
+24 × $0.7844 = $843.63. The `fixed-pods` scenario keeps 3 pods, so its peak hours add only the
+credits: $824.80 + 24 × $0.1044 = $827.31. `fixed-at-peak` runs 14 pods, the HPA's maximum, all
+month: $1,434.02, so the autoscaler saves $590 a month.
 
 **Checked by hand**, the serverless template (150 req/s with a burst to 1,500): DynamoDB with
 100 RCU and 60 WCU provisioned is 100 × $0.00013 × 730 + 60 × $0.00065 × 730 = $37.96 a month;

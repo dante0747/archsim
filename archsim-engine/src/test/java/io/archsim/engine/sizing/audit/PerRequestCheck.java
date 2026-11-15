@@ -16,7 +16,9 @@ import io.archsim.model.DesignDocuments;
 /**
  * Each per-request cost line of a run against a hand calculation: the part's rate while
  * the offered load was at the base (from the run's own series), times the month, times
- * each list price; within 10%.
+ * each list price; within 10%. It bills the whole month at the base load: no template
+ * with a priced per-request line sets peak hours (ADR-0074), and one that does needs its
+ * peak hours here too.
  */
 final class PerRequestCheck {
 

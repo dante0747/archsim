@@ -17,7 +17,12 @@ for when that version changes.
   and one without it its `nodes`. Beside the month, every cost now prices an hour at the peak
   (`cost.hourly`), with each line's instances there (`peakInstances`), so the peak's cost is in
   sight ([ADR-0074](docs/adr/0074-bill-the-peak-for-the-hours-a-month-it-lasts.md),
-  [What a month is](docs/pricing.md#what-a-month-is)). No template's monthly cost changes.
+  [What a month is](docs/pricing.md#what-a-month-is)). The count rule changes no template's monthly
+  cost.
+- **Black Friday's sale day.** The Black Friday on Kubernetes template bills 24 peak hours a
+  month, and a new scenario, "No autoscaling (14 fixed pods)", sizes the checkout for the peak all
+  month. Its month rises from $824.80 to $843.63 with the HPA, and the Cost vs. speed map sets
+  that against $1,434.02 for the 14 fixed pods. The templates now hold 125 scenarios.
 
 ### Added
 

@@ -45,13 +45,14 @@ class SizingAuditTests {
 	 * per-request lines at the run's base load (a {@link #SECONDS}-long run). Recorded on
 	 * 2026-10-28 (engine 0.13.0, the AWS snapshot of that date), where the hand pick
 	 * matched auto-sizing on every template; the bound catches a change that makes
-	 * auto-sizing dearer.
+	 * auto-sizing dearer. Black Friday's adds its 24 peak hours a month (ADR-0074),
+	 * worked out on 2026-11-15.
 	 * <p>
-	 * What the run measured is lower on six templates (the cheapest types their simulated
-	 * p95 CPU allows): auth-token -$72, black-friday -$283 (its checkout saturates by
-	 * design, so the database gets less than the peak), iot-cassandra -$336, kafka -$341,
-	 * llm-rag -$24, social-feed -$150. That is what right-sizing from the run is for;
-	 * sizing for the design's stated peak is what auto-sizing promises.
+	 * What the run measured on 2026-10-28 is lower on six templates (the cheapest types
+	 * their simulated p95 CPU allows): auth-token -$72, black-friday -$283 (its checkout
+	 * saturates by design, so the database gets less than the peak), iot-cassandra -$336,
+	 * kafka -$341, llm-rag -$24, social-feed -$150. That is what right-sizing from the
+	 * run is for; sizing for the design's stated peak is what auto-sizing promises.
 	 */
 	private static final Map<String, Double> REFERENCE = references();
 
@@ -171,8 +172,11 @@ class SizingAuditTests {
 		Map<String, Double> references = new TreeMap<>();
 		// db: 1.44 cores busy at the peak, 4 vCPU (2 would run 72%)
 		references.put("auth-token-introspection", 501.0);
-		// orders DB: 2.06 cores at the 5x ramp's peak, 4 vCPU
-		references.put("black-friday-kubernetes", 825.0);
+		// orders DB: 2.06 cores at the 5x ramp's peak, 4 vCPU; $1.1299 an hour in all.
+		// Each of the 24 peak hours adds 8 checkout pods (11 at the peak) at
+		// $0.0756/h and the 3 DB nodes' surplus CPU credits, 3 x (2.064 - 1.6
+		// baseline cores) x $0.075/vCPU-h: 730 x 1.1299 + 24 x 0.7092 = $841.8
+		references.put("black-friday-kubernetes", 842.0);
 		// load balancer t4g.micro $0.0084/h, 2 API servers c6g.xlarge $0.136/h, Redis
 		// cache.t4g.micro $0.016/h, PostgreSQL db.m6g.large $0.159/h plus 10 GiB at
 		// $0.115/GiB-month: 730 x 0.4554 + 1.15 = $333.6

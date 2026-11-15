@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.3",
+  "schemaVersion": "1.8",
   "kind": "archsim.architecture",
   "metadata": {
     "name": "Black Friday on Kubernetes",
@@ -240,7 +240,8 @@
     },
     "keyCount": 100000,
     "keySkew": 0.99,
-    "faults": []
+    "faults": [],
+    "peakHoursPerMonth": 24
   },
   "scenarios": [
     {
@@ -261,6 +262,29 @@
           },
           "path": "autoscaling",
           "value": false
+        }
+      ]
+    },
+    {
+      "id": "fixed-at-peak",
+      "name": "No autoscaling (14 fixed pods)",
+      "description": "The checkout sized for the peak all month: what the HPA saves on the bill.",
+      "overrides": [
+        {
+          "target": {
+            "kind": "node",
+            "id": "checkout"
+          },
+          "path": "autoscaling",
+          "value": false
+        },
+        {
+          "target": {
+            "kind": "node",
+            "id": "checkout"
+          },
+          "path": "replicas",
+          "value": 14
         }
       ]
     },

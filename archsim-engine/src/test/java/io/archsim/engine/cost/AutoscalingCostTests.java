@@ -1,9 +1,11 @@
 package io.archsim.engine.cost;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import io.archsim.engine.analysis.DesignAnalyzer;
@@ -12,6 +14,7 @@ import io.archsim.model.DesignDocuments;
 import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.model.document.ArchitectureDocument;
 import io.archsim.model.pricing.PriceSnapshots;
+import io.archsim.parity.Repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -19,8 +22,8 @@ import static org.assertj.core.api.Assertions.within;
 /**
  * An autoscaled part is billed at each load the count its autoscaler settles at there
  * (ADR-0074): a service the replicas that run its work at its target utilization, a
- * cluster the nodes its pods need, each within its bounds. A month is billed at the base
- * load; an hour at the peak is reported beside it.
+ * cluster the nodes its pods need, each within its bounds. A month bills the workload's
+ * peak hours at the peak and the rest at the base load, with an hour at each beside it.
  */
 class AutoscalingCostTests {
 
@@ -85,6 +88,25 @@ class AutoscalingCostTests {
 
 		assertThat(line(cost, "k8s").instances()).isEqualTo(3.0);
 		assertThat(line(cost, "k8s").peakInstances()).isEqualTo(3.0);
+	}
+
+	@Test
+	void estimate_theBlackFridayTemplate_savesThePodHoursItsAutoscalerDoesNotRun() {
+		JsonNode template = JSON.readTree(Repository.examples().resolve("black-friday-kubernetes.json").toFile());
+
+		CostEstimate autoscaled = this.analyzer.analyze(template, null).cost();
+		CostEstimate fixed = this.analyzer.analyze(template, "fixed-at-peak").cost();
+
+		// 1,500 req/s hold 101 workers (67.5 ms each), 6.3 pods of 16: 11 at the
+		// 60% target for the 24 peak hours, and 3 for the other 706, against 14
+		CostLine scaled = line(autoscaled, "checkout");
+		CostLine pods = line(fixed, "checkout");
+		assertThat(autoscaled.peakHours()).isEqualTo(24.0);
+		assertThat(List.of(scaled.instances(), scaled.peakInstances())).containsExactly(3.0, 11.0);
+		assertThat(List.of(pods.instances(), pods.peakInstances())).containsExactly(14.0, 14.0);
+		double podHour = pods.monthly() / (14 * 730);
+		assertThat(fixed.monthly() - autoscaled.monthly()).isCloseTo((14 * 730 - 3 * 706 - 11 * 24) * podHour,
+				within(1e-6));
 	}
 
 	@Test
