@@ -67,11 +67,24 @@ describe("AccuracyPage", () => {
     expect(text).toContain(`${runs.length} runs `);
     for (const r of runs) expect(text).toContain(r.machine);
     expect(screen.getByRole("heading", { name: "How to calibrate your own design" })).toBeInTheDocument();
-    // the repository is private: docs are named, never linked, and nothing leaves the site
-    expect(text).toContain(VALIDATION_DOC);
-    expect(text).toContain(CALIBRATION_DOC);
+    // the repository is public: each file the page names links to it on GitHub, at main
+    for (const doc of [VALIDATION_DOC, CALIBRATION_DOC]) {
+      const links = screen.getAllByRole("link", { name: doc });
+      expect(links.length, doc).toBeGreaterThan(0);
+      for (const a of links) expect(a).toHaveAttribute("href", `https://github.com/dante0747/archsim/blob/main/${doc}`);
+    }
+    expect(screen.getAllByRole("link", { name: "benchmarks/results/" })[0]).toHaveAttribute("href", "https://github.com/dante0747/archsim/tree/main/benchmarks/results/");
+    // and nothing else leaves the site
     const hrefs = [...container.querySelectorAll("a[href]")].map((a) => a.getAttribute("href") ?? "");
-    expect(hrefs.filter((h) => !h.startsWith("/") && !h.startsWith("#"))).toEqual([]);
+    expect(hrefs.filter((h) => !h.startsWith("/") && !h.startsWith("#") && !h.startsWith("https://github.com/dante0747/archsim/"))).toEqual([]);
+  });
+
+  it("gives way to the page's own header and footer when it is given them", () => {
+    render(<AccuracyPage data={accuracy} header={<header>Site header</header>} footer={<footer>Site footer</footer>} />);
+
+    expect(screen.getByRole("banner")).toHaveTextContent("Site header");
+    expect(screen.getByRole("contentinfo")).toHaveTextContent("Site footer");
+    expect(screen.queryByRole("link", { name: "Templates" })).toBeNull();
   });
 
   it("says once, under how to read the numbers, what the Java engine reproduces, re-simulated", () => {
@@ -82,7 +95,7 @@ describe("AccuracyPage", () => {
     const read = container.querySelector("section#read") as HTMLElement;
     const entry = within(read).getByText("Java engine").closest("div") as HTMLElement;
     expect(entry.textContent).toContain(java?.text);
-    expect(within(entry).getByText(JAVA_PARITY_DOC)).toBeInTheDocument();
+    expect(within(entry).getByRole("link", { name: JAVA_PARITY_DOC })).toHaveAttribute("href", `https://github.com/dante0747/archsim/blob/main/${JAVA_PARITY_DOC}`);
     expect(container.textContent?.split(java?.text ?? "").length).toBe(2);
   });
 

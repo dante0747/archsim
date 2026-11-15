@@ -7,7 +7,7 @@
  */
 import raw from "@/data/accuracy.json";
 
-// The repository is private: the page names these files instead of linking to them.
+// Files of the repository the page names, each linked to on GitHub.
 export const VALIDATION_DOC = "docs/validation.md";
 export const CALIBRATION_DOC = "docs/calibration.md";
 export const BENCHMARK_WORKFLOW = ".github/workflows/benchmark.yml";

@@ -29,13 +29,18 @@ import {
   spreadSentence,
   topStepText,
 } from "@/lib/accuracy";
+import { repositoryUrl } from "@/lib/repository";
 import { cn } from "@/lib/utils";
 
 const navLink = "inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink [&_svg]:size-4";
 
-/** A file of the repository, named rather than linked (the repository is private). */
+/** A file or folder of the repository, linked to on GitHub. */
 function RepoFile({ path, small }: { path: string; small?: boolean }) {
-  return <code className={cn("font-code text-ink", small ? "text-[12px]" : "text-[13px]")}>{path}</code>;
+  return (
+    <a href={repositoryUrl(path)} className="font-code text-ink underline decoration-line-strong underline-offset-2 hover:decoration-current">
+      <code className={small ? "text-[12px]" : "text-[13px]"}>{path}</code>
+    </a>
+  );
 }
 
 /** A term of "How to read these numbers" with what it means. */
@@ -447,7 +452,63 @@ function disturbedTitle(steps: number[]): string {
   return `Missed the objective at ${list} req/s but met it at a higher load step`;
 }
 
-export function AccuracyPage({ data }: { data: Accuracy }) {
+/** The app's header for the page: back home, the templates, and the page's own glossary. */
+function AppHeader() {
+  return (
+    <header className="sticky top-0 z-30 border-b border-line bg-page/95 backdrop-blur">
+      <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6">
+        <Logo />
+        <Link href="/" className={navLink}>
+          <ArrowLeft aria-hidden /> Home
+        </Link>
+        <Link href="/templates" className={cn(navLink, "hidden sm:inline-flex")}>
+          Templates
+        </Link>
+        <div className="ml-auto flex items-center gap-1.5">
+          <a href="#read" className={cn(navLink, "hidden sm:inline-flex")}>
+            How to read these numbers
+          </a>
+          <ThemeToggle />
+          <MobileNav
+            className="sm:hidden"
+            items={[
+              { href: "/", label: "Home" },
+              { href: "/templates", label: "Templates" },
+              { href: "/projects", label: "Your projects" },
+              { href: "#read", label: "How to read these numbers" },
+            ]}
+          />
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function AppFooter() {
+  return (
+    <footer className="border-t border-line">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-8 text-[13px] text-ink-3 sm:px-6">
+        <Logo />
+        <Link href="/" className="hover:text-ink">
+          Home
+        </Link>
+        <Link href="/templates" className="hover:text-ink">
+          Templates
+        </Link>
+        <Link href="/projects" className="hover:text-ink">
+          Your projects
+        </Link>
+        <span className="sm:ml-auto">Every figure on this page comes from benchmarks/results in the repository.</span>
+      </div>
+    </footer>
+  );
+}
+
+/**
+ * The page, with the app's header and footer unless it is given others: the public website
+ * (ADR-0078) gives its own, or `null` when its layout already draws them.
+ */
+export function AccuracyPage({ data, header = <AppHeader />, footer = <AppFooter /> }: { data: Accuracy; header?: React.ReactNode; footer?: React.ReactNode }) {
   const s = data.summary;
   const n = s.experiments;
   const obj = data.objective;
@@ -470,328 +531,291 @@ export function AccuracyPage({ data }: { data: Accuracy }) {
 
   return (
     <div className="min-h-full overflow-x-clip bg-page [--meas:var(--series-1)] [--pred:#c26a00] dark:[--pred:#d07400]">
-      <header className="sticky top-0 z-30 border-b border-line bg-page/95 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6">
-          <Logo />
-          <Link href="/" className={navLink}>
-            <ArrowLeft aria-hidden /> Home
-          </Link>
-          <Link href="/templates" className={cn(navLink, "hidden sm:inline-flex")}>
-            Templates
-          </Link>
-          <div className="ml-auto flex items-center gap-1.5">
-            <a href="#read" className={cn(navLink, "hidden sm:inline-flex")}>
-              How to read these numbers
-            </a>
-            <ThemeToggle />
-            <MobileNav
-              className="sm:hidden"
-              items={[
-                { href: "/", label: "Home" },
-                { href: "/templates", label: "Templates" },
-                { href: "/projects", label: "Your projects" },
-                { href: "#read", label: "How to read these numbers" },
-              ]}
-            />
+      {header}
+
+      <main id="main">
+        <section className="hero-band relative border-b border-line">
+          <div className="mx-auto max-w-5xl px-4 py-14 sm:px-6 sm:py-20">
+            <p className="inline-flex items-center gap-2 rounded-full border border-line bg-surface/80 px-3 py-1 text-[13px] font-medium text-ink-2 backdrop-blur-sm">
+              <Gauge className="size-3.5 text-accent" aria-hidden /> Accuracy
+            </p>
+            <h1 className="mt-5 max-w-3xl font-display text-[40px] font-semibold leading-[1.02] tracking-[-0.045em] text-band-ink sm:text-[60px]">
+              How accurate is ArchSim?
+            </h1>
+            <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-ink-2">
+              We run small real systems, ask ArchSim to predict how they behave under load <em>before</em> measuring them, and then measure. Here is every
+              result, the good and the bad, and how far to trust them.
+            </p>
+            <dl className="mt-8 grid grid-cols-2 gap-x-8 gap-y-6 sm:flex sm:flex-wrap sm:gap-x-12">
+              {[
+                held.length
+                  ? [`${heldWithin} of ${held.length}`, `held-out knees predicted within ±${Math.round(t.kneeError * 100)}%`]
+                  : [`${s.kneeWithinTolerance.length} of ${n}`, `capacity knees predicted within ±${Math.round(t.kneeError * 100)}%`],
+                [minus(s.kneeErrorRangeText), "range of the knee errors"],
+                [`${s.validated.length} of ${n}`, "experiments meet every proposed threshold"],
+                [formatDate(s.latestDate), `latest run, ${machines === 1 ? "on one machine" : `on ${machines} machines`}`],
+              ].map(([value, label]) => (
+                <div key={label} className="flex flex-col-reverse">
+                  <dt className="mt-1.5 max-w-[12rem] text-[13px] leading-snug text-ink-2">{label}</dt>
+                  <dd className="tabular whitespace-nowrap font-display text-[22px] font-semibold leading-none tracking-[-0.04em] text-band-ink min-[400px]:text-[26px] sm:text-[34px]">{value}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
-        </div>
-      </header>
+        </section>
 
-      <section className="hero-band relative border-b border-line">
-        <div className="mx-auto max-w-5xl px-4 py-14 sm:px-6 sm:py-20">
-          <p className="inline-flex items-center gap-2 rounded-full border border-line bg-surface/80 px-3 py-1 text-[13px] font-medium text-ink-2 backdrop-blur-sm">
-            <Gauge className="size-3.5 text-accent" aria-hidden /> Accuracy
-          </p>
-          <h1 className="mt-5 max-w-3xl font-display text-[40px] font-semibold leading-[1.02] tracking-[-0.045em] text-band-ink sm:text-[60px]">
-            How accurate is ArchSim?
-          </h1>
-          <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-ink-2">
-            We run small real systems, ask ArchSim to predict how they behave under load <em>before</em> measuring them, and then measure. Here is every
-            result, the good and the bad, and how far to trust them.
-          </p>
-          <dl className="mt-8 grid grid-cols-2 gap-x-8 gap-y-6 sm:flex sm:flex-wrap sm:gap-x-12">
-            {[
-              held.length
-                ? [`${heldWithin} of ${held.length}`, `held-out knees predicted within ±${Math.round(t.kneeError * 100)}%`]
-                : [`${s.kneeWithinTolerance.length} of ${n}`, `capacity knees predicted within ±${Math.round(t.kneeError * 100)}%`],
-              [minus(s.kneeErrorRangeText), "range of the knee errors"],
-              [`${s.validated.length} of ${n}`, "experiments meet every proposed threshold"],
-              [formatDate(s.latestDate), `latest run, ${machines === 1 ? "on one machine" : `on ${machines} machines`}`],
-            ].map(([value, label]) => (
-              <div key={label} className="flex flex-col-reverse">
-                <dt className="mt-1.5 max-w-[12rem] text-[13px] leading-snug text-ink-2">{label}</dt>
-                <dd className="tabular whitespace-nowrap font-display text-[22px] font-semibold leading-none tracking-[-0.04em] text-band-ink min-[400px]:text-[26px] sm:text-[34px]">{value}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-      </section>
-
-      <main className="mx-auto max-w-5xl px-4 sm:px-6">
-        <Section id="summary" title="The short version">
-          <ul className="max-w-3xl space-y-3 text-[15px] leading-relaxed text-ink">
-            {ordered.map((x, i) => (
-              <li key={x.id} className={cn("flex gap-3", held.length > 0 && i === held.length && "border-t border-line pt-3")}>
-                {x.knee.withinTolerance ? <Check className="mt-1 size-4 shrink-0 text-good" aria-hidden /> : <X className="mt-1 size-4 shrink-0 text-critical" aria-hidden />}
-                <span>
-                  <a href={`#${x.id}`} className="font-semibold text-ink hover:underline">
-                    {x.name}
-                  </a>
-                  {held.length > 0 && <span className="text-ink-2"> ({x.sample === "held-out" ? "held out" : "tuned on"})</span>}: {kneeSentence(x)}
-                  {x.caveat && (
-                    <span className="text-ink-2">
-                      {" "}
-                      But its measured knee was limited by a flaw in the benchmark, since fixed (
-                      <a href={`#${x.id}`} className="underline">
-                        see its card
-                      </a>
-                      ).
-                    </span>
-                  )}
-                </span>
-              </li>
-            ))}
-            {lows.length > 0 && (
-              <li className="flex gap-3">
-                <TriangleAlert className="mt-1 size-4 shrink-0 text-warning" aria-hidden />
-                <span>
-                  {allAbove
-                    ? `At light load (at most ${t.lowLoadFraction === 0.5 ? "half" : `${t.lowLoadFraction}×`} the predicted knee), ArchSim predicted a higher p95 than measured at all ${lows.length} steps: by ${lowSorted[0].text.diff.replace(/^\+/, "")} to ${lowSorted[lowSorted.length - 1].text.diff.replace(/^\+/, "")}, or ${minus(lowPct[0])} to ${minus(lowPct[lowPct.length - 1])}.`
-                    : `At light load (at most ${t.lowLoadFraction === 0.5 ? "half" : `${t.lowLoadFraction}×`} the predicted knee), ArchSim's p95 was off by ${minus(lowSorted[0].text.diff)} to ${minus(lowSorted[lowSorted.length - 1].text.diff)}, or ${minus(lowPct[0])} to ${minus(lowPct[lowPct.length - 1])}.`}
-                </span>
-              </li>
-            )}
-            {coverage && (
-              <li className="flex gap-3">
-                {coverageAsClaimed(s) ? <Check className="mt-1 size-4 shrink-0 text-good" aria-hidden /> : <TriangleAlert className="mt-1 size-4 shrink-0 text-warning" aria-hidden />}
-                <span>{coverage}</span>
-              </li>
-            )}
-            {cpu && (
-              <li className="flex gap-3">
-                <TriangleAlert className="mt-1 size-4 shrink-0 text-warning" aria-hidden />
-                <span>
-                  {cpu} See{" "}
-                  <a href="#resources" className="font-medium text-ink hover:underline">
-                    CPU and memory
-                  </a>
-                  .
-                </span>
-              </li>
-            )}
-            <li className="flex gap-3">
-              {s.validated.length ? <Check className="mt-1 size-4 shrink-0 text-good" aria-hidden /> : <X className="mt-1 size-4 shrink-0 text-critical" aria-hidden />}
-              <span>
-                {s.validated.length === 0
-                  ? `None of the ${n} experiments meets all the proposed thresholds yet, so no technology counts as validated.`
-                  : `${s.validated.length} of ${n} experiments meet all the proposed thresholds (${names(data, s.validated)}).`}
-              </span>
-            </li>
-          </ul>
-
-          <div role="note" className="mt-8 max-w-3xl rounded-2xl border border-line bg-warning-soft p-5">
-            <p className="flex items-center gap-2 text-[15px] font-semibold text-ink">
-              <TriangleAlert className="size-4 text-warning" aria-hidden /> Knees move between runs
-            </p>
-            <p className="mt-2 text-[14px] leading-relaxed text-ink">
-              The measured knee is not one fixed number: run the same experiment again on the same machine and it moves
-              {s.spreadExceedsError.length
-                ? ", sometimes by more than ArchSim's error."
-                : ". Under the latest conditions it moved less than ArchSim's error, so the errors below are the model's, not noise."}
-            </p>
-            <ul className="mt-3 space-y-2 text-[14px] leading-relaxed text-ink">
-              {data.experiments
-                .filter((x) => x.spread)
-                .map((x) => (
-                  <li key={x.id}>
-                    <span className="font-semibold">{x.name}:</span> {spreadSentence(x)}
-                  </li>
-                ))}
-              {once.length > 0 && (
-                <li>
-                  {names(data, once)} {once.length === 1 ? "has" : "have"} run once, so {once.length === 1 ? "its" : "their"} spread is not known yet.
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <Section id="summary" title="The short version">
+            <ul className="max-w-3xl space-y-3 text-[15px] leading-relaxed text-ink">
+              {ordered.map((x, i) => (
+                <li key={x.id} className={cn("flex gap-3", held.length > 0 && i === held.length && "border-t border-line pt-3")}>
+                  {x.knee.withinTolerance ? <Check className="mt-1 size-4 shrink-0 text-good" aria-hidden /> : <X className="mt-1 size-4 shrink-0 text-critical" aria-hidden />}
+                  <span>
+                    <a href={`#${x.id}`} className="font-semibold text-ink hover:underline">
+                      {x.name}
+                    </a>
+                    {held.length > 0 && <span className="text-ink-2"> ({x.sample === "held-out" ? "held out" : "tuned on"})</span>}: {kneeSentence(x)}
+                    {x.caveat && (
+                      <span className="text-ink-2">
+                        {" "}
+                        But its measured knee was limited by a flaw in the benchmark, since fixed (
+                        <a href={`#${x.id}`} className="underline">
+                          see its card
+                        </a>
+                        ).
+                      </span>
+                    )}
+                  </span>
+                </li>
+              ))}
+              {lows.length > 0 && (
+                <li className="flex gap-3">
+                  <TriangleAlert className="mt-1 size-4 shrink-0 text-warning" aria-hidden />
+                  <span>
+                    {allAbove
+                      ? `At light load (at most ${t.lowLoadFraction === 0.5 ? "half" : `${t.lowLoadFraction}×`} the predicted knee), ArchSim predicted a higher p95 than measured at all ${lows.length} steps: by ${lowSorted[0].text.diff.replace(/^\+/, "")} to ${lowSorted[lowSorted.length - 1].text.diff.replace(/^\+/, "")}, or ${minus(lowPct[0])} to ${minus(lowPct[lowPct.length - 1])}.`
+                      : `At light load (at most ${t.lowLoadFraction === 0.5 ? "half" : `${t.lowLoadFraction}×`} the predicted knee), ArchSim's p95 was off by ${minus(lowSorted[0].text.diff)} to ${minus(lowSorted[lowSorted.length - 1].text.diff)}, or ${minus(lowPct[0])} to ${minus(lowPct[lowPct.length - 1])}.`}
+                  </span>
                 </li>
               )}
-            </ul>
-            <p className="mt-3 text-[14px] leading-relaxed text-ink">
-              Read these errors as results from {machines === 1 ? "one machine" : `${machines} machines`}
-              {allInSample ? ", on experiments the model was tuned on," : ","} not as ArchSim&apos;s accuracy in general.
-            </p>
-          </div>
-        </Section>
-
-        <Section
-          id="experiments"
-          title="Each experiment"
-          lead={
-            <>
-              The latest run of each experiment. The objective is p95 at most {obj.p95Ms} ms with at least {Math.round(obj.minSuccess * 100)}% of
-              requests succeeding; the knee is the highest load that still meets it.
-            </>
-          }
-        >
-          <KneeLegend />
-          <div className="mt-6 grid gap-5">
-            {data.experiments.map((x) => (
-              <ExperimentCard key={x.id} x={x} data={data} />
-            ))}
-          </div>
-        </Section>
-
-        <ResourcesSection data={data} />
-
-        <Section id="read" title="How to read these numbers">
-          <dl className="grid max-w-3xl gap-5 text-[15px] leading-relaxed">
-            {[
-              [
-                "Knee",
-                `The highest load that still meets the objective (p95 at most ${obj.p95Ms} ms, at least ${Math.round(obj.minSuccess * 100)}% success). k6 measures a ladder of load steps, three repeats each; the knee is interpolated between the last step that meets the objective and the first that does not. The predicted knee uses the same steps.`,
-              ],
-              [
-                "Disturbed run",
-                "A run that missed the objective at one load step and met it at a higher one. A stable system does not get faster with more load, so its knee is not the system's: it is listed, but not counted in the medians, the spread or the thresholds.",
-              ],
-              [
-                "Knee error",
-                "(predicted − measured) ÷ measured. Negative means ArchSim promised less capacity than the system had, which is the safe side; positive means it promised more.",
-              ],
-              [
-                "Latency below the knee",
-                `At each load step up to the measured knee, a prediction counts as close when it is within a factor of ${t.p95Factor} of the measured p95 (from half to double) or within ${t.p95Ms} ms of it, whichever is wider. The test is the same both ways: predicting half the measured latency misses as much as predicting double. The ${t.p95Ms} ms allowance is there because latencies of a millisecond or two make factors look large.`,
-              ],
-              [
-                "Unstable step",
-                "A load step where some repeats met the objective and others missed it, with p95s more than 2× apart. Its median is less trustworthy than other steps'.",
-              ],
-              [
-                "Validated",
-                `A proposed bar, not applied anywhere yet: over at least three counted runs, a median knee error within ±${Math.round(t.kneeError * 100)}%; latency close at every step below the knee, and no unstable step there, in two of three runs; and a run on a second machine. A technology is validated when every experiment that uses it is.`,
-              ],
-              [
-                "In-sample",
-                s.inSample.length
-                  ? `${allInSample ? "Every experiment here" : names(data, s.inSample)} ${s.inSample.length === 1 ? "is" : "are"} in-sample: the calibration protocol was revised after their earlier results had been seen, so those numbers may flatter the model. ${allInSample ? "Held-out experiments, sealed until a frozen engine has predicted them, will test ArchSim on stacks it was not tuned on." : held.length ? `${names(data, held.map((x) => x.id))} ${held.length === 1 ? "is" : "are"} held out: registered before the engine was frozen, sealed until it had predicted them, and never used to tune it. They are the test of ArchSim on stacks it was not tuned on.` : "The others were first run under the current protocol."}`
-                  : "Every experiment was first run under the current protocol, so none of them shaped it.",
-              ],
-              [
-                "Predicted first",
-                "Each experiment calibrates the model from a staircase of runs well below the knee, then ArchSim predicts every higher step and the predictions are saved before the first step is measured. Nothing measured afterwards feeds back into the model.",
-              ],
-            ].map(([term, text]) => (
-              <Term key={term} term={term}>
-                {text}
-              </Term>
-            ))}
-            {data.javaEngine && (
-              <Term term="Java engine">
-                {data.javaEngine.text} The comparison is in <RepoFile path={JAVA_PARITY_DOC} small /> in the repository.
-              </Term>
-            )}
-          </dl>
-        </Section>
-
-        <Section
-          id="history"
-          title="Every run so far"
-          lead={
-            <>
-              {s.runs} runs {s.firstDate === s.latestDate ? `on ${formatDate(s.latestDate)}` : `between ${formatDate(s.firstDate)} and ${formatDate(s.latestDate)}`},
-              under calibration protocols {protocols}
-              {s.disturbedRuns ? `; ${s.disturbedRuns} of them were disturbed and are not counted` : ""}.{" "}
-              What changed between protocols, and why, is under &ldquo;Protocol history&rdquo; in <RepoFile path={VALIDATION_DOC} /> in the repository.
-              Knees are in req/s.
-            </>
-          }
-        >
-          <div className="grid gap-8 md:grid-cols-2">
-            {data.experiments.map((x) => (
-              <HistoryTable key={x.id} id={x.id} data={data} />
-            ))}
-          </div>
-          <div className="mt-8 max-w-3xl text-[13px] leading-relaxed text-ink-2">
-            <p className="font-medium text-ink">{machines === 1 ? `Machine (all ${s.runs} runs)` : "Machines"}</p>
-            <ul className="mt-1 space-y-1">
-              {s.machines.map((m) => (
-                <li key={m}>{m}</li>
-              ))}
-            </ul>
-            <p className="mt-3">
-              Each experiment runs on Docker with its containers pinned to their own CPUs; the latest run&apos;s full environment is under its
-              experiment above. The model inputs and every measured repeat are in <RepoFile path={VALIDATION_DOC} small /> and{" "}
-              <RepoFile path="benchmarks/results/" small /> in the repository. A benchmark workflow (<RepoFile path={BENCHMARK_WORKFLOW} small />) is set
-              to re-run the experiments every week and for every release and to open a pull request with the new numbers; this page changes only when a
-              person merges one.
-            </p>
-          </div>
-        </Section>
-
-        <Section
-          id="calibrate"
-          title="How to calibrate your own design"
-          lead={
-            <>
-              These experiments are small synthetic services on {machines === 1 ? "one machine" : `${machines} machines`}. A new design in ArchSim starts
-              from illustrative defaults, not from your system. Before you trust its numbers for a decision:
-            </>
-          }
-        >
-          <ol className="grid max-w-3xl gap-4 text-[15px] leading-relaxed text-ink-2">
-            {[
-              [
-                "Calibrate from your telemetry.",
-                <>
-                  Feed ArchSim your Prometheus metrics or an OpenTelemetry trace export (in the editor: Ctrl/⌘ K → Calibrate from telemetry, or{" "}
-                  <code className="font-code text-[13px] text-ink">archsim calibrate</code>). Each fitted input is marked <em>measured</em>, with its source
-                  and fit error.
-                </>,
-              ],
-              [
-                "Check the replay.",
-                "Calibration replays the traffic it saw through the model and reports how close it comes to the latency and throughput your system actually had. A large replay error means the model is missing something about your system.",
-              ],
-              [
-                "Look at what is still assumed.",
-                "Results list every input as measured, assumed or illustrative. Numbers that rest on illustrative inputs are estimates of a system like yours, not of yours.",
-              ],
-              [
-                "Measure your own knee.",
-                <>
-                  Load-test one step past the predicted knee in a staging environment, or run this page&apos;s benchmarks on your hardware (
-                  <code className="font-code text-[13px] text-ink">./gradlew :archsim-benchmarks:run --args=&quot;all&quot;</code>).
-                </>,
-              ],
-            ].map(([head, body], i) => (
-              <li key={i} className="flex gap-4">
-                <span className="tabular flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[13px] font-semibold text-accent">{i + 1}</span>
+              {coverage && (
+                <li className="flex gap-3">
+                  {coverageAsClaimed(s) ? <Check className="mt-1 size-4 shrink-0 text-good" aria-hidden /> : <TriangleAlert className="mt-1 size-4 shrink-0 text-warning" aria-hidden />}
+                  <span>{coverage}</span>
+                </li>
+              )}
+              {cpu && (
+                <li className="flex gap-3">
+                  <TriangleAlert className="mt-1 size-4 shrink-0 text-warning" aria-hidden />
+                  <span>
+                    {cpu} See{" "}
+                    <a href="#resources" className="font-medium text-ink hover:underline">
+                      CPU and memory
+                    </a>
+                    .
+                  </span>
+                </li>
+              )}
+              <li className="flex gap-3">
+                {s.validated.length ? <Check className="mt-1 size-4 shrink-0 text-good" aria-hidden /> : <X className="mt-1 size-4 shrink-0 text-critical" aria-hidden />}
                 <span>
-                  <span className="font-semibold text-ink">{head}</span> {body}
+                  {s.validated.length === 0
+                    ? `None of the ${n} experiments meets all the proposed thresholds yet, so no technology counts as validated.`
+                    : `${s.validated.length} of ${n} experiments meet all the proposed thresholds (${names(data, s.validated)}).`}
                 </span>
               </li>
-            ))}
-          </ol>
-          <p className="mt-6 max-w-3xl text-[14px] leading-relaxed text-ink-2">
-            In the repository, <RepoFile path={CALIBRATION_DOC} /> is the calibration guide (Prometheus and OpenTelemetry, what each fitted input
-            means, the replay check), and <RepoFile path={VALIDATION_DOC} /> has the full method behind this page, the model inputs of every experiment
-            and the raw data.
-          </p>
-        </Section>
+            </ul>
+
+            <div role="note" className="mt-8 max-w-3xl rounded-2xl border border-line bg-warning-soft p-5">
+              <p className="flex items-center gap-2 text-[15px] font-semibold text-ink">
+                <TriangleAlert className="size-4 text-warning" aria-hidden /> Knees move between runs
+              </p>
+              <p className="mt-2 text-[14px] leading-relaxed text-ink">
+                The measured knee is not one fixed number: run the same experiment again on the same machine and it moves
+                {s.spreadExceedsError.length
+                  ? ", sometimes by more than ArchSim's error."
+                  : ". Under the latest conditions it moved less than ArchSim's error, so the errors below are the model's, not noise."}
+              </p>
+              <ul className="mt-3 space-y-2 text-[14px] leading-relaxed text-ink">
+                {data.experiments
+                  .filter((x) => x.spread)
+                  .map((x) => (
+                    <li key={x.id}>
+                      <span className="font-semibold">{x.name}:</span> {spreadSentence(x)}
+                    </li>
+                  ))}
+                {once.length > 0 && (
+                  <li>
+                    {names(data, once)} {once.length === 1 ? "has" : "have"} run once, so {once.length === 1 ? "its" : "their"} spread is not known yet.
+                  </li>
+                )}
+              </ul>
+              <p className="mt-3 text-[14px] leading-relaxed text-ink">
+                Read these errors as results from {machines === 1 ? "one machine" : `${machines} machines`}
+                {allInSample ? ", on experiments the model was tuned on," : ","} not as ArchSim&apos;s accuracy in general.
+              </p>
+            </div>
+          </Section>
+
+          <Section
+            id="experiments"
+            title="Each experiment"
+            lead={
+              <>
+                The latest run of each experiment. The objective is p95 at most {obj.p95Ms} ms with at least {Math.round(obj.minSuccess * 100)}% of
+                requests succeeding; the knee is the highest load that still meets it.
+              </>
+            }
+          >
+            <KneeLegend />
+            <div className="mt-6 grid gap-5">
+              {data.experiments.map((x) => (
+                <ExperimentCard key={x.id} x={x} data={data} />
+              ))}
+            </div>
+          </Section>
+
+          <ResourcesSection data={data} />
+
+          <Section id="read" title="How to read these numbers">
+            <dl className="grid max-w-3xl gap-5 text-[15px] leading-relaxed">
+              {[
+                [
+                  "Knee",
+                  `The highest load that still meets the objective (p95 at most ${obj.p95Ms} ms, at least ${Math.round(obj.minSuccess * 100)}% success). k6 measures a ladder of load steps, three repeats each; the knee is interpolated between the last step that meets the objective and the first that does not. The predicted knee uses the same steps.`,
+                ],
+                [
+                  "Disturbed run",
+                  "A run that missed the objective at one load step and met it at a higher one. A stable system does not get faster with more load, so its knee is not the system's: it is listed, but not counted in the medians, the spread or the thresholds.",
+                ],
+                [
+                  "Knee error",
+                  "(predicted − measured) ÷ measured. Negative means ArchSim promised less capacity than the system had, which is the safe side; positive means it promised more.",
+                ],
+                [
+                  "Latency below the knee",
+                  `At each load step up to the measured knee, a prediction counts as close when it is within a factor of ${t.p95Factor} of the measured p95 (from half to double) or within ${t.p95Ms} ms of it, whichever is wider. The test is the same both ways: predicting half the measured latency misses as much as predicting double. The ${t.p95Ms} ms allowance is there because latencies of a millisecond or two make factors look large.`,
+                ],
+                [
+                  "Unstable step",
+                  "A load step where some repeats met the objective and others missed it, with p95s more than 2× apart. Its median is less trustworthy than other steps'.",
+                ],
+                [
+                  "Validated",
+                  `A proposed bar, not applied anywhere yet: over at least three counted runs, a median knee error within ±${Math.round(t.kneeError * 100)}%; latency close at every step below the knee, and no unstable step there, in two of three runs; and a run on a second machine. A technology is validated when every experiment that uses it is.`,
+                ],
+                [
+                  "In-sample",
+                  s.inSample.length
+                    ? `${allInSample ? "Every experiment here" : names(data, s.inSample)} ${s.inSample.length === 1 ? "is" : "are"} in-sample: the calibration protocol was revised after their earlier results had been seen, so those numbers may flatter the model. ${allInSample ? "Held-out experiments, sealed until a frozen engine has predicted them, will test ArchSim on stacks it was not tuned on." : held.length ? `${names(data, held.map((x) => x.id))} ${held.length === 1 ? "is" : "are"} held out: registered before the engine was frozen, sealed until it had predicted them, and never used to tune it. They are the test of ArchSim on stacks it was not tuned on.` : "The others were first run under the current protocol."}`
+                    : "Every experiment was first run under the current protocol, so none of them shaped it.",
+                ],
+                [
+                  "Predicted first",
+                  "Each experiment calibrates the model from a staircase of runs well below the knee, then ArchSim predicts every higher step and the predictions are saved before the first step is measured. Nothing measured afterwards feeds back into the model.",
+                ],
+              ].map(([term, text]) => (
+                <Term key={term} term={term}>
+                  {text}
+                </Term>
+              ))}
+              {data.javaEngine && (
+                <Term term="Java engine">
+                  {data.javaEngine.text} The comparison is in <RepoFile path={JAVA_PARITY_DOC} small /> in the repository.
+                </Term>
+              )}
+            </dl>
+          </Section>
+
+          <Section
+            id="history"
+            title="Every run so far"
+            lead={
+              <>
+                {s.runs} runs {s.firstDate === s.latestDate ? `on ${formatDate(s.latestDate)}` : `between ${formatDate(s.firstDate)} and ${formatDate(s.latestDate)}`},
+                under calibration protocols {protocols}
+                {s.disturbedRuns ? `; ${s.disturbedRuns} of them were disturbed and are not counted` : ""}.{" "}
+                What changed between protocols, and why, is under &ldquo;Protocol history&rdquo; in <RepoFile path={VALIDATION_DOC} /> in the repository.
+                Knees are in req/s.
+              </>
+            }
+          >
+            <div className="grid gap-8 md:grid-cols-2">
+              {data.experiments.map((x) => (
+                <HistoryTable key={x.id} id={x.id} data={data} />
+              ))}
+            </div>
+            <div className="mt-8 max-w-3xl text-[13px] leading-relaxed text-ink-2">
+              <p className="font-medium text-ink">{machines === 1 ? `Machine (all ${s.runs} runs)` : "Machines"}</p>
+              <ul className="mt-1 space-y-1">
+                {s.machines.map((m) => (
+                  <li key={m}>{m}</li>
+                ))}
+              </ul>
+              <p className="mt-3">
+                Each experiment runs on Docker with its containers pinned to their own CPUs; the latest run&apos;s full environment is under its
+                experiment above. The model inputs and every measured repeat are in <RepoFile path={VALIDATION_DOC} small /> and{" "}
+                <RepoFile path="benchmarks/results/" small /> in the repository. A benchmark workflow (<RepoFile path={BENCHMARK_WORKFLOW} small />) is set
+                to re-run the experiments every week and for every release and to open a pull request with the new numbers; this page changes only when a
+                person merges one.
+              </p>
+            </div>
+          </Section>
+
+          <Section
+            id="calibrate"
+            title="How to calibrate your own design"
+            lead={
+              <>
+                These experiments are small synthetic services on {machines === 1 ? "one machine" : `${machines} machines`}. A new design in ArchSim starts
+                from illustrative defaults, not from your system. Before you trust its numbers for a decision:
+              </>
+            }
+          >
+            <ol className="grid max-w-3xl gap-4 text-[15px] leading-relaxed text-ink-2">
+              {[
+                [
+                  "Calibrate from your telemetry.",
+                  <>
+                    Feed ArchSim your Prometheus metrics or an OpenTelemetry trace export (in the editor: Ctrl/⌘ K → Calibrate from telemetry, or{" "}
+                    <code className="font-code text-[13px] text-ink">archsim calibrate</code>). Each fitted input is marked <em>measured</em>, with its source
+                    and fit error.
+                  </>,
+                ],
+                [
+                  "Check the replay.",
+                  "Calibration replays the traffic it saw through the model and reports how close it comes to the latency and throughput your system actually had. A large replay error means the model is missing something about your system.",
+                ],
+                [
+                  "Look at what is still assumed.",
+                  "Results list every input as measured, assumed or illustrative. Numbers that rest on illustrative inputs are estimates of a system like yours, not of yours.",
+                ],
+                [
+                  "Measure your own knee.",
+                  <>
+                    Load-test one step past the predicted knee in a staging environment, or run this page&apos;s benchmarks on your hardware (
+                    <code className="font-code text-[13px] text-ink">./gradlew :archsim-benchmarks:run --args=&quot;all&quot;</code>).
+                  </>,
+                ],
+              ].map(([head, body], i) => (
+                <li key={i} className="flex gap-4">
+                  <span className="tabular flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[13px] font-semibold text-accent">{i + 1}</span>
+                  <span>
+                    <span className="font-semibold text-ink">{head}</span> {body}
+                  </span>
+                </li>
+              ))}
+            </ol>
+            <p className="mt-6 max-w-3xl text-[14px] leading-relaxed text-ink-2">
+              In the repository, <RepoFile path={CALIBRATION_DOC} /> is the calibration guide (Prometheus and OpenTelemetry, what each fitted input
+              means, the replay check), and <RepoFile path={VALIDATION_DOC} /> has the full method behind this page, the model inputs of every experiment
+              and the raw data.
+            </p>
+          </Section>
+        </div>
       </main>
 
-      <footer className="border-t border-line">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-8 text-[13px] text-ink-3 sm:px-6">
-          <Logo />
-          <Link href="/" className="hover:text-ink">
-            Home
-          </Link>
-          <Link href="/templates" className="hover:text-ink">
-            Templates
-          </Link>
-          <Link href="/projects" className="hover:text-ink">
-            Your projects
-          </Link>
-          <span className="sm:ml-auto">Every figure on this page comes from benchmarks/results in the repository.</span>
-        </div>
-      </footer>
+      {footer}
     </div>
   );
 }
