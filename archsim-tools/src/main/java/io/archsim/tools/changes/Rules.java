@@ -47,6 +47,9 @@ final class Rules {
 		.rule(".github/actions/", Set.of(Job.JAVA, Job.ARCHSIM_CHECK))
 		// the Java harness's tests read its cpuset loop
 		.rule(".github/workflows/benchmark.yml", JAVA_ONLY)
+		// the tooling's tests check the release workflow's check of its tag
+		// (ADR-0077)
+		.rule(".github/workflows/release.yml", JAVA_ONLY)
 		.rule(".github/", NONE)
 		// The web app. The Java harness's ReportParityTests compares the
 		// accuracy page's copy with docs/validation/. archsim-engine's

@@ -125,6 +125,10 @@ the Python action's, but for the engine it names.
 - Good, because a job would pull it in seconds.
 - Bad, because the repository is private and publishes nothing.
 
+  (Since [ADR-0077](0077-publish-release-images-to-ghcr-and-run-them-from-compose.md), a release
+  publishes the app's and the web app's images, but not this one. The action still builds its
+  own.)
+
 ## More Information
 
 - [ADR-0055](0055-the-java-clis-output-contract.md): the CLI's words and exit codes, which the

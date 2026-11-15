@@ -1,0 +1,28 @@
+# Runs docker-compose.yml's stack on images built from this checkout, not the release's
+# (ADR-0077). Compose merges this file over docker-compose.yml:
+#
+#   ./gradlew :archsim-app:jibDockerBuild        # make image: archsim-app:local, again after a change
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+#
+# or `make up-local`, which does both. The local images have names of their own, so a local build
+# never takes a release's name.
+
+# archsim-app's image, which Jib builds into the local Docker for this machine's processor;
+# compose never pulls or builds it
+x-archsim-app-local: &archsim-app-local
+  image: archsim-app:local
+  pull_policy: never
+
+services:
+  migrate:
+    <<: *archsim-app-local
+  api:
+    <<: *archsim-app-local
+  worker:
+    <<: *archsim-app-local
+  # built by compose (--build), as the release workflow builds the published one
+  web:
+    image: archsim-web:local
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile

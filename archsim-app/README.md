@@ -37,12 +37,16 @@ launcher start it. The rest of the command line is Spring Boot's
 address (`--server.address=0.0.0.0`, or `SERVER_ADDRESS`) lets other machines in, so read
 [SECURITY.md](../SECURITY.md) first.
 
-In Docker, every role runs from one image, which Jib builds into the local Docker without a
-Dockerfile (`./gradlew :archsim-app:jibDockerBuild`, or `make image`): `archsim-app:local`, on
-Eclipse Temurin's Java 25 runtime, with the examples in `/app/examples`. It listens on every
-interface of its container, and exits when it runs out of heap (`-XX:+ExitOnOutOfMemoryError`).
-The repository's `docker-compose.yml` runs it as `migrate`, `api` and `worker`, and publishes the
-API on `127.0.0.1` only.
+In Docker, every role runs from one image, which Jib builds without a Dockerfile, on Eclipse
+Temurin's Java 25 runtime, with the examples in `/app/examples`. It listens on every interface of
+its container, and exits when it runs out of heap (`-XX:+ExitOnOutOfMemoryError`). A release
+publishes it for amd64 and arm64 as `ghcr.io/dante0747/archsim-app:<version>`
+(`.github/workflows/release.yml`,
+[ADR-0077](../docs/adr/0077-publish-release-images-to-ghcr-and-run-them-from-compose.md)), which the
+repository's `docker-compose.yml` runs as `migrate`, `api` and `worker`, publishing the API on
+`127.0.0.1` only. `./gradlew :archsim-app:jibDockerBuild` (`make image`) builds it from the checkout
+into the local Docker, for this machine's processor, as `archsim-app:local`, which
+`docker-compose.local.yml` runs instead.
 
 Settings are the Python API's `ARCHSIM_*` environment variables, in its formats
 ([ADR-0035](../docs/adr/0035-read-the-python-apis-settings-unchanged.md)): `ARCHSIM_DATABASE_URL`

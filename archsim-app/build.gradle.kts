@@ -37,11 +37,13 @@ dependencies {
 tasks.test {
     // the examples, the golden files and the test fixtures (parity/fixtures)
     systemProperty("archsim.repoRoot", rootDir.absolutePath)
-    // the worker's command lines, which WorkerCommandLineTests checks: a change to them alone
-    // runs the tests again rather than taking their result from the build cache
-    inputs.files(rootDir.resolve("docker-compose.yml"), rootDir.resolve("apps/web/e2e/api-server.mjs"), buildFile)
-        .withPropertyName("workerCommandLines")
-        .withPathSensitivity(PathSensitivity.RELATIVE)
+    // the worker's command lines, which WorkerCommandLineTests checks, and the compose files'
+    // images, which ComposeFileTests checks: a change to them alone runs the tests again rather
+    // than taking their result from the build cache
+    inputs.files(
+        listOf("docker-compose.yml", "docker-compose.local.yml", "apps/web/e2e/api-server.mjs").map { rootDir.resolve(it) },
+        buildFile,
+    ).withPropertyName("deploymentFiles").withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 // The libraries the engine and the CLI take from the catalog are pinned at the versions Spring
@@ -89,9 +91,14 @@ tasks.bootJar {
     archiveFileName = "archsim-app.jar"
 }
 
-// The image compose runs as `migrate`, `api` and `worker` (ADR-0014), built into the local Docker
-// with ./gradlew :archsim-app:jibDockerBuild (make image), for this machine's processor. It
-// carries the examples, as the Python image did.
+// The image compose runs as `migrate`, `api` and `worker` (ADR-0014). It carries the examples, as
+// the Python image did. ./gradlew :archsim-app:jibDockerBuild (make image) builds it into the local
+// Docker as archsim-app:local, for this machine's processor, which docker-compose.local.yml runs. A
+// release pushes it to GHCR for both processors with Jib's own properties, which override these
+// (.github/workflows/release.yml, ADR-0077):
+//
+//   ./gradlew :archsim-app:jib -Djib.to.image=ghcr.io/dante0747/archsim-app:<version> \
+//       -Djib.from.platforms=linux/amd64,linux/arm64
 val imageExamples = "/app/examples"
 val buildsOnArm = providers.systemProperty("os.arch").get() in setOf("aarch64", "arm64")
 val imageArchitecture = if (buildsOnArm) "arm64" else "amd64"
@@ -123,6 +130,16 @@ jib {
             // every interface of its container, so the published port and the other containers
             // (web calls http://api:8000) reach it; compose publishes the port on 127.0.0.1 only
             "SERVER_ADDRESS" to "0.0.0.0",
+        )
+        // the labels the release workflow gives archsim-web; the source links GHCR's package to
+        // the repository, and the description replaces the Ubuntu base image's
+        labels = mapOf(
+            "org.opencontainers.image.title" to "archsim-app",
+            "org.opencontainers.image.description" to
+                "ArchSim's API, simulation worker and database migration, started as api, worker, migrate or seed",
+            "org.opencontainers.image.version" to project.version.toString(),
+            "org.opencontainers.image.source" to "https://github.com/dante0747/archsim",
+            "org.opencontainers.image.licenses" to "AGPL-3.0-only",
         )
     }
     extraDirectories {

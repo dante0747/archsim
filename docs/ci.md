@@ -140,6 +140,26 @@ This repository's CI runs the action on `examples/cache-aside-starter.json`
 (`.github/workflows/ci.yml`, job `archsim-check`): pull requests against their base branch
 (`origin/<base>`), pushes against the previous commit (`HEAD~1`).
 
+## Release images
+
+`.github/workflows/release.yml` runs on a release tag (`v1.0.0`). It checks that the tag is on main
+and, with archsim-tools' `CheckRelease` run from its source, that the tag names the version the
+checkout says, `version` in `gradle.properties`
+([ADR-0076](adr/0076-version-archsim-apart-from-its-engine.md)), and that `docker-compose.yml` runs
+both images at it. Then it publishes `ghcr.io/dante0747/archsim-app` (Jib) and
+`ghcr.io/dante0747/archsim-web` (`apps/web/Dockerfile`), for amd64 and arm64, tagged with the
+version and, unless it is a pre-release, `latest`
+([ADR-0077](adr/0077-publish-release-images-to-ghcr-and-run-them-from-compose.md)). Its jobs use
+their own token, with `packages: write`, and no other secret. To release:
+
+1. In one commit, set `version` in `gradle.properties`, run
+   `npm version <version> --no-git-tag-version` in `apps/web`, set the two images' tags in
+   `docker-compose.yml`, and fold the CHANGELOG. The web app's and archsim-app's tests fail
+   until the version is the same in all of them.
+2. Once that commit is on main and its checks pass, tag it `v<version>` and push the tag.
+3. After the first release, make both packages public, once: the package's page on GitHub >
+   Package settings > Change visibility. GHCR makes a new package private.
+
 ## This repository's Actions minutes
 
 The repository is private, so its workflows run on the account's 2,000 included Actions minutes

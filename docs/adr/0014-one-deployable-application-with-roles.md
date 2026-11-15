@@ -48,6 +48,11 @@ Images are built with Jib, and `docker compose up` works as it does today.
 workspace and exits, as `archsim-api seed` did, which is gone with the Python engine it read the
 examples with. Like the worker, it never migrates.
 
+**Status (15 Nov 2026):** a release publishes the image to GHCR, and `docker-compose.yml` pulls it
+at the release's version, where compose ran only the image Jib built into the local Docker
+([ADR-0077](0077-publish-release-images-to-ghcr-and-run-them-from-compose.md)).
+`docker-compose.local.yml` runs that local build, `archsim-app:local`.
+
 ### Consequences
 
 - Good, because operators see the same three services as before the port.

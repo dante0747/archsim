@@ -1,6 +1,6 @@
 # Thin wrappers around the documented commands. On Windows without make, run the commands
 # after each target directly.
-.PHONY: setup hooks image api worker web dev-db seed test test-java test-web lint fmt typecheck benchmark
+.PHONY: setup hooks image up-local api worker web dev-db seed test test-java test-web lint fmt typecheck benchmark
 
 setup:            ## install the web app's dependencies, and the commit-message hook (JDK 22 or later)
 	cd apps/web && npm ci
@@ -9,8 +9,11 @@ setup:            ## install the web app's dependencies, and the commit-message 
 hooks:            ## check commit messages against Conventional Commits on every commit
 	git config core.hooksPath .githooks
 
-image:            ## build the Java API's image for docker compose (Jib, into the local Docker)
+image:            ## build the Java API's image, archsim-app:local, for docker-compose.local.yml (Jib, into the local Docker)
 	./gradlew :archsim-app:jibDockerBuild
+
+up-local: image   ## run the whole stack on images built from this checkout, not the release's
+	docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 
 api:              ## build and run the API on http://127.0.0.1:8000 (needs PostgreSQL: make dev-db)
 	./gradlew :archsim-app:bootJar

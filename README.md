@@ -86,20 +86,19 @@ Every workspace and technology behaviour is described in [docs/features.md](docs
 
 ## Quick start
 
-You need Docker with Compose, and a JDK 17 or later to start Gradle, which fetches JDK 25 for the
-build when you don't have it.
+You need Docker with Compose, nothing else.
 
 ```bash
 git clone https://github.com/dante0747/archsim.git
 cd archsim
-./gradlew :archsim-app:jibDockerBuild   # builds the API's image into your local Docker
-docker compose up --build               # PostgreSQL, the API, a worker and the web app
+docker compose up        # PostgreSQL, the API, a worker and the web app
 ```
 
-Open <http://localhost:3000>, choose **Open the starter example** and press **Simulate**. The stack
-listens on `127.0.0.1` only and has no sign-in. [Getting started](docs/getting-started.md) covers
-running from source and a five-minute tour; [Troubleshooting](docs/troubleshooting.md) helps when
-something won't start.
+Open <http://localhost:3000>, choose **Open the starter example** and press **Simulate**. Compose
+pulls ArchSim's release images (`ghcr.io/dante0747/archsim-app` and `archsim-web`, for amd64 and
+arm64) at the version the checkout names. The stack listens on `127.0.0.1` only and has no sign-in.
+[Getting started](docs/getting-started.md) covers running your own builds, running from source and
+a five-minute tour; [Troubleshooting](docs/troubleshooting.md) helps when something won't start.
 
 ### Command line
 

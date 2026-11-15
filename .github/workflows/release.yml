@@ -1,0 +1,132 @@
+name: Release images
+
+# A release tag (v1.0.0) publishes ArchSim's two images to GitHub's container registry, for
+# linux/amd64 and linux/arm64, tagged with the release's version (ADR-0077). docker-compose.yml
+# runs them, so `docker compose up` needs nothing but Docker:
+#
+#   ghcr.io/dante0747/archsim-app:<version>   migrate, api, worker and seed (Jib, no Dockerfile)
+#   ghcr.io/dante0747/archsim-web:<version>   the web app (apps/web/Dockerfile)
+#
+# A release that is not a pre-release (1.1.0, not 1.1.0-rc.1) also moves `latest`. The tag must be
+# on main and name the version gradle.properties says (ADR-0076), and docker-compose.yml must run
+# the images at it: archsim-tools' CheckRelease checks both. The jobs' own token is the only
+# credential.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+# a tag pushed again waits for its first run rather than racing it
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # where the images go, and the repository their packages link to: docker-compose.yml,
+  # archsim-app's Jib labels and archsim-app's ComposeFileTests name the same
+  REGISTRY: ghcr.io/dante0747
+  SOURCE: https://github.com/dante0747/archsim
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      latest: ${{ steps.check.outputs.latest }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # main's history, to check that the tag is on it
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check that the tag is on main
+        run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::$GITHUB_REF_NAME is not on main: tag a commit of main"
+            exit 1
+          fi
+      # the check runs from its source with Java's source launcher, no build (ADR-0072)
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+      - name: Check that the tag names the checkout's version
+        id: check
+        run: java archsim-tools/src/main/java/io/archsim/tools/release/CheckRelease.java --tag "$GITHUB_REF_NAME" --registry "$REGISTRY" --github-output "$GITHUB_OUTPUT"
+
+  app:
+    # Jib pulls both processors' Temurin images and pushes an image for each, and their index:
+    # no Docker build, no emulation
+    name: archsim-app image
+    needs: version
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v6
+      # Jib reads the registry's credentials from Docker's configuration, where this puts them
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Jib's own properties override archsim-app/build.gradle.kts's image and platforms
+      - name: Build and push the image
+        env:
+          IMAGE: ${{ env.REGISTRY }}/archsim-app:${{ needs.version.outputs.version }}
+          LATEST: ${{ needs.version.outputs.latest }}
+        run: |
+          tags=()
+          if [ "$LATEST" = true ]; then tags=(-Djib.to.tags=latest); fi
+          ./gradlew :archsim-app:jib -Djib.to.image="$IMAGE" "${tags[@]}" \
+            -Djib.from.platforms=linux/amd64,linux/arm64
+
+  web:
+    # the arm64 image is built under emulation (QEMU), which is slow but needs no second runner
+    name: archsim-web image
+    needs: version
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/archsim-web:${{ needs.version.outputs.version }}
+            ${{ needs.version.outputs.latest == 'true' && format('{0}/archsim-web:latest', env.REGISTRY) || '' }}
+          # the labels Jib gives archsim-app (archsim-app/build.gradle.kts)
+          labels: |
+            org.opencontainers.image.title=archsim-web
+            org.opencontainers.image.description=ArchSim's web app, which calls the API at ARCHSIM_API_URL
+            org.opencontainers.image.version=${{ needs.version.outputs.version }}
+            org.opencontainers.image.source=${{ env.SOURCE }}
+            org.opencontainers.image.licenses=AGPL-3.0-only

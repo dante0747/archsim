@@ -1,21 +1,25 @@
-# Local development stack. Ports are bound to 127.0.0.1 only: it runs without sign-in
-# (ARCHSIM_AUTH_MODE=none; see SECURITY.md before letting anyone else in).
+# ArchSim's whole stack, from its release images: PostgreSQL, the migration, the API, a
+# simulation worker and the web app. Docker alone runs it, nothing to build:
 #
-#   ./gradlew :archsim-app:jibDockerBuild    # the Java API's image (make image); again after
-#                                            # changing the Java code
-#   docker compose up -d postgres            # just the database (run the API and web locally)
-#   docker compose up --build                # everything: http://localhost:3000
-#   docker compose up --build --scale worker=3   # more simulation workers
+#   docker compose up                            # everything: http://localhost:3000
+#   docker compose up --scale worker=3           # more simulation workers
+#   docker compose up -d postgres                # just the database (run the API and web locally)
 #
-# The API and the workers are Java (archsim-app): the workers simulate the runs the API queues
-# (ADR-0053), and the API replays calibrations itself (docs/proposals/java-25-port.md).
+# The images are the ones a release publishes, at the version this checkout names (version in
+# gradle.properties; ADR-0076, ADR-0077). They don't hold changes made since; to run images built
+# from this checkout, add docker-compose.local.yml (make up-local):
+#
+#   ./gradlew :archsim-app:jibDockerBuild        # make image: archsim-app:local, again after a change
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+#
+# Ports are bound to 127.0.0.1 only: it runs without sign-in (ARCHSIM_AUTH_MODE=none; see
+# SECURITY.md before letting anyone else in). The API and the workers are Java (archsim-app): the
+# workers simulate the runs the API queues (ADR-0053), and the API replays calibrations itself.
 name: archsim
 
-# archsim-app's image, which Jib builds into the local Docker (ADR-0014); compose does not
-# build it. Started as migrate, api or worker.
+# archsim-app's image (ADR-0014), started as migrate, api or worker
 x-archsim-app: &archsim-app
-  image: archsim-app:local
-  pull_policy: never
+  image: ghcr.io/dante0747/archsim-app:1.0.0
 
 services:
   postgres:
@@ -102,9 +106,7 @@ services:
     stop_grace_period: 30s
 
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
+    image: ghcr.io/dante0747/archsim-web:1.0.0
     environment:
       ARCHSIM_API_URL: http://api:8000
     depends_on:

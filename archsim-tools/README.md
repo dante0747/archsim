@@ -53,6 +53,24 @@ report but for the two that changed `scripts/ci_changes.py`. With the Python gon
 slice) they hold the Java, archsim-check, web and end-to-end jobs alone, and a change to
 `.github/actions/` runs the Java job, where `ArchsimCheckActionTests` runs the action's step.
 
+## The release's check
+
+The release workflow (`.github/workflows/release.yml`) checks its tag before it publishes the
+images (`io.archsim.tools.release`,
+[ADR-0077](../docs/adr/0077-publish-release-images-to-ghcr-and-run-them-from-compose.md)): the tag
+names the version `gradle.properties` says, and `docker-compose.yml` runs both images from the
+workflow's registry at it. It uses the JDK alone, and the workflow runs it from its source:
+
+```bash
+java archsim-tools/src/main/java/io/archsim/tools/release/CheckRelease.java --tag v1.0.0 --registry ghcr.io/dante0747
+```
+
+| Java | What it does |
+| --- | --- |
+| `CheckRelease` | the command line: the tag's problems, or the version and whether it moves `latest`, as GitHub's outputs |
+| `Arguments` | `--tag`, `--registry` and `--github-output` |
+| `Checkout` | the checkout's version, read as Gradle reads `gradle.properties`, and the images compose runs |
+
 ## The price refresh
 
 A snapshot of a provider's public list prices in ArchSim's format (`archsim.prices/1`), written

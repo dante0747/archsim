@@ -1,6 +1,9 @@
 # syntax=docker/dockerfile:1
-# ArchSim web image (Next.js standalone output). Build from the repository root:
-#   docker build -f apps/web/Dockerfile -t archsim-web .
+# ArchSim web image (Next.js standalone output). A release publishes it for amd64 and arm64 as
+# ghcr.io/dante0747/archsim-web:<version> (.github/workflows/release.yml, ADR-0077), which
+# docker-compose.yml runs; docker-compose.local.yml builds it from this checkout as archsim-web:local.
+# Build it from the repository root:
+#   docker build -f apps/web/Dockerfile -t archsim-web:local .
 FROM node:24-alpine AS deps
 WORKDIR /app
 COPY apps/web/package.json apps/web/package-lock.json ./

@@ -40,7 +40,6 @@ class WorkerCommandLineTests {
 	void compose_theWorkerService_runsTheAppWithAHeapForItsRuns() throws IOException {
 		JsonNode worker = composeService("worker");
 
-		assertThat(worker.path("image").asString()).isEqualTo("archsim-app:local");
 		assertThat(worker.path("command").valueStream().map(JsonNode::asString).toList()).containsExactly("worker");
 		assertThat(heapMb(worker.path("environment").path("JAVA_TOOL_OPTIONS").asString())).isGreaterThanOrEqualTo(
 				heapFor(worker.path("environment").required("ARCHSIM_MAX_CONCURRENT_RUNS").asInt()));

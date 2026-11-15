@@ -121,4 +121,6 @@ checks that `package.json` and its lock file say the same as `gradle.properties`
 
 - [ADR-0058](0058-serve-mcp-with-the-official-mcp-java-sdk.md): its `serverInfo.version` was the
   engine's; this ADR makes it ArchSim's.
+- [ADR-0077](0077-publish-release-images-to-ghcr-and-run-them-from-compose.md) publishes the
+  images tagged with this version, which `docker-compose.yml` runs.
 - `EngineVersions` (archsim-engine) for the engine's and the reports' versions.

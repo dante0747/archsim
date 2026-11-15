@@ -118,3 +118,4 @@ what the repository shows.
 | [0074](0074-bill-the-peak-for-the-hours-a-month-it-lasts.md) | Bill a workload's peak for the hours a month it lasts, and autoscaled parts at the count they settle at | Accepted | 2026-11-14 |
 | [0075](0075-ask-outside-contributors-to-sign-a-contributor-license-agreement.md) | Ask outside contributors to sign a contributor license agreement on their pull request, AI-assisted work included | Proposed | 2026-11-15 |
 | [0076](0076-version-archsim-apart-from-its-engine.md) | Version ArchSim as a product, apart from its engine, in `gradle.properties` | Proposed | 2026-11-15 |
+| [0077](0077-publish-release-images-to-ghcr-and-run-them-from-compose.md) | Publish release images to GHCR, and run them from `docker-compose.yml` | Proposed | 2026-11-15 |

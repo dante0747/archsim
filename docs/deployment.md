@@ -6,12 +6,28 @@ more people, more machines or more runs are involved. A hosted stack and a step-
 are still to come; until then, read [SECURITY.md](../SECURITY.md), the threat model, before exposing
 a server.
 
+## The images
+
+Each release publishes two images to GitHub's container registry, for `linux/amd64` and
+`linux/arm64`, tagged with its version (`latest` follows the newest release that is not a
+pre-release):
+
+| Image | What it runs |
+| --- | --- |
+| `ghcr.io/dante0747/archsim-app:<version>` | The API, the simulation workers and the database migration: one image, started as `api`, `worker`, `migrate` or `seed` |
+| `ghcr.io/dante0747/archsim-web:<version>` | The web app, which calls the API at `ARCHSIM_API_URL` (default `http://api:8000`) |
+
+`docker-compose.yml` runs both at the version its checkout names. Pin a version wherever you run
+them, so that every API instance and worker runs the same code. `.github/workflows/release.yml`
+builds them from the release's tag
+([ADR-0077](adr/0077-publish-release-images-to-ghcr-and-run-them-from-compose.md)).
+
 ## Several API instances and workers
 
 Runs wait in a queue in the database, and workers simulate them. To share the work, start more
 workers against the same PostgreSQL:
 
-- with Compose: `docker compose up --build --scale worker=3`;
+- with Compose: `docker compose up --scale worker=3`;
 - elsewhere: `java -jar archsim-app.jar worker` on any machine that reaches the database, with the
   heap [archsim-app's README](../archsim-app/README.md#the-workers-heap) asks for and
   `-XX:+ExitOnOutOfMemoryError`.

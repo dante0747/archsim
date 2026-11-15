@@ -15,7 +15,7 @@ Then take [the five-minute tour](#a-five-minute-tour).
 
 | To... | You need |
 | --- | --- |
-| Run everything in Docker | Docker with Compose, and a JDK 17 or later to start Gradle, which builds the API's image (it downloads JDK 25 for the build when none is installed) |
+| Run everything in Docker | Docker with Compose. To run images built from your checkout instead of the release's, a JDK 17 or later to start Gradle too (it downloads JDK 25 for the build when none is installed) |
 | Run from source | A JDK 25, Node.js 20.9 or later (24 recommended) with npm, and PostgreSQL 16, which Docker Compose can start for you |
 | Use the CLI or the MCP server | A JDK 25 to build and run them |
 | Work on ArchSim | The same as running from source: the benchmark harness and the repository's tools are Java too, built by Gradle, and the accuracy benchmarks run their stacks in Docker ([CONTRIBUTING.md](../CONTRIBUTING.md)) |
@@ -28,20 +28,35 @@ PowerShell; the differences are noted where they matter.
 ```bash
 git clone https://github.com/dante0747/archsim.git
 cd archsim
-./gradlew :archsim-app:jibDockerBuild   # builds the API's image into your local Docker
-docker compose up --build               # PostgreSQL, migrations, the API, a worker and the web app
+docker compose up        # PostgreSQL, migrations, the API, a worker and the web app
 ```
 
 Open <http://localhost:3000>, choose **Open the starter example**, and press **Simulate**
 (Ctrl/⌘ Enter).
 
-- The first command builds the Java API's image, `archsim-app:local`, with Jib (`make image`). Run
-  it again after changing the Java code; compose builds the web image itself.
+- Compose pulls ArchSim's release images, `ghcr.io/dante0747/archsim-app` (the API, the worker and
+  the migration, in one image) and `ghcr.io/dante0747/archsim-web`, at the version the checkout
+  names (`version` in `gradle.properties`). Both are built for amd64 and arm64.
 - A one-shot `migrate` service brings the database to the latest schema first, then the `api`
   starts, and a `worker` simulates the runs the API queues.
 - Ports are bound to `127.0.0.1` because the stack runs without sign-in by default. Read
   [deployment.md](deployment.md) before letting anyone else in.
-- More workers: `docker compose up --build --scale worker=3`.
+- More workers: `docker compose up --scale worker=3`.
+
+### Your own build
+
+The release's images don't hold changes you've made to the checkout. To run the stack on images
+built from it, build the API's image with Jib, `archsim-app:local` (it needs a JDK 17 or later to
+start Gradle), and add `docker-compose.local.yml`, which runs that image and builds the web image
+from `apps/web/Dockerfile`:
+
+```bash
+./gradlew :archsim-app:jibDockerBuild    # make image; again after changing the Java code
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+```
+
+`make up-local` does both. Compose never pulls `archsim-app:local`, and the local images have names
+of their own, so they're never mistaken for a release's.
 
 ## Run from source
 

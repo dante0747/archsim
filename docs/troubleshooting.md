@@ -5,9 +5,26 @@ with the bug report form.
 
 ## The stack
 
-**`docker compose up` cannot find the image `archsim-app:local`.** Compose never pulls or builds
-the API's image: build it first with `./gradlew :archsim-app:jibDockerBuild` (`make image`), and
-again after changing the Java code. See [getting-started.md](getting-started.md#run-everything-in-docker).
+**`docker compose up` cannot pull `ghcr.io/dante0747/archsim-app` or `archsim-web`.** Compose pulls
+the release images at the version the checkout names. Check that Docker reaches `ghcr.io` (a proxy
+or a firewall may block it). A commit that has just changed the version names images that its
+release has not published yet: run a release's own checkout (`git checkout v1.0.0`), or
+[your own build](getting-started.md#your-own-build).
+
+**Compose runs the release, not your change.** `docker-compose.yml` runs the release's images.
+To run what you have built, add `docker-compose.local.yml`, as
+[getting-started.md](getting-started.md#your-own-build) shows.
+
+**With `docker-compose.local.yml`, compose cannot find the image `archsim-app:local`.** Compose
+never pulls or builds the API's local image: build it first with
+`./gradlew :archsim-app:jibDockerBuild` (`make image`), and again after changing the Java code.
+
+**Back on the release's images, the worker keeps restarting: "the database is at V…, this worker
+needs V…".** Your own build (`docker-compose.local.yml`, or the API run from source) migrated the
+database past the release, and both stacks share it (`archsim_pgdata`). The release's `migrate`
+leaves a newer schema alone, and its worker refuses it. Go back to your own build (`make up-local`),
+or wait for the release that carries the migration. Starting afresh, `docker compose down -v`,
+deletes the database and everything in it.
 
 **The web app says it cannot reach the API.** Start the API as
 [getting-started.md](getting-started.md#run-from-source) shows. If it runs elsewhere, set
