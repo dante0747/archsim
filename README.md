@@ -193,8 +193,10 @@ Everything else is indexed in [docs/README.md](docs/README.md).
 
 Bug reports, ideas and questions are welcome as [issues](https://github.com/dante0747/archsim/issues/new/choose). ArchSim is
 offered under the AGPL-3.0 and under a commercial license, so a pull request from outside the
-project can be merged only once its author has signed the Contributor License Agreement. The
-agreement is being prepared; until it is published, outside pull requests wait.
+project can be merged only once its author has signed the
+[Contributor License Agreement](CLA.md). The agreement is a draft under legal review; until it is
+in force, outside pull requests wait. AI assistants are welcome, under the rules in
+[CONTRIBUTING.md](CONTRIBUTING.md#working-with-ai-assistants).
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) for the setup and checks, [docs/development.md](docs/development.md)
 for the layout and tests, and the [Code of Conduct](CODE_OF_CONDUCT.md). Report vulnerabilities

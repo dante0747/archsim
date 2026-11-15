@@ -54,7 +54,8 @@ Everything about using, running, trusting and changing ArchSim. New here? Start 
 
 | Page | What it covers |
 | --- | --- |
-| [Contributing guide](../CONTRIBUTING.md) | Setup, checks, pull requests and the Contributor License Agreement |
+| [Contributing guide](../CONTRIBUTING.md) | Setup, checks, pull requests, and working with AI assistants |
+| [Contributor License Agreement](../CLA.md) | What a contributor licenses, AI-assisted work included (a draft under legal review) |
 | [Developing ArchSim](development.md) | The repository layout and what the tests check |
 | [Java conventions](java-conventions.md) | How the Java code is written, and what the build enforces |
 | [Adding a component type](extending-components.md) | A new technology, from the model to the engine |

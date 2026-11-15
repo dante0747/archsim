@@ -109,9 +109,27 @@ should use short durations.
 
 ## Working with AI assistants
 
-[AGENTS.md](AGENTS.md) gives AI coding assistants this project's rules, through three skills in
-`.claude/skills/`: `java-conventions`, `test-first` and `conventional-commits`. Their output is
-held to the same checks and review as anyone's.
+You may use AI coding assistants. The repository gives them this project's rules:
+
+- [AGENTS.md](AGENTS.md), for any assistant (Codex, Cursor, Copilot, Claude Code and others): the
+  standards, the checks to run before saying a change is done, and the rules that are never bent.
+- [CLAUDE.md](CLAUDE.md) and `.claude/`, which Claude Code loads: three skills,
+  `java-conventions`, `test-first` and `conventional-commits`, and the `java-reviewer` agent, a
+  strict review of a Java change before it is committed.
+
+What an assistant writes is held to the same checks and review as anyone's, and these rules
+apply to it:
+
+- **You are the author.** Read, understand and test every line before you submit it; in review
+  you explain and change it as you would your own code.
+- **Say so in the pull request.** Name the assistant and what it did; the pull request template
+  asks. Commit messages carry no AI co-author trailer, and CI's commit check refuses one: the
+  Contributor License Agreement is signed by a person, who is the contribution's author.
+- **Submit only what you may.** The agreement's section 6 asks you to confirm that the
+  assistant's output does not reproduce someone else's work under terms you could not submit,
+  and that the assistant's terms leave you the rights you grant.
+- **A person answers for every issue, pull request and review reply.** An agent may not open or
+  update them unattended; a pull request that no person answers for is closed.
 
 ## Pull requests
 
@@ -187,8 +205,14 @@ ArchSim is licensed under the [GNU Affero General Public License v3.0](LICENSE)
 (`AGPL-3.0-only`), and its copyright holder also offers it under a commercial license
 ([ADR 0067](docs/adr/0067-license-under-agpl-3.0-with-a-commercial-license.md)). Offering both needs
 the right to license every contribution both ways, so a pull request from outside the project
-can be merged only once its author has signed ArchSim's Contributor License Agreement. The
-agreement is being prepared; until it is published, outside pull requests wait.
+can be merged only once its author has signed ArchSim's
+[Contributor License Agreement](CLA.md). You keep the copyright in your contribution; the
+agreement licenses it to the copyright holder, AI-assisted parts included
+([ADR 0075](docs/adr/0075-ask-outside-contributors-to-sign-a-contributor-license-agreement.md)).
+
+The agreement is a draft under legal review; until it is in force, outside pull requests wait.
+Then a bot asks each new contributor to sign by commenting on their pull request, and one
+signature covers every later contribution.
 
 ## Questions
 

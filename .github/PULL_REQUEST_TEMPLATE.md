@@ -6,10 +6,16 @@
 
 <!-- Commands run, new tests, manual checks (screenshots for UI changes). -->
 
+## AI assistance
+
+<!-- Did an AI assistant write or change part of this? Name it and say what it did, or write "None".
+     See CONTRIBUTING.md#working-with-ai-assistants. -->
+
 ## Checklist
 
 - [ ] One focused change, with commit messages as [Conventional Commits](https://github.com/dante0747/archsim/blob/main/CONTRIBUTING.md#pull-requests)
-- [ ] Outside contributors: I know this can be merged only once I have signed the Contributor License Agreement ([CONTRIBUTING.md](https://github.com/dante0747/archsim/blob/main/CONTRIBUTING.md#licensing-of-contributions))
+- [ ] Outside contributors: I know this can be merged only once I have signed the [Contributor License Agreement](https://github.com/dante0747/archsim/blob/main/CLA.md)
+- [ ] I have read, understood and tested every line, including any an AI assistant wrote
 - [ ] Java, the build or a migration changed: `./gradlew format` and `./gradlew build` pass
 - [ ] `apps/web` changed: `npm run lint`, `npm run typecheck`, `npm test` and `npm run build` pass
 - [ ] Docs updated (schema, API, modeling assumptions or UI workflow, if affected)
