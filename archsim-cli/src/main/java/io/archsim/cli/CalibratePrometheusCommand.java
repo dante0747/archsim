@@ -23,7 +23,7 @@ import io.archsim.engine.calibration.CalibrationOutcome;
  * any host at any address, with the default deadline and size cap (ADR-0057).
  */
 @Command(name = "prometheus", description = "from Prometheus metrics, with a mapping file",
-		mixinStandardHelpOptions = true, version = Archsim.VERSION)
+		mixinStandardHelpOptions = true, versionProvider = VersionProvider.class)
 final class CalibratePrometheusCommand implements Callable<Integer> {
 
 	/** The seconds between points unless {@code --step} says. */

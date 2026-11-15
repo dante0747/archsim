@@ -14,7 +14,7 @@ import io.archsim.model.component.standard.StandardComponents;
  * technologies, as JSON.
  */
 @Command(name = "catalog", description = "print the component catalog as JSON", mixinStandardHelpOptions = true,
-		version = Archsim.VERSION)
+		versionProvider = VersionProvider.class)
 final class CatalogCommand implements Callable<Integer> {
 
 	@Spec

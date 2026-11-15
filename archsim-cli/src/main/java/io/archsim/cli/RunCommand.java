@@ -31,7 +31,7 @@ import io.archsim.model.pricing.PriceSnapshots;
  * invalid design, or a run over its limits, on standard error with exit code 1.
  */
 @Command(name = "run", description = "simulate an architecture document", mixinStandardHelpOptions = true,
-		version = Archsim.VERSION)
+		versionProvider = VersionProvider.class)
 final class RunCommand implements Callable<Integer> {
 
 	@Spec

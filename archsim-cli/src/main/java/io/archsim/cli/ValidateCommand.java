@@ -23,7 +23,7 @@ import io.archsim.model.validation.ValidationResult;
  * code 1 for an invalid design.
  */
 @Command(name = "validate", description = "validate an architecture document", mixinStandardHelpOptions = true,
-		version = Archsim.VERSION)
+		versionProvider = VersionProvider.class)
 final class ValidateCommand implements Callable<Integer> {
 
 	private static final String INVALID = "INVALID";

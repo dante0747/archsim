@@ -15,8 +15,6 @@ import picocli.CommandLine.ParameterException;
 import picocli.CommandLine.ParseResult;
 import picocli.CommandLine.Spec;
 
-import io.archsim.engine.version.EngineVersions;
-
 /**
  * The {@code archsim} command, whose subcommands do the work, as the Python engine's
  * CLI's did: {@code validate}, {@code run}, {@code compare}, {@code analyze},
@@ -27,11 +25,8 @@ import io.archsim.engine.version.EngineVersions;
 		subcommands = { ValidateCommand.class, RunCommand.class, CompareCommand.class, AnalyzeCommand.class,
 				CalibrateCommand.class, ImportCommand.class, ExportCommand.class, CheckCommand.class,
 				CatalogCommand.class, SchemaCommand.class },
-		mixinStandardHelpOptions = true, version = Archsim.VERSION)
+		mixinStandardHelpOptions = true, versionProvider = VersionProvider.class)
 public final class Archsim implements Runnable {
-
-	/** What {@code --version} prints. */
-	static final String VERSION = "archsim, engine " + EngineVersions.ENGINE;
 
 	@Spec
 	private CommandSpec spec = CommandSpec.create();

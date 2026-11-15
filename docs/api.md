@@ -51,7 +51,7 @@ Domain errors use one shape:
 | Method | Path | Description |
 | --- | --- | --- |
 | GET | `/health` | `200 {"status": "ok", "database": "ok"}`; `503 {"status": "degraded", "database": "unavailable"}` when the database cannot be reached, so health checks take the instance out of service. |
-| GET | `/meta` | Engine/schema/report versions, database dialect, run limits. |
+| GET | `/meta` | ArchSim's version (`version`), engine/schema/report versions, database dialect, run limits. |
 | GET | `/pricing` | Price sources a design can name in `pricing`: `generic` (illustrative rates) and every price snapshot on this machine (`provider`, `region`, `date`, `file`, `sha256` of its content, `newest` for the newest of its provider and region). A design pins one with `pricing.snapshotDate`. See [pricing.md](pricing.md). |
 | GET | `/components` | Component catalog: ports, field descriptors (kind, unit, range, group, assumption flag, visibility), defaults, modeled/not-modeled notes, presets (with `tier` and `sources`, the links behind documented preset numbers), `technologyTraits`, `technologyDefaults`, `technologySources` (links behind documented defaults) and `technologyTiers` (core or experimental); plus `edgeFields`, `workloadFields` and `tierNote` (the text of the "experimental" badge). |
 | GET | `/schema/architecture` | JSON Schema of the document. |

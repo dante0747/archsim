@@ -31,7 +31,7 @@ import io.archsim.model.pricing.PriceSnapshots;
  * with exit code 1.
  */
 @Command(name = "compare", description = "simulate two scenarios and compare them", mixinStandardHelpOptions = true,
-		version = Archsim.VERSION)
+		versionProvider = VersionProvider.class)
 final class CompareCommand implements Callable<Integer> {
 
 	/** What a run of the design as drawn is called. */

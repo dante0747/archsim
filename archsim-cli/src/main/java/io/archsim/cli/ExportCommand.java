@@ -25,7 +25,7 @@ import io.archsim.model.pricing.PriceSnapshots;
  * exit code 1.
  */
 @Command(name = "export", description = "docker-compose, Kubernetes or Mermaid from a design",
-		mixinStandardHelpOptions = true, version = Archsim.VERSION)
+		mixinStandardHelpOptions = true, versionProvider = VersionProvider.class)
 final class ExportCommand implements Callable<Integer> {
 
 	@Spec

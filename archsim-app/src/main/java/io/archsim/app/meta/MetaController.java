@@ -29,7 +29,8 @@ class MetaController {
 	}
 
 	/**
-	 * The engine, schema and report versions, the database and the run limits.
+	 * ArchSim's version, the engine, schema and report versions, the database and the run
+	 * limits.
 	 * @return the metadata
 	 */
 	@GetMapping("/meta")

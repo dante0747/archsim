@@ -7,7 +7,10 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
+import io.archsim.engine.version.ArchsimVersion;
 import io.archsim.engine.version.EngineVersions;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,14 +24,16 @@ class ArchsimTests {
 	@TempDir
 	private Path folder;
 
-	@Test
-	void execute_versionOption_printsTheEngineItSimulatesWith() {
+	// ADR-0076: ArchSim's version, then the engine's
+	@ParameterizedTest
+	@ValueSource(strings = { "--version", "validate --version", "run --version", "calibrate otlp --version" })
+	void execute_versionOption_printsArchsimsVersionAndTheEngines(String arguments) {
 		StringWriter out = new StringWriter();
 
-		int exitCode = Archsim.commandLine().setOut(new PrintWriter(out)).execute("--version");
+		int exitCode = Archsim.commandLine().setOut(new PrintWriter(out)).execute(arguments.split(" "));
 
 		assertThat(List.of(exitCode, out.toString().strip())).containsExactly(0,
-				"archsim, engine " + EngineVersions.ENGINE);
+				"archsim " + ArchsimVersion.PRODUCT + ", engine " + EngineVersions.ENGINE);
 	}
 
 	// ADR-0073: the command only the Python harness called went with it

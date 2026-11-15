@@ -8,7 +8,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.engine.parity.ReportComparison;
-import io.archsim.engine.version.EngineVersions;
+import io.archsim.engine.version.ArchsimVersion;
 import io.archsim.model.text.PythonJson;
 import io.archsim.parity.JsonDiff;
 import io.archsim.parity.SchemaDepartures;
@@ -108,8 +108,8 @@ final class AnswerComparison {
 	}
 
 	private static void assertInitializedAs(JsonNode python, JsonNode java) {
-		// the SDK requires a version, and declares logging
-		assertThat(java.at("/result/serverInfo/version").stringValue()).isEqualTo(EngineVersions.ENGINE);
+		// the SDK requires a version, ArchSim's (ADR-0076), and declares logging
+		assertThat(java.at("/result/serverInfo/version").stringValue()).isEqualTo(ArchsimVersion.PRODUCT);
 		assertThat(java.at("/result/capabilities/logging").isObject()).isTrue();
 		JsonNode answered = java.deepCopy();
 		((ObjectNode) answered.at("/result/serverInfo")).put("version", "");

@@ -12,7 +12,7 @@ import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 import tools.jackson.databind.json.JsonMapper;
 
-import io.archsim.engine.version.EngineVersions;
+import io.archsim.engine.version.ArchsimVersion;
 
 /**
  * The ArchSim MCP server over stdio: the engine's tools for an AI coding agent, which
@@ -57,7 +57,7 @@ public final class ArchsimMcp {
 		Templates templates = new Templates(settings.examples());
 		McpResources resources = new McpResources(definitions, templates, settings);
 		return McpServer.sync(new StdioServerTransportProvider(JSON, requests, answers, ANY_LENGTH))
-			.serverInfo(definitions.name(), EngineVersions.ENGINE)
+			.serverInfo(definitions.name(), ArchsimVersion.PRODUCT)
 			.instructions(definitions.instructions())
 			.capabilities(
 					McpSchema.ServerCapabilities.builder().prompts(false).resources(false, false).tools(false).build())

@@ -30,7 +30,7 @@ import io.archsim.engine.check.Thresholds;
  */
 @Command(name = "check",
 		description = "an SLO gate for CI: objectives and regressions; exit 0 pass, 1 fail, 2 invalid input",
-		mixinStandardHelpOptions = true, version = Archsim.VERSION)
+		mixinStandardHelpOptions = true, versionProvider = VersionProvider.class)
 final class CheckCommand implements Callable<Integer>, AnswersUnexpectedErrors {
 
 	@Spec

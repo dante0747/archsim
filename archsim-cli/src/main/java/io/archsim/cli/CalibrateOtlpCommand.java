@@ -27,7 +27,7 @@ import io.archsim.engine.files.PythonFiles;
  * (OTLP JSON), with an optional mapping of service and database names to parts.
  */
 @Command(name = "otlp", description = "from an OpenTelemetry trace export (OTLP JSON)", mixinStandardHelpOptions = true,
-		version = Archsim.VERSION)
+		versionProvider = VersionProvider.class)
 final class CalibrateOtlpCommand implements Callable<Integer> {
 
 	@Spec

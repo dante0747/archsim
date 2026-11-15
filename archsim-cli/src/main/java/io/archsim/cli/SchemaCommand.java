@@ -12,7 +12,7 @@ import io.archsim.model.DesignDocuments;
  * {@code archsim schema}: the JSON Schema of the design document.
  */
 @Command(name = "schema", description = "print the document JSON Schema", mixinStandardHelpOptions = true,
-		version = Archsim.VERSION)
+		versionProvider = VersionProvider.class)
 final class SchemaCommand implements Callable<Integer> {
 
 	@Spec

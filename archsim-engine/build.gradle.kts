@@ -28,6 +28,15 @@ dependencies {
     testImplementation(libs.jqwik)
 }
 
+// ArchSim's version, gradle.properties' `version`, written where ArchsimVersion reads it (ADR-0076)
+tasks.processResources {
+    val product = project.version.toString()
+    inputs.property("version", product)
+    filesMatching("io/archsim/engine/version/archsim.properties") {
+        expand("version" to product)
+    }
+}
+
 tasks.test {
     // the golden files of the frozen Python engine (parity/golden/) and the examples
     systemProperty("archsim.repoRoot", rootDir.absolutePath)

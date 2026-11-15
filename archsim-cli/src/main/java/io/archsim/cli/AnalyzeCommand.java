@@ -25,7 +25,7 @@ import io.archsim.model.pricing.PriceSnapshots;
  */
 @Command(name = "analyze",
 		description = "print the auto sizes, cost estimate, design review and technology tiers as JSON",
-		mixinStandardHelpOptions = true, version = Archsim.VERSION)
+		mixinStandardHelpOptions = true, versionProvider = VersionProvider.class)
 final class AnalyzeCommand implements Callable<Integer> {
 
 	@Spec

@@ -170,6 +170,9 @@ Users compare runs and rely on reproducibility, so engine changes are held to a 
    version**, `EngineVersions.ENGINE` in
    `archsim-engine/src/main/java/io/archsim/engine/version/EngineVersions.java`. Every report
    records the engine version, and comparisons warn when two runs used different versions.
+   ArchSim's own version, `version` in `gradle.properties`, is a different number: it moves
+   with each release, whether or not the engine changed
+   ([ADR-0076](docs/adr/0076-version-archsim-apart-from-its-engine.md)).
 2. The Java engine's tests replay the runs and golden files the Python engine 0.16.0 recorded
    ([parity/README.md](parity/README.md)), so a change to simulated results fails them; if
    expectations legitimately change, explain why in the PR. The analytic checks must keep

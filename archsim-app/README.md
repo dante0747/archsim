@@ -176,6 +176,9 @@ schema Flyway builds with the one Alembic built at its revision 0008 (`parity/sc
 - The database defaults to PostgreSQL on this machine; Python defaulted to a SQLite file, which
   is gone ([ADR-0016](../docs/adr/0016-drop-sqlite-development-mode.md)). A `.env` file in the
   working directory is not read; compose's `.env` and `env_file` still apply.
+- `GET /meta` also names ArchSim's own version (`version`,
+  [ADR-0076](../docs/adr/0076-version-archsim-apart-from-its-engine.md)), which the Python API did
+  not.
 - `ARCHSIM_CORS_ORIGINS` may also be comma-separated; Python reads only a JSON array.
 - A CORS preflight from an origin that is not listed is refused with `403`; Starlette answers
   `400`. Browsers treat both the same.

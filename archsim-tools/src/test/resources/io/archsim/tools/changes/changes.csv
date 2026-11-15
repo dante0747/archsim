@@ -6,6 +6,8 @@ archsim-cli/src/main/java/io/archsim/cli/RunCommand.java | java archsim_check
 archsim-engine/src/main/java/io/archsim/engine/check/CheckRunner.java | java e2e archsim_check
 gradle/libs.versions.toml | java e2e archsim_check
 build-logic/src/main/kotlin/archsim.java-conventions.gradle.kts | java e2e archsim_check
+# ArchSim's version, which the web app's tests hold its package to
+gradle.properties | java e2e archsim_check web
 # a module's tests, test fixtures, README and build file run what its sources do
 archsim-cli/README.md | java archsim_check
 archsim-engine/src/testFixtures/java/io/archsim/engine/Fixture.java | java e2e archsim_check

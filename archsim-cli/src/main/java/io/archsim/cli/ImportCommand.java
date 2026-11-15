@@ -30,7 +30,7 @@ import io.archsim.model.pricing.PriceSnapshots;
  * and ignored on standard error; text that is not the format refused with exit code 2.
  */
 @Command(name = "import", description = "a design from docker-compose, Kubernetes manifests or a Terraform plan",
-		mixinStandardHelpOptions = true, version = Archsim.VERSION)
+		mixinStandardHelpOptions = true, versionProvider = VersionProvider.class)
 final class ImportCommand implements Callable<Integer> {
 
 	/** The file name that stands for standard input. */

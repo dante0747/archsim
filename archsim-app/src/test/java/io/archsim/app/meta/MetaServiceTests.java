@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import io.archsim.app.config.ArchsimProperties;
 import io.archsim.app.config.TestProperties;
+import io.archsim.engine.version.ArchsimVersion;
 import io.archsim.engine.version.EngineVersions;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,8 +34,9 @@ class MetaServiceTests {
 	void meta_always_namesTheVersionsAndDatabase() {
 		Meta meta = this.service.meta();
 
-		assertThat(meta).extracting(Meta::engineVersion, Meta::schemaVersion, Meta::reportVersion, Meta::database)
-			.containsExactly(EngineVersions.ENGINE, "1.8", EngineVersions.REPORT, "postgresql");
+		assertThat(meta)
+			.extracting(Meta::version, Meta::engineVersion, Meta::schemaVersion, Meta::reportVersion, Meta::database)
+			.containsExactly(ArchsimVersion.PRODUCT, EngineVersions.ENGINE, "1.8", EngineVersions.REPORT, "postgresql");
 	}
 
 	@Test

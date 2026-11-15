@@ -3,6 +3,7 @@ package io.archsim.app.meta;
 import org.springframework.stereotype.Service;
 
 import io.archsim.app.config.ArchsimProperties;
+import io.archsim.engine.version.ArchsimVersion;
 import io.archsim.engine.version.EngineVersions;
 import io.archsim.model.document.ArchitectureDocument;
 
@@ -38,8 +39,8 @@ class MetaService {
 	Meta meta() {
 		Meta.Limits limits = new Meta.Limits(this.properties.maxRequests(), this.properties.maxWallSeconds(),
 				this.properties.concurrentRuns());
-		return new Meta(EngineVersions.ENGINE, ArchitectureDocument.SCHEMA_VERSION, EngineVersions.REPORT, DATABASE,
-				limits);
+		return new Meta(ArchsimVersion.PRODUCT, EngineVersions.ENGINE, ArchitectureDocument.SCHEMA_VERSION,
+				EngineVersions.REPORT, DATABASE, limits);
 	}
 
 }

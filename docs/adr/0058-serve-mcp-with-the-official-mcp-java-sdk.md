@@ -76,7 +76,8 @@ The Java server's answers differ from the Python server's here: the SDK's design
 four, the Java engine's for the rest.
 
 - `serverInfo.version` is the engine's version; the SDK requires one, where the Python SDK sent
-  an empty one.
+  an empty one. (Since [ADR-0076](0076-version-archsim-apart-from-its-engine.md), ArchSim's own
+  version.)
 - The capabilities include `logging`, which the SDK always declares.
 - A call of a tool that does not exist is a JSON-RPC error (`-32602`,
   `Unknown tool: invalid_tool_name`, data `Tool not found: NAME`), where the Python SDK answered

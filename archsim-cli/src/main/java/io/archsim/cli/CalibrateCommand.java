@@ -21,7 +21,7 @@ import io.archsim.model.pricing.PriceSnapshots;
  */
 @Command(name = "calibrate", description = "set a design's inputs from telemetry (docs/calibration.md)",
 		subcommands = { CalibratePrometheusCommand.class, CalibrateOtlpCommand.class }, mixinStandardHelpOptions = true,
-		version = Archsim.VERSION)
+		versionProvider = VersionProvider.class)
 final class CalibrateCommand implements Runnable {
 
 	@Spec

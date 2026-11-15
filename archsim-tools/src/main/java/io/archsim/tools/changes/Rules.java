@@ -78,7 +78,9 @@ final class Rules {
 		.rule("build-logic/", union(JAVA, CHECK_ACTION))
 		.rule("config/", JAVA)
 		.rule("gradle/", union(JAVA, CHECK_ACTION))
-		.rule("gradle.properties", union(JAVA, CHECK_ACTION))
+		// ArchSim's version, which the web app's tests hold its package to
+		// (ADR-0076)
+		.rule("gradle.properties", union(JAVA, CHECK_ACTION, Set.of(Job.WEB)))
 		.rule("gradlew", union(JAVA, CHECK_ACTION))
 		.rule("gradlew.bat", JAVA)
 		.rule("settings.gradle.kts", union(JAVA, CHECK_ACTION))
