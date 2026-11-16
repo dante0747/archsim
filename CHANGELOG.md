@@ -8,6 +8,16 @@ for when that version changes.
 
 ## [Unreleased]
 
+### Added
+
+- **A kit for hosting a public server**, in `deploy/`: the release's images with sign-in behind
+  Caddy, which serves HTTPS with certificates it renews itself, or a Cloudflare Tunnel, which opens
+  no port; a nightly database backup; and run limits for a public demo, on any server with Docker
+  from 2 cores and 4 GB, amd64 or arm64.
+  [Hosting a public server](docs/deployment.md#hosting-a-public-server) goes from an empty server to a
+  running site, and from one release to the next; an optional workflow deploys the project's own
+  demo over SSH. A release now also checks that the kit runs its images.
+
 ## [1.0.0] - 2026-11-15
 
 The first public release. ArchSim predicts how a system design behaves under load, failures and
