@@ -143,10 +143,9 @@ month: $1,434.02, so the autoscaler saves $590 a month.
 100 RCU and 60 WCU provisioned is 100 × $0.00013 × 730 + 60 × $0.00065 × 730 = $37.96 a month;
 the function at 150 invocations/s, 1,769 MB (1 vCPU) and about 40 ms each at the base load is
 394.2 M invocations × $0.20/M + 394.2 M × 0.04 s × 1.7275 GB × $0.0000166667 ≈ $530 a month, and
-the cost line agrees within a few percent (it uses the measured duration and rate). The Python
-engine's `test_cost_managed.py` kept it within 10% until stage 5 of the Java port deleted that
-engine; the Java cost estimate gives that engine's figures on every golden entry
-([parity/README.md](../parity/README.md)).
+the cost line agrees within a few percent (it uses the measured duration and rate). The cost
+estimate gives the frozen engine 0.16.0's figures on every golden entry
+([parity/README.md](../parity/README.md)), and that engine's tests kept this line within 10%.
 
 ## Which price a part gets
 
@@ -226,7 +225,7 @@ the newest for its provider and region.
 |---|---|
 | File | `aws-us-east-1-2026-10-28.json` (about 260 KB), the newest; templates and new projects pin it |
 | Region | us-east-1 (US East, N. Virginia), USD, on-demand |
-| Read on | 2026-10-28, by `scripts/prices/aws.py` |
+| Read on | 2026-10-28, by `scripts/prices/aws.py`, the Python script that archsim-tools' `prices aws` has since replaced |
 | Source | [AWS Price List bulk API](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/using-ppslong.html) (public, no account), offer files AmazonEC2 20261028180352, AmazonRDS 20261026214716, AmazonElastiCache 20261028192450, AmazonMSK 20261014170039, AWSLambda 20261022183959, AWSQueueService 20260911124607, AWSELB 20260911124544, AmazonDynamoDB 20260911124422, AmazonApiGateway 20261013003044, AmazonEKS 20261027191639 (the snapshot's `note` repeats them) |
 | Contents | 1,107 EC2 types (Linux, shared tenancy), 315 RDS Single-AZ types (PostgreSQL, MySQL, MariaDB), 188 ElastiCache types (Redis, Valkey, Memcached), 16 MSK broker types; the t3, t3a and t4g types with their baseline CPU and, on EC2 and RDS, their surplus-credit price; every rate in the table above |
 | Left out | Outposts, Local Zone and Wavelength prices, Capacity Blocks, previous-generation types (AWS's own flag), GPU, machine-learning, FPGA and media types, Express MSK brokers, reserved and savings-plan terms, free tiers, DynamoDB's Infrequent Access table class, API Gateway HTTP APIs and WebSockets |

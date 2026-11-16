@@ -295,7 +295,7 @@ inputs and that the pipeline is wired correctly, not that ArchSim predicts a rea
 it the end-to-end p95 comes within 6% (under), CPU and memory within 4%, but the largest error
 is -13% (end-to-end p99); the observed curve (2 minutes) is compressed into the starter's 60 s
 run. The CPU and memory fits against a real stack are checked on the pg-mixed benchmark's
-committed results (`benchmarks/tests/test_resource_fit.py`). Only a calibration
+committed results (archsim-benchmarks' `CommittedResourceFitTests`). Only a calibration
 against your own telemetry says how well the model fits your system.
 
 ```bash

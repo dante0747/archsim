@@ -439,7 +439,7 @@ judged by its pods, not by requests.
 and `costPerMillionRequests` (third-party APIs) never affect the simulation. The engine
 (`CostEstimator`) turns them into a monthly estimate (730 hours) and a cost per million successful
 requests; every report carries it as `cost`, and `POST /analyze` prices a design before it runs.
-A month is priced at the workload's steady **base** load (`load.base_rps`: a constant rate, the
+A month is priced at the workload's steady **base** load (`BaseRate`: a constant rate, the
 rate outside a burst, a ramp's low end, a trace's median), but for the hours a month it runs at
 its peak (`workload.peakHoursPerMonth`, priced at the peak): per-request parts (third-party APIs,
 functions, API gateways, managed queues, DynamoDB on demand) at each part's rate while the run's
@@ -482,8 +482,8 @@ network bandwidth.
 
 A vCPU is usually a hardware thread, not a core: two threads share each physical core
 (hyperthreads), and a machine's clock falls as more of it is busy (turbo and power limits). So
-N busy vCPUs do less than N times one's work. Two optional settings model it
-(`components/host.py`); both empty, every vCPU is a full core at a fixed speed, as before:
+N busy vCPUs do less than N times one's work. Two optional settings model it (archsim-engine's
+`host` package); both empty, every vCPU is a full core at a fixed speed, as before:
 
 - **`architecture.host`**: the one machine every part with a CPU size runs on (docker compose on
   one VM, a benchmark on a laptop), with `physicalCores`, `threadsPerCore` (2 with
@@ -571,13 +571,11 @@ CPU and memory are rounded up together to the cheapest standard shape of 2, 4 or
 (4 vCPU and 0.5 GiB becomes 4 vCPU and 8 GiB). Pods on a Kubernetes cluster and serverless
 functions keep their computed size: their machines are the cluster's nodes and the provider's.
 Peak load comes from the static estimate below, with each TTL cache's hit ratio estimated from
-its TTL and the key popularity (`load.ttl_miss_shares`; a cache whose memory holds fewer keys
+its TTL and the key popularity (`TtlMissShares`; a cache whose memory holds fewer keys
 than the keyspace keeps the most popular ones).
 
-**The sizing audit** (`SizingAuditTests` in `archsim-engine`, on every template; the port of
-`scripts/sizing_audit.py`, which the frozen engine's `test_sizing_audit.py` ran until stage 5
-deleted both) checks auto sizes against what the simulation then does: each auto-sized part's p95
-busy cores per instance (from the per-bucket `cpuBusyCores` series of services, databases and
+**The sizing audit** (`SizingAuditTests` in `archsim-engine`, on every template) checks auto
+sizes against what the simulation then does: each auto-sized part's p95 busy cores per instance (from the per-bucket `cpuBusyCores` series of services, databases and
 caches) between 25% and 75% of its vCPU, unless it is on the smallest type its need allows,
 capped by its workers or connections, on a bigger type for its memory, or behind a part that
 holds its load back; no auto-sized part is the bottleneck because of its CPU or memory;
@@ -771,8 +769,8 @@ Not included: retries, timeouts, faults, row-lock waits, buffer-cache misses, co
 pauses, autoscaling delays and the memory model. On the starter the estimate is within 7% of the
 simulated mean and p95 and within a point of its busiest part's utilization; on the queueing lab
 (an M/M/4 queue) within 5%. archsim-engine's `EstimateAgreementTests` keeps both within 15%,
-as the Python engine's `test_estimate.py` did, and the Java estimate gives that engine's figures
-on every golden entry and recorded case.
+and the estimate gives the frozen engine 0.16.0's figures on every golden entry and recorded
+case.
 
 ## Accounting invariants
 
@@ -796,7 +794,7 @@ Each node gets a status from its window metrics:
 | `warm` | utilization >= 70% |
 | `ok` / `idle` | otherwise / no arrivals |
 
-Findings (`analysis.py`) are rule-based and cite the numbers they use:
+Findings (`RunAnalysis`) are rule-based and cite the numbers they use:
 
 - **Primary bottleneck:** the saturated node with the highest rejection rate and utilization,
   excluding *symptoms* (rejections exclude calls refused by a planned outage). A saturated or hot node is a **symptom** when a downstream node is
@@ -820,7 +818,7 @@ Findings (`analysis.py`) are rule-based and cite the numbers they use:
 - **Cache** hit ratio and the read rate reaching the data store.
 - **Healthy** when nothing is saturated, naming the busiest component.
 
-Comparisons (`compare.py`) diff the two *resolved input snapshots* (so they explain actual
+Comparisons (`RunComparer`) diff the two *resolved input snapshots* (so they explain actual
 parameter changes), compute KPI deltas with a 3% "about the same" band, report bottleneck
 shifts and the largest utilization/load/hit-ratio changes, and warn when seeds or engine
 versions differ.
@@ -873,8 +871,7 @@ a single run's p95 is within 15% of its objective.
 ## Validation against queueing theory
 
 archsim-engine's `QueueingTheoryTests` and `StarterReferenceTests` (in `simulator`) check the
-simulator against exact results, as the Python engine's `tests/test_reference_benchmark.py` did,
-with its tolerances:
+simulator against exact results, with the tolerances the frozen engine 0.16.0 was held to:
 
 - A service with Poisson arrivals and exponential service is an M/M/c queue. The simulated
   mean response time matches the Erlang C formula within 8% for M/M/1 at 50% and 80% load and
