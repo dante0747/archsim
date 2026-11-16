@@ -1,0 +1,64 @@
+name: Deploy demo
+
+# Moves the public demo, https://app.archsim.io, to a release: on a published GitHub release that is
+# not a pre-release, at its tag, or by hand at a tag or main (Actions > Deploy demo > Run workflow).
+# It connects with plain ssh to the demo server, where the key's forced command is the hosted
+# kit's deploy/update.sh: it checks the kit out at the ref the workflow sends, pulls its images and
+# restarts what changed (docs/deployment.md, ADR-0080). The key can do nothing else.
+#
+# OFF until the owner turns it on. Create the environment `demo` (Settings > Environments) with the
+# secrets DEMO_SSH_KEY (the deploy key's private half), DEMO_HOST (user@address) and
+# DEMO_KNOWN_HOSTS (the server's host key line), and limit its deployment branches and tags to
+# `main` and `v*`, so that a run started from another branch never gets the key. Then set the
+# repository variable DEMO_ENABLED to true. Without the variable, the job is skipped and uses no minutes. Publish a release once its
+# images are out (Release images has passed): the server pulls them.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: A release's tag (v1.1.0), or main
+        required: true
+        default: main
+
+# no token: the job checks nothing out and calls no GitHub API
+permissions: {}
+
+# one deployment at a time, the newest last
+concurrency:
+  group: deploy-demo
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to the demo server
+    if: vars.DEMO_ENABLED == 'true' && !(github.event_name == 'release' && github.event.release.prerelease)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: demo
+      url: https://app.archsim.io
+    steps:
+      - name: Deploy over SSH
+        env:
+          REF: ${{ github.event.release.tag_name || inputs.ref }}
+          DEMO_SSH_KEY: ${{ secrets.DEMO_SSH_KEY }}
+          DEMO_HOST: ${{ secrets.DEMO_HOST }}
+          DEMO_KNOWN_HOSTS: ${{ secrets.DEMO_KNOWN_HOSTS }}
+        run: |
+          case "$REF" in
+            *[!A-Za-z0-9.-]*) echo "::error::not a ref: $REF"; exit 1 ;;
+            main | v[0-9]*) ;;
+            *) echo "::error::$REF is neither a release's tag nor main"; exit 1 ;;
+          esac
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEMO_SSH_KEY" > ~/.ssh/demo
+          chmod 600 ~/.ssh/demo
+          printf '%s\n' "$DEMO_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # the forced command on the server reads the ref from the command sent
+          ssh -i ~/.ssh/demo -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=30 "$DEMO_HOST" "$REF"
+      - name: Forget the key
+        if: always()
+        run: rm -f ~/.ssh/demo
