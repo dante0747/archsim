@@ -20,7 +20,7 @@ export function SandboxBanner() {
         <Clock className="size-3.5 shrink-0 text-ink-3" aria-hidden />
         <span>You are trying ArchSim in a sandbox: it and its designs are deleted {sandboxEndText(expiresAt)}.</span>
         <a href={signInPage()} className="font-medium text-ink underline underline-offset-2 hover:text-accent">
-          Sign in to keep your work
+          Sign in for a workspace of your own
         </a>
       </div>
     </div>

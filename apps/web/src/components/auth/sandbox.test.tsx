@@ -80,13 +80,13 @@ describe("trying ArchSim without signing in", () => {
 });
 
 describe("the sandbox banner", () => {
-  it("tells a guest when the sandbox goes, and how to keep their work", () => {
+  it("tells a guest when the sandbox goes, and how to sign in for a workspace of their own", () => {
     auth.state = { status: "ready", config: config(true), me: guest, workspaceId: null, workspace: null };
 
     render(<SandboxBanner />);
 
     expect(screen.getByTestId("sandbox-banner")).toHaveTextContent(/its designs are deleted (today|tomorrow) at/);
-    expect(screen.getByRole("link", { name: "Sign in to keep your work" }).getAttribute("href")).toMatch(/^\/signin\?next=/);
+    expect(screen.getByRole("link", { name: "Sign in for a workspace of your own" }).getAttribute("href")).toMatch(/^\/signin\?next=/);
   });
 
   it("shows nothing to someone signed in", () => {

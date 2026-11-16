@@ -3,7 +3,7 @@
 /**
  * The person menu at the right of every header: who you are, the workspace switcher (the
  * workspace lists and new projects use), settings and sign out; a sandbox's guest sees when the
- * sandbox is deleted, and signs in from here to keep their work. Signed out on a server with
+ * sandbox is deleted, and signs in from here for a workspace of their own. Signed out on a server with
  * sign-in, it is a "Sign in" button that keeps your page (it opens in a new tab inside the
  * editor, so unsaved edits survive).
  */
@@ -122,7 +122,7 @@ export function UserMenu({ className, showWorkspace = true }: { className?: stri
           <>
             <MenuItem asChild>
               <a href={signInPage()}>
-                <LogIn /> Sign in to keep your work
+                <LogIn /> Sign in for a workspace of your own
               </a>
             </MenuItem>
             <MenuItem onSelect={() => void onSignOut(false)}>

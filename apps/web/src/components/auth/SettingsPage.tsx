@@ -374,7 +374,7 @@ export function SettingsPage() {
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button variant="primary" asChild>
                     <a href={signInPage()}>
-                      <LogIn /> Sign in to keep your work
+                      <LogIn /> Sign in for a workspace of your own
                     </a>
                   </Button>
                   <Button variant="ghost" onClick={() => void signOut(false).then(() => router.push("/"))}>
