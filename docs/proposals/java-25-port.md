@@ -112,7 +112,7 @@ doesn't change.
 
 | Path | What |
 | --- | --- |
-| `settings.gradle.kts`, `gradlew`, `gradle/wrapper/` | the build and its wrapper (Gradle 9.8) |
+| `settings.gradle.kts`, `gradlew`, `gradle/wrapper/` | the build and its wrapper (Gradle 9) |
 | `gradle/libs.versions.toml` | every version, in one place |
 | `gradle/gradle-daemon-jvm.properties` | Gradle runs on JDK 25 whatever `JAVA_HOME` says, and downloads one if none is installed |
 | `build-logic/` | the convention plugin every module applies: Java 25, spring-javaformat, Checkstyle, Error Prone with NullAway, JUnit, JaCoCo |
