@@ -5,7 +5,7 @@ name: Website
 # A push to main that changes what the site is built from rebuilds it and deploys it to GitHub
 # Pages; a pull request that does builds it only, so a broken link or a README section the home
 # page reads fails before it merges. A run by hand (Actions > Website > Run workflow) on main
-# rebuilds and deploys.
+# rebuilds and deploys. Each deploy then announces the sitemap's pages to IndexNow.
 #
 # The build fails on any broken link (apps/web/scripts/site-check.mjs), and the browser checks
 # (apps/web/e2e-site) open every page on a phone and a desktop in both themes. The repository
@@ -86,3 +86,21 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+  # After a deploy, tells the search engines that take part in IndexNow to crawl the site's pages
+  # again (apps/web/scripts/indexnow.mjs). A job of its own, so the deploy's Pages permissions stay
+  # with the deploy; a ping IndexNow refuses is a warning, never a failed run.
+  indexnow:
+    name: Notify search engines (IndexNow)
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: apps/web/scripts
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: node apps/web/scripts/indexnow.mjs https://archsim.io/sitemap.xml
