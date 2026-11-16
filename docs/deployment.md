@@ -54,6 +54,7 @@ and a GitHub or Google OAuth app:
 | `ARCHSIM_GITHUB_CLIENT_ID`, `ARCHSIM_GITHUB_CLIENT_SECRET` | A GitHub OAuth app whose callback URL is `<public url>/api/v1/auth/github/callback` |
 | `ARCHSIM_GOOGLE_CLIENT_ID`, `ARCHSIM_GOOGLE_CLIENT_SECRET` | A Google OAuth client whose callback URL is `<public url>/api/v1/auth/google/callback` |
 | `ARCHSIM_ADMIN_EMAILS` | Verified emails whose first sign-in makes them an owner of `default` |
+| `ARCHSIM_SANDBOXES` | `true` lets visitors try ArchSim without signing in, each in a sandbox deleted 24 hours later (default `false`; [SECURITY.md](../SECURITY.md) says what limits them) |
 
 Every variable, with the optional ones (GitHub Enterprise, session length, trusted proxies, the
 outbound policy, rate limits), is described in [.env.example](../.env.example). With Docker Compose,

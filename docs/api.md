@@ -194,6 +194,17 @@ the only place the token is taken from, never a form or query parameter. The tok
 value in the cookie, which signing in sets for as long as the session lasts; when it is gone,
 `GET /auth/me` sets a new one, for the browser's session.
 
+**Trying ArchSim without signing in (browser).** With `ARCHSIM_SANDBOXES=true` (hosted only;
+[ADR-0079](adr/0079-let-visitors-try-archsim-in-a-sandbox-without-signing-in.md)),
+`GET /auth/config` answers `sandboxes: true` and the browser's `csrfToken`, which it also sets in
+the CSRF cookie. `POST /auth/sandbox`, sent with that token as `X-ArchSim-CSRF` and the cookie,
+makes a guest account (named "Guest", no email) that owns a new sandbox workspace, and signs the
+browser in as the guest: `201` with what `GET /auth/me` answers, and the session and CSRF cookies,
+which last until the sandbox is deleted, 24 hours later, with the guest and everything in it. A
+guest uses the sandbox as its owner, within its [limits](#limits), but makes no team workspaces,
+API tokens, invitations or share links and accepts no invitation (`403`). Signing in from a
+sandbox starts a normal personal workspace; the sandbox's projects are not moved.
+
 **API tokens (CLI, CI, MCP).** Send `Authorization: Bearer asim_pat_...`; no cookie and no CSRF
 header. A token acts as you, as a viewer if its scope is `read`, and only in its workspace if
 it names one. A revoked, expired, mistyped or malformed token is refused with `401` wherever it
@@ -210,8 +221,9 @@ so the document is served at the public address it names.
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/auth/config` | `{mode, providers}`. Public. |
-| GET | `/auth/me` | `{mode, kind (local, session or token), user {id, name, email, avatarUrl}, workspaces [...], csrfToken}`. 401 when signed out. |
+| GET | `/auth/config` | `{mode, providers, sandboxes, csrfToken}` (`csrfToken`: where sandboxes are offered, the token that starts one; else null). Public. |
+| GET | `/auth/me` | `{mode, kind (local, session or token), user {id, name, email, avatarUrl, guest, expiresAt}, workspaces [...], csrfToken}`. `guest` is a sandbox's guest, whose account and sandbox are deleted at `expiresAt` (null for everyone else). 401 when signed out. |
+| POST | `/auth/sandbox` | Starts a sandbox for a visitor who is not signed in (with `X-ArchSim-CSRF`): `201` with the guest as `/auth/me` describes them, and the session cookies. 404 where sandboxes are not offered, 409 for a browser signed in already, 429 after 5 starts per address in an hour, 503 (with `Retry-After`) while the server keeps 500 guests. |
 | GET | `/auth/{provider}/login` | Starts signing in (302 to the provider). `?next=` is where to land after. 429 after 30 starts per address in 10 minutes. |
 | GET | `/auth/{provider}/callback` | The provider's return (302). |
 | POST | `/auth/logout` | `204`; `?everywhere=true` ends every session of the account. |
@@ -228,7 +240,8 @@ so the document is served at the public address it names.
 | POST | `/tokens` | `{name, scope: read|write, workspaceId?, expiresInDays? (default 90; null: never)}`. The answer has the `token` once. |
 | DELETE | `/tokens/{id}` | Revoke at once. |
 
-Tokens cannot manage tokens, workspaces or invitations (403): do that signed in.
+Tokens cannot manage tokens, workspaces or invitations (403): do that signed in. Neither can a
+sandbox's guest, who also makes no share links.
 
 ```bash
 export ARCHSIM_TOKEN=asim_pat_...        # Settings → API tokens
@@ -246,7 +259,8 @@ workspace's own `maxConcurrentRuns`/`maxRunsPerHour` replace:
 | team | 4 | 300 | the server's | 20 s | no limit | 5 |
 | sandbox | 1 | 20 | 200,000 requests, 20 s | 20 s | 5 | 5 |
 
-Without sign-in a seed group may run 10 seeds (5 in a sandbox).
+Without sign-in a seed group may run 10 seeds (5 in a sandbox). A visitor's sandbox
+(`POST /auth/sandbox`) has the sandbox's limits, and is deleted 24 hours after it starts.
 
 Runs at once are counted across every worker (a run waits in the queue until its workspace has
 room; workers take each workspace's oldest run before anyone's second). A person may also start

@@ -17,6 +17,18 @@ for when that version changes.
   [Hosting a public server](docs/deployment.md#hosting-a-public-server) goes from an empty server to a
   running site, and from one release to the next; an optional workflow deploys the project's own
   demo over SSH. A release now also checks that the kit runs its images.
+- **Try it without signing in.** With `ARCHSIM_SANDBOXES=true` on a hosted server, the sign-in
+  page offers a sandbox for 24 hours with no account: a guest owns a sandbox workspace (five
+  projects, small runs) until the API deletes it with everything in it. `POST /auth/sandbox`
+  starts one; `GET /auth/config` and `GET /auth/me` say whether sandboxes are offered and when a
+  guest's sandbox goes, which the app shows under its header. Starts are limited per address and
+  to 500 at once; guests make no team workspaces, API tokens, invitations or share links
+  ([ADR-0079](docs/adr/0079-let-visitors-try-archsim-in-a-sandbox-without-signing-in.md)).
+
+### Changed
+
+- The database gains its second migration (V2: `users.expires_at`), so the API migrates it
+  before workers of this release start.
 
 ## [1.0.0] - 2026-11-15
 

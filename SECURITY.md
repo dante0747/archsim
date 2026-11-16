@@ -87,11 +87,26 @@ server at `https://<host>/api/v1`.
   Invitations are single-use links (256-bit tokens stored as hashes) that expire in at most 30
   days and can be bound to a verified email; a workspace always keeps an owner.
 - **Abuse and cost.** Counters in the database (shared by every instance) limit runs per hour
-  per workspace and per person, sign-in attempts per address, and token, workspace,
+  per workspace and per person, sign-in attempts and sandbox starts per address, and token, workspace,
   invitation and calibration creation; over a limit the API answers **429** with
   `Retry-After`. Each workspace kind has a profile: runs at once (enforced by the queue across
   all workers, which also keeps workspaces fair), runs per hour, the largest run, the
   calibration replay's wall clock (20 s) and, for sandboxes, the number of projects.
+- **Sandboxes for anonymous visitors (`ARCHSIM_SANDBOXES=true`, off by default).** Anyone on the
+  internet may then try ArchSim without signing in
+  ([ADR-0079](docs/adr/0079-let-visitors-try-archsim-in-a-sandbox-without-signing-in.md)):
+  `POST /auth/sandbox` makes a guest account (no identity, no email) that owns a sandbox
+  workspace, and a session that ends with it, 24 hours later, when the API deletes the guest, the
+  sandbox and everything in it. The start must carry the CSRF header matching the
+  `__Host-archsim_csrf` cookie (which `GET /auth/config` sets), so another site cannot make a
+  visitor's browser start one and so sign it out of its account; a browser signed in already is
+  refused. Each address starts at most 5 an hour (a rate limit, so not with
+  `ARCHSIM_RATE_LIMITS=false`), and the server keeps at most 500 guests (then
+  `503` until the first expires), so visitors cannot fill the database. A sandbox has its kind's
+  limits (one run at once, 20 an hour, 200,000 requests and 20 s a run, five projects) and never
+  calls out to Prometheus. A guest cannot make team workspaces, API tokens, invitations or share
+  links, or accept an invitation: nothing a guest writes is published, and nothing outlives the
+  sandbox.
 - **Share links.** `/r/<slug>` pages are public to anyone with the link: the slug is 128
   random bits, and the page is a frozen copy of one run's report made when the link was
   created, without request traces and with telemetry addresses (a calibration's Prometheus URL)
@@ -134,7 +149,8 @@ server at `https://<host>/api/v1`.
 **What remains.** Resolving a host name is not covered by the per-query deadline (the
 system's resolver timeout applies). A workspace owner can read every design in it. Provider
 accounts are trusted for the emails they verify. Denial of service by a signed-in person is
-bounded by the limits above, not prevented.
+bounded by the limits above, not prevented. With sandboxes on, someone with many addresses can
+keep all 500 places taken for a day: the limits bound what that costs, and signing in still works.
 
 ### Both modes
 

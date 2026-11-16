@@ -120,4 +120,5 @@ what the repository shows.
 | [0076](0076-version-archsim-apart-from-its-engine.md) | Version ArchSim as a product, apart from its engine, in `gradle.properties` | Accepted | 2026-11-15 |
 | [0077](0077-publish-release-images-to-ghcr-and-run-them-from-compose.md) | Publish release images to GHCR, and run them from `docker-compose.yml` | Accepted | 2026-11-15 |
 | [0078](0078-build-the-website-as-a-static-export-of-the-web-app.md) | Build archsim.io as a static export of the web app, from the repository's own docs | Accepted | 2026-11-15 |
+| [0079](0079-let-visitors-try-archsim-in-a-sandbox-without-signing-in.md) | Let visitors try ArchSim in a sandbox for a day, without signing in | Proposed | 2026-11-16 |
 | [0080](0080-host-a-public-server-from-a-compose-kit.md) | Host a public server from a Compose kit in `deploy/`, behind Caddy or a Cloudflare Tunnel | Proposed | 2026-11-16 |
