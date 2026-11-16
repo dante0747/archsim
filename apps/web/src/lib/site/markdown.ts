@@ -25,7 +25,7 @@ export interface Heading {
 export interface RenderedMarkdown {
   /** The text of the first heading, or "" when there is none. */
   title: string;
-  /** The first paragraph's text, for the page's meta description. */
+  /** The first paragraph of prose, for the page's meta description. */
   description: string;
   /** The body, without the first heading. */
   html: string;
@@ -36,7 +36,8 @@ export interface RenderedMarkdown {
 }
 
 const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/;
-const DESCRIPTION_LENGTH = 180;
+/** Longer meta descriptions are cut short in search results. */
+const DESCRIPTION_LENGTH = 155;
 
 /** The text a node shows. */
 export function textOf(node: RootContent | Root): string {
@@ -65,8 +66,27 @@ function readFrontMatter(source: string): { body: string; frontMatter: Record<st
   return { body: source.slice(match[0].length), frontMatter };
 }
 
-function summary(text: string): string {
-  const flat = text.replace(/\s+/g, " ").trim();
+/** A paragraph's sentences without the one ending in a colon that leads into a list or a table. */
+function withoutLeadIn(text: string): string {
+  if (!text.endsWith(":")) return text;
+  const lastSentence = /[.!?]\s+[^.!?]*:$/.exec(text);
+  return lastSentence ? text.slice(0, lastSentence.index + 1) : "";
+}
+
+/**
+ * The text of the document's first paragraph of prose: a top-level paragraph (not a heading, list,
+ * table, quote or code), less a closing line that only leads into what follows it. A document with
+ * no other paragraph is described by its first.
+ */
+function firstProse(tree: Root): string {
+  const paragraphs = tree.children
+    .filter((n): n is Element => n.type === "element" && n.tagName === "p")
+    .map((p) => textOf(p).replace(/\s+/g, " ").trim())
+    .filter((text) => text !== "");
+  return paragraphs.map(withoutLeadIn).find((text) => text !== "") ?? paragraphs[0] ?? "";
+}
+
+function summary(flat: string): string {
   if (flat.length <= DESCRIPTION_LENGTH) return flat;
   const cut = flat.slice(0, DESCRIPTION_LENGTH);
   return `${cut.slice(0, cut.lastIndexOf(" ")).replace(/[,;:.]$/, "")}…`;
@@ -80,8 +100,7 @@ function rehypeSite(ctx: LinkContext, out: Pick<RenderedMarkdown, "title" | "des
       out.title = textOf(tree.children[first]).trim();
       tree.children.splice(first, 1);
     }
-    const paragraph = tree.children.find((n): n is Element => n.type === "element" && n.tagName === "p");
-    out.description = paragraph ? summary(textOf(paragraph)) : "";
+    out.description = summary(firstProse(tree));
 
     visit(tree, "element", (node, index, parent) => {
       const id = typeof node.properties.id === "string" ? node.properties.id : null;

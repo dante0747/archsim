@@ -36,6 +36,56 @@ describe("renderMarkdown", () => {
     expect(page.html).not.toContain("<h1");
   });
 
+  it("describes a page by its first sentence, not a line that leads into a list", () => {
+    // docs/getting-started.md as it opens
+    const gettingStarted = `# Getting started
+
+Three ways in, from the quickest:
+
+1. [Run everything in Docker](#run-everything-in-docker): the web app, the API and a simulation
+   worker, without installing Node.js or PostgreSQL.
+2. [Run from source](#run-from-source): the same stack, each part in a terminal of its own, for
+   working on ArchSim.
+
+Then take [the five-minute tour](#a-five-minute-tour).
+`;
+
+    expect(renderMarkdown(gettingStarted, ctx("docs/getting-started.md")).description).toBe("Then take the five-minute tour.");
+  });
+
+  it("keeps the sentences a paragraph has before the line that leads into a list", () => {
+    // docs/adr/0007-spring-boot-4.md as its context opens
+    const adr = `# 0007. Spring Boot 4
+
+## Context
+
+The Java application replaces the FastAPI service and keeps its contract with the web app. It
+covers:
+
+- the HTTP API
+- the run queue
+
+It also runs the simulation workers (ADR-0014).
+`;
+
+    expect(renderMarkdown(adr, ctx("docs/adr/0007-spring-boot-4.md")).description).toBe("The Java application replaces the FastAPI service and keeps its contract with the web app.");
+  });
+
+  it("describes a page by a line ending in a colon when it has nothing else", () => {
+    expect(renderMarkdown("# Pricing\n\nA design says where its prices come from:\n\n- the catalog\n", ctx("docs/pricing.md")).description).toBe("A design says where its prices come from:");
+  });
+
+  it("cuts a long description on a word boundary near 155 characters, marking the cut", () => {
+    const short = "ArchSim predicts latency and capacity from a model, and this page checks those predictions against real systems running on one machine, stack by stack.";
+    const long =
+      "ArchSim predicts latency and capacity from a model. This page checks those predictions against real systems running on one machine: for each stack, the model is calibrated from a few measurements, then predicts the rest.";
+
+    expect(renderMarkdown(`# Validation\n\n${short}\n`, ctx("docs/validation.md")).description).toBe(short);
+    expect(renderMarkdown(`# Validation\n\n${long}\n`, ctx("docs/validation.md")).description).toBe(
+      "ArchSim predicts latency and capacity from a model. This page checks those predictions against real systems running on one machine: for each stack, the…",
+    );
+  });
+
   it("gives headings GitHub's anchors and lists them for the page's contents", () => {
     const page = renderMarkdown(doc, ctx("docs/getting-started.md"));
 
