@@ -37,6 +37,8 @@ for when that version changes.
   sandbox's projects against its cap ("4 of 5 in Sandbox"); a sandbox's end names your time zone;
   the browser tab names the open project; and Results' queueing-formulas line links "What the
   formulas leave out" instead of a stray "not simulated".
+- The website's browser bar takes the colour of the theme it shows, dark unless light is chosen,
+  where it followed the system's; and its home page's description fits a search result.
 - A finding that counts one request says so: `1 request failed at API`, `1 client request failed
   because of them`, `refused 1 call`, where it said `1 requests`. Only words change; the engine
   stays at 1.1.1.

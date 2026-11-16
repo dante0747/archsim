@@ -7,6 +7,7 @@
  */
 import { Check, Moon, Sun } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
+import { syncThemeColor } from "@/lib/theme-script";
 import { Button } from "./button";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "./overlays";
 import { Tip, TooltipProvider } from "./misc";
@@ -49,6 +50,7 @@ function setDarkClass(dark: boolean) {
   const el = document.documentElement;
   el.classList.toggle("dark", dark);
   delete el.dataset.theme; // left over from the retired palettes
+  syncThemeColor(dark);
 }
 
 function subscribeClass(cb: () => void) {

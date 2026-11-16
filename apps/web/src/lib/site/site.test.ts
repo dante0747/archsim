@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contentSecurityPolicy, demoUrl, pageMetadata, robotsTxt, sitemapXml } from "./site";
+import { SITE_DESCRIPTION, SITE_SUMMARY, contentSecurityPolicy, demoUrl, pageMetadata, robotsTxt, sitemapXml } from "./site";
 
 describe("pageMetadata", () => {
   it("gives every page its canonical URL on archsim.io and the social preview", () => {
@@ -15,6 +15,22 @@ describe("pageMetadata", () => {
       images: [{ url: "https://archsim.io/docs-assets/images/social-preview.png", width: 1280, height: 640 }],
     });
     expect(meta.twitter).toMatchObject({ card: "summary_large_image", images: ["https://archsim.io/docs-assets/images/social-preview.png"] });
+  });
+
+  it("gives link previews a longer description than search results, when a page has one", () => {
+    const meta = pageMetadata({ title: "ArchSim", description: "Short.", socialDescription: "Short, and longer.", path: "/" });
+
+    expect(meta.description).toBe("Short.");
+    expect(meta.openGraph?.description).toBe("Short, and longer.");
+    expect(meta.twitter?.description).toBe("Short, and longer.");
+  });
+});
+
+describe("the home page's descriptions", () => {
+  it("fit a search result, and keep the long one for link previews", () => {
+    expect(SITE_DESCRIPTION.length).toBeLessThanOrEqual(155);
+    expect(SITE_SUMMARY.length).toBeGreaterThan(SITE_DESCRIPTION.length);
+    expect(SITE_SUMMARY).toMatch(/^Crash-test your architecture before your users do\./);
   });
 });
 

@@ -9,15 +9,20 @@ import Script from "next/script";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { repository } from "@/lib/site/content";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, contentSecurityPolicy, demoUrl, pageMetadata } from "@/lib/site/site";
-import { THEME_SCRIPT } from "@/lib/theme-script";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_SUMMARY, SITE_URL, contentSecurityPolicy, demoUrl, pageMetadata } from "@/lib/site/site";
+import { THEME_COLORS, THEME_SCRIPT } from "@/lib/theme-script";
 import "./globals.css";
 import "./site.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const mono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
-const home = pageMetadata({ title: "ArchSim: crash-test your architecture before your users do", description: SITE_DESCRIPTION, path: "/" });
+const home = pageMetadata({
+  title: "ArchSim: crash-test your architecture before your users do",
+  description: SITE_DESCRIPTION,
+  socialDescription: SITE_SUMMARY,
+  path: "/",
+});
 
 export const metadata: Metadata = {
   ...home,
@@ -28,12 +33,9 @@ export const metadata: Metadata = {
   formatDetection: { telephone: false },
 };
 
-export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#1c1c1e" },
-    { media: "(prefers-color-scheme: light)", color: "#f2f2f4" },
-  ],
-};
+// The site is dark unless light was chosen, whatever the operating system prefers: the bar starts
+// dark, and the theme script and the theme picker give it the colour of the theme shown.
+export const viewport: Viewport = { themeColor: THEME_COLORS.dark };
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (

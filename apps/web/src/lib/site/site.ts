@@ -6,7 +6,11 @@ import type { Metadata } from "next";
 
 export const SITE_URL = "https://archsim.io";
 export const SITE_NAME = "ArchSim";
+/** The home page in a search result: at most about 155 characters, so it is not cut off. */
 export const SITE_DESCRIPTION =
+  "Crash-test your architecture before your users do: an open-source simulator for distributed systems that gives a straight yes or no, with the monthly bill.";
+/** The home page in a link preview, which has room for the longer pitch. */
+export const SITE_SUMMARY =
   "Crash-test your architecture before your users do. An open-source simulator for distributed systems: draw your stack with real technologies, throw traffic and failures at it, and get a straight yes or no, with the bottleneck and the monthly bill.";
 
 /**
@@ -35,15 +39,28 @@ export function siteUrl(path: string): string {
   return `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
-/** A page's title, description, canonical URL and link preview. */
-export function pageMetadata({ title, description, path }: { title: string; description: string; path: string }): Metadata {
+/**
+ * A page's title, description, canonical URL and link preview. `socialDescription`, when given, is
+ * the preview's longer description; search results keep `description`.
+ */
+export function pageMetadata({
+  title,
+  description,
+  socialDescription = description,
+  path,
+}: {
+  title: string;
+  description: string;
+  socialDescription?: string;
+  path: string;
+}): Metadata {
   const url = siteUrl(path);
   return {
     title,
     description,
     alternates: { canonical: url },
-    openGraph: { type: "website", siteName: SITE_NAME, url, title, description, images: [SOCIAL_IMAGE] },
-    twitter: { card: "summary_large_image", title, description, images: [SOCIAL_IMAGE.url] },
+    openGraph: { type: "website", siteName: SITE_NAME, url, title, description: socialDescription, images: [SOCIAL_IMAGE] },
+    twitter: { card: "summary_large_image", title, description: socialDescription, images: [SOCIAL_IMAGE.url] },
   };
 }
 

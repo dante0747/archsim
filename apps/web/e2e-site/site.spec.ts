@@ -70,9 +70,10 @@ test.describe("search engines", () => {
       expect(html, path).toMatch(/<html lang="en"/);
       expect(html, path).toContain(`<link rel="canonical" href="https://archsim.io${path}"/>`);
       const description = decode(DESCRIPTION.exec(html)?.[1] ?? "");
-      // the docs' and the changelog's are their first paragraph of prose, cut to fit a search result
-      const derived = path.startsWith("/docs/") || path === "/changelog/";
-      if (!description || description.endsWith(":") || (derived && description.length > 155)) weak.push(`${path}: "${description}"`);
+      // the docs' and the changelog's are their first paragraph of prose, cut to fit a search result;
+      // the home page's is written to fit one, its longer pitch kept for link previews
+      const fitted = path === "/" || path.startsWith("/docs/") || path === "/changelog/";
+      if (!description || description.endsWith(":") || (fitted && description.length > 155)) weak.push(`${path}: "${description}"`);
     }
     expect(weak, "pages without a fitting description").toEqual([]);
   });
@@ -101,6 +102,27 @@ test.describe("search engines", () => {
     expect(graph.find((n) => n["@type"] === "TechArticle")).toMatchObject({ url: `https://archsim.io${path}` });
     const crumbs = graph.find((n) => n["@type"] === "BreadcrumbList")?.itemListElement as { item: string }[];
     expect(crumbs.map((c) => c.item)).toEqual(["https://archsim.io/docs/", "https://archsim.io/docs/adr/", `https://archsim.io${path}`]);
+  });
+});
+
+test.describe("the browser bar's colour", () => {
+  test.use({ colorScheme: "light" });
+  const themeColor = (page: Page) => page.locator('meta[name="theme-color"]').getAttribute("content");
+
+  test("is the dark theme's under a light operating system, as the site stays dark", async ({ page }) => {
+    await page.goto("/");
+
+    expect(await page.evaluate(() => document.documentElement.classList.contains("dark"))).toBe(true);
+    expect(await themeColor(page)).toBe("#1c1c1e");
+    await expect(page.locator('meta[name="theme-color"]')).toHaveCount(1);
+  });
+
+  test("is the light theme's once light is chosen", async ({ page }) => {
+    await useTheme(page, "light");
+
+    await page.goto("/");
+
+    expect(await themeColor(page)).toBe("#f2f2f4");
   });
 });
 
