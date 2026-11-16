@@ -17,6 +17,7 @@ import { api } from "@/lib/api";
 import type { ArchitectureDocument, Catalog, ExampleSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { MobileNav } from "@/components/ui/MobileNav";
+import { SandboxBanner } from "@/components/auth/SandboxBanner";
 import { UserMenu } from "@/components/auth/UserMenu";
 
 export function TemplatesGallery() {
@@ -109,6 +110,7 @@ export function TemplatesGallery() {
           </div>
         </div>
       </header>
+      <SandboxBanner />
 
       {/* hero */}
       <section className="hero-band relative border-b border-line">

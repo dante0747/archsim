@@ -16,6 +16,10 @@ export interface AuthConfig {
   mode: AuthMode;
   /** Sign-in providers set up on this server: "github", "google". */
   providers: string[];
+  /** Whether a visitor may try ArchSim here without signing in, in a sandbox. */
+  sandboxes: boolean;
+  /** Where sandboxes are offered: the CSRF token that starts one (also in the CSRF cookie). */
+  csrfToken: string | null;
 }
 
 export interface UserInfo {
@@ -23,6 +27,10 @@ export interface UserInfo {
   name: string;
   email: string | null;
   avatarUrl: string | null;
+  /** A sandbox's guest, who did not sign in. */
+  guest: boolean;
+  /** When a guest's sandbox, and every design in it, is deleted; null for everyone else. */
+  expiresAt: string | null;
 }
 
 export interface WorkspaceInfo {

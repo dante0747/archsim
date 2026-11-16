@@ -23,6 +23,8 @@ interface AuthState {
   error: string | null;
   load: (force?: boolean) => Promise<void>;
   switchWorkspace: (id: string) => void;
+  /** Try ArchSim without signing in: a sandbox for a day, as its guest (where the server offers it). */
+  startSandbox: () => Promise<void>;
   signOut: (everywhere?: boolean) => Promise<void>;
 }
 
@@ -56,14 +58,12 @@ export const useAuth = create<AuthState>((set, get) => ({
         const config = await authApi.config();
         try {
           const me = await authApi.me();
-          const id = pickWorkspace(me.workspaces, get().workspaceId ?? storedWorkspace());
-          setActiveWorkspace(id);
-          setCsrfToken(me.csrfToken);
-          set({ status: "ready", config, me, workspaceId: id, error: null });
+          signedIn(set, config, me, get().workspaceId ?? storedWorkspace());
         } catch (e) {
           if (!(e instanceof ApiError && e.status === 401)) throw e;
           setActiveWorkspace(null);
-          setCsrfToken(null);
+          // where sandboxes are offered, the token that starts one
+          setCsrfToken(config.csrfToken ?? null);
           set({ status: "signed-out", config, me: null, workspaceId: null, error: null });
         }
       } catch (e) {
@@ -81,12 +81,25 @@ export const useAuth = create<AuthState>((set, get) => ({
     set({ workspaceId: id });
   },
 
+  startSandbox: async () => {
+    const me = await authApi.startSandbox();
+    signedIn(set, get().config, me, null);
+  },
+
   signOut: async (everywhere = false) => {
     await authApi.logout(everywhere);
     setActiveWorkspace(null);
     set({ status: "signed-out", me: null, workspaceId: null });
   },
 }));
+
+/** Who is signed in now, in the workspace they chose before (if they still belong to it). */
+function signedIn(set: (state: Partial<AuthState>) => void, config: AuthConfig | null, me: Me, stored: string | null) {
+  const id = pickWorkspace(me.workspaces, stored);
+  setActiveWorkspace(id);
+  setCsrfToken(me.csrfToken);
+  set({ status: "ready", config, me, workspaceId: id, error: null });
+}
 
 // A request answered 401: the session ended (signed out elsewhere, expired). Show "Sign in"
 // instead of failing quietly; pages that need a session send you to the sign-in page.

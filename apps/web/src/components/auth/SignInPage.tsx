@@ -1,13 +1,19 @@
 "use client";
 
-/** /signin: the providers this server offers, and why the last attempt failed, if it did. */
-import { ArrowRight, CircleAlert, LoaderCircle } from "lucide-react";
+/**
+ * /signin: the providers this server offers, why the last attempt failed, if it did, and where the
+ * server offers sandboxes, trying ArchSim without signing in. A sandbox's guest signs in here too.
+ */
+import { ArrowRight, CircleAlert, FlaskConical, LoaderCircle } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Logo } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PROVIDER_NAMES, providerLoginHref } from "@/lib/auth-api";
-import { useAuthState } from "@/store/auth";
+import { isGuest } from "@/lib/sandbox";
+import { useAuth, useAuthState } from "@/store/auth";
 
 const ERRORS: Record<string, string> = {
   state: "Sign-in took too long, or it started in another browser. Please try again.",
@@ -40,9 +46,51 @@ function ProviderIcon({ provider }: { provider: string }) {
   );
 }
 
+/**
+ * "Try it without signing in", where the server offers sandboxes: a sandbox for a day, then on to
+ * where signing in would have gone.
+ */
+function TrySandbox({ target }: { target: string }) {
+  const startSandbox = useAuth((s) => s.startSandbox);
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+  const start = async () => {
+    setBusy(true);
+    setFailure(null);
+    try {
+      await startSandbox();
+      router.push(target);
+    } catch (e) {
+      setFailure(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="pt-2">
+      <div className="flex items-center gap-3 text-xs text-ink-3" aria-hidden>
+        <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />
+      </div>
+      <Button variant="secondary" size="lg" className="mt-3 w-full justify-center" onClick={() => void start()} disabled={busy} data-testid="signin-sandbox">
+        {busy ? <LoaderCircle className="animate-spin" /> : <FlaskConical />} Try it without signing in
+      </Button>
+      <p className="mt-2 text-xs leading-relaxed text-ink-3">
+        A sandbox for 24 hours: up to five designs and small runs, no account. Then it and its designs are deleted.
+      </p>
+      {failure && (
+        <p role="alert" className="mt-3 flex items-start gap-2 rounded-lg border border-line-strong bg-critical-soft px-3 py-2 text-[13px] text-ink">
+          <CircleAlert className="mt-0.5 size-4 shrink-0 text-danger-ink" />
+          {failure}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function SignInPage({ next, error }: { next: string | null; error: string | null }) {
   const { status, config, me } = useAuthState();
   const target = safeNext(next);
+  const guest = isGuest(me);
 
   return (
     <div className="flex min-h-full flex-col bg-page">
@@ -82,7 +130,7 @@ export function SignInPage({ next, error }: { next: string | null; error: string
                   </Link>
                 </Button>
               </>
-            ) : me ? (
+            ) : me && !guest ? (
               <>
                 <p className="text-sm text-ink-2">You are signed in as {me.user.name}.</p>
                 <Button variant="primary" size="lg" className="w-full" asChild>
@@ -92,14 +140,22 @@ export function SignInPage({ next, error }: { next: string | null; error: string
                 </Button>
               </>
             ) : (
-              (config?.providers ?? []).map((p) => (
-                <Button key={p} size="lg" className="w-full justify-center" asChild>
-                  {/* a full-page visit: the API redirects to the provider and back */}
-                  <a href={providerLoginHref(p, target)} data-testid={`signin-${p}`}>
-                    <ProviderIcon provider={p} /> Continue with {PROVIDER_NAMES[p] ?? p}
-                  </a>
-                </Button>
-              ))
+              <>
+                {guest && (
+                  <p className="text-sm text-ink-2">
+                    Signing in starts a workspace of your own. The designs in your sandbox are not moved: they are deleted with it.
+                  </p>
+                )}
+                {(config?.providers ?? []).map((p) => (
+                  <Button key={p} size="lg" className="w-full justify-center" asChild>
+                    {/* a full-page visit: the API redirects to the provider and back */}
+                    <a href={providerLoginHref(p, target)} data-testid={`signin-${p}`}>
+                      <ProviderIcon provider={p} /> Continue with {PROVIDER_NAMES[p] ?? p}
+                    </a>
+                  </Button>
+                ))}
+                {config?.sandboxes && !guest && <TrySandbox target={target} />}
+              </>
             )}
           </div>
           <p className="mt-6 text-xs leading-relaxed text-ink-3">

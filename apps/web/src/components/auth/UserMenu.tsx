@@ -2,7 +2,8 @@
 
 /**
  * The person menu at the right of every header: who you are, the workspace switcher (the
- * workspace lists and new projects use), settings and sign out. Signed out on a server with
+ * workspace lists and new projects use), settings and sign out; a sandbox's guest sees when the
+ * sandbox is deleted, and signs in from here to keep their work. Signed out on a server with
  * sign-in, it is a "Sign in" button that keeps your page (it opens in a new tab inside the
  * editor, so unsaved edits survive).
  */
@@ -14,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@/components/ui/overlays";
 import { initials } from "@/lib/auth-api";
 import type { WorkspaceInfo } from "@/lib/auth-types";
+import { isGuest, sandboxEndText } from "@/lib/sandbox";
 import { signInPage } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { useAuth, useAuthState } from "@/store/auth";
@@ -54,6 +56,12 @@ export function UserMenu({ className, showWorkspace = true }: { className?: stri
   if (status !== "ready" || !me) return null;
 
   const local = me.kind === "local";
+  const guest = isGuest(me);
+  const subtitle = local
+    ? "No sign-in on this server"
+    : guest && me.user.expiresAt
+      ? `Sandbox, deleted ${sandboxEndText(me.user.expiresAt)}`
+      : (me.user.email ?? "No email shared");
   const onSwitch = (id: string) => {
     if (id === workspace?.id) return;
     switchWorkspace(id);
@@ -89,7 +97,7 @@ export function UserMenu({ className, showWorkspace = true }: { className?: stri
           <Avatar name={me.user.name} className="size-8 text-xs" />
           <div className="min-w-0">
             <p className="truncate text-[13px] font-medium text-ink">{local ? "Local user" : me.user.name}</p>
-            <p className="truncate text-xs text-ink-3">{local ? "No sign-in on this server" : (me.user.email ?? "No email shared")}</p>
+            <p className="truncate text-xs text-ink-3">{subtitle}</p>
           </div>
         </div>
         <MenuSeparator />
@@ -110,7 +118,19 @@ export function UserMenu({ className, showWorkspace = true }: { className?: stri
             <Settings /> Settings
           </Link>
         </MenuItem>
-        {me.kind === "session" && (
+        {me.kind === "session" && guest && (
+          <>
+            <MenuItem asChild>
+              <a href={signInPage()}>
+                <LogIn /> Sign in to keep your work
+              </a>
+            </MenuItem>
+            <MenuItem onSelect={() => void onSignOut(false)}>
+              <LogOut /> Leave the sandbox
+            </MenuItem>
+          </>
+        )}
+        {me.kind === "session" && !guest && (
           <>
             <MenuItem onSelect={() => void onSignOut(false)}>
               <LogOut /> Sign out

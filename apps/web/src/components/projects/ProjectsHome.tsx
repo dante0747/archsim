@@ -21,6 +21,7 @@ import { techChips } from "@/lib/tech-chips";
 import type { ArchitectureDocument, Catalog, ExampleSummary, ProjectSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { MobileNav } from "@/components/ui/MobileNav";
+import { SandboxBanner } from "@/components/auth/SandboxBanner";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { authSettled, useAuthState } from "@/store/auth";
 
@@ -131,6 +132,7 @@ export function ProjectsHome() {
           </div>
         </div>
       </header>
+      <SandboxBanner />
 
       {/* ---------------------------------------------------------------- hero */}
       <section className="relative">

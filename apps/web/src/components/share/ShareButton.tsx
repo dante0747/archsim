@@ -3,7 +3,8 @@
 /**
  * Results → Share: a link to the run shown in Results that anyone can open without signing in,
  * a frozen copy of its verdict, numbers and findings (no request traces). Lists the project's
- * links that still work, to copy or revoke them.
+ * links that still work, to copy or revoke them. A sandbox's guest makes none: share links need an
+ * account (ADR-0079).
  */
 import { Check, Copy, Link2, LoaderCircle, Share2 } from "lucide-react";
 import { useState } from "react";
@@ -13,8 +14,11 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, NativeSelect } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/overlays";
 import { fmtNum, fmtRelativeTime } from "@/lib/format";
+import { isGuest } from "@/lib/sandbox";
+import { signInPage } from "@/lib/session";
 import { shareApi, shareUrl } from "@/lib/share-api";
 import { SHARE_EXPIRY_CHOICES, type Share } from "@/lib/share-types";
+import { useAuth } from "@/store/auth";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
 
@@ -92,6 +96,7 @@ export function ShareButton() {
   const projectId = useRuns((s) => s.projectId);
   const projectName = useEditor((s) => s.metadata.name);
   const { run } = useDecideRun();
+  const guest = useAuth((s) => isGuest(s.me));
   const [open, setOpen] = useState(false);
   const [shares, setShares] = useState<Share[] | null>(null);
   const [title, setTitle] = useState("");
@@ -144,7 +149,14 @@ export function ShareButton() {
         description="Anyone with the link can open them, without signing in, on any screen. It is a frozen copy of the verdict, numbers and findings (no request traces), and they can open a copy of the design."
       >
         <div className="space-y-5">
-          {run ? (
+          {guest ? (
+            <p className="text-[13px] text-ink-2" data-testid="share-needs-account">
+              Share links need an account: a sandbox&apos;s results stay private, and go with it.{" "}
+              <a href={signInPage()} className="font-medium text-ink underline underline-offset-2 hover:text-accent">
+                Sign in to share
+              </a>
+            </p>
+          ) : run ? (
             <div className="space-y-3 rounded-md border border-line bg-surface-2/40 p-3">
               <p className="font-mono text-[11px] text-ink-3">
                 {runLabel(run)} · seed {run.seed} · {fmtRelativeTime(run.createdAt)}

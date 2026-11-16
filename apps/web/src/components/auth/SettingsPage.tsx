@@ -2,9 +2,10 @@
 
 /**
  * /settings: the current workspace (name, limits), its members and invitations (owners manage
- * them), new team workspaces, API tokens and signing out.
+ * them), new team workspaces, API tokens and signing out. A sandbox's guest sees when the sandbox
+ * is deleted and how to sign in instead, as team workspaces and tokens need an account.
  */
-import { ArrowLeft, Check, Copy, LoaderCircle, LogOut, Plus, Trash2, UserMinus } from "lucide-react";
+import { ArrowLeft, Check, Copy, LoaderCircle, LogIn, LogOut, Plus, Trash2, UserMinus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -18,6 +19,7 @@ import { Badge } from "@/components/ui/misc";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { authApi } from "@/lib/auth-api";
 import { ROLE_HELP, ROLES, type Invitation, type Member, type Role, type WorkspaceInfo } from "@/lib/auth-types";
+import { isGuest, sandboxEndText } from "@/lib/sandbox";
 import { signInPage } from "@/lib/session";
 import { useAuth, useAuthState } from "@/store/auth";
 
@@ -315,6 +317,7 @@ function NewWorkspaceCard() {
 
 export function SettingsPage() {
   const { status, me, workspace } = useAuthState();
+  const guest = isGuest(me);
   const signOut = useAuth((s) => s.signOut);
   const router = useRouter();
 
@@ -349,8 +352,8 @@ export function SettingsPage() {
             <WorkspaceCard key={`${workspace.id}:${workspace.name}`} workspace={workspace} />
             <MembersCard workspace={workspace} meId={me.user.id} />
             {me.kind !== "local" && workspace.role === "owner" && workspace.kind === "team" && <InvitationsCard workspace={workspace} />}
-            <NewWorkspaceCard />
-            {me.kind === "session" && <TokensSection workspaces={me.workspaces} />}
+            {!guest && <NewWorkspaceCard />}
+            {me.kind === "session" && !guest && <TokensSection workspaces={me.workspaces} />}
             {me.kind === "local" && (
               <Card title="Sign-in is off on this server">
                 <p className="text-[13px] text-ink-2">
@@ -359,7 +362,28 @@ export function SettingsPage() {
                 </p>
               </Card>
             )}
-            {me.kind === "session" && (
+            {guest && me.user.expiresAt && (
+              <Card
+                title="Sandbox"
+                description={`You are trying ArchSim without an account. This sandbox and its designs are deleted ${sandboxEndText(me.user.expiresAt)}.`}
+              >
+                <p className="text-[13px] text-ink-2">
+                  Team workspaces, invitations, API tokens and share links need an account. Signing in starts a workspace of your own; the
+                  sandbox&apos;s designs are not moved to it.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button variant="primary" asChild>
+                    <a href={signInPage()}>
+                      <LogIn /> Sign in to keep your work
+                    </a>
+                  </Button>
+                  <Button variant="ghost" onClick={() => void signOut(false).then(() => router.push("/"))}>
+                    <LogOut /> Leave the sandbox
+                  </Button>
+                </div>
+              </Card>
+            )}
+            {me.kind === "session" && !guest && (
               <Card title="Account" description={`Signed in as ${me.user.name}${me.user.email ? ` (${me.user.email})` : ""}.`}>
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={() => void signOut(false).then(() => router.push("/"))}>

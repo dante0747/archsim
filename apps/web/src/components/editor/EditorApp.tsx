@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { EditorAgentTools } from "@/components/agent/AgentTools";
+import { SandboxBanner } from "@/components/auth/SandboxBanner";
 import { ChaosPads } from "@/components/editor/ChaosPads";
 import { DesignReviewPanel } from "@/components/build/DesignReview";
 import { CalibrateDialog } from "@/components/build/CalibrateDialog";
@@ -320,6 +321,7 @@ function EditorShell() {
         shortcutsOpen={shortcutsOpen}
         onShortcutsOpenChange={setShortcutsOpen}
       />
+      <SandboxBanner />
       <div className="relative flex min-h-0 flex-1">
         {mode === "build" && <PartsPanel />}
         <div className="flex min-w-0 flex-1 flex-col">

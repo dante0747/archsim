@@ -19,6 +19,8 @@ const ws = (id: string) => `/workspaces/${encodeURIComponent(id)}`;
 export const authApi = {
   config: () => request<AuthConfig>("/auth/config"),
   me: () => request<Me>("/auth/me"),
+  /** Try ArchSim without signing in: a sandbox for a day, and this browser signed in as its guest. */
+  startSandbox: () => request<Me>("/auth/sandbox", { method: "POST" }),
   logout: (everywhere = false) => request<void>(`/auth/logout${everywhere ? "?everywhere=true" : ""}`, { method: "POST" }),
 
   workspaces: () => request<WorkspaceInfo[]>("/workspaces"),

@@ -17,6 +17,7 @@ import { api } from "@/lib/api";
 import { fmtRelativeTime } from "@/lib/format";
 import type { ExampleSummary, ProjectSummary } from "@/lib/types";
 import { MobileNav } from "@/components/ui/MobileNav";
+import { SandboxBanner } from "@/components/auth/SandboxBanner";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { signInPage } from "@/lib/session";
 import { authSettled, useAuthState } from "@/store/auth";
@@ -98,6 +99,7 @@ export function ProjectsPage() {
           </div>
         </div>
       </header>
+      <SandboxBanner />
 
       <main className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
