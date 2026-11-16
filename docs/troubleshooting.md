@@ -8,7 +8,7 @@ with the bug report form.
 **`docker compose up` cannot pull `ghcr.io/dante0747/archsim-app` or `archsim-web`.** Compose pulls
 the release images at the version the checkout names. Check that Docker reaches `ghcr.io` (a proxy
 or a firewall may block it). A commit that has just changed the version names images that its
-release has not published yet: run the latest release's own checkout (`git checkout v1.1.0`, say), or
+release has not published yet: run the latest release's own checkout (`git checkout v1.2.0`, say), or
 [your own build](getting-started.md#your-own-build).
 
 **Compose runs the release, not your change.** `docker-compose.yml` runs the release's images.

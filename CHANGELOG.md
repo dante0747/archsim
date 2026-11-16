@@ -8,6 +8,11 @@ for when that version changes.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-16
+
+A privacy notice for hosted servers, pages that claim only what is true, and working API docs.
+Results do not change: the engine's version (1.1.1) does not move.
+
 ### Added
 
 - **A privacy notice for a hosted server.** With `ARCHSIM_PRIVACY_URL`, which the web server
@@ -230,6 +235,7 @@ cost, and publishes how accurate it is. Start with [Getting started](docs/gettin
 - Exports are scaffolding to review, not production configuration.
 - The editor is designed for desktop screens.
 
-[Unreleased]: https://github.com/dante0747/archsim/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/dante0747/archsim/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/dante0747/archsim/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/dante0747/archsim/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/dante0747/archsim/releases/tag/v1.0.0

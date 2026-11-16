@@ -145,7 +145,7 @@ are illustrative assumptions. Every workspace is described in [features.md](feat
 ## Two version numbers
 
 ArchSim's version names the release; the engine has a version of its own. `archsim --version`
-prints both (release 1.1.0's says `archsim 1.1.0, engine 1.1.1`), and a run's report says which
+prints both (release 1.2.0's says `archsim 1.2.0, engine 1.1.1`), and a run's report says which
 engine made it. The engine's version changes only when the same design and seed could give
 different results: a release that changes a page, the API or a template leaves it alone. Every
 report records it, a run simulated again on the same engine gives the same result digest, and
