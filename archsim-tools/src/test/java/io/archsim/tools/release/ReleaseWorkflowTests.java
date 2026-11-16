@@ -55,7 +55,10 @@ class ReleaseWorkflowTests {
 	@Test
 	void launch_fromItsSource_runsWithTheJdkAlone(@TempDir Path folder) throws IOException, InterruptedException {
 		Files.copy(ROOT.resolve("gradle.properties"), folder.resolve("gradle.properties"));
-		Files.copy(ROOT.resolve("docker-compose.yml"), folder.resolve("docker-compose.yml"));
+		for (String composeFile : Checkout.COMPOSE_FILES) {
+			Files.createDirectories(folder.resolve(composeFile).getParent());
+			Files.copy(ROOT.resolve(composeFile), folder.resolve(composeFile));
+		}
 		Path java = Path.of(System.getProperty("java.home"), "bin", "java");
 
 		Process process = new ProcessBuilder(java.toString(), SOURCE.toString(), "--tag",

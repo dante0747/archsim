@@ -96,6 +96,11 @@ final class Rules {
 		// the stacks, their load, the kept results and what labels them,
 		// which the Java harness's tests read
 		.rule("benchmarks/", JAVA_ONLY)
+		// the hosted kit: archsim-app's ComposeFileTests and the release's
+		// check hold its compose file to the release (ADR-0080); no job
+		// reads the rest of it
+		.rule("deploy/compose.yaml", JAVA_ONLY)
+		.rule("deploy/", NONE)
 		// the fixtures the golden files and recordings were made from,
 		// which the API and app tests read
 		.rule("parity/fixtures/", JAVA_ONLY)

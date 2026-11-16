@@ -14,12 +14,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The release workflow's check of a tag, before it publishes the images (ADR-0077): the
- * tag names gradle.properties' version, and docker-compose.yml runs the images the
- * workflow pushes, at that version.
+ * tag names gradle.properties' version, and docker-compose.yml and the hosted kit's
+ * deploy/compose.yaml (ADR-0080) run the images the workflow pushes, at that version.
  */
 class CheckReleaseTests {
 
 	private static final String REGISTRY = "ghcr.io/dante0747";
+
+	private static final String LOCAL_STACK = "docker-compose.yml";
+
+	private static final String HOSTED_KIT = "deploy/compose.yaml";
 
 	private final StringWriter out = new StringWriter();
 
@@ -72,7 +76,8 @@ class CheckReleaseTests {
 
 	@Test
 	void run_composeAtAnotherVersion_failsAndSaysWhatItShouldRun() throws IOException {
-		checkout("version=1.1.0", "1.0.0");
+		checkout("version=1.1.0", "1.1.0");
+		compose(LOCAL_STACK, "1.0.0");
 
 		int exitCode = run("--tag", "v1.1.0", "--registry", REGISTRY);
 
@@ -80,6 +85,19 @@ class CheckReleaseTests {
 		assertThat(this.err.toString().lines()).containsExactly(
 				"docker-compose.yml does not run ghcr.io/dante0747/archsim-app:1.1.0",
 				"docker-compose.yml does not run ghcr.io/dante0747/archsim-web:1.1.0");
+	}
+
+	@Test
+	void run_theHostedKitAtAnotherVersion_failsAndSaysWhatItShouldRun() throws IOException {
+		checkout("version=1.1.0", "1.1.0");
+		compose(HOSTED_KIT, "1.0.0");
+
+		int exitCode = run("--tag", "v1.1.0", "--registry", REGISTRY);
+
+		assertThat(exitCode).isOne();
+		assertThat(this.err.toString().lines()).containsExactly(
+				"deploy/compose.yaml does not run ghcr.io/dante0747/archsim-app:1.1.0",
+				"deploy/compose.yaml does not run ghcr.io/dante0747/archsim-web:1.1.0");
 	}
 
 	@Test
@@ -94,8 +112,8 @@ class CheckReleaseTests {
 	@Test
 	void run_anImageInACommentOnly_isNotOneComposeRuns() throws IOException {
 		checkout("version=1.0.0", "1.0.0");
-		String compose = Files.readString(this.repository.resolve("docker-compose.yml"));
-		Files.writeString(this.repository.resolve("docker-compose.yml"), compose.replace(
+		String compose = Files.readString(this.repository.resolve(LOCAL_STACK));
+		Files.writeString(this.repository.resolve(LOCAL_STACK), compose.replace(
 				"    image: ghcr.io/dante0747/archsim-web:1.0.0", "    # image: ghcr.io/dante0747/archsim-web:1.0.0"));
 
 		int exitCode = run("--tag", "v1.0.0", "--registry", REGISTRY);
@@ -150,7 +168,7 @@ class CheckReleaseTests {
 	@Test
 	void run_aCheckoutWithoutCompose_failsAndSaysWhy() throws IOException {
 		checkout("version=1.0.0", "1.0.0");
-		Files.delete(this.repository.resolve("docker-compose.yml"));
+		Files.delete(this.repository.resolve(LOCAL_STACK));
 
 		int exitCode = run("--tag", "v1.0.0", "--registry", REGISTRY);
 
@@ -159,12 +177,32 @@ class CheckReleaseTests {
 			.contains("docker-compose.yml");
 	}
 
-	// a checkout's gradle.properties with a version line, and docker-compose.yml with
+	@Test
+	void run_aCheckoutWithoutTheHostedKit_failsAndSaysWhy() throws IOException {
+		checkout("version=1.0.0", "1.0.0");
+		Files.delete(this.repository.resolve(HOSTED_KIT));
+
+		int exitCode = run("--tag", "v1.0.0", "--registry", REGISTRY);
+
+		assertThat(exitCode).isOne();
+		assertThat(this.err.toString()).startsWith("CheckRelease: java.nio.file.NoSuchFileException: ")
+			.contains("compose.yaml");
+	}
+
+	// a checkout's gradle.properties with a version line, and both compose files with
 	// ArchSim's images at a version
 	private void checkout(String versionLine, String composeVersion) throws IOException {
 		Files.writeString(this.repository.resolve("gradle.properties"),
 				"org.gradle.caching=true\n" + versionLine + "\n");
-		Files.writeString(this.repository.resolve("docker-compose.yml"), """
+		compose(LOCAL_STACK, composeVersion);
+		compose(HOSTED_KIT, composeVersion);
+	}
+
+	// a compose file with ArchSim's images at a version
+	private void compose(String file, String version) throws IOException {
+		Path compose = this.repository.resolve(file);
+		Files.createDirectories(compose.getParent());
+		Files.writeString(compose, """
 				name: archsim
 				x-archsim-app: &archsim-app
 				  image: ghcr.io/dante0747/archsim-app:%1$s
@@ -173,7 +211,7 @@ class CheckReleaseTests {
 				    image: postgres:16-alpine
 				  web:
 				    image: ghcr.io/dante0747/archsim-web:%1$s
-				""".formatted(composeVersion));
+				""".formatted(version));
 	}
 
 	private int run(String... arguments) {

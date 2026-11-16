@@ -1,0 +1,23 @@
+# Caddy in front of ArchSim's web server (compose.yaml, ADR-0080). For the address in hosted.env
+# it gets a certificate from Let's Encrypt (or ZeroSSL) and renews it by itself, redirects HTTP
+# to HTTPS and answers HTTP/3 too. Its only upstream is the web server, which forwards /api/v1 to
+# the API: Caddy cannot reach the API or the database at all.
+#
+# It replaces each request's X-Forwarded-For with the address the request came from, so the web
+# server (ARCHSIM_TRUSTED_HOPS=1) reads each visitor's own address, and rate limits count it.
+{$ARCHSIM_PUBLIC_URL} {
+	encode zstd gzip
+
+	# The web app and the API send their own security headers, a Content-Security-Policy
+	# among them (SECURITY.md). These fill in what an answer lacks and never replace them:
+	# browsers keep to HTTPS for a year. The Server header is left out.
+	header {
+		?Strict-Transport-Security "max-age=31536000"
+		?X-Content-Type-Options nosniff
+		?X-Frame-Options DENY
+		?Referrer-Policy no-referrer
+		-Server
+	}
+
+	reverse_proxy web:3000
+}

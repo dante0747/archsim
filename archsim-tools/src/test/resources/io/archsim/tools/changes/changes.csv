@@ -65,6 +65,10 @@ docs/assumptions.md | java
 .github/workflows/benchmark.yml | java
 # the tooling's tests read the release workflow's check of its tag
 .github/workflows/release.yml | java
+# the hosted kit, whose compose file the app's and the tooling's tests hold to the release;
+# no job reads the rest of it
+deploy/compose.yaml | java
+deploy/Caddyfile deploy/hosted.env.example deploy/backup.sh deploy/update.sh |
 # files no job reads
 docs/architecture.md docs/adr/0026-component-specs-and-price-snapshots-in-the-model.md |
 README.md AGENTS.md CLAUDE.md .claude/skills/test-first/SKILL.md |

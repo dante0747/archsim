@@ -58,8 +58,10 @@ slice) they hold the Java, archsim-check, web and end-to-end jobs alone, and a c
 The release workflow (`.github/workflows/release.yml`) checks its tag before it publishes the
 images (`io.archsim.tools.release`,
 [ADR-0077](../docs/adr/0077-publish-release-images-to-ghcr-and-run-them-from-compose.md)): the tag
-names the version `gradle.properties` says, and `docker-compose.yml` runs both images from the
-workflow's registry at it. It uses the JDK alone, and the workflow runs it from its source:
+names the version `gradle.properties` says, and `docker-compose.yml` and the hosted kit's
+`deploy/compose.yaml` ([ADR-0080](../docs/adr/0080-host-a-public-server-from-a-compose-kit.md))
+each run both images from the workflow's registry at it. It uses the JDK alone, and the workflow runs
+it from its source:
 
 ```bash
 java archsim-tools/src/main/java/io/archsim/tools/release/CheckRelease.java --tag v1.0.0 --registry ghcr.io/dante0747
@@ -69,7 +71,7 @@ java archsim-tools/src/main/java/io/archsim/tools/release/CheckRelease.java --ta
 | --- | --- |
 | `CheckRelease` | the command line: the tag's problems, or the version and whether it moves `latest`, as GitHub's outputs |
 | `Arguments` | `--tag`, `--registry` and `--github-output` |
-| `Checkout` | the checkout's version, read as Gradle reads `gradle.properties`, and the images compose runs |
+| `Checkout` | the checkout's version, read as Gradle reads `gradle.properties`, and the images each compose file runs, by file |
 
 ## The price refresh
 

@@ -12,10 +12,11 @@ import java.util.List;
 /**
  * Checks a release tag before the release workflow publishes its images (ADR-0077): the
  * tag names the version {@code gradle.properties} says (ADR-0076), and
- * {@code docker-compose.yml} runs ArchSim's images from the registry the workflow pushes
- * to, at that version. It writes the version, and whether the release moves
- * {@code latest}, to GitHub's step outputs. It uses the JDK alone, so that the workflow
- * runs it from source, from the checkout's root, before any build:
+ * {@code docker-compose.yml} and the hosted kit's {@code deploy/compose.yaml} (ADR-0080)
+ * run ArchSim's images from the registry the workflow pushes to, at that version. It
+ * writes the version, and whether the release moves {@code latest}, to GitHub's step
+ * outputs. It uses the JDK alone, so that the workflow runs it from source, from the
+ * checkout's root, before any build:
  *
  * <pre>
  * java archsim-tools/src/main/java/io/archsim/tools/release/CheckRelease.java --tag v1.0.0 \

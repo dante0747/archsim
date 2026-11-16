@@ -1,0 +1,261 @@
+# ArchSim's hosted stack, for a public server of your own (ADR-0080): a release's images behind one
+# way in, which hosted.env's COMPOSE_PROFILES chooses:
+#
+#   caddy    Caddy serves HTTPS on ports 80 and 443, with a certificate it gets and renews itself
+#   tunnel   a Cloudflare Tunnel: cloudflared connects out to Cloudflare, which serves HTTPS, and
+#            the server publishes no port at all
+#
+# docs/deployment.md ("Hosting a public server") goes from an empty server to a running site:
+#
+#   cp hosted.env.example hosted.env             # fill it in; git ignores hosted.env
+#   docker compose --env-file hosted.env up -d
+#
+# It runs PostgreSQL, the migration once, the API with sign-in, a simulation worker, the web app,
+# the way in and a nightly pg_dump. Three networks follow SECURITY.md's trust boundaries: the way
+# in reaches only the web server, the web server only the API, and only the API, the workers and
+# the backup reach the database, on a network with no way out. Either way, the web server reads
+# each visitor's address as the last entry of X-Forwarded-For (ARCHSIM_TRUSTED_HOPS=1): Caddy
+# writes the address it saw there, and through the tunnel Cloudflare appends the visitor's.
+#
+# The images are the release's at the version this checkout names (version in gradle.properties),
+# as in docker-compose.yml: the release's check fails while this file runs another (CheckRelease,
+# ADR-0077). ./update.sh moves the kit to another release.
+#
+# The defaults fit the smallest server it is meant for, 2 cores and 4 GB: the memory limits add up
+# to 3.3 GB, and the worker simulates two runs at once. A JVM's limit is its heap and 384 MB. On a
+# bigger server, raise the worker's and the API's in hosted.env (docs/deployment.md says how).
+name: archsim-hosted
+
+# every long-running service: started again after a crash or a reboot, its logs rotated
+x-service: &service
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "5"
+
+# archsim-app's image (ADR-0014), started as migrate, api or worker
+x-archsim-app: &archsim-app
+  <<: *service
+  image: ghcr.io/dante0747/archsim-app:1.0.0
+
+# the address people open, from hosted.env's domain
+x-public-url: &public-url https://${ARCHSIM_DOMAIN:?set ARCHSIM_DOMAIN in hosted.env}
+
+# the database, with hosted.env's password
+x-database-url: &database-url postgresql://archsim:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in hosted.env}@postgres:5432/archsim
+
+# The settings the API and the workers share: the database; sign-in, whose settings a worker
+# checks as the API does, and whose mode gives each workspace kind its limits; the simulation
+# limits, tighter than a local install's 2,000,000 requests and 300 s for a public demo; and the
+# runs a worker simulates at once, which the API reports in GET /meta (hosted.env can change the
+# last three).
+x-shared-settings: &shared-settings
+  ARCHSIM_DATABASE_URL: *database-url
+  ARCHSIM_AUTH_MODE: oauth
+  ARCHSIM_SECRET_KEY: ${ARCHSIM_SECRET_KEY:?set ARCHSIM_SECRET_KEY in hosted.env}
+  ARCHSIM_PUBLIC_URL: *public-url
+  ARCHSIM_GITHUB_CLIENT_ID: ${ARCHSIM_GITHUB_CLIENT_ID:-}
+  ARCHSIM_GITHUB_CLIENT_SECRET: ${ARCHSIM_GITHUB_CLIENT_SECRET:-}
+  ARCHSIM_GOOGLE_CLIENT_ID: ${ARCHSIM_GOOGLE_CLIENT_ID:-}
+  ARCHSIM_GOOGLE_CLIENT_SECRET: ${ARCHSIM_GOOGLE_CLIENT_SECRET:-}
+  ARCHSIM_ADMIN_EMAILS: ${ARCHSIM_ADMIN_EMAILS:-}
+  ARCHSIM_MAX_REQUESTS: ${ARCHSIM_MAX_REQUESTS:-1000000}
+  ARCHSIM_MAX_WALL_SECONDS: ${ARCHSIM_MAX_WALL_SECONDS:-120}
+  ARCHSIM_MAX_CONCURRENT_RUNS: ${ARCHSIM_MAX_CONCURRENT_RUNS:-2}
+
+services:
+  postgres:
+    <<: *service
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: archsim
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in hosted.env}
+      POSTGRES_DB: archsim
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [data]
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U archsim -d archsim"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot: brings the database to the latest schema (Flyway), then exits. The API waits for it.
+  migrate:
+    <<: *archsim-app
+    command: ["migrate"]
+    restart: "no"
+    environment:
+      ARCHSIM_DATABASE_URL: *database-url
+      JAVA_TOOL_OPTIONS: -Xmx384m
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [data]
+    mem_limit: 768m
+
+  # Signs people in with GitHub (or Google) and serves /api/v1 to the web server only, which it
+  # believes about each visitor's address (ARCHSIM_TRUSTED_PROXIES). Calibration never calls out
+  # to a Prometheus server (ARCHSIM_OUTBOUND=off); it replays recorded metrics and traces.
+  api:
+    <<: *archsim-app
+    command: ["api"]
+    environment:
+      <<: *shared-settings
+      ARCHSIM_AUTO_MIGRATE: "false" # the migrate service did it
+      ARCHSIM_CORS_ORIGINS: '["https://${ARCHSIM_DOMAIN}"]'
+      ARCHSIM_TRUSTED_PROXIES: web
+      ARCHSIM_OUTBOUND: "off"
+      # calibrations replay in the API's process, as many at once as the cores less one
+      JAVA_TOOL_OPTIONS: -Xmx${ARCHSIM_API_HEAP:-512m}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks: [app, data]
+    mem_limit: ${ARCHSIM_API_MEMORY:-896m}
+    healthcheck:
+      # the image has bash but no HTTP client
+      test:
+        [
+          "CMD",
+          "bash",
+          "-c",
+          "exec 3<>/dev/tcp/127.0.0.1/8000 && printf 'GET /api/v1/health HTTP/1.0\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q ' 200 '",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  # Simulation workers: they take the runs the API queues, each on a thread of its own, and on
+  # SIGTERM give the runs in flight back to the queue (ADR-0053). The runs share the worker's
+  # heap. archsim-app's README asks 512 MB a run and 256 MB besides at 2,000,000 requests a run,
+  # and a run's need falls by about 128 MB a million: at this kit's 1,000,000, two runs fit 1 GB
+  # with more margin than the README's. Raise the runs at once, the heap and the memory limit
+  # together. More workers: --scale worker=N, on a server with the cores and memory for them.
+  worker:
+    <<: *archsim-app
+    command: ["worker"]
+    environment:
+      <<: *shared-settings
+      JAVA_TOOL_OPTIONS: -Xmx${ARCHSIM_WORKER_HEAP:-1g}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks: [data]
+    mem_limit: ${ARCHSIM_WORKER_MEMORY:-1408m}
+    stop_grace_period: 30s
+
+  # The web app, behind the way in: it reads each visitor's address from X-Forwarded-For, one
+  # entry from the right, and passes it to the API.
+  web:
+    <<: *service
+    image: ghcr.io/dante0747/archsim-web:1.0.0
+    environment:
+      ARCHSIM_API_URL: http://api:8000
+      ARCHSIM_PUBLIC_URL: *public-url
+      ARCHSIM_TRUSTED_HOPS: "1"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [edge, app]
+    mem_limit: 320m
+    healthcheck:
+      # the image has Node.js but no HTTP client
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/').then((answer) => process.exit(answer.status < 500 ? 0 : 1), () => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  # The way in on a server of its own (profile caddy): HTTPS for the domain, HTTP/3 too, and the
+  # redirect from HTTP (Caddyfile). Its certificates and keys stay in caddy_data, so a restart does
+  # not ask for new ones. Caddy replaces X-Forwarded-For with the address it saw.
+  caddy:
+    <<: *service
+    image: caddy:2.11.9
+    profiles: [caddy]
+    environment:
+      ARCHSIM_PUBLIC_URL: *public-url
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      # a file of the kit: update.sh's MOUNTS restarts Caddy when a release changes it
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+    networks: [edge]
+    mem_limit: 128m
+
+  # The way in behind Cloudflare (profile tunnel): cloudflared connects out to Cloudflare, which
+  # serves HTTPS for the domain and sends its requests down the tunnel to the web server, as the
+  # tunnel's public hostname says (http://web:3000). Nothing listens on the server. Cloudflare
+  # appends each visitor's address to X-Forwarded-For (CF-Connecting-IP holds it too), and
+  # cloudflared passes the header on as it is.
+  cloudflared:
+    <<: *service
+    image: cloudflare/cloudflared:2026.11.0
+    profiles: [tunnel]
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+    depends_on:
+      web:
+        condition: service_healthy
+    networks: [edge]
+    mem_limit: 128m
+
+  # A pg_dump of the database every night, the newest seven kept in the backups volume
+  # (backup.sh). One now: docker compose --env-file hosted.env exec backup archsim-backup now
+  backup:
+    <<: *service
+    image: postgres:16-alpine
+    command: ["archsim-backup", "nightly"]
+    environment:
+      PGHOST: postgres
+      PGUSER: archsim
+      PGDATABASE: archsim
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in hosted.env}
+      ARCHSIM_BACKUP_HOUR: ${ARCHSIM_BACKUP_HOUR:-3}
+      ARCHSIM_BACKUP_KEEP: ${ARCHSIM_BACKUP_KEEP:-7}
+    volumes:
+      # a file of the kit: update.sh's MOUNTS restarts the service when a release changes it
+      - ./backup.sh:/usr/local/bin/archsim-backup:ro
+      - backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [data]
+    mem_limit: 128m
+
+networks:
+  # The way in and the web server, the one network with published ports (Caddy's). IPv6 is on,
+  # so that a visitor who comes over IPv6 keeps their own address (Docker's proxy would put its
+  # own in), and cloudflared reaches Cloudflare through it.
+  edge:
+    enable_ipv6: true
+  # the web server and the API, which reaches GitHub and Google through it to sign people in
+  app:
+  # the database and whoever may write to it (SECURITY.md), with no way out to the internet
+  data:
+    internal: true
+
+volumes:
+  pgdata:
+  backups:
+  caddy_data:
+  caddy_config:

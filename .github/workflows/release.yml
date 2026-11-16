@@ -8,9 +8,9 @@ name: Release images
 #   ghcr.io/dante0747/archsim-web:<version>   the web app (apps/web/Dockerfile)
 #
 # A release that is not a pre-release (1.1.0, not 1.1.0-rc.1) also moves `latest`. The tag must be
-# on main and name the version gradle.properties says (ADR-0076), and docker-compose.yml must run
-# the images at it: archsim-tools' CheckRelease checks both. The jobs' own token is the only
-# credential.
+# on main and name the version gradle.properties says (ADR-0076), and docker-compose.yml and the
+# hosted kit's deploy/compose.yaml (ADR-0080) must run the images at it: archsim-tools'
+# CheckRelease checks them. The jobs' own token is the only credential.
 on:
   push:
     tags: ["v*"]
@@ -25,7 +25,8 @@ concurrency:
 
 env:
   # where the images go, and the repository their packages link to: docker-compose.yml,
-  # archsim-app's Jib labels and archsim-app's ComposeFileTests name the same
+  # deploy/compose.yaml, archsim-app's Jib labels, archsim-app's ComposeFileTests and the source
+  # label deploy/update.sh prunes the earlier images by name the same
   REGISTRY: ghcr.io/dante0747
   SOURCE: https://github.com/dante0747/archsim
 
