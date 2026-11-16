@@ -7,6 +7,17 @@ show the latest run of each experiment, good or bad. `benchmarks/results/` keeps
 the predictions and every measured repeat's numbers as extracted from k6's end-of-run summary; the
 k6 summaries themselves are scratch output and are not committed.
 
+**Every measured run so far was on one laptop, under Docker Desktop on Windows.** None has run on
+Linux or on a second machine. The workflow that would measure on a Linux runner every week and on
+every release has its weekly and release runs turned off until a run started by hand passes on
+Linux, and none has yet ([Reproduce](#reproduce)).
+
+The engine versions on this page are the engine's own, not ArchSim's release number: the
+engine's version changes only when the same design and seed could give different results, and
+every report records it ([Two version numbers](getting-started.md#two-version-numbers)). The
+measured runs were predicted by the Python engine, up to its last version, 0.16.0; the Java
+engine, 1.1.1 today, re-simulates them ([The Java engine](#the-java-engine)).
+
 ## Headline
 
 <!-- BEGIN GENERATED: summary -->
@@ -186,12 +197,12 @@ Three commands check the model and the machine rather than measure accuracy:
 copy in `apps/web/src/data/` (the web image is built from `apps/web` alone; a test keeps the two
 equal). The web app's public `/accuracy` page is built from that copy.
 
-A GitHub Actions workflow (`.github/workflows/benchmark.yml`) runs everything on a hosted runner
-every week, on every release tag (`v*`) and by hand: it archives the previous results, measures,
-runs `report --json`, uploads the raw results as an artifact and opens a pull request for a
-person to review and merge. Each run takes a hosted runner about 1.5 hours; the weekly and
-release-tag triggers sit in a marked block at the top of the workflow, commented out until a run
-started by hand passes on Linux. **It has not completed a run yet:** two manual
+A GitHub Actions workflow (`.github/workflows/benchmark.yml`) runs everything on a hosted Linux
+runner, for now only when started by hand: it archives the previous results, measures, runs
+`report --json`, uploads the raw results as an artifact and opens a pull request for a person to
+review and merge. Each run takes a hosted runner about 1.5 hours. **Its weekly and release-tag
+(`v*`) runs are off**: they sit in a marked block at the top of the workflow, commented out until
+a run started by hand passes on Linux. **It has not completed a run yet:** two manual
 runs stopped before measuring (the second asked for more CPUs than the hosted runner's 2; the
 workflow now shares the runner's own CPUs between the containers). Every measured run so far was
 on Windows with Docker Desktop; on Linux, the local runs have not been tried (the k6 container
