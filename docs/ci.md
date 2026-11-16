@@ -191,6 +191,9 @@ jobs. CI still runs no more than a change needs, so that a run is short:
 - **The accuracy benchmarks run by hand only** until a run passes on a hosted runner; the weekly
   and release-tag runs are commented out in `.github/workflows/benchmark.yml`.
 - **Dependabot's version updates are monthly.** Every update pull request, and every rebase of
-  one when main moves, runs CI.
+  one when main moves, runs CI. Each ecosystem's group takes minor and patch releases only; a
+  major release opens a pull request of its own, so it never turns the group red. Dependabot leaves
+  out the libraries the version catalog pins at Spring Boot's versions (SnakeYAML, HttpClient 5,
+  slf4j-nop): they move with a Spring Boot upgrade.
 
 The run times are under Actions.

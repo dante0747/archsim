@@ -2,6 +2,9 @@ version: 2
 # Version updates are monthly and grouped by ecosystem, to keep the update pull requests few: each
 # one, and each rebase of one when main moves, runs CI again. Security updates still open as soon
 # as an advisory is published; the schedule does not apply to them.
+#
+# A group takes only minor and patch releases, which land once CI is green. A major release opens a
+# pull request of its own, which waits for the owner, so it never holds back the rest of its group.
 updates:
   - package-ecosystem: npm
     directory: /apps/web
@@ -13,6 +16,7 @@ updates:
     groups:
       web:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
     # Held back until the lint tooling supports them: typescript-eslint does not support
     # TypeScript 7 yet, and the plugins in eslint-config-next accept ESLint up to 9. Remove a
     # rule once `npm run lint` passes with that version.
@@ -33,6 +37,15 @@ updates:
     groups:
       java:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
+    # The libraries the catalog pins at the versions Spring Boot manages (ADR-0043, ADR-0057): they
+    # move with a Spring Boot upgrade, which fails checkBootManagedVersions until the catalog
+    # follows, and never alone, so an update of one by itself could not pass the build. This also
+    # stops their security updates; Dependabot's alerts still list them.
+    ignore:
+      - dependency-name: "org.yaml:snakeyaml"
+      - dependency-name: "org.apache.httpcomponents.client5:httpclient5"
+      - dependency-name: "org.slf4j:slf4j-nop"
   - package-ecosystem: github-actions
     directory: /
     schedule:
