@@ -66,6 +66,7 @@ describe("Repository", () => {
       { path: "/docs/guide/", source: "docs/guide.md" },
       { path: "/accuracy/", source: "apps/web/src/data/accuracy.json" },
       { path: "/changelog/", source: "CHANGELOG.md" },
+      { path: "/privacy/", source: "apps/web/src/components/site/PrivacyPage.tsx" },
     ]);
   });
 

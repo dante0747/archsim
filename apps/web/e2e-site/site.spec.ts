@@ -20,6 +20,7 @@ const SHOTS: [string, string][] = [
   ["doc-adr", "/docs/adr/0067-license-under-agpl-3.0-with-a-commercial-license/"],
   ["accuracy", "/accuracy/"],
   ["changelog", "/changelog/"],
+  ["privacy", "/privacy/"],
   ["not-found", MISSING],
 ];
 
@@ -100,6 +101,22 @@ test.describe("search engines", () => {
     expect(graph.find((n) => n["@type"] === "TechArticle")).toMatchObject({ url: `https://archsim.io${path}` });
     const crumbs = graph.find((n) => n["@type"] === "BreadcrumbList")?.itemListElement as { item: string }[];
     expect(crumbs.map((c) => c.item)).toEqual(["https://archsim.io/docs/", "https://archsim.io/docs/adr/", `https://archsim.io${path}`]);
+  });
+});
+
+test.describe("the demo's privacy notice", () => {
+  test("is a footer link away, and says who runs the demo, how to reach them and what it keeps", async ({ page }) => {
+    await page.goto("/accuracy/");
+
+    await page.getByRole("contentinfo").getByRole("link", { name: "Privacy" }).click();
+
+    await expect(page).toHaveURL(/\/privacy\/$/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Privacy");
+    const main = page.getByRole("main");
+    await expect(main).toContainText("Majid Abarghooei");
+    await expect(main.getByRole("link", { name: "abarghooeimajid@gmail.com" }).first()).toHaveAttribute("href", "mailto:abarghooeimajid@gmail.com");
+    await expect(main).toContainText("deleted 24 hours after the sandbox starts");
+    await expect(main.getByRole("heading", { level: 2, name: "Having your data deleted" })).toBeVisible();
   });
 });
 

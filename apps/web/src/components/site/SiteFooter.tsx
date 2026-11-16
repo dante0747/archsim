@@ -77,6 +77,9 @@ export function SiteFooter({ copyright }: { copyright: string }) {
               AGPL-3.0-only
             </a>
           </span>
+          <Link href="/privacy/" className="underline decoration-line-strong underline-offset-2 hover:text-ink">
+            Privacy
+          </Link>
           <span className="sm:ml-auto">No analytics, no cookies, no third-party scripts.</span>
         </div>
       </div>

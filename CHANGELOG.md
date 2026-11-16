@@ -13,6 +13,9 @@ for when that version changes.
 - **A privacy notice for a hosted server.** With `ARCHSIM_PRIVACY_URL`, which the web server
   reads at runtime, the home page's footer and the sign-in page link "Privacy" to it
   (`.env.example`, `deploy/hosted.env.example`).
+- **The demo's privacy notice** at [archsim.io/privacy/](https://archsim.io/privacy/), linked from
+  the website's footer: who runs app.archsim.io and where, what it stores and for how long, its
+  cookies and logs, and how to have your data deleted.
 
 ### Fixed
 
