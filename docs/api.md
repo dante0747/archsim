@@ -43,7 +43,7 @@ Domain errors use one shape:
 | 404 | Unknown project, run, example or workspace, **or one in a workspace you are not a member of** (the same answer, so ids reveal nothing). |
 | 409 | Revision conflict on save; report requested for an unfinished run; comparing unfinished runs; a workspace's last owner leaving; a project past a workspace's project limit. |
 | 413 | Request body larger than `ARCHSIM_MAX_BODY_BYTES`. |
-| 422 | Document invalid (with `issues`), run too large, a calibration that cannot be done, or a request body or query that does not fit (a `detail` list of `type`, `loc`, `msg` and `input`, as FastAPI's was). |
+| 422 | Document invalid (with `issues`), run too large, a calibration that cannot be done, or a request body or query that does not fit (a `detail` list with one error per problem: its `type`, where it is (`loc`), the message (`msg`) and the value sent (`input`)). |
 | 429 | A rate limit (runs per hour, sign-in attempts, ...): wait the `Retry-After` seconds. |
 
 ## Meta
@@ -98,8 +98,8 @@ document. Schema-invalid documents (unknown keys, out-of-range link settings, wr
 | GET | `/runs/{runId}/report` | Full report (`409` unless `succeeded`). See below. |
 | GET | `/runs/{runId}/input` | The exact document submitted for the run (re-importable). |
 | POST | `/runs/{runId}/cancel` | Cancels a queued run immediately. A running one is stopped by the worker holding it, on any instance, within about 2 s (its next heartbeat; at once when that worker is in the same process); one still going `ARCHSIM_CANCEL_GRACE_SECONDS` (10 s) later is killed. The response shows `cancelled`, or `running` while the cancel is on its way. |
-| POST | `/runs/{runId}/rerun` | Re-simulates the stored input with the same scenario, seed (a seed group's run keeps its own) and mode. Response has `reproducesRunId`; compare `resultDigest` values, which match on the same engine (a Python run re-run in Java agrees to the parity bar and need not share its digest). `202`. |
-| GET | `/run-groups/{groupId}` | A seed group: `kind`, `baseSeed`, `size`, `mode`, `scenarioId`, `label`, `status` (`running`, then `succeeded`, `partial` or `failed`), its `runs` by seed, and `summary` from the engine's `summarize_seeds` against the objectives of the document the runs used: `met`/`missed`/`undecided` of `finished`, `verdict` (`holds`, `fails`, `borderline` when the runs disagree, or null), `confidenceCap` (`medium` when borderline), `latencyMs.p50/p95/p99`, `successRate` and `throughputRps` ranges (`{min, max, median}`), and `text` ("Meets the objectives in 4 of 5 runs · p95 98–131 ms (median 104) · seeds 42–46"). Viewers of the workspace; others get 404. |
+| POST | `/runs/{runId}/rerun` | Re-simulates the stored input with the same scenario, seed (a seed group's run keeps its own) and mode. Response has `reproducesRunId`; compare `resultDigest` values, which match when both runs had the same engine version (each run records its `engineVersion`; a run another engine version made need not match). `202`. |
+| GET | `/run-groups/{groupId}` | A seed group: `kind`, `baseSeed`, `size`, `mode`, `scenarioId`, `label`, `status` (`running`, then `succeeded`, `partial` or `failed`), its `runs` by seed, and `summary`, the engine's seed summary (`SeedSummary`) against the objectives of the document the runs used: `met`/`missed`/`undecided` of `finished`, `verdict` (`holds`, `fails`, `borderline` when the runs disagree, or null), `confidenceCap` (`medium` when borderline), `latencyMs.p50/p95/p99`, `successRate` and `throughputRps` ranges (`{min, max, median}`), and `text` ("Meets the objectives in 4 of 5 runs · p95 98–131 ms (median 104) · seeds 42–46"). Viewers of the workspace; others get 404. |
 | DELETE | `/runs/{runId}` | Cancels if active, then deletes. `204`. |
 
 Run `status`: `queued`, `running`, `succeeded`, `failed`, `cancelled`. A failed run has
@@ -146,7 +146,7 @@ per worker (default: CPU count - 1), and the runs share the worker's heap, sized
 
 ```
 {
-  "reportVersion": "1.13",
+  "reportVersion": "1.16",
   "window":     { "warmupS", "durationS", "measuredS", "drainS", "simulatedS" },
   "summary":    { "offeredRps", "throughputRps", "successRate", "latencyMs": {p50, p95, ...},
                   "latencyWithFailuresMs", "latencyByOp", "failureBreakdown": [...],
@@ -157,6 +157,8 @@ per worker (default: CPU count - 1), and the runs share the worker's heap, sized
                     "timeseries": { "utilization", "queueMean", ... }, "config" } ],
   "edges":      [ { "id", "source", "target", "callRps", "retries", "timeouts", ... } ],
   "findings":   [ { "severity", "kind", "nodeId", "title", "detail", "suggestion"?, "evidence" } ],
+  "traces":     [ { "id", "op", "startS", "durationMs", "status", "attempts", "spans": [...], ... } ],
+  "explain":    { "system", "latencyBreakdown" },
   "assumptions":{ "modelNotes", "technologies", "userInputs", "provenanceCounts", "calibration",
                   "components", "validationWarnings" },
   "sizing":     { "auto", "targetCpuUtilization", "nodes": { id: { "specs", "auto", "why", ... } } },
@@ -166,16 +168,21 @@ per worker (default: CPU count - 1), and the runs share the worker's heap, sized
                   "saturationRps", "summary", "paths", "breakdown", "parts": [...], "notes" },
   "confidence": { "level", "reason", "reasons", "drivers": [...], "weightedBy", "howToRaise" },
   "input":      { resolved document that was simulated (auto sizes filled in) },
-  "provenance": { "engineVersion", "schemaVersion", "seed", "scenarioId", "scenarioName",
-                  "overrides", "inputDigest", "resultDigest", "requestsGenerated",
-                  "eventsProcessed", "wallSeconds", "python", "simpy" }
+  "provenance": { "engineVersion", "schemaVersion", "reportVersion", "seed", "scenarioId",
+                  "scenarioName", "overrides", "inputDigest", "resultDigest",
+                  "requestsGenerated", "eventsProcessed", "wallSeconds", "java" }
 }
 ```
 
 Metric definitions are in [`simulation-model.md`](simulation-model.md#measurement-window-and-metric-definitions);
-`confidence` and `estimate` (report 1.13+) in its [Confidence](simulation-model.md#confidence-confidence)
-and [Instant estimate](simulation-model.md#instant-estimate-estimate) sections. Neither is part of
-`resultDigest`, which covers `summary`, `timeseries`, `nodes`, `edges` and `window`.
+`confidence` and `estimate` in its [Confidence](simulation-model.md#confidence-confidence)
+and [Instant estimate](simulation-model.md#instant-estimate-estimate) sections, `explain` and
+`traces` in [Calculations behind the numbers](simulation-model.md#calculations-behind-the-numbers-explain)
+and [Request traces](simulation-model.md#request-traces). None of these is part of `resultDigest`,
+which covers `summary`, `timeseries`, `nodes`, `edges` and `window`. `provenance.java` is the
+version of the Java runtime that simulated the run; `engineVersion` is the engine's own version,
+which changes only when the same design and seed could give different results (see
+[Getting started](getting-started.md#two-version-numbers)).
 
 ## Sign-in, workspaces and tokens
 
