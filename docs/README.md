@@ -8,7 +8,7 @@ Everything about using, running, trusting and changing ArchSim. New here? Start 
 
 | Page | What it covers |
 | --- | --- |
-| [Getting started](getting-started.md) | Run it in Docker or from source, a five-minute tour, the CLI and the MCP server |
+| [Getting started](getting-started.md) | Run it in Docker or from source, a five-minute tour, why runs name an engine version apart from ArchSim's, the CLI and the MCP server |
 | [Features](features.md) | Every workspace, technology behaviour and integration, with screenshots, and the scope and limitations |
 | [Troubleshooting](troubleshooting.md) | What to do when something doesn't start or runs stay queued |
 

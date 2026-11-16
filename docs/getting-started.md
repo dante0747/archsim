@@ -12,7 +12,8 @@ Three ways in, from the quickest:
 3. [The command line](#the-command-line) and [the MCP server](#the-mcp-server): the engine alone,
    no web stack or database.
 
-Then take [the five-minute tour](#a-five-minute-tour).
+Then take [the five-minute tour](#a-five-minute-tour). Runs name an engine version that differs
+from ArchSim's own: [Two version numbers](#two-version-numbers) says why.
 
 ## What you need
 
@@ -109,27 +110,47 @@ The parts find each other with their defaults: PostgreSQL at
 
 ## A five-minute tour
 
-1. On the home page, open **Black Friday on Kubernetes**: Shoppers → Kong gateway → a Go checkout
-   service on Kubernetes (HPA 3→14 pods) → Redis, PostgreSQL with two read replicas, and a payments
-   API. The **design review** (bottom left) already warns that reads fail when the cache is down,
-   because there is no fallback path.
+1. On the home page, open **Black Friday on Kubernetes**: Shoppers → a Kong gateway → a Go
+   checkout service on Kubernetes (HPA 3→14 pods) → a Redis catalog cache, PostgreSQL with two
+   read replicas, and a payments API, with traffic ramping from 300 to 1,500 req/s over two
+   minutes. The **design review** (bottom left) finds three low risks before anything runs: the
+   gateway sets no timeout on the checkout service, the checkout's 224 blocking workers can wait
+   on a database that accepts 180 connections, and the gateway is a single instance.
 2. Press **2** for **Test**, then **Simulate** (Ctrl/⌘ Enter). The run is recorded and replays
-   automatically: around t = 60 s the checkout service goes red while new pods start, then
-   recovers. Scrub the timeline to any second; the canvas shows that moment. The **Test plan**
-   panel reports whether what must stay true (p95 ≤ 500 ms, availability ≥ 99.5%) held.
-3. In the Test plan, **Add failure** offers quick tests such as **Lose Catalog cache for 15 s**.
-   Pick one and simulate again: the verdict flips, and the failure's block on the timeline shows
-   exactly when and where it broke.
-4. Press **3** for **Results**. **Answer** gives the verdict, the objectives and a monthly cost
-   estimate; **Compare → Simulate all scenarios** puts every scenario on the cost-against-latency
-   map: 3 fixed pods are cheaper but fail a third of the requests, the autoscaler misses the p95
-   objective while its pods start, and 14 fixed pods meet both objectives at $590 a month more.
+   automatically: from about 30 s the checkout service goes red as the ramp outruns its three
+   pods, its queue fills and it turns requests away while new pods start, and it recovers at about
+   80 s, with seven pods running. Scrub the timeline to any second; the canvas shows that moment.
+   The **Test plan** panel reports whether what must stay true (p95 ≤ 500 ms, availability
+   ≥ 99.5%) held, and here it didn't: p95 561 ms, 98.8% of requests served, and the worst moment
+   at 46 s, when 80% were.
+3. In the Test plan, **Add failure** offers quick tests such as **Lose Catalog cache for 15 s**
+   (58–73 s). Pick it and simulate again. The checkout carries on without the cache and reads the
+   catalog from PostgreSQL, which takes the extra reads easily, but each read takes longer and the
+   checkout, still short of pods, turns more requests away: "success fell to 96% during Outage ·
+   Catalog cache" (97% in the same seconds without the failure), and over the whole run p95 rises
+   from 561 to 620 ms and availability falls from 98.8% to 98.4%. The failure's block on the
+   timeline shows when and where it hurt; the run recovers about 9 s after the cache comes back.
+4. Press **3** for **Results**. **Answer** gives the verdict ("No, it doesn't hold up."), the
+   objectives and a monthly cost estimate ($844); **Compare → Simulate all scenarios** puts every
+   scenario on the **Cost vs. speed** map: 3 fixed pods are $16 a month cheaper but fail 36% of
+   the requests, the autoscaler misses both objectives while its pods start, and 14 fixed pods
+   meet both (p95 370 ms, all but one request served) at $590 a month more.
 5. **Breaking point** sweeps the load and finds the highest load that still meets the objectives.
    **Report** gives you a Markdown write-up; **Ctrl/⌘ K → Export** gives docker-compose,
    Kubernetes or Mermaid scaffolding.
 
-The numbers come from the shipped examples with seed 42 and are illustrative assumptions. Every
-workspace is described in [features.md](features.md).
+The numbers are engine 1.1.1's for the shipped template with its seed, 42; the template's inputs
+are illustrative assumptions. Every workspace is described in [features.md](features.md).
+
+## Two version numbers
+
+ArchSim's version names the release; the engine has a version of its own. `archsim --version`
+prints both (release 1.1.0's says `archsim 1.1.0, engine 1.1.1`), and a run's report says which
+engine made it. The engine's version changes only when the same design and seed could give
+different results: a release that changes a page, the API or a template leaves it alone. Every
+report records it, a run simulated again on the same engine gives the same result digest, and
+comparisons warn when two runs had different engines
+([ADR-0076](adr/0076-version-archsim-apart-from-its-engine.md)).
 
 ## The command line
 
