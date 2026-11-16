@@ -56,9 +56,9 @@ Work through all of it; go deeper wherever you find trouble.
    empty states, error messages, the sandbox banner and its expiry, what happens at the sandbox's
    limits (five projects, small runs).
 5. **Docs and onboarding.** Can a new engineer go from archsim.io to a running local stack with
-   Getting started alone? Are the docs current (Java 25 engine, version 1.1.0, the hosting kit),
-   free of internal jargon and of references to removed things (the old Python engine, old
-   commands)?
+   Getting started alone? Are the docs current (the Java 25 engine, the latest release's version
+   as `gradle.properties` names it, the hosting kit), free of internal jargon and of references to
+   removed things (the old Python engine, old commands)?
 6. **Trust and safety signals.** Licence and commercial terms, privacy and telemetry statements,
    security policy, what the demo stores and for how long, cookies, headers (HTTPS, HSTS, CSP),
    and whether anything leaks internal details (stack traces, versions, paths, emails).
