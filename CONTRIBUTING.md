@@ -114,8 +114,9 @@ You may use AI coding assistants. The repository gives them this project's rules
 - [AGENTS.md](AGENTS.md), for any assistant (Codex, Cursor, Copilot, Claude Code and others): the
   standards, the checks to run before saying a change is done, and the rules that are never bent.
 - [CLAUDE.md](CLAUDE.md) and `.claude/`, which Claude Code loads: three skills,
-  `java-conventions`, `test-first` and `conventional-commits`, and the `java-reviewer` agent, a
-  strict review of a Java change before it is committed.
+  `java-conventions`, `test-first` and `conventional-commits`; the `java-reviewer` agent, a
+  strict review of a Java change before it is committed; and the `site-critic` agent, a
+  demanding architect's review of archsim.io and the hosted demo before a release or a launch.
 
 What an assistant writes is held to the same checks and review as anyone's, and these rules
 apply to it:
