@@ -26,6 +26,8 @@ for when that version changes.
 - A hosted server's home page no longer says ArchSim "runs on your machine" with "no account":
   it offers trying it there, or running your own with one command, and "no account needed" only
   where it offers sandboxes. A local install says what it said.
+- On a phone, a sandbox's guest is offered the design's JSON to take to a computer, not a link
+  that opens only in the browser the sandbox belongs to.
 - A finding that counts one request says so: `1 request failed at API`, `1 client request failed
   because of them`, `refused 1 call`, where it said `1 requests`. Only words change; the engine
   stays at 1.1.1.

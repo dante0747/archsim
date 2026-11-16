@@ -4,7 +4,6 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { toast } from "sonner";
 import { EditorAgentTools } from "@/components/agent/AgentTools";
 import { SandboxBanner } from "@/components/auth/SandboxBanner";
 import { ChaosPads } from "@/components/editor/ChaosPads";
@@ -24,9 +23,8 @@ import { TopBar } from "@/components/editor/TopBar";
 import { NextStepPill } from "@/components/editor/WorkspaceBar";
 import { openDecide } from "@/components/editor/workflow";
 import { ExperimentPanel } from "@/components/stress/ExperimentPanel";
-import { LatestResultsLink } from "@/components/share/LatestResultsLink";
 import { PlaybackClock, TimelineDock } from "@/components/timeline/TimelineDock";
-import { LogoMark } from "@/components/brand";
+import { DesktopOnly } from "@/components/editor/DesktopOnly";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/misc";
 import { ApiError, api } from "@/lib/api";
@@ -114,42 +112,6 @@ function useNarrowScreen(): boolean {
     },
     () => window.matchMedia(NARROW).matches,
     () => false,
-  );
-}
-
-/** Shown instead of the editor on phones: the design is saved, so hand it over to a computer. */
-function DesktopOnly({ projectId, onOpenAnyway }: { projectId: string; onOpenAnyway: () => void }) {
-  const name = useEditor((s) => s.metadata.name);
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      toast.success("Link copied", { description: "Open it on a computer to carry on." });
-    } catch {
-      toast.error("Could not copy the link", { description: window.location.href });
-    }
-  };
-  return (
-    <main className="flex min-h-full flex-col items-center justify-center gap-5 bg-page px-6 py-12 text-center">
-      <LogoMark className="size-10" />
-      <div className="space-y-2">
-        <h1 className="font-display text-[26px] font-semibold leading-tight tracking-[-0.03em] text-ink">Continue on a larger screen</h1>
-        <p className="mx-auto max-w-sm text-[15px] leading-relaxed text-ink-2">
-          {name ? <>“{name}” is saved. </> : null}The editor needs a computer or a tablet in landscape. Copy the link and open it there to pick up where you are.
-        </p>
-      </div>
-      <div className="flex flex-col items-center gap-2">
-        <Button variant="primary" size="lg" onClick={() => void copy()}>
-          Copy link
-        </Button>
-        <LatestResultsLink projectId={projectId} />
-        <Button variant="ghost" size="sm" onClick={onOpenAnyway}>
-          Open the editor anyway
-        </Button>
-        <Link href="/projects" className="mt-1 text-[13px] text-ink-3 hover:text-ink">
-          Back to projects
-        </Link>
-      </div>
-    </main>
   );
 }
 

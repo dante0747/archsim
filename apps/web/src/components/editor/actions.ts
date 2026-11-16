@@ -1,6 +1,6 @@
 "use client";
 
-import { useReactFlow } from "@xyflow/react";
+import { type Viewport, useReactFlow } from "@xyflow/react";
 import { useCallback } from "react";
 import { toast } from "sonner";
 import { ApiError, api } from "@/lib/api";
@@ -11,6 +11,12 @@ import { downloadJson, readJsonFile } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
 import { useUi } from "@/store/ui";
+
+/** Downloads the design as its JSON document, `<name>.archsim.json`, at `viewport` if given. */
+export function downloadDesign(viewport?: Viewport) {
+  const s = useEditor.getState();
+  downloadJson(`${slugify(s.metadata.name || "architecture")}.archsim.json`, s.toDocument(viewport));
+}
 
 /** Editor-level commands shared by the top bar and keyboard shortcuts. */
 export function useEditorActions() {
@@ -57,11 +63,7 @@ export function useEditorActions() {
     await r.startRun(s.toDocument(rf.getViewport()), scenarioId, opts);
   }, [rf]);
 
-  const exportJson = useCallback(() => {
-    const s = useEditor.getState();
-    const doc = s.toDocument(rf.getViewport());
-    downloadJson(`${slugify(s.metadata.name || "architecture")}.archsim.json`, doc);
-  }, [rf]);
+  const exportJson = useCallback(() => downloadDesign(rf.getViewport()), [rf]);
 
   const importJson = useCallback(async (file: File) => {
     try {
