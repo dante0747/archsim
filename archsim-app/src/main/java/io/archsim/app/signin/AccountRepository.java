@@ -35,10 +35,15 @@ class AccountRepository {
 	}
 
 	Optional<UserView> user(String id) {
-		return this.jdbc.sql("SELECT id, name, email, avatar_url FROM users WHERE id = :id")
+		return this.jdbc.sql("SELECT id, name, email, avatar_url, expires_at FROM users WHERE id = :id")
 			.param("id", id)
-			.query((rows, number) -> new UserView(rows.getString("id"), rows.getString("name"), rows.getString("email"),
-					rows.getString("avatar_url")))
+			.query((rows, number) -> {
+				Timestamp expiresAt = rows.getTimestamp("expires_at");
+				// a guest's account, and only theirs, expires
+				return new UserView(rows.getString("id"), rows.getString("name"), rows.getString("email"),
+						rows.getString("avatar_url"), expiresAt != null,
+						(expiresAt != null) ? expiresAt.toInstant() : null);
+			})
 			.optional();
 	}
 

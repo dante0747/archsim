@@ -54,7 +54,7 @@ class BrowserSessionsTests {
 	void loadDeferredContext_askedTwice_readsTheSessionOnce() {
 		String id = Secrets.sha256Hex(SECRET);
 		given(this.repository.session(id))
-			.willReturn(Optional.of(new StoredSession(id, "ada", NOW.plusSeconds(60), NOW)));
+			.willReturn(Optional.of(new StoredSession(id, "ada", NOW.plusSeconds(60), NOW, false)));
 		given(this.repository.active("ada")).willReturn(true);
 		DeferredSecurityContext context = this.sessions.loadDeferredContext(withCookie());
 
@@ -81,20 +81,34 @@ class BrowserSessionsTests {
 	void loadDeferredContext_activeSession_signsItsPersonIn() {
 		String id = Secrets.sha256Hex(SECRET);
 		given(this.repository.session(id))
-			.willReturn(Optional.of(new StoredSession(id, "ada", NOW.plusSeconds(60), NOW)));
+			.willReturn(Optional.of(new StoredSession(id, "ada", NOW.plusSeconds(60), NOW, false)));
 		given(this.repository.active("ada")).willReturn(true);
 
 		DeferredSecurityContext context = this.sessions.loadDeferredContext(withCookie());
 
 		assertThat(context.get().getAuthentication()).isNotNull()
 			.satisfies((authentication) -> assertThat(authentication.getPrincipal())
-				.isEqualTo(new BrowserSession("ada", id)));
+				.isEqualTo(new BrowserSession("ada", id, false)));
+	}
+
+	@Test
+	void loadDeferredContext_guestsSession_signsTheGuestIn() {
+		String id = Secrets.sha256Hex(SECRET);
+		given(this.repository.session(id))
+			.willReturn(Optional.of(new StoredSession(id, "guest", NOW.plusSeconds(60), NOW, true)));
+		given(this.repository.active("guest")).willReturn(true);
+
+		DeferredSecurityContext context = this.sessions.loadDeferredContext(withCookie());
+
+		assertThat(context.get().getAuthentication()).isNotNull()
+			.satisfies((authentication) -> assertThat(authentication.getPrincipal())
+				.isEqualTo(new BrowserSession("guest", id, true)));
 	}
 
 	@Test
 	void loadDeferredContext_expiredSession_signsNoOneInAndSaysWhy() {
 		String id = Secrets.sha256Hex(SECRET);
-		given(this.repository.session(id)).willReturn(Optional.of(new StoredSession(id, "ada", NOW, NOW)));
+		given(this.repository.session(id)).willReturn(Optional.of(new StoredSession(id, "ada", NOW, NOW, false)));
 		MockHttpServletRequest request = withCookie();
 
 		DeferredSecurityContext context = this.sessions.loadDeferredContext(request);

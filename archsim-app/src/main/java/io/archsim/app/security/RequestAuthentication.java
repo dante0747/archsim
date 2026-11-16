@@ -1,5 +1,7 @@
 package io.archsim.app.security;
 
+import java.util.Optional;
+
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -8,6 +10,8 @@ import org.springframework.security.web.context.DelegatingSecurityContextReposit
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import tools.jackson.databind.json.JsonMapper;
 
 import io.archsim.app.access.BrowserCsrf;
@@ -17,18 +21,19 @@ import io.archsim.app.access.LocalUserFilter;
 import io.archsim.app.access.SessionChanges;
 import io.archsim.app.config.ArchsimProperties;
 import io.archsim.app.signin.OAuthSignIn;
+import io.archsim.app.signin.SandboxOffer;
 import io.archsim.app.web.ErrorResponses;
 
 /**
  * Who is asking, as the chain puts it in Spring Security's context for each request
  * (ADR-0065): with sign-in, the API token a request carries (the resource server,
  * {@link ApiTokens}) or its browser session ({@link BrowserSessions}, read when the
- * context is first asked for), the CSRF token every change a session makes must send back
- * ({@link BrowserCsrf}), and signing in with GitHub or Google, which starts a session
- * (Spring Security's OAuth2 login, {@link OAuthSignIn}); without, the local user
- * ({@link LocalUserFilter}) and no CSRF token. A configurer of the chain of its own, so
- * it finds the application's beans as Spring Security's configurers do; the web layer's
- * test slices have no sign-in.
+ * context is first asked for), the CSRF token every change a session makes, and every
+ * start of a sandbox ({@link SandboxOffer}), must send back ({@link BrowserCsrf}), and
+ * signing in with GitHub or Google, which starts a session (Spring Security's OAuth2
+ * login, {@link OAuthSignIn}); without, the local user ({@link LocalUserFilter}) and no
+ * CSRF token. A configurer of the chain of its own, so it finds the application's beans
+ * as Spring Security's configurers do; the web layer's test slices have no sign-in.
  */
 final class RequestAuthentication extends AbstractHttpConfigurer<RequestAuthentication, HttpSecurity> {
 
@@ -55,7 +60,7 @@ final class RequestAuthentication extends AbstractHttpConfigurer<RequestAuthenti
 				new ApiTokens(this.properties, context.getBeanProvider(OpaqueTokenIntrospector.class), responses));
 		http.csrf((csrf) -> csrf.csrfTokenRepository(BrowserCsrf.tokens())
 			.csrfTokenRequestHandler(BrowserCsrf.headerOnlyHandler())
-			.requireCsrfProtectionMatcher(new SessionChanges(getSecurityContextHolderStrategy())));
+			.requireCsrfProtectionMatcher(csrfProtected(context)));
 		http.exceptionHandling((exceptions) -> exceptions.accessDeniedHandler(new CsrfRefusal(responses)));
 		context.getBeanProvider(OAuthSignIn.class).ifAvailable((signIn) -> http.oauth2Login(signIn::configure));
 	}
@@ -66,6 +71,23 @@ final class RequestAuthentication extends AbstractHttpConfigurer<RequestAuthenti
 			http.addFilterAfter(new LocalUserFilter(getSecurityContextHolderStrategy()),
 					SecurityContextHolderFilter.class);
 		}
+	}
+
+	/**
+	 * The requests that must send the browser's CSRF token: changes a browser session
+	 * authenticates and, where sandboxes are offered, starts of a sandbox, which set a
+	 * session cookie. The web layer's test slices have no sign-in, and so no sandboxes.
+	 * @param context the application
+	 * @return the matcher
+	 */
+	private RequestMatcher csrfProtected(ApplicationContext context) {
+		RequestMatcher sessionChanges = new SessionChanges(getSecurityContextHolderStrategy());
+		SandboxOffer offer = context.getBeanProvider(SandboxOffer.class).getIfAvailable();
+		Optional<RequestMatcher> starts = (offer != null) ? offer.starts() : Optional.empty();
+		if (starts.isEmpty()) {
+			return sessionChanges;
+		}
+		return new OrRequestMatcher(sessionChanges, starts.get());
 	}
 
 	/**

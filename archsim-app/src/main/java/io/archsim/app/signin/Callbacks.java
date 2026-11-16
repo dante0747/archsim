@@ -73,7 +73,7 @@ class Callbacks implements AuthenticationSuccessHandler, AuthenticationFailureHa
 		}
 		try {
 			String userId = this.accounts.signIn(signedIn.getAuthorizedClientRegistrationId(), account.profile());
-			List<String> cookies = this.sessions.start(userId, this.visitors.of(request));
+			List<String> cookies = this.sessions.start(userId, this.visitors.of(request)).cookies();
 			// the cookie is signed, but where to land is checked again on the way out
 			new Redirect(this.states.next(request), cookies).send(response);
 		}

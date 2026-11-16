@@ -39,9 +39,12 @@ class SignInTests extends HostedTestSupport {
 
 	@Test
 	void config_hosted_isOAuthWithGitHub() {
-		assertThat(this.mvc().get().uri(AUTH + "/config")).hasStatusOk()
+		MvcTestResult config = this.mvc().get().uri(AUTH + "/config").exchange();
+
+		assertThat(config).hasStatusOk()
 			.bodyJson()
-			.isStrictlyEqualTo("{\"mode\": \"oauth\", \"providers\": [\"github\"]}");
+			.isStrictlyEqualTo("{\"mode\": \"oauth\", \"providers\": [\"github\"], \"sandboxes\": true, "
+					+ "\"csrfToken\": \"%s\"}".formatted(cookie(config, BrowserCsrf.COOKIE)));
 	}
 
 	@Test

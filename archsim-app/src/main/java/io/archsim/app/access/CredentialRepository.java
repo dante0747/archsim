@@ -20,11 +20,19 @@ class CredentialRepository {
 		this.jdbc = jdbc;
 	}
 
+	/**
+	 * A session, with whether its account is a guest's: one that expires.
+	 * @param id the session's id
+	 * @return the session, if it exists
+	 */
 	Optional<StoredSession> session(String id) {
-		return this.jdbc.sql("SELECT id, user_id, expires_at, last_seen_at FROM sessions WHERE id = :id")
+		return this.jdbc.sql("""
+				SELECT s.id, s.user_id, s.expires_at, s.last_seen_at, u.expires_at IS NOT NULL AS guest
+				FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = :id""")
 			.param("id", id)
 			.query((rows, number) -> new StoredSession(rows.getString("id"), rows.getString("user_id"),
-					rows.getTimestamp("expires_at").toInstant(), rows.getTimestamp("last_seen_at").toInstant()))
+					rows.getTimestamp("expires_at").toInstant(), rows.getTimestamp("last_seen_at").toInstant(),
+					rows.getBoolean("guest")))
 			.optional();
 	}
 

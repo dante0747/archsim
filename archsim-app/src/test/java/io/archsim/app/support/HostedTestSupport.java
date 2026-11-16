@@ -36,14 +36,15 @@ import static org.assertj.core.api.Assertions.fail;
 
 /**
  * What the tests of a server with sign-in share: the whole application on one real
- * PostgreSQL, GitHub sign-in against the black-box suite's stand-in, and ways to make the
- * people, sessions and tokens a test needs. Each test makes people of its own, so the
- * tests share the context and the database.
+ * PostgreSQL, GitHub sign-in against the black-box suite's stand-in, sandboxes for
+ * visitors who do not sign in, as a public demo offers them, and ways to make the people,
+ * sessions and tokens a test needs. Each test makes people of its own, so the tests share
+ * the context and the database.
  */
 @SpringBootTest(properties = { "archsim.auth-mode=oauth", "archsim.secret-key=" + HostedTestSupport.SECRET_KEY,
 		"archsim.public-url=" + HostedTestSupport.PUBLIC_URL, "archsim.github-client-id=" + FakeGitHub.CLIENT_ID,
 		"archsim.github-client-secret=" + FakeGitHub.CLIENT_SECRET,
-		"archsim.admin-emails=" + HostedTestSupport.ADMIN_EMAIL })
+		"archsim.admin-emails=" + HostedTestSupport.ADMIN_EMAIL, "archsim.sandboxes=true" })
 @AutoConfigureMockMvc
 public abstract class HostedTestSupport {
 

@@ -9,8 +9,9 @@ import org.springframework.security.core.AuthenticatedPrincipal;
  * @param userId the person
  * @param sessionId the session's id (the SHA-256 of its cookie), whose CSRF token a
  * change must carry
+ * @param guest whether the person is a sandbox's guest
  */
-record BrowserSession(String userId, String sessionId) implements AuthenticatedPrincipal {
+record BrowserSession(String userId, String sessionId, boolean guest) implements AuthenticatedPrincipal {
 
 	@Override
 	public String getName() {

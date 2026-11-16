@@ -147,7 +147,7 @@ public final class BrowserSessions implements SecurityContextRepository {
 		}
 		SecurityContext context = this.contexts.createEmptyContext();
 		context.setAuthentication(new PreAuthenticatedAuthenticationToken(
-				new BrowserSession(session.userId(), session.id()), "", List.of()));
+				new BrowserSession(session.userId(), session.id(), session.guest()), "", List.of()));
 		return context;
 	}
 

@@ -26,6 +26,8 @@ import io.archsim.app.store.Text;
  * @param googleClientId the Google OAuth client's id
  * @param googleClientSecret the Google OAuth client's secret
  * @param sessionDays how long a sign-in lasts
+ * @param sandboxes whether a visitor may try ArchSim without signing in, in a sandbox
+ * that lasts a day (ADR-0079): only with sign-in, which it otherwise always takes
  */
 @ConfigurationProperties("archsim")
 @Validated
@@ -33,7 +35,8 @@ public record SignInProperties(@Nullable String secretKey, @Nullable AdminEmails
 		@Nullable String githubClientId, @Nullable String githubClientSecret,
 		@DefaultValue("https://github.com") String githubUrl,
 		@DefaultValue("https://api.github.com") String githubApiUrl, @Nullable String googleClientId,
-		@Nullable String googleClientSecret, @DefaultValue("30") @Min(1) @Max(MAX_SESSION_DAYS) int sessionDays) {
+		@Nullable String googleClientSecret, @DefaultValue("30") @Min(1) @Max(MAX_SESSION_DAYS) int sessionDays,
+		boolean sandboxes) {
 
 	/** The longest a sign-in may last. */
 	static final int MAX_SESSION_DAYS = 365;
@@ -101,10 +104,11 @@ public record SignInProperties(@Nullable String secretKey, @Nullable AdminEmails
 	@Override
 	public String toString() {
 		return ("SignInProperties[secretKey=%s, adminEmails=%s, githubClientId=%s, githubClientSecret=%s, "
-				+ "githubUrl=%s, githubApiUrl=%s, googleClientId=%s, googleClientSecret=%s, sessionDays=%s]")
+				+ "githubUrl=%s, githubApiUrl=%s, googleClientId=%s, googleClientSecret=%s, sessionDays=%s, "
+				+ "sandboxes=%s]")
 			.formatted(masked(this.secretKey), this.adminEmails, this.githubClientId, masked(this.githubClientSecret),
 					this.githubUrl, this.githubApiUrl, this.googleClientId, masked(this.googleClientSecret),
-					this.sessionDays);
+					this.sessionDays, this.sandboxes);
 	}
 
 	private static String masked(@Nullable String secret) {

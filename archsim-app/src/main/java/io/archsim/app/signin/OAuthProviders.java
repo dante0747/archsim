@@ -118,10 +118,18 @@ class OAuthProviders {
 
 	/**
 	 * How people sign in here.
-	 * @return the mode and the providers sign-in offers, GitHub first
+	 * @return {@code none} (local, no sign-in) or {@code oauth}
 	 */
-	AuthConfig config() {
-		return new AuthConfig(this.properties.authMode().json(), List.copyOf(this.providers.keySet()));
+	String mode() {
+		return this.properties.authMode().json();
+	}
+
+	/**
+	 * The providers sign-in offers.
+	 * @return their names, GitHub first
+	 */
+	List<String> names() {
+		return List.copyOf(this.providers.keySet());
 	}
 
 	/**

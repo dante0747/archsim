@@ -37,6 +37,16 @@ class SignInPropertiesTests {
 	}
 
 	@Test
+	void sandboxes_notSet_areOff() {
+		assertThat(TestProperties.signIn().sandboxes()).isFalse();
+	}
+
+	@Test
+	void sandboxes_set_areOn() {
+		assertThat(TestProperties.signIn("sandboxes=true").sandboxes()).isTrue();
+	}
+
+	@Test
 	void toString_ofCredentials_masksTheSecret() {
 		assertThat(new ClientCredentials("h", "hush").toString()).doesNotContain("hush");
 	}

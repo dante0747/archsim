@@ -43,9 +43,21 @@ class Me {
 	 * @throws ApiException {@code 404} when their account is gone
 	 */
 	View describe(Principal principal, @Nullable CsrfToken csrfToken) {
+		return view(principal, csrfTokenFor(principal, csrfToken));
+	}
+
+	/**
+	 * Describes someone with a given CSRF token: one Spring Security keeps for the
+	 * request, or that of a browser session just started, in the same transaction.
+	 * @param principal who it is
+	 * @param csrfToken the token their changes send back, if they need one
+	 * @return the person, how they signed in, their workspaces and the CSRF token
+	 * @throws ApiException {@code 404} when their account is gone
+	 */
+	View view(Principal principal, @Nullable String csrfToken) {
 		UserView user = this.accounts.user(principal.userId()).orElseThrow(() -> Access.notFound("Your account was"));
 		return new View(this.properties.authMode().json(), principal.kind().json(), user, this.workspaces.of(principal),
-				csrfTokenFor(principal, csrfToken));
+				csrfToken);
 	}
 
 	/**
@@ -66,9 +78,9 @@ class Me {
 	 * Who is asking.
 	 *
 	 * @param mode {@code none} or {@code oauth}
-	 * @param kind {@code local} (no sign-in), {@code session} (a signed-in browser) or
-	 * {@code token}
-	 * @param user the person
+	 * @param kind {@code local} (no sign-in), {@code session} (a signed-in browser, a
+	 * sandbox's guest's too) or {@code token}
+	 * @param user the person, and whether they are a guest until their sandbox is deleted
 	 * @param workspaces the workspaces they belong to
 	 * @param csrfToken what to send as {@code X-ArchSim-CSRF} with every change a session
 	 * cookie authenticates; none for a token or without sign-in

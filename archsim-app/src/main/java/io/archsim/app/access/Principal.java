@@ -10,16 +10,19 @@ import io.archsim.app.web.ApiException;
 
 /**
  * Who is asking. Without sign-in it is the local user, owner of the default workspace;
- * with it, a browser session or a personal API token.
+ * with it, a browser session or a personal API token. A browser session may be a
+ * sandbox's guest's, a visitor who tries ArchSim without signing in (ADR-0079): they use
+ * their sandbox, but nothing that takes an account of one's own.
  *
  * @param userId the user the request acts for
  * @param kind how the request says who it is
  * @param ip the address the request comes from, as the history records it
  * @param sessionId the browser session's id (the SHA-256 of its cookie), for a session
  * @param token what the API token allows, for a token
+ * @param guest whether the session is a sandbox's guest's
  */
 public record Principal(String userId, PrincipalKind kind, @Nullable String ip, @Nullable String sessionId,
-		@Nullable TokenGrant token) {
+		@Nullable TokenGrant token, boolean guest) {
 
 	/** The user every request is without sign-in. */
 	public static final String LOCAL_USER_ID = "local";
@@ -27,24 +30,29 @@ public record Principal(String userId, PrincipalKind kind, @Nullable String ip, 
 	/** The cookie that carries a browser session's secret. */
 	public static final String SESSION_COOKIE = "__Host-archsim_session";
 
+	/** What a sandbox's guest is told when they try what takes an account. */
+	public static final String GUESTS_CANNOT = "A sandbox's guest cannot do this: sign in to keep your work and "
+			+ "do more.";
+
 	/**
 	 * A principal whose kind matches what it carries: a session id for a session, a grant
-	 * for a token, neither without sign-in.
+	 * for a token, neither without sign-in; only a session may be a guest's.
 	 * @param userId the user
 	 * @param kind how the request says who it is
 	 * @param ip the address
 	 * @param sessionId the session's id, for a session
 	 * @param token the token's grant, for a token
+	 * @param guest whether the session is a guest's
 	 */
 	public Principal {
 		boolean consistent = switch (kind) {
-			case LOCAL -> sessionId == null && token == null;
+			case LOCAL -> sessionId == null && token == null && !guest;
 			case SESSION -> sessionId != null && token == null;
-			case TOKEN -> sessionId == null && token != null;
+			case TOKEN -> sessionId == null && token != null && !guest;
 		};
 		if (!consistent) {
 			throw new IllegalArgumentException("a " + kind.json() + " principal carries a session id only as a "
-					+ "session and a grant only as a token");
+					+ "session, a grant only as a token, and is a guest only as a session");
 		}
 	}
 
@@ -54,7 +62,7 @@ public record Principal(String userId, PrincipalKind kind, @Nullable String ip, 
 	 * @return the principal
 	 */
 	public static Principal local(@Nullable String ip) {
-		return new Principal(LOCAL_USER_ID, PrincipalKind.LOCAL, ip, null, null);
+		return new Principal(LOCAL_USER_ID, PrincipalKind.LOCAL, ip, null, null, false);
 	}
 
 	/**
@@ -65,7 +73,18 @@ public record Principal(String userId, PrincipalKind kind, @Nullable String ip, 
 	 * @return the principal
 	 */
 	public static Principal session(String userId, String sessionId, @Nullable String ip) {
-		return new Principal(userId, PrincipalKind.SESSION, ip, sessionId, null);
+		return new Principal(userId, PrincipalKind.SESSION, ip, sessionId, null, false);
+	}
+
+	/**
+	 * A sandbox's guest, signed in with the browser session that started the sandbox.
+	 * @param userId the guest
+	 * @param sessionId the session's id
+	 * @param ip the address, if known
+	 * @return the principal
+	 */
+	public static Principal guest(String userId, String sessionId, @Nullable String ip) {
+		return new Principal(userId, PrincipalKind.SESSION, ip, sessionId, null, true);
 	}
 
 	/**
@@ -76,7 +95,7 @@ public record Principal(String userId, PrincipalKind kind, @Nullable String ip, 
 	 * @return the principal
 	 */
 	public static Principal token(String userId, TokenGrant token, @Nullable String ip) {
-		return new Principal(userId, PrincipalKind.TOKEN, ip, null, token);
+		return new Principal(userId, PrincipalKind.TOKEN, ip, null, token, false);
 	}
 
 	/**
@@ -115,14 +134,26 @@ public record Principal(String userId, PrincipalKind kind, @Nullable String ip, 
 	}
 
 	/**
-	 * Refuses API tokens: managing access itself (tokens, invitations, workspaces) takes
-	 * a person.
-	 * @throws ApiException {@code 403} for a token
+	 * Refuses API tokens and sandboxes' guests: managing access itself (tokens,
+	 * invitations, workspaces) takes a person with an account of their own.
+	 * @throws ApiException {@code 403} for a token or a guest
 	 */
 	public void requirePerson() {
 		if (this.kind == PrincipalKind.TOKEN) {
 			throw new ApiException(HttpStatus.FORBIDDEN, "API tokens cannot do this: sign in to the web app instead.",
 					List.of());
+		}
+		requireAccount();
+	}
+
+	/**
+	 * Refuses a sandbox's guest, for what takes an account of one's own: managing access,
+	 * and share links, which would publish what an anonymous visitor wrote.
+	 * @throws ApiException {@code 403} for a guest
+	 */
+	public void requireAccount() {
+		if (this.guest) {
+			throw new ApiException(HttpStatus.FORBIDDEN, GUESTS_CANNOT, List.of());
 		}
 	}
 

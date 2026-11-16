@@ -55,7 +55,7 @@ implementation of the API ([`Profile.java`](src/main/java/io/archsim/apitests/Pr
 | Profile | Settings |
 | --- | --- |
 | `local` | no sign-in (everyone is the local owner of `default`); two extra price snapshots of a made-up provider (`ARCHSIM_PRICES_DIR`) |
-| `hosted` | GitHub and Google sign-in, as a hosted server runs it; GitHub is the suite's stand-in, Google is configured but never reached; public URL `https://archsim.test`; admin email `admin@example.com` |
+| `hosted` | GitHub and Google sign-in, as a hosted server runs it; GitHub is the suite's stand-in, Google is configured but never reached; public URL `https://archsim.test`; admin email `admin@example.com`; sandboxes for visitors who do not sign in (`ARCHSIM_SANDBOXES=true`) |
 | `constrained` | no sign-in; one run at a time; request bodies up to 10,000 bytes |
 | `small-runs` | no sign-in; runs of at most 1,000 requests; Prometheus only at `prom.example:9090` |
 | `rate-limited` | no sign-in, with a hosted server's rate limits |

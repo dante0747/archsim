@@ -72,6 +72,19 @@ public final class ApiException extends RuntimeException {
 	}
 
 	/**
+	 * A request the server has no room for now, whoever sends it: {@code 503} with
+	 * {@code Retry-After}.
+	 * @param message what was refused, and what to do instead
+	 * @param retryAfterSeconds how many seconds until there may be room
+	 * @return the refusal
+	 */
+	public static ApiException unavailable(String message, long retryAfterSeconds) {
+		HttpHeaders headers = new HttpHeaders();
+		headers.set(HttpHeaders.RETRY_AFTER, Long.toString(retryAfterSeconds));
+		return new ApiException(HttpStatus.SERVICE_UNAVAILABLE, message, List.of(), headers);
+	}
+
+	/**
 	 * Headers the answer carries besides the body's, such as {@code WWW-Authenticate}.
 	 * @return the headers, possibly none
 	 */

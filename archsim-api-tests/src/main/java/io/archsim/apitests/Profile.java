@@ -19,8 +19,8 @@ public enum Profile {
 	LOCAL("local", 0),
 	/**
 	 * GitHub and Google sign-in, as a hosted server runs: sessions, CSRF, tokens, rate
-	 * limits. GitHub is the suite's {@link FakeGitHub}; Google is configured but never
-	 * reached.
+	 * limits, and sandboxes for visitors who do not sign in. GitHub is the suite's
+	 * {@link FakeGitHub}; Google is configured but never reached.
 	 */
 	HOSTED("hosted", 1),
 	/** No sign-in; one run at a time, and request bodies up to 10,000 bytes. */
@@ -123,6 +123,7 @@ public enum Profile {
 		env.put("ARCHSIM_GOOGLE_CLIENT_ID", FakeGitHub.CLIENT_ID);
 		env.put("ARCHSIM_GOOGLE_CLIENT_SECRET", FakeGitHub.CLIENT_SECRET);
 		env.put("ARCHSIM_ADMIN_EMAILS", ADMIN_EMAIL);
+		env.put("ARCHSIM_SANDBOXES", "true");
 		return env;
 	}
 

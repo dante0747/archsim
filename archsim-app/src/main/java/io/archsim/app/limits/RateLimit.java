@@ -20,6 +20,9 @@ public record RateLimit(int limit, long windowSeconds) {
 	/** Sign-ins started from one address: 30 per 10 minutes. */
 	public static final RateLimit LOGINS_PER_IP = new RateLimit(30, 600);
 
+	/** Sandboxes started from one address: 5 an hour. */
+	public static final RateLimit SANDBOXES_PER_IP = new RateLimit(5, HOUR);
+
 	/** API tokens one person makes per day. */
 	public static final RateLimit TOKENS_PER_USER = new RateLimit(20, DAY);
 

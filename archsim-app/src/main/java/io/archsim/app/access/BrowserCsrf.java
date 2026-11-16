@@ -32,8 +32,9 @@ public final class BrowserCsrf {
 	 * Where the tokens are kept: the {@value #COOKIE} cookie, a {@code __Host-} cookie,
 	 * so {@code Secure}, on path {@code /} and with no domain, and
 	 * {@code SameSite=strict}. A cookie this repository sets, when a browser has none (at
-	 * {@code GET /auth/me}), lasts the browser's session; signing in sets its own, for as
-	 * long as the session lasts.
+	 * {@code GET /auth/me}, and at {@code GET /auth/config} where sandboxes are offered),
+	 * lasts the browser's session; signing in, or starting a sandbox, sets its own, for
+	 * as long as the session lasts.
 	 * @return the repository
 	 */
 	public static CsrfTokenRepository tokens() {

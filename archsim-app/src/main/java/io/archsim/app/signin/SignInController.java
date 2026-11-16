@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -44,19 +45,27 @@ class SignInController {
 
 	private final Sessions sessions;
 
-	SignInController(OAuthProviders providers, Sessions sessions) {
+	private final SandboxOffer sandboxes;
+
+	SignInController(OAuthProviders providers, Sessions sessions, SandboxOffer sandboxes) {
 		this.providers = providers;
 		this.sessions = sessions;
+		this.sandboxes = sandboxes;
 	}
 
 	/**
 	 * How people sign in here: {@code none} (local, no sign-in) or {@code oauth} with its
-	 * providers.
-	 * @return the mode and providers
+	 * providers, and whether a visitor may try a sandbox without signing in. Where one
+	 * may, the answer gives the browser the CSRF token that starts one, setting it in its
+	 * cookie when it has none.
+	 * @param csrfToken the request's CSRF token, as Spring Security's CSRF filter keeps
+	 * it; none without sign-in
+	 * @return the mode, providers and sandboxes
 	 */
 	@GetMapping("/config")
-	AuthConfig config() {
-		return this.providers.config();
+	AuthConfig config(@Nullable CsrfToken csrfToken) {
+		return new AuthConfig(this.providers.mode(), this.providers.names(), this.sandboxes.offered(),
+				this.sandboxes.csrfTokenFor(csrfToken));
 	}
 
 	/**

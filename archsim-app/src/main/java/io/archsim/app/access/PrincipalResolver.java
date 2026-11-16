@@ -74,6 +74,8 @@ class PrincipalResolver implements HandlerMethodArgumentResolver {
 		return switch (who) {
 			case ApiTokenPrincipal token -> Principal.token(token.userId(), token.grant(), ip);
 			case LocalUser _ -> Principal.local(ip);
+			case BrowserSession session when session.guest() ->
+				Principal.guest(session.userId(), session.sessionId(), ip);
 			case BrowserSession session -> Principal.session(session.userId(), session.sessionId(), ip);
 			case null, default -> throw notSignedIn(request);
 		};

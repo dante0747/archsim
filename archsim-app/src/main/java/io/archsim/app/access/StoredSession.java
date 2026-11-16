@@ -9,8 +9,9 @@ import java.time.Instant;
  * @param userId whose session it is
  * @param expiresAt when it stops working
  * @param lastSeenAt when a request last used it, give or take a few minutes
+ * @param guest whether its account is a sandbox's guest's, which expires
  */
-record StoredSession(String id, String userId, Instant expiresAt, Instant lastSeenAt) {
+record StoredSession(String id, String userId, Instant expiresAt, Instant lastSeenAt, boolean guest) {
 
 	/**
 	 * Whether the session still signs requests in.

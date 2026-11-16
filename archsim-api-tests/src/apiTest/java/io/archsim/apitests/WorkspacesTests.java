@@ -45,7 +45,8 @@ class WorkspacesTests {
 		JsonNode localDefault = Json.find(me.path("workspaces"), "id", "default");
 		assertThat(List.of(localDefault.path("role").asString(), localDefault.path("kind").asString()))
 			.containsExactly("owner", "team");
-		assertThat(client.get("/auth/config").json()).isEqualTo(Json.object("mode", "none", "providers", Json.array()));
+		assertThat(client.get("/auth/config").json())
+			.isEqualTo(Json.object("mode", "none", "providers", Json.array(), "sandboxes", false, "csrfToken", null));
 		String project = Json.id(Runs.createProject(client));
 		assertThat(server.db().rows("SELECT workspace_id, created_by FROM projects WHERE id = ?", project))
 			.containsExactly(row("workspace_id", "default", "created_by", "local"));

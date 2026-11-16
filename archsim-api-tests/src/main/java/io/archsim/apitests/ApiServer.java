@@ -134,7 +134,7 @@ public final class ApiServer {
 		ApiResponse start = client.get("/auth/github/login").expectStatus(HttpURLConnection.HTTP_MOVED_TEMP);
 		ApiResponse done = client.open(github().authorize(start.location(), login))
 			.expectStatus(HttpURLConnection.HTTP_MOVED_TEMP);
-		client.cookie("__Host-archsim_csrf").ifPresent((csrf) -> client.header("X-ArchSim-CSRF", csrf));
+		sendCsrfToken(client);
 		return done.location();
 	}
 
@@ -153,6 +153,31 @@ public final class ApiServer {
 	}
 
 	/**
+	 * Starts a sandbox as the web app does: the CSRF token from {@code /auth/config},
+	 * then {@code POST /auth/sandbox} with it. Like the web app, the client then sends
+	 * the CSRF token it holds with every change.
+	 * @param client the browser that tries ArchSim without signing in
+	 * @return the start's answer
+	 */
+	public static ApiResponse startSandbox(ApiClient client) {
+		client.get("/auth/config").expectStatus(HttpURLConnection.HTTP_OK);
+		sendCsrfToken(client);
+		ApiResponse started = client.post("/auth/sandbox");
+		sendCsrfToken(client);
+		return started;
+	}
+
+	/**
+	 * Returns a client signed in as a new sandbox's guest (see {@link #startSandbox}).
+	 * @return the guest's client
+	 */
+	public ApiClient guest() {
+		ApiClient client = client();
+		startSandbox(client).expectStatus(HttpURLConnection.HTTP_CREATED);
+		return client;
+	}
+
+	/**
 	 * Returns a new client that sends {@code person}'s new API token and no cookies, as a
 	 * CLI would; fails the test unless the token is made.
 	 * @param person the signed-in client that makes the token
@@ -164,6 +189,15 @@ public final class ApiServer {
 			.expectStatus(HttpURLConnection.HTTP_CREATED)
 			.json();
 		return client().header("Authorization", "Bearer " + created.path("token").asString());
+	}
+
+	/**
+	 * Makes a client send the CSRF token it holds with every request, as the web app
+	 * sends it with every change.
+	 * @param client the client
+	 */
+	private static void sendCsrfToken(ApiClient client) {
+		client.cookie("__Host-archsim_csrf").ifPresent((csrf) -> client.header("X-ArchSim-CSRF", csrf));
 	}
 
 }

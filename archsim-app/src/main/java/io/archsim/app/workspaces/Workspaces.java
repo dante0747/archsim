@@ -32,6 +32,9 @@ public class Workspaces {
 	/** The kind of workspace each person has, listed first. */
 	public static final String PERSONAL = "personal";
 
+	/** The kind of workspace a visitor tries ArchSim in, as a guest, for a day. */
+	public static final String SANDBOX = "sandbox";
+
 	/** The kind of workspace people share. */
 	static final String TEAM = "team";
 
@@ -93,6 +96,18 @@ public class Workspaces {
 		String id = Ids.newId();
 		this.repository.create(new NewWorkspace(id, Text.cut(name, MAX_NAME), kind, ownerId, Times.now(this.clock)));
 		return id;
+	}
+
+	/**
+	 * Deletes, in the caller's transaction, the sandboxes someone made, with everything
+	 * in them: memberships, projects, runs (a worker simulating one finds it gone at its
+	 * next heartbeat and stops it, as when a team workspace is deleted), share links and
+	 * history.
+	 * @param userId who made them: a guest
+	 */
+	@Transactional(propagation = Propagation.MANDATORY)
+	public void deleteSandboxesOf(String userId) {
+		this.repository.deleteSandboxesOf(userId);
 	}
 
 	/**

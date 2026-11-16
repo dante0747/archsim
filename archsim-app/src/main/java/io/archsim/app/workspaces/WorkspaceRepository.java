@@ -95,6 +95,18 @@ class WorkspaceRepository {
 		this.jdbc.sql("DELETE FROM workspaces WHERE id = :id").param("id", id).update();
 	}
 
+	/**
+	 * Deletes the sandboxes someone made, and with them everything a workspace's delete
+	 * takes.
+	 * @param userId who made them
+	 */
+	void deleteSandboxesOf(String userId) {
+		this.jdbc.sql("DELETE FROM workspaces WHERE kind = :kind AND created_by = :user")
+			.param("kind", Workspaces.SANDBOX)
+			.param("user", userId)
+			.update();
+	}
+
 	private static WorkspaceInfo info(ResultSet rows) throws SQLException {
 		return new WorkspaceInfo(rows.getString("id"), rows.getString("name"), rows.getString("kind"),
 				rows.getObject("max_concurrent_runs", Integer.class),
