@@ -104,7 +104,8 @@ takes connections from outside, browsers reach the API through the web server on
 sits on a network with no way out that only the API, the workers and the backup reach, and
 calibration never calls out. Runs are smaller than a local install allows, for a public demo: at most
 1,000,000 expected requests and 120 s (`ARCHSIM_MAX_REQUESTS`, `ARCHSIM_MAX_WALL_SECONDS`), more than
-any template needs.
+any template needs. Before you open it to the public, publish a privacy notice:
+[Privacy](#13-privacy) lists what the server stores.
 
 ### 1. A server
 
@@ -330,3 +331,27 @@ docker compose --env-file hosted.env logs -f api worker   # or web, caddy, cloud
 Docker keeps five files of 10 MB for each container. Caddy logs its certificates, not each request;
 a `log` line in the `Caddyfile` adds an access log, which holds visitors' addresses. Through the
 tunnel, Cloudflare's dashboard has the traffic.
+
+### 13. Privacy
+
+A public server keeps personal data, so publish a privacy notice: what the server keeps, why, for
+how long, and whom to ask about it. Set the web server's `ARCHSIM_PRIVACY_URL` to the notice's
+address, and the app links to it. A server from this kit stores:
+
+- **For each person who signs in:** the name, email and picture address their GitHub or Google
+  account gives, that account's id (and GitHub user name), and what they make in their workspaces
+  (designs, runs, comments, sign-offs, share links) until it is deleted.
+- **For each sign-in session:** the IP address and browser (user agent) it started from, until
+  the person signs out of it, or out everywhere; an expired session's row stays until then.
+- **In each workspace's history:** every change to its projects, runs, reviews and members, who
+  made it and from which IP address (only owners see the address), for as long as the workspace
+  lasts.
+- **With sandboxes on** (`ARCHSIM_SANDBOXES=true`): a guest account with no name of its own and no
+  email, its session's address and browser, and everything made in the sandbox, all deleted 24
+  hours after the sandbox starts.
+- **Rate-limit counters by IP address** (sign-ins, sandbox starts and public share views), deleted
+  within a minute of the end of their window, which lasts an hour at most.
+- **In the nightly backups:** all of the above as it was that night. The newest seven dumps are
+  kept (`ARCHSIM_BACKUP_KEEP`), so whatever is deleted from the database, an expired sandbox
+  included, stays in them for up to 7 days, and in any copies you keep elsewhere for as long as
+  you keep those.
