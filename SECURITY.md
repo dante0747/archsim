@@ -2,12 +2,16 @@
 
 ## Supported versions
 
-Security fixes land on `main`. ArchSim has no releases or long-term-support branches yet.
+Security fixes land on `main` and ship in the next release. Only the latest release and `main`
+are supported: older releases get no fixes of their own, and there are no long-term-support
+branches. The [releases](https://github.com/dante0747/archsim/releases) and the
+[changelog](CHANGELOG.md) list them.
 
 | Version | Supported |
 | --- | --- |
+| the latest release | yes |
 | the latest commit on `main` | yes |
-| anything older | no |
+| older releases | no |
 
 ## Reporting a vulnerability
 
