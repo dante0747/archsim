@@ -10,13 +10,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { TechIcon } from "@/components/TechIcon";
 import { Meter } from "@/components/ui/meter";
+import landing from "@/data/landing-run.json";
 import { KIND_COLOR, type Kind } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 const T = 60; // scripted seconds
 const LOOP_MS = 16000;
 const OUTAGE: [number, number] = [20, 32];
-const SLO_P95 = 300;
+// the goal of the template the shot is named after, Black Friday on Kubernetes (src/data/landing-run.json)
+const SLO_P95 = landing.objectives.latencyP95Ms;
 const STILL = 26;
 
 const smooth = (a: number, b: number, x: number) => {

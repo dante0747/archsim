@@ -42,23 +42,26 @@ tasks.test {
     systemProperty("archsim.repoRoot", rootDir.absolutePath)
     // the simulator's measured runs take minutes to hours: the parity and speed tasks run them
     useJUnitPlatform { excludeTags("parity", "speed") }
-    // GeneratedFileTests reads the files the generate task writes, and the starter it analyzes:
-    // a change to any of them reruns it, after the generate task when both run
+    // GeneratedFileTests reads the files the generate task writes, the starter it analyzes, and
+    // the template the landing page's run simulates (LandingRun's TEMPLATE: change both
+    // together): a change to any of them reruns it, after the generate task when both run
     inputs.files(
         listOf("catalog.json", "analysis-starter.json", "starter.json").map {
             rootDir.resolve("apps/web/src/test/fixtures/$it")
-        } + rootDir.resolve("docs/assumptions.md"),
+        } + listOf("apps/web/src/data/landing-run.json", "examples/black-friday-kubernetes.json", "docs/assumptions.md")
+            .map { rootDir.resolve(it) },
     ).withPropertyName("generatedFiles").withPathSensitivity(PathSensitivity.RELATIVE)
     mustRunAfter("generate")
 }
 
 // Writes the repository's files the engine generates (the web app's engine fixtures, the
-// catalog and the starter's analysis, and docs/assumptions.md), which GeneratedFileTests holds
+// catalog and the starter's analysis; the run its landing page states figures from,
+// apps/web/src/data/landing-run.json; and docs/assumptions.md), which GeneratedFileTests holds
 // the committed files to.
 //
 //   ./gradlew :archsim-engine:generate
 tasks.register<JavaExec>("generate") {
-    description = "Writes the repository's files the engine generates: the web app's engine fixtures and the assumptions page."
+    description = "Writes the repository's files the engine generates: the web app's engine fixtures, its landing page's run and the assumptions page."
     group = LifecycleBasePlugin.BUILD_GROUP
     classpath = sourceSets.test.get().runtimeClasspath
     mainClass = "io.archsim.engine.generated.GeneratedFile"

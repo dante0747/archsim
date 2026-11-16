@@ -4,6 +4,8 @@
 import { CircleCheck } from "lucide-react";
 import { TechIcon } from "@/components/TechIcon";
 import { Reveal } from "@/components/landing/Reveal";
+import landing from "@/data/landing-run.json";
+import { formatUsd } from "@/lib/cost";
 import type { Kind } from "@/lib/theme";
 
 function MiniCard({ tech, kind, name, className = "" }: { tech: string; kind: Kind; name: string; className?: string }) {
@@ -57,6 +59,11 @@ function TestVignette() {
   );
 }
 
+/**
+ * A real run's answer: the Black Friday template's scenario that holds up, as the engine simulates
+ * it today (src/data/landing-run.json, which archsim-engine's GeneratedFileTests keeps current; the
+ * engine refuses to write it for a run that misses its objectives, so the answer is yes).
+ */
 function ResultsVignette() {
   return (
     <div className="flex h-40 flex-col justify-center">
@@ -65,9 +72,9 @@ function ResultsVignette() {
       </p>
       <dl className="mt-4 grid grid-cols-3 gap-2">
         {[
-          ["949/s", "handled"],
-          ["370 ms", "p95"],
-          ["$1,278", "per month · AWS"],
+          [`${Math.round(landing.throughputRps)}/s`, "handled"],
+          [`${Math.round(landing.p95Ms)} ms`, "p95"],
+          [formatUsd(landing.monthlyCost), `per month · ${landing.provider.toUpperCase()}`],
         ].map(([v, k]) => (
           <div key={k} className="rounded-lg bg-surface-2 px-2.5 py-2">
             <dd className="tabular text-[15px] font-semibold text-ink">{v}</dd>

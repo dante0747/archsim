@@ -19,9 +19,9 @@ import io.archsim.parity.Repository;
 
 /**
  * The repository's files the engine generates, so that what reads them reads the engine's
- * own output: the web app's engine fixtures, each written as Python's
- * {@code json.dumps(value, indent=2)} wrote it, and the assumptions page.
- * {@link GeneratedFileTests} holds the committed files to them;
+ * own output: the web app's engine fixtures and the run its landing page states figures
+ * from, each written as Python's {@code json.dumps(value, indent=2)} wrote it, and the
+ * assumptions page. {@link GeneratedFileTests} holds the committed files to them;
  * {@code ./gradlew :archsim-engine:generate} writes them ({@link #main()}).
  */
 enum GeneratedFile {
@@ -45,6 +45,19 @@ enum GeneratedFile {
 			return json(
 					new DesignAnalyzer(StandardComponents.registry(), PriceSnapshots.shipped()).analyze(starter, null)
 						.toJson());
+		}
+
+	},
+
+	/**
+	 * The run whose figures the web app's landing page states ({@link LandingRun}), so
+	 * they are the engine's and its prices' today.
+	 */
+	LANDING_RUN("apps/web/src/data/landing-run.json") {
+
+		@Override
+		String text() {
+			return json(LandingRun.summary());
 		}
 
 	},

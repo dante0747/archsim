@@ -17,6 +17,9 @@ for when that version changes.
 - A finding that counts one request says so: `1 request failed at API`, `1 client request failed
   because of them`, `refused 1 call`, where it said `1 requests`. Only words change; the engine
   stays at 1.1.1.
+- The landing page's "Decide" figures and the hero's p95 goal are a real run's of Black Friday on
+  Kubernetes, which the engine's tests keep current: $1,434 a month where it said $1,278, and the
+  template's 500 ms goal where the hero said 300.
 
 ## [1.1.0] - 2026-11-16
 

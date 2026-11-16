@@ -10,8 +10,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The committed files the engine generates are the engine's output today
- * ({@link GeneratedFile}): a change to the catalog or the analysis, or an edit by hand,
- * shows up here until {@code ./gradlew :archsim-engine:generate} writes them again.
+ * ({@link GeneratedFile}): a change to the catalog or the analysis, to the simulator, the
+ * landing page's template or the prices, or an edit by hand, shows up here until
+ * {@code ./gradlew :archsim-engine:generate} writes them again.
  */
 class GeneratedFileTests {
 

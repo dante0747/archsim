@@ -425,10 +425,13 @@ data now, not recorded again.
 - `GeneratedFileTests` holds the repository's files the engine generates to its output: the
   web app's engine fixtures (`apps/web/src/test/fixtures/catalog.json`, the component catalog
   as `GET /api/v1/components` answers it, and `analysis-starter.json`, the starter's analysis
-  as `POST /api/v1/analyze` answers it) and `docs/assumptions.md` (`AssumptionsPage`, for this
-  engine's version), one `GeneratedFile` each.
-  `./gradlew :archsim-engine:generate` writes them (`GeneratedFile.main`); the test task declares
-  them as inputs, so an edit to one runs the check again.
+  as `POST /api/v1/analyze` answers it), the run the web app's landing page states figures from
+  (`apps/web/src/data/landing-run.json`, `LandingRun`: a full run of black-friday-kubernetes'
+  `fixed-at-peak`, priced with the shipped snapshot, with the template's objectives and the
+  engine's verdict on them) and `docs/assumptions.md` (`AssumptionsPage`, for this engine's
+  version), one `GeneratedFile` each. `./gradlew :archsim-engine:generate` writes them
+  (`GeneratedFile.main`); the test task declares them, and the landing page's template, as
+  inputs, so an edit to one runs the check again.
 - `./gradlew :archsim-engine:parity` runs `SimulationParityTests` (tagged `parity`, left out of
   `test`): every template case of the frozen engine's simulation baselines (149 cases, 20 seeds
   each; `parity/simulation/` once recorded), simulated in Java and judged by the port plan's bar
