@@ -28,6 +28,7 @@ import { DesktopOnly } from "@/components/editor/DesktopOnly";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/misc";
 import { ApiError, api } from "@/lib/api";
+import { projectTitle, useDocumentTitle } from "@/lib/document-title";
 import { signInPage } from "@/lib/session";
 import { isEditableTarget } from "@/lib/utils";
 import { useDecide } from "@/store/decide";
@@ -41,6 +42,8 @@ export function EditorApp({ projectId }: { projectId: string }) {
   const [state, setState] = useState<{ kind: "loading" } | { kind: "ready" } | { kind: "error"; message: string }>({
     kind: "loading",
   });
+  const name = useEditor((s) => s.metadata.name);
+  useDocumentTitle(state.kind === "ready" ? projectTitle(name) : null);
 
   useEffect(() => {
     let cancelled = false;

@@ -1,10 +1,11 @@
 "use client";
 
 import { ArrowLeftRight, ArrowRight, GitCompareArrows, ListChecks, LoaderCircle, Minus, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
+import { runOptionText } from "@/components/decide/shared";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/input";
 import { Badge, Empty, Section } from "@/components/ui/misc";
-import { fmtMs, fmtNum, fmtPct, fmtRelativeTime, fmtRps } from "@/lib/format";
+import { fmtMs, fmtNum, fmtPct, fmtRps } from "@/lib/format";
 import { NODE_STATUS, SERIES } from "@/lib/status";
 import { isClientType } from "@/lib/theme";
 import type { ComparisonKpi } from "@/lib/types";
@@ -67,7 +68,7 @@ export function CompareTab() {
       <option value="">Choose a finished run…</option>
       {done.map((r) => (
         <option key={r.id} value={r.id}>
-          {r.label} · seed {r.seed} · {fmtRelativeTime(r.createdAt)}
+          {runOptionText(r)}
         </option>
       ))}
     </NativeSelect>

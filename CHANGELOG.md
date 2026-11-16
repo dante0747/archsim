@@ -33,6 +33,10 @@ for when that version changes.
   stay off until a run passes on Linux), where it said they rerun every week. It and the
   website's home page call the experiments small synthetic services on real PostgreSQL, Redis and
   Kafka.
+- Smaller things in the app: run pickers name each run's short id; the projects page counts a
+  sandbox's projects against its cap ("4 of 5 in Sandbox"); a sandbox's end names your time zone;
+  the browser tab names the open project; and Results' queueing-formulas line links "What the
+  formulas leave out" instead of a stray "not simulated".
 - A finding that counts one request says so: `1 request failed at API`, `1 client request failed
   because of them`, `refused 1 call`, where it said `1 requests`. Only words change; the engine
   stays at 1.1.1.

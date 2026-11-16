@@ -15,6 +15,14 @@ export function runLabel(run: Pick<Run, "label" | "scenarioName"> | null | undef
   return run?.label ?? run?.scenarioName ?? "Current design";
 }
 
+/**
+ * A run in a run picker: what it ran, its short id (runs of one design otherwise read the same),
+ * its seed, whether it was a quick check, and when: "Current design · run 3f9a2c1d · seed 42 · 43s ago".
+ */
+export function runOptionText(run: Pick<Run, "id" | "label" | "scenarioName" | "seed" | "mode" | "createdAt">): string {
+  return `${runLabel(run)} · run ${run.id.slice(0, 8)} · seed ${run.seed}${run.mode === "sampled" ? " · estimated" : ""} · ${fmtRelativeTime(run.createdAt)}`;
+}
+
 export function isSweepRun(run: Pick<Run, "scenarioId">): boolean {
   return !!run.scenarioId && run.scenarioId.startsWith(SWEEP_SCENARIO_PREFIX);
 }
@@ -160,7 +168,7 @@ export function RunPicker({ value, onChange, label = "Run" }: { value: string | 
       >
         {runs.map((r) => (
           <option key={r.id} value={r.id}>
-            {runLabel(r)} · seed {r.seed}{r.mode === "sampled" ? " · estimated" : ""} · {fmtRelativeTime(r.createdAt)}
+            {runOptionText(r)}
           </option>
         ))}
       </select>

@@ -101,6 +101,15 @@ describe("Results header", () => {
     expect(screen.getByTestId("estimate-vs-sim")).toHaveTextContent("Queueing formulas: p95 ≈ 97 ms (simulated 91 ms); API Servers 70% busy (simulated 70%).");
   });
 
+  it("names what the formulas leave out as a link, not a stray label", () => {
+    useRuns.setState({ runs: [runOf("r1", "succeeded")], reports: { r1: report() }, activeRunId: "r1" });
+    show(<AnswerPage />);
+    const line = screen.getByTestId("estimate-vs-sim");
+
+    expect(within(line).getByRole("button", { name: "What the formulas leave out" })).toBeInTheDocument();
+    expect(within(line).queryByRole("button", { name: "not simulated" })).toBeNull();
+  });
+
   it("falls back to the design's confidence for runs made before it was recorded", () => {
     useRuns.setState({ runs: [runOf("r1", "succeeded")], reports: { r1: report(false) }, activeRunId: "r1" });
     show(<AnswerPage />);

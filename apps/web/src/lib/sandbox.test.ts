@@ -4,13 +4,23 @@ import type { Me } from "./auth-types";
 
 const NOW = new Date(2026, 10, 16, 9, 30);
 
+/** The visitor's time zone at `date`, as the browser abbreviates it: "EST", "GMT+1". */
+const zone = (date: Date) => {
+  const name = new Intl.DateTimeFormat("en-US", { timeZoneName: "short" }).formatToParts(date).find((p) => p.type === "timeZoneName")?.value ?? "";
+  return name.replace(/[+]/g, "\\+");
+};
+
 describe("when a sandbox is deleted, as people read it", () => {
-  it("names the time alone later today", () => {
-    expect(sandboxEndText(new Date(2026, 10, 16, 14, 5).toISOString(), NOW)).toMatch(/^today at 2:05\s?PM$/);
+  it("names the time alone later today, in the visitor's time zone", () => {
+    const end = new Date(2026, 10, 16, 14, 5);
+
+    expect(sandboxEndText(end.toISOString(), NOW)).toMatch(new RegExp(`^today at 2:05\\sPM ${zone(end)}$`));
   });
 
-  it("says tomorrow for the next day", () => {
-    expect(sandboxEndText(new Date(2026, 10, 17, 9, 0).toISOString(), NOW)).toMatch(/^tomorrow at 9:00\s?AM$/);
+  it("says tomorrow for the next day, in the visitor's time zone", () => {
+    const end = new Date(2026, 10, 17, 9, 0);
+
+    expect(sandboxEndText(end.toISOString(), NOW)).toMatch(new RegExp(`^tomorrow at 9:00\\sAM ${zone(end)}$`));
   });
 
   it("says soon once the time has passed", () => {

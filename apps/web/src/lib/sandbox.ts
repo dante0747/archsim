@@ -9,11 +9,17 @@ export function isGuest(me: Me | null | undefined): boolean {
   return me?.user.guest === true;
 }
 
-/** When a sandbox is deleted, as people read it: "today at 2:05 PM", "tomorrow at 9:00 AM". */
+/** The most projects a sandbox holds: the API's sandbox limits (docs/api.md, "Limits"). */
+export const SANDBOX_PROJECT_LIMIT = 5;
+
+/**
+ * When a sandbox is deleted, as people read it, in their own time zone: "today at 2:05 PM CET",
+ * "tomorrow at 9:00 AM EST" (or "GMT+1" where the browser has no abbreviation for the zone).
+ */
 export function sandboxEndText(expiresAt: string, now: Date = new Date()): string {
   const end = new Date(expiresAt);
   if (end.getTime() <= now.getTime()) return "in a moment";
-  const time = end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const time = end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZoneName: "short" });
   const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
   if (end < tomorrow) return `today at ${time}`;
   const dayAfter = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);

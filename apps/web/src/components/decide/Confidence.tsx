@@ -104,7 +104,7 @@ export function EstimateVsSimulation({ report }: { report: Report }) {
         {cmp.text}{" "}
         <Tip content={<Notes estimate={report.estimate} />}>
           <button type="button" className="rounded-sm underline decoration-dotted underline-offset-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-accent">
-            not simulated
+            What the formulas leave out
           </button>
         </Tip>
       </span>

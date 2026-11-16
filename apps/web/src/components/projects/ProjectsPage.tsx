@@ -15,6 +15,7 @@ import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/compo
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { api } from "@/lib/api";
 import { fmtRelativeTime } from "@/lib/format";
+import { projectCountText } from "@/lib/project-count";
 import type { ExampleSummary, ProjectSummary } from "@/lib/types";
 import { MobileNav } from "@/components/ui/MobileNav";
 import { SandboxBanner } from "@/components/auth/SandboxBanner";
@@ -105,13 +106,7 @@ export function ProjectsPage() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="font-display text-[36px] font-semibold leading-[1.05] tracking-[-0.04em] text-ink sm:text-[44px]">Your projects</h1>
-            <p className="mt-2 text-[15px] text-ink-2">
-              {workspace && workspace.id !== "default"
-                ? `${projects ? `${projects.length} ` : ""}in ${workspace.name}${readOnly ? ". You can open them; editors change them." : "."}`
-                : projects
-                  ? `${projects.length} saved in your ArchSim database.`
-                  : "Saved in your ArchSim database."}
-            </p>
+            <p className="mt-2 text-[15px] text-ink-2">{projectCountText(projects ? projects.length : null, workspace)}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <input
