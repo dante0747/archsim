@@ -48,6 +48,23 @@ screenshots of the main pages under `apps/web/test-results/site/`. `npm run dev:
 Set `ARCHSIM_SITE_DEMO_URL` to an https URL to show "Try it live" links to a hosted demo; without
 it they are hidden.
 
+## What search engines see
+
+- **Each page** has its title, a description, its canonical URL on archsim.io and a link preview
+  (`apps/web/src/lib/site/site.ts`). A document's description is its first paragraph of prose, less
+  a closing line that leads into a list with a colon, cut at about 155 characters; to change what a
+  search result says about a page, change that paragraph.
+- **Structured data** (schema.org JSON-LD, `apps/web/src/lib/site/structured-data.ts`): the home
+  page describes ArchSim as free software at the version in `apps/web/package.json`, and each
+  document is an article with the breadcrumbs that lead to it.
+- **`sitemap.xml`** lists every page, each with the date of the last commit to the file it is made
+  from. It needs the repository's history: a shallow clone leaves the dates out, so the site's
+  workflow checks out the full history (commits and trees, without old file contents).
+- **IndexNow.** After each deploy, the workflow sends the sitemap's pages to IndexNow
+  (`apps/web/scripts/indexnow.mjs`), which passes them to Bing and the other search engines that
+  take part. Its key is public by design: the site serves it at `/<key>.txt` to prove the pings
+  are the site's own. A ping IndexNow refuses is a warning in the run, never a failed deploy.
+
 ## Deploying it
 
 [`.github/workflows/site.yml`](../.github/workflows/site.yml) builds and checks the site on every
