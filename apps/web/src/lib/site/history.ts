@@ -11,8 +11,10 @@ function git(root: string, args: string[]): string | null {
 
 /**
  * The date of the last commit that changed each of `paths` (relative to `root`, the repository's
- * root), in W3C/ISO 8601 form. Empty when there is no full history to read: outside a repository,
- * below its root, or in a shallow clone, whose oldest commit would claim every file it holds.
+ * root), in W3C/ISO 8601 form in UTC (`2026-01-01T10:00:00Z`), whatever the committer's time zone
+ * and however the installed git writes it. Empty when there is no full history to read: outside a
+ * repository, below its root, or in a shallow clone, whose oldest commit would claim every file it
+ * holds.
  */
 export function lastCommitDates(root: string, paths: string[]): Map<string, string> {
   const dates = new Map<string, string>();
@@ -22,7 +24,12 @@ export function lastCommitDates(root: string, paths: string[]): Map<string, stri
   const log = git(root, ["log", "--format=%x00%cI", "--name-only", "--no-renames", "--", ...paths]) ?? "";
   for (const commit of log.split("\0").slice(1)) {
     const [date, ...files] = commit.split("\n").filter((line) => line !== "");
-    for (const file of files) if (!dates.has(file)) dates.set(file, date);
+    for (const file of files) if (!dates.has(file)) dates.set(file, inUtc(date));
   }
   return dates;
+}
+
+/** An ISO 8601 date with any offset, as the same instant in UTC to the second. */
+function inUtc(date: string): string {
+  return new Date(date).toISOString().replace(/\.\d{3}Z$/, "Z");
 }

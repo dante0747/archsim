@@ -38,10 +38,11 @@ beforeAll(() => {
 afterAll(() => rmSync(scratch, { recursive: true, force: true }));
 
 describe("lastCommitDates", () => {
-  it("dates each file by the last commit that changed it", () => {
+  it("dates each file by the last commit that changed it, in UTC", () => {
     const dates = lastCommitDates(root, ["docs/a.md", "docs/b.md"]);
 
-    expect(Object.fromEntries(dates)).toEqual({ "docs/a.md": "2026-02-01T10:00:00+01:00", "docs/b.md": "2026-01-01T10:00:00+00:00" });
+    // in UTC, the same whichever way git or a committer's time zone writes the date
+    expect(Object.fromEntries(dates)).toEqual({ "docs/a.md": "2026-02-01T09:00:00Z", "docs/b.md": "2026-01-01T10:00:00Z" });
   });
 
   it("knows nothing in a shallow clone, whose one commit would claim every file", () => {
