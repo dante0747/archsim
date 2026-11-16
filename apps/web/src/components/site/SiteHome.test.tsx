@@ -76,6 +76,13 @@ describe("SiteHome", () => {
     expect(within(section).getByRole("link", { name: /every run|accuracy/i })).toHaveAttribute("href", "/accuracy/");
   });
 
+  it("says running it on your own machine needs no account, as a fact about running it yourself", () => {
+    render(<SiteHome {...props} demoUrl="https://app.archsim.io/" />);
+
+    expect(screen.getByText("Open source · run it on your own machine: no account, no telemetry")).toBeInTheDocument();
+    expect(screen.getByText("when you run it yourself: no account")).toBeInTheDocument();
+  });
+
   it("states the license and how to ask for a commercial one", () => {
     render(<SiteHome {...props} />);
 

@@ -135,6 +135,15 @@ class ComposeFileTests {
 		assertThat(api.at("/environment/ARCHSIM_TRUSTED_PROXIES").asString()).isEqualTo("web");
 	}
 
+	// the web app links to the operator's privacy notice when hosted.env names one, and
+	// shows no link when it is left out
+	@Test
+	void hostedCompose_theWebServer_takesThePrivacyNoticeFromHostedEnv() throws IOException {
+		JsonNode web = services(HOSTED).path("web");
+
+		assertThat(web.at("/environment/ARCHSIM_PRIVACY_URL").asString()).isEqualTo("${ARCHSIM_PRIVACY_URL:-}");
+	}
+
 	@Test
 	void localCompose_theAppsServices_runTheLocalAppImageWithoutPullingIt() throws IOException {
 		JsonNode services = services(LOCAL);

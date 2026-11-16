@@ -87,7 +87,8 @@ function TrySandbox({ target }: { target: string }) {
   );
 }
 
-export function SignInPage({ next, error }: { next: string | null; error: string | null }) {
+/** `privacyUrl`: the server's privacy notice (ARCHSIM_PRIVACY_URL), linked when it is set. */
+export function SignInPage({ next, error, privacyUrl = null }: { next: string | null; error: string | null; privacyUrl?: string | null }) {
   const { status, config, me } = useAuthState();
   const target = safeNext(next);
   const guest = isGuest(me);
@@ -160,6 +161,14 @@ export function SignInPage({ next, error }: { next: string | null; error: string
           </div>
           <p className="mt-6 text-xs leading-relaxed text-ink-3">
             ArchSim reads your name and verified email from the provider and nothing else. It never posts anything for you.
+            {privacyUrl && (
+              <>
+                {" "}
+                <a href={privacyUrl} className="font-medium text-ink-2 underline underline-offset-2 hover:text-ink">
+                  Privacy
+                </a>
+              </>
+            )}
           </p>
         </div>
       </main>

@@ -17,6 +17,7 @@ import { Input, Label } from "@/components/ui/input";
 import { Dialog, DialogContent } from "@/components/ui/overlays";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { api } from "@/lib/api";
+import { whereItRuns } from "@/lib/hosting";
 import { techChips } from "@/lib/tech-chips";
 import type { ArchitectureDocument, Catalog, ExampleSummary, ProjectSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -25,7 +26,11 @@ import { SandboxBanner } from "@/components/auth/SandboxBanner";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { authSettled, useAuthState } from "@/store/auth";
 
-export function ProjectsHome() {
+/**
+ * The app's home page. `privacyUrl` is the server's privacy notice (ARCHSIM_PRIVACY_URL), which
+ * the footer links to when it is set.
+ */
+export function ProjectsHome({ privacyUrl }: { privacyUrl: string | null }) {
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [examples, setExamples] = useState<ExampleSummary[]>([]);
   const [exampleDocs, setExampleDocs] = useState<Record<string, ArchitectureDocument>>({});
@@ -34,7 +39,9 @@ export function ProjectsHome() {
   const [newOpen, setNewOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const { busy, create, openTemplate, importFile } = useProjectActions();
-  const { status: authStatus, workspaceId } = useAuthState();
+  const { status: authStatus, config, workspaceId } = useAuthState();
+  // what this server is: a local install, or a hosted one; nothing is said until it has told
+  const where = whereItRuns(config);
 
   // The catalog and the templates are public: they show before anyone signs in.
   useEffect(() => {
@@ -182,7 +189,7 @@ export function ProjectsHome() {
                 <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
               </Link>
             ) : (
-              "Open source · runs on your machine · no account, no telemetry"
+              (where?.tagline ?? " ")
             )}
           </p>
         </div>
@@ -213,9 +220,9 @@ export function ProjectsHome() {
               ],
               [examples.length || "…", "ready-made templates", "each with scenarios to compare"],
               [clientTypes ?? "…", "kinds of clients", "mobile, web, API consumers, generic"],
-              ["0", "bytes leave your machine", "local, open source, no account"],
+              where ? [where.stat.value, where.stat.label, where.stat.detail] : ["…", "open source", "AGPL-3.0"],
             ].map(([n, label, sub], i) => (
-              <Reveal key={label as string} delay={i * 70}>
+              <Reveal key={i} delay={i * 70}>
                 <div className="px-2 py-3">
                   <dd className="tabular font-display text-[44px] font-semibold leading-none tracking-[-0.04em] text-ink">{n}</dd>
                   <dt className="mt-2 text-[15px] font-medium text-ink">{label}</dt>
@@ -356,7 +363,7 @@ export function ProjectsHome() {
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-8 text-[13px] text-ink-3 sm:px-6">
           <Logo />
           <span>AGPL-3.0 · open source</span>
-          <span>Runs on your machine · no account, no telemetry</span>
+          {where && <span>{where.footer}</span>}
           <Link href="/templates" className="hover:text-ink">
             Templates
           </Link>
@@ -369,6 +376,11 @@ export function ProjectsHome() {
           <a href="/api/v1/docs" target="_blank" rel="noreferrer" className="hover:text-ink">
             API docs
           </a>
+          {privacyUrl && (
+            <a href={privacyUrl} className="hover:text-ink">
+              Privacy
+            </a>
+          )}
           <span className="sm:ml-auto">Estimates from your assumptions; calibrate before trusting absolute numbers.</span>
         </div>
       </footer>

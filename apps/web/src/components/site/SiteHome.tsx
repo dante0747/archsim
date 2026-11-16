@@ -90,7 +90,7 @@ function Hero({ version, demoUrl }: Pick<SiteHomeProps, "version" | "demoUrl">) 
             </a>
           </Button>
         </div>
-        <p className="mt-5 text-[13px] text-ink-3">Open source · runs on your machine · no account, no telemetry</p>
+        <p className="mt-5 text-[13px] text-ink-3">Open source · run it on your own machine: no account, no telemetry</p>
       </div>
       <HeroShot />
     </section>
@@ -102,7 +102,7 @@ function Stats({ stats }: Pick<SiteHomeProps, "stats">) {
     [stats.technologies, "technology profiles", stats.tiers],
     [stats.templates, "ready-made templates", `${stats.scenarios} scenarios to compare`],
     [stats.clientKinds, "kinds of clients", "mobile, web, API consumers, generic"],
-    ["0", "bytes leave your machine", "local, open source, no account"],
+    ["0", "bytes leave your machine", "when you run it yourself: no account"],
   ];
   return (
     <section aria-label="At a glance" className="border-b border-line">

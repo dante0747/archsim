@@ -8,12 +8,21 @@ for when that version changes.
 
 ## [Unreleased]
 
+### Added
+
+- **A privacy notice for a hosted server.** With `ARCHSIM_PRIVACY_URL`, which the web server
+  reads at runtime, the home page's footer and the sign-in page link "Privacy" to it
+  (`.env.example`, `deploy/hosted.env.example`).
+
 ### Fixed
 
 - "Try it out" in the API docs (`/api/v1/docs`) calls the origin the page came from, where it
   called the host the API saw, which behind the web server is an address no browser can reach.
 - The API docs name the ArchSim API at ArchSim's version, with what it is, that its results are
   estimates, its license and a link to the guide, where they said "OpenAPI definition" at "v0".
+- A hosted server's home page no longer says ArchSim "runs on your machine" with "no account":
+  it offers trying it there, or running your own with one command, and "no account needed" only
+  where it offers sandboxes. A local install says what it said.
 - A finding that counts one request says so: `1 request failed at API`, `1 client request failed
   because of them`, `refused 1 call`, where it said `1 requests`. Only words change; the engine
   stays at 1.1.1.

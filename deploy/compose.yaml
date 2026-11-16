@@ -152,7 +152,8 @@ services:
     stop_grace_period: 30s
 
   # The web app, behind the way in: it reads each visitor's address from X-Forwarded-For, one
-  # entry from the right, and passes it to the API.
+  # entry from the right, and passes it to the API. With hosted.env's ARCHSIM_PRIVACY_URL, its
+  # footer and sign-in page link to your privacy notice.
   web:
     <<: *service
     image: ghcr.io/dante0747/archsim-web:1.1.0
@@ -160,6 +161,7 @@ services:
       ARCHSIM_API_URL: http://api:8000
       ARCHSIM_PUBLIC_URL: *public-url
       ARCHSIM_TRUSTED_HOPS: "1"
+      ARCHSIM_PRIVACY_URL: ${ARCHSIM_PRIVACY_URL:-}
     depends_on:
       api:
         condition: service_healthy
