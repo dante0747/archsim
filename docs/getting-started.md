@@ -1,5 +1,8 @@
 # Getting started
 
+Run ArchSim on your own machine, or try it first at [app.archsim.io](https://app.archsim.io/)
+with nothing to install.
+
 Three ways in, from the quickest:
 
 1. [Run everything in Docker](#run-everything-in-docker): the web app, the API and a simulation
