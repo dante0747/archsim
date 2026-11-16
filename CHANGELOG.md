@@ -8,6 +8,13 @@ for when that version changes.
 
 ## [Unreleased]
 
+### Fixed
+
+- "Try it out" in the API docs (`/api/v1/docs`) calls the origin the page came from, where it
+  called the host the API saw, which behind the web server is an address no browser can reach.
+- The API docs name the ArchSim API at ArchSim's version, with what it is, that its results are
+  estimates, its license and a link to the guide, where they said "OpenAPI definition" at "v0".
+
 ## [1.1.0] - 2026-11-16
 
 Host ArchSim on a public server of your own, and let visitors try it there without an account.

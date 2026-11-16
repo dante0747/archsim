@@ -13,6 +13,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 import io.archsim.app.database.TestDatabases;
+import io.archsim.engine.version.ArchsimVersion;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -80,6 +81,49 @@ class ArchsimApplicationTests {
 			.bodyJson()
 			.extractingPath("$.paths['/api/v1/health']")
 			.isNotNull();
+	}
+
+	@Test
+	void openApi_info_namesArchSimAtItsVersion() {
+		assertThat(this.mvc.get().uri("/api/v1/openapi.json")).hasStatusOk()
+			.bodyJson()
+			.isLenientlyEqualTo(
+					"{\"info\": {\"title\": \"ArchSim API\", \"version\": \"%s\"}}".formatted(ArchsimVersion.PRODUCT));
+	}
+
+	@Test
+	void openApi_info_linksTheGuideAndTheMetadata() {
+		assertThat(this.mvc.get().uri("/api/v1/openapi.json")).hasStatusOk()
+			.bodyJson()
+			.extractingPath("$.info.description")
+			.asString()
+			.contains("/api/v1/meta", "https://archsim.io/docs/api/");
+	}
+
+	@Test
+	void openApi_info_saysResultsAreEstimates() {
+		assertThat(this.mvc.get().uri("/api/v1/openapi.json")).hasStatusOk()
+			.bodyJson()
+			.extractingPath("$.info.description")
+			.asString()
+			.contains("Results are estimates, not production guarantees.");
+	}
+
+	@Test
+	void openApi_info_namesTheLicenseAndTheRepository() {
+		assertThat(this.mvc.get().uri("/api/v1/openapi.json")).hasStatusOk().bodyJson().isLenientlyEqualTo("""
+				{"info": {
+				  "license": {"name": "AGPL-3.0-only", "url": "https://www.gnu.org/licenses/agpl-3.0.html"},
+				  "contact": {"url": "https://github.com/dante0747/archsim"}}}
+				""");
+	}
+
+	@Test
+	void openApi_servers_areWhereverTheDocumentIsServedFrom() {
+		assertThat(this.mvc.get().uri("/api/v1/openapi.json")).hasStatusOk()
+			.bodyJson()
+			.extractingPath("$.servers[*].url")
+			.isEqualTo(List.of("/"));
 	}
 
 	@Test

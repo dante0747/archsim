@@ -126,7 +126,7 @@ ways.
 | `io.archsim.app` | `ArchsimApplication` and its `Role`s |
 | `config` | `ArchsimProperties` (the `ARCHSIM_*` settings), the database URL and connection pool, the model's registry and price snapshots, and the `Simulator` the whole application shares |
 | `migration` | Flyway's takeover from Alembic; the worker's and the seed's check that the database is at their build's schema |
-| `web` | the HTTP contract every endpoint shares: `/api/v1`, error bodies, request bodies read by the model's codec, security headers, CORS, body-size limits ([ADR-0034](../docs/adr/0034-keep-the-fastapi-http-contract-in-spring-mvc.md)) |
+| `web` | the HTTP contract every endpoint shares: `/api/v1`, error bodies, request bodies read by the model's codec, security headers, CORS, body-size limits ([ADR-0034](../docs/adr/0034-keep-the-fastapi-http-contract-in-spring-mvc.md)); what the OpenAPI document says of the API as a whole (title, version, license, a relative server) |
 | `meta` | `GET /health`, `GET /meta` |
 | `catalog` | `GET /components`, `GET /pricing`, `GET /schema/architecture`, from [archsim-model](../archsim-model/README.md) |
 | `examples` | `GET /examples`, `GET /examples/{id}` |
