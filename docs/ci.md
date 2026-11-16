@@ -194,6 +194,7 @@ jobs. CI still runs no more than a change needs, so that a run is short:
   one when main moves, runs CI. Each ecosystem's group takes minor and patch releases only; a
   major release opens a pull request of its own, so it never turns the group red. Dependabot leaves
   out the libraries the version catalog pins at Spring Boot's versions (SnakeYAML, HttpClient 5,
-  slf4j-nop): they move with a Spring Boot upgrade.
+  slf4j-nop): they move with a Spring Boot upgrade. It also offers the tests' embedded PostgreSQL
+  only within the major the product runs, 16.
 
 The run times are under Actions.

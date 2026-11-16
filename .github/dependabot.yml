@@ -46,6 +46,12 @@ updates:
       - dependency-name: "org.yaml:snakeyaml"
       - dependency-name: "org.apache.httpcomponents.client5:httpclient5"
       - dependency-name: "org.slf4j:slf4j-nop"
+      # The tests' PostgreSQL stays on the major the product runs, 16 (compose, CI, the hosted
+      # kit, ADR-0033), and takes its minor releases with the group. Moving the product to a new
+      # major is a decision of its own, with an upgrade path for existing databases: remove this
+      # rule then.
+      - dependency-name: "io.zonky.test.postgres:embedded-postgres-binaries-bom"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
