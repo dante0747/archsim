@@ -81,8 +81,9 @@ sandbox's limits as they are, and marks a guest explicitly, so no rule has to gu
 - **What the web app reads.** `GET /auth/config` adds `sandboxes` and `csrfToken`; `GET /auth/me`'s
   `user` adds `guest` and `expiresAt`. The sign-in page offers "Try it without signing in" where
   sandboxes are on; in a sandbox a quiet strip under the header says when the sandbox and its
-  designs are deleted, with "Sign in to keep your work". Signing in from a sandbox signs in as
-  usual and starts a personal workspace; the sandbox stays behind until it expires.
+  designs are deleted, with "Sign in for a workspace of your own". Signing in from a sandbox
+  signs in as usual and starts a personal workspace; the sandbox stays behind until it expires,
+  and no message promises otherwise (a refused guest is told "sign in first").
 
 ### Consequences
 
