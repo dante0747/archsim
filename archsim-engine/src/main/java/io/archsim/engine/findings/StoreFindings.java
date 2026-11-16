@@ -107,9 +107,9 @@ final class StoreFindings {
 		double writeShare = (double) writes / (reads + writes);
 		return Optional.of(new RunFinding(FindingSeverity.INFO, FindingKind.READ_REPLICAS, node.id(),
 				node.label() + " read replicas served " + FindingText.percent(share) + " of reads",
-				replicas + " replica" + FindingText.plural(replicas) + " per shard took "
-						+ FindingText.count(replicaReads) + " of " + FindingText.count(reads) + " reads; all "
-						+ FindingText.count(writes) + " writes still went to the primary.",
+				FindingText.count(replicas, "replica") + " per shard took " + FindingText.count(replicaReads) + " of "
+						+ FindingText.count(reads) + " reads; all " + FindingText.count(writes)
+						+ " writes still went to the primary.",
 				(writeShare > WRITE_HEAVY) ? REPLICAS_ADD_LITTLE : REPLICAS_GO_STALE,
 				RunFinding.emptyEvidence()
 					.put("replicaReads", replicaReads)

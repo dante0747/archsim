@@ -125,7 +125,7 @@ Java gives a result instead (the owner's decision):
   strictly; every other table is the Python's
   (`LatencyFitsTests.fitHistogram_empiricalSharesThatRoundAlike_keepTheLastOfEachSoTheTableIsValid`).
 
-A report differs from the Python engine's in eight ways, none in a result digest
+A report differs from the Python engine's in nine ways, none in a result digest
 ([ADR-0050](../docs/adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)):
 
 - it names its own engine, 1.1.1, where Python's named 0.16.0, so the golden files' `ENGINE_VERSION` is
@@ -168,6 +168,14 @@ A report differs from the Python engine's in eight ways, none in a result digest
   and a function's time a request at a base load of 0. Each is listed with why in
   `GoldenDepartures`; `CostDepartures` checks that the line says what is listed and costs what
   Python's does, item by item, then puts Python's basis and item quantities back;
+- its findings count one request, and one refused call, in the singular (`1 request failed at
+  API`, `1 client request failed because of them`, `refused 1 call`), where Python wrote
+  `1 requests`, `1 client requests` and `1 calls`. Only words change, so the engine stays at 1.1.1.
+  Some recorded simulations, two of the CLI's recorded runs and one of the MCP server's answers
+  hold a count of one request (none holds one refused call): `ReportComparison` and the CLI's
+  replays read Python's words through `WordingDepartures`, which puts one request in the
+  singular, so the rest is still compared exactly, and `RunAnalysisTests` checks each finding with
+  its count cut to one;
 - its design is schema 1.8, which adds `workload.peakHoursPerMonth` (ADR-0074) and leaves it out
   while it is 0, so the report's `input` and `provenance` name 1.8 where Python's named 1.7, and
   its `inputDigest`, the digest of that input, differs. The model's `SchemaDepartures` (see

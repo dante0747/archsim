@@ -14,6 +14,9 @@ for when that version changes.
   called the host the API saw, which behind the web server is an address no browser can reach.
 - The API docs name the ArchSim API at ArchSim's version, with what it is, that its results are
   estimates, its license and a link to the guide, where they said "OpenAPI definition" at "v0".
+- A finding that counts one request says so: `1 request failed at API`, `1 client request failed
+  because of them`, `refused 1 call`, where it said `1 requests`. Only words change; the engine
+  stays at 1.1.1.
 
 ## [1.1.0] - 2026-11-16
 

@@ -112,7 +112,7 @@ final class DependencyFindings {
 			.sum();
 		String detail = FindingText.count(errors) + " of " + FindingText.count(arrivals) + " calls ("
 				+ FindingText.percentToTenths(share) + ") failed with provider errors"
-				+ ((reached != 0) ? "; " + FindingText.count(reached) + " client requests failed because of them."
+				+ ((reached != 0) ? "; " + FindingText.count(reached, "client request") + " failed because of them."
 						: "; none reached the clients.");
 		return new RunFinding((share >= FAILS_OFTEN || reached != 0) ? FindingSeverity.WARNING : FindingSeverity.INFO,
 				FindingKind.EXTERNAL_ERRORS, node.id(),
@@ -164,8 +164,8 @@ final class DependencyFindings {
 		Optional<DatabaseConfig> config = run.config(node.id(), DatabaseConfig.class);
 		double limit = config.map(DatabaseConfig::throughputLimitRps).orElse(0.0);
 		int shards = config.map(DatabaseConfig::shards).orElse(1);
-		return "the provisioned throughput of " + FindingText.wholeWithSeparators(limit) + " ops/s per shard (" + shards
-				+ " shard" + FindingText.plural(shards) + ")";
+		return "the provisioned throughput of " + FindingText.wholeWithSeparators(limit) + " ops/s per shard ("
+				+ FindingText.count(shards, "shard") + ")";
 	}
 
 	private static String limits(ReportNode node, RunContext run, long throttled, long limited) {

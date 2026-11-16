@@ -70,7 +70,7 @@ final class ClientFindings {
 				"Only " + FindingText.wholeWithSeparators(throughput) + " of "
 						+ FindingText.wholeWithSeparators(offered) + " req/s completed successfully",
 				"Success rate " + FindingText.percentToTenths(Objects.requireNonNullElse(summary.successRate(), 0.0))
-						+ "; " + FindingText.count(summary.failed()) + " requests failed and "
+						+ "; " + FindingText.count(summary.failed(), "request") + " failed and "
 						+ FindingText.count(summary.timedOut()) + " timed out in the measurement window.",
 				null, RunFinding.emptyEvidence().put("offeredRps", offered).put("throughputRps", throughput)));
 	}
@@ -87,20 +87,19 @@ final class ClientFindings {
 	}
 
 	private static String cause(FailureCause top, RunContext run) {
-		String count = FindingText.count(top.count());
+		String requests = FindingText.count(top.count(), "request");
 		String where = (top.nodeLabel() != null && !top.nodeLabel().isEmpty()) ? top.nodeLabel() : "the system";
 		if (FailureReason.CLIENT_TIMEOUT.is(top.reason())) {
 			// the client group that gave up: groups can have different timeouts
 			double timeout = clientTimeout(top.nodeId(), run);
-			return (timeout != 0)
-					? count + " requests exceeded the " + FindingText.general(timeout) + " ms client timeout"
-					: count + " requests hit the client timeout";
+			return (timeout != 0) ? requests + " exceeded the " + FindingText.general(timeout) + " ms client timeout"
+					: requests + " hit the client timeout";
 		}
 		if (FailureReason.DEPENDENCY_TIMEOUT.is(top.reason())) {
-			return count + " requests failed at " + where + ": it " + FindingText.orNone(top.reasonText()) + " (link "
+			return requests + " failed at " + where + ": it " + FindingText.orNone(top.reasonText()) + " (link "
 					+ FindingText.orNone(top.edgeId()) + ")";
 		}
-		return count + " requests failed at " + where + ": " + FindingText.orNone(top.reasonText());
+		return requests + " failed at " + where + ": " + FindingText.orNone(top.reasonText());
 	}
 
 	// A client group's timeout; zero for a part that is not a client group.

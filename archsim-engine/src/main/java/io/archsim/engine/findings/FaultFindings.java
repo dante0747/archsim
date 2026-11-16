@@ -169,8 +169,8 @@ final class FaultFindings {
 			text = name + " received no calls while it was down.";
 		}
 		else {
-			text = name + " refused " + FindingText.count(refused) + " calls while it was down"
-					+ ((failed != 0) ? "; " + FindingText.count(failed) + " client requests failed because of it."
+			text = name + " refused " + FindingText.count(refused, "call") + " while it was down"
+					+ ((failed != 0) ? "; " + FindingText.count(failed, "client request") + " failed because of it."
 							: "; no client request failed there: its callers carried on without it.");
 		}
 		return Optional.of(new Outage(text, refused, failed));

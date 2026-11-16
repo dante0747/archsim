@@ -18,9 +18,10 @@ import io.archsim.parity.SchemaDepartures;
  * integer where Python wrote one (but for two fields, below). Left out are only what the
  * Java writes as its own (ADR-0050): the engine's and the report's versions, the
  * wall-clock time, and the runtime that ran it; its cost is compared as
- * {@link CostDepartures} compares a cost, and its design as the frozen engine would have
+ * {@link CostDepartures} compares a cost, its design as the frozen engine would have
  * written it at its schema ({@link SchemaDepartures}), its input digest checked by its
- * definition and then taken over that design (ADR-0074).
+ * definition and then taken over that design (ADR-0074), and Python's findings as the
+ * Java words a count of one request ({@link WordingDepartures}).
  */
 public final class ReportComparison {
 
@@ -78,7 +79,8 @@ public final class ReportComparison {
 		if (javaReport.has(COST)) {
 			javaReport.set(COST, CostDepartures.comparable(python.path(COST), javaReport.get(COST), departing));
 		}
-		Compared compared = new Compared(comparable(python, PYTHON_RUNTIME), javaReport);
+		Compared compared = new Compared(comparable(WordingDepartures.findingsAsJavaWordsThem(python), PYTHON_RUNTIME),
+				javaReport);
 		List<String> differences = new ArrayList<>(JsonDiff.differences(compared.expected(), compared.actual()));
 		numberKinds("", compared, differences);
 		return differences;

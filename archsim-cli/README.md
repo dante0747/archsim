@@ -157,6 +157,10 @@ Elsewhere:
   reads only whole pairs in a key; Python read it, and the design was then refused for the object
   holding it (`string_unicode`), as archsim-model refuses a tree holding one. In a value, such an
   escape is read, and refused where pydantic refused it.
+- `run`: a finding that counts one request says `1 request failed` and `1 client request failed`,
+  where Python printed `1 requests` and `1 client requests` (the engine's findings, its README).
+  `RunCommandTests` replays the recorded runs with Python's lines read so
+  (`WordingDepartures`); every other word is compared exactly.
 - `import`: text that is not YAML is refused in SnakeYAML's words, not PyYAML's
   ([ADR-0043](../docs/adr/0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md)), and
   Terraform text that is not JSON past its first character with Jackson's description of the

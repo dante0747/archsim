@@ -87,6 +87,18 @@ final class FindingText {
 	}
 
 	/**
+	 * A count of things, the noun agreeing with it: {@code 1 request},
+	 * {@code 1,287 requests}, {@code 0 requests}. A phrase whose verb changes with the
+	 * count too ("were") needs its own words.
+	 * @param count the count
+	 * @param noun what is counted, in the singular; its plural adds {@code s}
+	 * @return the count with thousands separators, and the noun
+	 */
+	static String count(long count, String noun) {
+		return count(count) + " " + noun + ((count == 1) ? "" : "s");
+	}
+
+	/**
 	 * A whole figure with thousands separators: {@code 1,235}.
 	 * @param value the figure
 	 * @return its text, rounded half to even
@@ -148,15 +160,6 @@ final class FindingText {
 	 */
 	static String countOrNone(@Nullable Long count) {
 		return (count != null) ? Long.toString(count) : "None";
-	}
-
-	/**
-	 * {@code s} after a count above one.
-	 * @param count the count
-	 * @return {@code s}, or nothing for one or fewer
-	 */
-	static String plural(long count) {
-		return (count > 1) ? "s" : "";
 	}
 
 }
