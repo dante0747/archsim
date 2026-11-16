@@ -19,7 +19,7 @@ name: archsim
 
 # archsim-app's image (ADR-0014), started as migrate, api or worker
 x-archsim-app: &archsim-app
-  image: ghcr.io/dante0747/archsim-app:1.0.0
+  image: ghcr.io/dante0747/archsim-app:1.1.0
 
 services:
   postgres:
@@ -106,7 +106,7 @@ services:
     stop_grace_period: 30s
 
   web:
-    image: ghcr.io/dante0747/archsim-web:1.0.0
+    image: ghcr.io/dante0747/archsim-web:1.1.0
     environment:
       ARCHSIM_API_URL: http://api:8000
     depends_on:

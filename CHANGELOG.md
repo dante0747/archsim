@@ -8,6 +8,10 @@ for when that version changes.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-16
+
+Host ArchSim on a public server of your own, and let visitors try it there without an account.
+
 ### Added
 
 - **A kit for hosting a public server**, in `deploy/`: the release's images with sign-in behind
@@ -29,6 +33,13 @@ for when that version changes.
 
 - The database gains its second migration (V2: `users.expires_at`), so the API migrates it
   before workers of this release start.
+- The accuracy page links the files it names (the validation report, the calibration guide, the
+  parity report, the benchmark results and their workflow) to the repository on GitHub.
+
+### Fixed
+
+- On a phone, the home page's feature grid fits the screen instead of cutting its tiles' right
+  edges.
 
 ## [1.0.0] - 2026-11-15
 
@@ -181,5 +192,6 @@ cost, and publishes how accurate it is. Start with [Getting started](docs/gettin
 - Exports are scaffolding to review, not production configuration.
 - The editor is designed for desktop screens.
 
-[Unreleased]: https://github.com/dante0747/archsim/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/dante0747/archsim/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/dante0747/archsim/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/dante0747/archsim/releases/tag/v1.0.0
