@@ -57,8 +57,16 @@ describe("Repository", () => {
     expect(repo.ancestors(["validation", "deep", "page"])).toEqual([]);
   });
 
-  it("lists every page of the site, for the sitemap", () => {
-    expect(new Repository(root).pages()).toEqual(["/", "/docs/", "/docs/adr/0001-record/", "/docs/adr/", "/docs/guide/", "/accuracy/", "/changelog/"]);
+  it("lists every page of the site with the file it is mostly made from, for the sitemap", () => {
+    expect(new Repository(root).pages()).toEqual([
+      { path: "/", source: "README.md" },
+      { path: "/docs/", source: "docs/README.md" },
+      { path: "/docs/adr/0001-record/", source: "docs/adr/0001-record.md" },
+      { path: "/docs/adr/", source: "docs/adr/README.md" },
+      { path: "/docs/guide/", source: "docs/guide.md" },
+      { path: "/accuracy/", source: "apps/web/src/data/accuracy.json" },
+      { path: "/changelog/", source: "CHANGELOG.md" },
+    ]);
   });
 
   it("reads the navigation, the changelog and NOTICE's copyright line", () => {

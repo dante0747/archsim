@@ -12,6 +12,12 @@ import { type ReadmeContent, readmeContent } from "./readme";
 
 export type Doc = RenderedMarkdown & { path: string };
 
+/** A page of the site and the repository's file it is mostly made from. */
+export interface Page {
+  path: string;
+  source: string;
+}
+
 export class Repository {
   constructor(readonly root: string) {}
 
@@ -100,12 +106,18 @@ export class Repository {
     return { count: files.length, scenarios };
   }
 
-  /** Every page of the site, for the sitemap. */
-  pages(): string[] {
+  /** Every page of the site, for the sitemap, with the file it is mostly made from. */
+  pages(): Page[] {
     const docs = this.docFiles()
-      .map((p) => docRoute(p))
-      .filter((r): r is string => r !== null && r !== "/docs/");
-    return ["/", "/docs/", ...docs, "/accuracy/", "/changelog/"];
+      .map((source) => ({ path: docRoute(source), source }))
+      .filter((p): p is Page => p.path !== null && p.path !== "/docs/");
+    return [
+      { path: "/", source: "README.md" },
+      { path: "/docs/", source: "docs/README.md" },
+      ...docs,
+      { path: "/accuracy/", source: "apps/web/src/data/accuracy.json" },
+      { path: "/changelog/", source: "CHANGELOG.md" },
+    ];
   }
 }
 

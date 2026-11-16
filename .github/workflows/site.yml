@@ -49,7 +49,12 @@ jobs:
       run:
         working-directory: apps/web
     steps:
+      # The whole history, which the sitemap dates each page from (a shallow clone's would claim
+      # every page changed in its one commit); its commits and trees only, file contents at HEAD.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          filter: blob:none
       - uses: actions/setup-node@v7
         with:
           node-version: 24

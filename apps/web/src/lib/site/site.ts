@@ -49,8 +49,9 @@ export function pageMetadata({ title, description, path }: { title: string; desc
 
 const escapeXml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-export function sitemapXml(paths: string[]): string {
-  const urls = paths.map((p) => `<url><loc>${escapeXml(siteUrl(p))}</loc></url>`).join("\n");
+/** The sitemap of `pages`, each with the date it last changed when that is known. */
+export function sitemapXml(pages: { path: string; lastmod?: string }[]): string {
+  const urls = pages.map(({ path, lastmod }) => `<url><loc>${escapeXml(siteUrl(path))}</loc>${lastmod ? `<lastmod>${escapeXml(lastmod)}</lastmod>` : ""}</url>`).join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
 }
 

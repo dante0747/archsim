@@ -20,11 +20,18 @@ describe("pageMetadata", () => {
 
 describe("sitemapXml", () => {
   it("lists every page by its full URL", () => {
-    const xml = sitemapXml(["/", "/docs/", "/docs/a&b/"]);
+    const xml = sitemapXml([{ path: "/" }, { path: "/docs/" }, { path: "/docs/a&b/" }]);
 
     expect(xml).toMatch(/^<\?xml version="1.0" encoding="UTF-8"\?>\n<urlset xmlns="http:\/\/www.sitemaps.org\/schemas\/sitemap\/0.9">/);
     expect(xml).toContain("<url><loc>https://archsim.io/</loc></url>");
     expect(xml).toContain("<url><loc>https://archsim.io/docs/a&amp;b/</loc></url>");
+  });
+
+  it("says when a page last changed, where it knows", () => {
+    const xml = sitemapXml([{ path: "/docs/", lastmod: "2026-11-15T22:01:03+01:00" }, { path: "/changelog/" }]);
+
+    expect(xml).toContain("<url><loc>https://archsim.io/docs/</loc><lastmod>2026-11-15T22:01:03+01:00</lastmod></url>");
+    expect(xml).toContain("<url><loc>https://archsim.io/changelog/</loc></url>");
   });
 });
 
