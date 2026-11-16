@@ -39,8 +39,9 @@ describe("Transport", () => {
     expect(lcd()).toHaveTextContent("475");
     expect(lcd()).toHaveTextContent("p95 · goal 50");
     expect(lcd()).toHaveTextContent("95.0");
-    // p95 55 ms is over the 50 ms goal
-    expect(screen.getByText("55.0")).toHaveStyle({ color: "var(--status-critical)" });
+    // p95 55 ms is over the 50 ms goal: the inline colour, as the tests load no stylesheet to
+    // resolve the variable against
+    expect(screen.getByText("55.0").style.color).toBe("var(--status-critical)");
   });
 
   it("follows the playhead while replaying, and falls back to the summary at the end", () => {
