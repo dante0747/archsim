@@ -18,7 +18,7 @@ import io.archsim.app.config.ArchsimProperties;
 public class WorkspaceLimits {
 
 	/** The kind of workspace a visitor tries ArchSim in. */
-	private static final String SANDBOX = "sandbox";
+	public static final String SANDBOX = "sandbox";
 
 	/** The kind of workspace each person has. */
 	private static final String PERSONAL = "personal";

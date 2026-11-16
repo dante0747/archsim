@@ -43,7 +43,7 @@ class PrincipalTests {
 
 		assertThatExceptionOfType(ApiException.class).isThrownBy(guest::requireAccount).satisfies((ex) -> {
 			assertThat(ex.status()).isEqualTo(HttpStatus.FORBIDDEN);
-			assertThat(ex.getMessage()).isEqualTo(Principal.GUESTS_CANNOT);
+			assertThat(ex.getMessage()).isEqualTo("A sandbox's guest cannot do this: sign in first.");
 		});
 	}
 

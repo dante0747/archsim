@@ -46,9 +46,9 @@ class ShareLinks {
 	 * @param runId the run
 	 * @param request its title and how long it works
 	 * @return the share
-	 * @throws ApiException {@code 403} for a sandbox's guest, whose results stay
-	 * unpublished, {@code 404} for a run the asker may not see, {@code 403} for a viewer,
-	 * {@code 409} for a run without a report, {@code 429} after many links in a day
+	 * @throws ApiException {@code 403} for a sandbox's guest (whose results stay
+	 * unpublished) or a viewer, {@code 404} for a run the asker may not see, {@code 409}
+	 * for a run without a report, {@code 429} after many links in a day
 	 */
 	@Transactional
 	StoredShare create(Principal principal, String runId, ShareCreate request) {

@@ -1,10 +1,8 @@
 package io.archsim.app.signin;
 
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import jakarta.servlet.http.Cookie;
-import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import tools.jackson.databind.JsonNode;
 
@@ -73,21 +71,6 @@ abstract class SandboxTestSupport extends HostedTestSupport {
 		return new SignedIn(me.path("user").path("id").asString(), me.path("workspaces").path(0).path("id").asString(),
 				setCookie(started, Principal.SESSION_COOKIE).orElseThrow(),
 				setCookie(started, BrowserCsrf.COOKIE).orElseThrow());
-	}
-
-	/**
-	 * The value of a cookie an answer sets.
-	 * @param result the answer
-	 * @param name the cookie
-	 * @return its value, or empty when the answer does not set it
-	 */
-	static Optional<String> setCookie(MvcTestResult result, String name) {
-		return result.getResponse()
-			.getHeaders(HttpHeaders.SET_COOKIE)
-			.stream()
-			.filter((cookie) -> cookie.startsWith(name + "="))
-			.findFirst()
-			.map((cookie) -> cookie.substring(name.length() + 1).split(";", 2)[0]);
 	}
 
 }

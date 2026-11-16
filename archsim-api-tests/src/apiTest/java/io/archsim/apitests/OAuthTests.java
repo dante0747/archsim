@@ -49,7 +49,7 @@ class OAuthTests {
 	void requests_whenSignedOut_areRefused(ApiClient client) {
 		assertThat(client.get("/auth/config").json())
 			.isEqualTo(Json.object("mode", "oauth", "providers", Json.array("github", "google"), "sandboxes", true,
-					"csrfToken", client.cookie(SandboxTests.CSRF_COOKIE).orElseThrow()));
+					"csrfToken", client.cookie(ApiServer.CSRF_COOKIE).orElseThrow()));
 		for (ApiResponse response : List.of(client.get("/auth/me"), client.get("/projects"),
 				client.post("/projects", Json.object()),
 				client.post("/validate", Json.object("document", Json.object())), client.get("/workspaces"))) {

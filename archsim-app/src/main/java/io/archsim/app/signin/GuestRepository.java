@@ -87,6 +87,24 @@ class GuestRepository {
 	}
 
 	/**
+	 * Locks a guest whose sandbox has expired, until the transaction ends, unless another
+	 * transaction (another instance's prune) has locked them already.
+	 * @param userId the guest
+	 * @param now the time
+	 * @return {@code true} when the guest is locked here: someone else, a guest whose
+	 * sandbox has not expired, or one another transaction holds, is not
+	 */
+	@Transactional(propagation = Propagation.MANDATORY)
+	boolean tryLockExpired(String userId, Instant now) {
+		return this.jdbc.sql("SELECT id FROM users WHERE id = :id AND expires_at <= :now FOR UPDATE SKIP LOCKED")
+			.param("id", userId)
+			.param("now", Timestamp.from(now))
+			.query((rows, number) -> rows.getString("id"))
+			.optional()
+			.isPresent();
+	}
+
+	/**
 	 * Deletes a guest, and with them their sessions and memberships. Someone else's
 	 * account is never deleted here.
 	 * @param userId the guest

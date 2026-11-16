@@ -41,6 +41,19 @@ class GuestTests extends SandboxTestSupport {
 	}
 
 	@Test
+	void createInvitation_guest_isForbidden() {
+		SignedIn guest = guest();
+
+		MvcTestResult refused = send(guest, HttpMethod.POST,
+				"/api/v1/workspaces/" + guest.workspaceId() + "/invitations", "{\"role\": \"viewer\"}");
+
+		assertThat(refused).hasStatus(403)
+			.bodyJson()
+			.extractingPath("$.detail.message")
+			.isEqualTo(Principal.GUESTS_CANNOT);
+	}
+
+	@Test
 	void createWorkspace_guest_isForbidden() {
 		SignedIn guest = guest();
 

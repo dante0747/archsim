@@ -32,9 +32,6 @@ public class Workspaces {
 	/** The kind of workspace each person has, listed first. */
 	public static final String PERSONAL = "personal";
 
-	/** The kind of workspace a visitor tries ArchSim in, as a guest, for a day. */
-	public static final String SANDBOX = "sandbox";
-
 	/** The kind of workspace people share. */
 	static final String TEAM = "team";
 

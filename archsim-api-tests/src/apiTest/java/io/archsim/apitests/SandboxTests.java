@@ -20,19 +20,15 @@ import static org.assertj.core.api.Assertions.within;
 @ApiTest(Profile.HOSTED)
 class SandboxTests {
 
-	/** The cookie that keeps the browser's CSRF token. */
-	static final String CSRF_COOKIE = "__Host-archsim_csrf";
-
 	/** What a sandbox's guest is told when they try what takes an account. */
-	private static final String GUESTS_CANNOT = "A sandbox's guest cannot do this: sign in to keep your work and do "
-			+ "more.";
+	private static final String GUESTS_CANNOT = "A sandbox's guest cannot do this: sign in first.";
 
 	@Test
 	void config_hosted_givesTheCsrfTokenThatStartsASandbox(ApiClient client) {
 		JsonNode config = client.get("/auth/config").json();
 
 		assertThat(config.path("sandboxes").asBoolean()).isTrue();
-		assertThat(config.path("csrfToken").asString()).isEqualTo(client.cookie(CSRF_COOKIE).orElseThrow());
+		assertThat(config.path("csrfToken").asString()).isEqualTo(client.cookie(ApiServer.CSRF_COOKIE).orElseThrow());
 	}
 
 	@Test

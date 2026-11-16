@@ -225,13 +225,13 @@ class TokensTests {
 		ApiClient browser = server.client();
 		ApiResponse start = browser.get("/auth/github/login");
 		ApiResponse done = browser.open(server.github().authorize(start.location(), server.newAccount("ada").login()));
-		String cookie = done.setCookie("__Host-archsim_csrf")
+		String cookie = done.setCookie(ApiServer.CSRF_COOKIE)
 			.orElseThrow(() -> new AssertionError(done + " sets no CSRF cookie: " + done.setCookies()));
 		assertThat(cookie).doesNotContain("HttpOnly").contains("Secure", "Path=/", "SameSite=strict");
-		String token = browser.cookie("__Host-archsim_csrf").orElseThrow(() -> new AssertionError("no CSRF cookie"));
+		String token = browser.cookie(ApiServer.CSRF_COOKIE).orElseThrow(() -> new AssertionError("no CSRF cookie"));
 		ApiResponse out = browser.post("/auth/logout", null, Map.of(CSRF, token));
 		assertThat(out.status()).isEqualTo(204);
-		assertThat(out.setCookies()).anyMatch((header) -> header.startsWith("__Host-archsim_csrf=\"\""));
+		assertThat(out.setCookies()).anyMatch((header) -> header.startsWith(ApiServer.CSRF_COOKIE + "=\"\""));
 	}
 
 	@Test

@@ -31,8 +31,7 @@ public record Principal(String userId, PrincipalKind kind, @Nullable String ip, 
 	public static final String SESSION_COOKIE = "__Host-archsim_session";
 
 	/** What a sandbox's guest is told when they try what takes an account. */
-	public static final String GUESTS_CANNOT = "A sandbox's guest cannot do this: sign in to keep your work and "
-			+ "do more.";
+	public static final String GUESTS_CANNOT = "A sandbox's guest cannot do this: sign in first.";
 
 	/**
 	 * A principal whose kind matches what it carries: a session id for a session, a grant

@@ -1,5 +1,6 @@
 package io.archsim.app.signin;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -21,6 +22,12 @@ import org.springframework.stereotype.Component;
 @Profile("api")
 class SandboxPruning {
 
+	/** {@link #PERIOD} in minutes, for {@code @Scheduled}. */
+	static final long MINUTES_APART = 1;
+
+	/** The time from the end of one prune to the start of the next. */
+	static final Duration PERIOD = Duration.ofMinutes(MINUTES_APART);
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(SandboxPruning.class);
 
 	private final Guests guests;
@@ -29,7 +36,7 @@ class SandboxPruning {
 		this.guests = guests;
 	}
 
-	@Scheduled(initialDelay = 0, fixedDelay = 1, timeUnit = TimeUnit.MINUTES)
+	@Scheduled(initialDelay = 0, fixedDelay = MINUTES_APART, timeUnit = TimeUnit.MINUTES)
 	void prune() {
 		List<String> expired;
 		try {
@@ -51,12 +58,12 @@ class SandboxPruning {
 	/**
 	 * Deletes one guest and their sandbox, in a transaction of its own.
 	 * @param guestId the guest
-	 * @return {@code true} when they were deleted
+	 * @return {@code true} when they were deleted here: not when another instance is
+	 * deleting them, or the database failed
 	 */
 	private boolean delete(String guestId) {
 		try {
-			this.guests.delete(guestId);
-			return true;
+			return this.guests.delete(guestId);
 		}
 		catch (DataAccessException ex) {
 			LOGGER.warn("could not delete the expired sandbox of guest {}: {}", guestId, ex.getMessage());

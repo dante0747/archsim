@@ -56,14 +56,14 @@ class Guests {
 	 */
 	@Transactional(propagation = Propagation.MANDATORY)
 	Guest add() {
+		// refused at once while full, without waiting for the turn; counted again in turn
+		refuseWhenFull();
 		this.repository.takeTurn();
+		refuseWhenFull();
 		Instant now = Times.now(this.clock);
-		if (this.repository.count() >= MOST) {
-			throw full(now);
-		}
 		Guest guest = new Guest(Ids.newId(), now.plus(LIFETIME));
 		this.repository.add(guest, now);
-		this.workspaces.create(SANDBOX_NAME, Workspaces.SANDBOX, guest.id());
+		this.workspaces.create(SANDBOX_NAME, WorkspaceLimits.SANDBOX, guest.id());
 		return guest;
 	}
 
@@ -76,27 +76,47 @@ class Guests {
 	}
 
 	/**
-	 * Deletes a guest with everything they had, in a transaction of its own: their
-	 * sandbox, and all in it, and their sessions.
+	 * Deletes a guest whose sandbox has expired with everything they had, in a
+	 * transaction of its own: their sandbox, and all in it, and their sessions. Anyone
+	 * else, a guest whose sandbox has not expired, and a guest another instance is
+	 * deleting now, are left as they are.
 	 * @param guestId the guest
+	 * @return {@code true} when it deleted the guest
 	 */
 	@Transactional
-	void delete(String guestId) {
+	boolean delete(String guestId) {
+		if (!this.repository.tryLockExpired(guestId, Times.now(this.clock))) {
+			return false;
+		}
 		this.workspaces.deleteSandboxesOf(guestId);
 		this.repository.delete(guestId);
+		return true;
 	}
 
 	/**
-	 * The refusal while every place is taken: until the first guest is deleted.
+	 * Refuses a new guest while every place is taken.
+	 * @throws ApiException {@code 503} with {@code Retry-After}
+	 */
+	private void refuseWhenFull() {
+		if (this.repository.count() >= MOST) {
+			throw full(Times.now(this.clock));
+		}
+	}
+
+	/**
+	 * The refusal while every place is taken: until the first guest expires, in whole
+	 * seconds rounded up, and never less than the time between prunes, as a guest that
+	 * has expired already goes only at the next one.
 	 * @param now the time
 	 * @return {@code 503} with {@code Retry-After}
 	 */
 	private ApiException full(Instant now) {
-		long wait = this.repository.firstExpiry()
-			.map((first) -> Duration.between(now, first).toSeconds())
-			.orElse(LIFETIME.toSeconds());
-		return ApiException.unavailable("Every sandbox is taken right now: sign in, or try again later.",
-				Math.max(1, wait));
+		Duration untilFirst = this.repository.firstExpiry()
+			.map((first) -> Duration.between(now, first))
+			.orElse(LIFETIME);
+		long seconds = Math.max(SandboxPruning.PERIOD.toSeconds(),
+				Math.ceilDiv(untilFirst.toMillis(), Duration.ofSeconds(1).toMillis()));
+		return ApiException.unavailable("Every sandbox is taken right now: sign in, or try again later.", seconds);
 	}
 
 }

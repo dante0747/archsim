@@ -21,6 +21,12 @@ import tools.jackson.databind.JsonNode;
  */
 public final class ApiServer {
 
+	/**
+	 * The cookie that keeps a browser's CSRF token, which the web app sends back as
+	 * {@code X-ArchSim-CSRF}.
+	 */
+	public static final String CSRF_COOKIE = "__Host-archsim_csrf";
+
 	/** Picks the host part of an address in 198.18.0.0/16: its last two bytes. */
 	private static final int HOST_MASK = 0xFFFF;
 
@@ -197,7 +203,7 @@ public final class ApiServer {
 	 * @param client the client
 	 */
 	private static void sendCsrfToken(ApiClient client) {
-		client.cookie("__Host-archsim_csrf").ifPresent((csrf) -> client.header("X-ArchSim-CSRF", csrf));
+		client.cookie(CSRF_COOKIE).ifPresent((csrf) -> client.header("X-ArchSim-CSRF", csrf));
 	}
 
 }

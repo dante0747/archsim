@@ -3,8 +3,10 @@ package io.archsim.app.signin;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Objects;
 
 import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -29,6 +31,9 @@ class SandboxTests extends SandboxTestSupport {
 
 	/** How many sandboxes the server keeps at once. */
 	private static final int MOST = 500;
+
+	/** What the ids of the places a test takes start with. */
+	private final String placeMarker = "full" + newId().substring(0, 8);
 
 	@Test
 	void config_sandboxesOn_offersThemWithTheBrowsersCsrfToken() {
@@ -125,37 +130,39 @@ class SandboxTests extends SandboxTestSupport {
 	@Test
 	void start_refusedWhileEverySandboxIsTaken_stillCountsAgainstTheAddress() {
 		String address = newAddress();
-		String marker = "full" + newId().substring(0, 8);
-		takePlaces(marker, MOST, Duration.ofHours(1));
-		try {
-			startSandboxes(address, 5, 503);
+		takeEveryPlace(Duration.ofHours(1));
+		startSandboxes(address, 5, 503);
 
-			MvcTestResult sixth = start(address);
+		MvcTestResult sixth = start(address);
 
-			assertThat(sixth).hasStatus(429);
-		}
-		finally {
-			jdbc().sql("DELETE FROM users WHERE id LIKE :marker").param("marker", marker + "%").update();
-		}
+		assertThat(sixth).hasStatus(429);
 	}
 
 	@Test
 	void start_everySandboxTaken_isUnavailableUntilTheFirstIsDeleted() {
-		String marker = "full" + newId().substring(0, 8);
-		takePlaces(marker, MOST, Duration.ofHours(1));
-		try {
-			MvcTestResult refused = start(newAddress());
+		takeEveryPlace(Duration.ofHours(1));
 
-			assertThat(refused).hasStatus(503)
-				.bodyJson()
-				.extractingPath("$.detail.message")
-				.isEqualTo("Every sandbox is taken right now: sign in, or try again later.");
-			assertThat(Long.parseLong(refused.getResponse().getHeader(HttpHeaders.RETRY_AFTER))).isBetween(3500L,
-					3600L);
-		}
-		finally {
-			jdbc().sql("DELETE FROM users WHERE id LIKE :marker").param("marker", marker + "%").update();
-		}
+		MvcTestResult refused = start(newAddress());
+
+		assertThat(refused).hasStatus(503)
+			.bodyJson()
+			.extractingPath("$.detail.message")
+			.isEqualTo("Every sandbox is taken right now: sign in, or try again later.");
+		assertThat(retryAfter(refused)).isBetween(3500L, 3600L);
+	}
+
+	@Test
+	void start_everySandboxTakenByExpiredGuests_isUnavailableUntilTheyArePruned() {
+		takeEveryPlace(Duration.ofMinutes(-1));
+
+		MvcTestResult refused = start(newAddress());
+
+		assertThat(refused).hasStatus(503).headers().hasValue(HttpHeaders.RETRY_AFTER, 60);
+	}
+
+	@AfterEach
+	void givePlacesBack() {
+		jdbc().sql("DELETE FROM users WHERE id LIKE :marker").param("marker", this.placeMarker + "%").update();
 	}
 
 	private void startSandboxes(String address, int count, int status) {
@@ -165,18 +172,23 @@ class SandboxTests extends SandboxTestSupport {
 	}
 
 	/**
-	 * Stores guests with no sandbox, as many as the server keeps, which expire in a
-	 * while.
+	 * Stores as many guests as the server keeps, with no sandbox, which expire after a
+	 * while; each test gives them back.
 	 */
-	private void takePlaces(String marker, int count, Duration expiresIn) {
+	private void takeEveryPlace(Duration expiresIn) {
 		jdbc().sql("""
 				INSERT INTO users (id, name, created_at, expires_at)
 				SELECT :marker || n, 'Guest', now(), now() + make_interval(secs => :seconds)
 				FROM generate_series(1, :count) AS n""")
-			.param("marker", marker)
-			.param("count", count)
+			.param("marker", this.placeMarker)
+			.param("count", MOST)
 			.param("seconds", expiresIn.toSeconds())
 			.update();
+	}
+
+	private static long retryAfter(MvcTestResult result) {
+		return Long.parseLong(
+				Objects.requireNonNull(result.getResponse().getHeader(HttpHeaders.RETRY_AFTER), "no Retry-After"));
 	}
 
 }

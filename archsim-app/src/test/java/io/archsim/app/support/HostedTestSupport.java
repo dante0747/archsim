@@ -6,13 +6,17 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+
+import javax.sql.DataSource;
 
 import jakarta.servlet.http.Cookie;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -96,7 +100,16 @@ public abstract class HostedTestSupport {
 	 * @return the client
 	 */
 	protected static JdbcClient anotherConnection() {
-		return JdbcClient.create(new DriverManagerDataSource(DATABASE));
+		return JdbcClient.create(anotherDataSource());
+	}
+
+	/**
+	 * Connections of their own to the test database, for transactions of their own, as
+	 * another request or another instance at the same time has.
+	 * @return the source of the connections
+	 */
+	protected static DataSource anotherDataSource() {
+		return new DriverManagerDataSource(DATABASE);
 	}
 
 	/**
@@ -251,6 +264,21 @@ public abstract class HostedTestSupport {
 	protected static JsonNode created(MvcTestResult result) {
 		assertThat(result).hasStatus(201);
 		return json(result);
+	}
+
+	/**
+	 * The value of a cookie an answer sets.
+	 * @param result the answer
+	 * @param name the cookie
+	 * @return its value, or empty when the answer does not set it
+	 */
+	protected static Optional<String> setCookie(MvcTestResult result, String name) {
+		return result.getResponse()
+			.getHeaders(HttpHeaders.SET_COOKIE)
+			.stream()
+			.filter((cookie) -> cookie.startsWith(name + "="))
+			.findFirst()
+			.map((cookie) -> cookie.substring(name.length() + 1).split(";", 2)[0]);
 	}
 
 	protected static JsonNode json(MvcTestResult result) {

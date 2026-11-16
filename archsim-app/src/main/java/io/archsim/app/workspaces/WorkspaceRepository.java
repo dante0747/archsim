@@ -11,6 +11,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 import io.archsim.app.access.WorkspaceRole;
+import io.archsim.app.limits.WorkspaceLimits;
 
 /**
  * The {@code workspaces} and {@code memberships} tables.
@@ -102,7 +103,7 @@ class WorkspaceRepository {
 	 */
 	void deleteSandboxesOf(String userId) {
 		this.jdbc.sql("DELETE FROM workspaces WHERE kind = :kind AND created_by = :user")
-			.param("kind", Workspaces.SANDBOX)
+			.param("kind", WorkspaceLimits.SANDBOX)
 			.param("user", userId)
 			.update();
 	}

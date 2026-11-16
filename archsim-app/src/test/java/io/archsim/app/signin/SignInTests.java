@@ -4,7 +4,6 @@ import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import jakarta.servlet.http.Cookie;
@@ -323,14 +322,7 @@ class SignInTests extends HostedTestSupport {
 	}
 
 	private static String cookie(MvcTestResult result, String name) {
-		Optional<String> header = result.getResponse()
-			.getHeaders(HttpHeaders.SET_COOKIE)
-			.stream()
-			.filter((cookie) -> cookie.startsWith(name + "="))
-			.findFirst();
-		return header.orElseThrow(() -> new AssertionError("no " + name + " cookie"))
-			.substring(name.length() + 1)
-			.split(";", 2)[0];
+		return setCookie(result, name).orElseThrow(() -> new AssertionError("no " + name + " cookie"));
 	}
 
 	private static String unique(String prefix) {

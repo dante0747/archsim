@@ -1,7 +1,13 @@
 package io.archsim.app.signin;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
+import javax.sql.DataSource;
+
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -9,6 +15,9 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.dao.QueryTimeoutException;
 import org.springframework.http.HttpMethod;
 import org.springframework.jdbc.CannotGetJdbcConnectionException;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.support.JdbcTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import io.archsim.app.ArchsimApplication;
 import io.archsim.app.Role;
@@ -18,7 +27,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
-import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -27,6 +35,9 @@ import static org.mockito.Mockito.mock;
  * no other role does.
  */
 class SandboxPruningTests extends SandboxTestSupport {
+
+	/** Longer than a delete takes, shorter than one that waits for a lock. */
+	private static final Duration A_MOMENT = Duration.ofSeconds(10);
 
 	@Autowired
 	private Guests guests;
@@ -76,6 +87,58 @@ class SandboxPruningTests extends SandboxTestSupport {
 	}
 
 	@Test
+	void delete_personWithASandbox_keepsIt() {
+		SignedIn ada = signedIn("Ada");
+		String sandbox = newId();
+		jdbc()
+			.sql("INSERT INTO workspaces (id, name, kind, created_by, created_at) "
+					+ "VALUES (:id, 'Sandbox', 'sandbox', :user, now())")
+			.param("id", sandbox)
+			.param("user", ada.userId())
+			.update();
+
+		boolean deleted = this.guests.delete(ada.userId());
+
+		assertThat(deleted).isFalse();
+		assertThat(count("workspaces", "id", sandbox)).isOne();
+		assertThat(count("users", "id", ada.userId())).isOne();
+	}
+
+	@Test
+	void delete_guestBeforeTheSandboxExpires_keepsThem() {
+		SignedIn guest = guest();
+
+		boolean deleted = this.guests.delete(guest.userId());
+
+		assertThat(deleted).isFalse();
+		assertThat(count("workspaces", "id", guest.workspaceId())).isOne();
+		assertThat(count("users", "id", guest.userId())).isOne();
+	}
+
+	@Test
+	void delete_expiredGuest_saysItDeletedThem() {
+		SignedIn guest = guest();
+		expire(guest);
+
+		boolean deleted = this.guests.delete(guest.userId());
+
+		assertThat(deleted).isTrue();
+		assertThat(count("users", "id", guest.userId())).isZero();
+	}
+
+	@Test
+	void delete_guestAnotherInstanceIsDeleting_leavesThemWithoutWaiting() {
+		SignedIn guest = guest();
+		expire(guest);
+
+		Boolean deleted = whileAnotherTransactionLocks(guest.userId(), () -> this.guests.delete(guest.userId()));
+
+		assertThat(deleted).isFalse();
+		assertThat(count("users", "id", guest.userId())).isOne();
+		assertThat(count("workspaces", "id", guest.workspaceId())).isOne();
+	}
+
+	@Test
 	void prune_aDatabaseThatFails_isNotThrown() {
 		Guests failing = mock();
 		given(failing.expired()).willThrow(new CannotGetJdbcConnectionException("down"));
@@ -87,7 +150,7 @@ class SandboxPruningTests extends SandboxTestSupport {
 	void prune_oneGuestTheDatabaseFailsToDelete_deletesTheOthers() {
 		Guests oneStuck = mock();
 		given(oneStuck.expired()).willReturn(List.of("stuck", "next"));
-		willThrow(new QueryTimeoutException("locked")).given(oneStuck).delete("stuck");
+		given(oneStuck.delete("stuck")).willThrow(new QueryTimeoutException("locked"));
 
 		new SandboxPruning(oneStuck).prune();
 
@@ -106,6 +169,24 @@ class SandboxPruningTests extends SandboxTestSupport {
 		try (ConfigurableApplicationContext worker = start(Role.WORKER)) {
 			assertThat(worker.getBeansOfType(SandboxPruning.class)).isEmpty();
 		}
+	}
+
+	/**
+	 * Runs a delete while another transaction, as another instance's prune, holds the
+	 * guest's row; fails the test if the delete waits for it.
+	 */
+	private static @Nullable Boolean whileAnotherTransactionLocks(String userId, Supplier<Boolean> delete) {
+		DataSource other = anotherDataSource();
+		return new TransactionTemplate(new JdbcTransactionManager(other)).execute((status) -> {
+			JdbcClient.create(other)
+				.sql("SELECT id FROM users WHERE id = :id FOR UPDATE")
+				.param("id", userId)
+				.query((rows, number) -> rows.getString("id"))
+				.single();
+			CompletableFuture<Boolean> deleting = CompletableFuture.supplyAsync(delete);
+			assertThat(deleting).succeedsWithin(A_MOMENT);
+			return deleting.join();
+		});
 	}
 
 	private void expire(SignedIn guest) {
