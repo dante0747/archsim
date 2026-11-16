@@ -413,6 +413,46 @@ export function cpuSentence(experiments: Experiment[]): string | null {
   return `ArchSim's CPU predictions (busy cores) were off by a median of ${range} at the load steps up to both knees.`;
 }
 
+/**
+ * What kind of machine a benchmark CPU is in, which the results do not record: every run so far
+ * was on the maintainer's laptop. A CPU not listed here is called a machine.
+ */
+const MACHINE_KINDS: Record<string, string> = { "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz": "laptop" };
+
+/** "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz" -> "11th Gen Intel Core i7-1165G7". */
+function cpuName(cpu: string): string {
+  return cpu.replace(/\((R|TM)\)/g, "").replace(/\s*@.*$/, "").replace(/\s+/g, " ").trim();
+}
+
+/** The Docker the stacks ran under: Docker Desktop on Windows and macOS, the engine itself on Linux. */
+function dockerOn(os: string | null): { short: string; long: string } {
+  const windows = /^Windows-(\d+)/.exec(os ?? "");
+  if (windows) return { short: "Docker Desktop", long: `Docker Desktop on Windows ${windows[1]}` };
+  if (/^(macOS|Darwin)/.test(os ?? "")) return { short: "Docker Desktop", long: "Docker Desktop on macOS" };
+  return { short: "Docker", long: /^Linux/.test(os ?? "") ? "Docker on Linux" : "Docker" };
+}
+
+/**
+ * Where every run was measured, plainly: `short` for a figure's note ("one laptop under Docker
+ * Desktop"), `sentence` for the top of the accuracy page.
+ */
+export function measuredOn(data: Accuracy): { short: string; sentence: string } {
+  const s = data.summary;
+  if (s.machines.length !== 1) {
+    const names = s.machines.map(cpuName);
+    const list = names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+    return { short: `${s.machines.length} machines`, sentence: `The ${s.runs} runs were measured on ${s.machines.length} machines: ${list}.` };
+  }
+  const kind = MACHINE_KINDS[s.machines[0]] ?? "machine";
+  const systems = [...new Set(data.experiments.map((x) => x.environment?.os ?? null))];
+  const docker = dockerOn(systems.length === 1 ? systems[0] : null);
+  const where = kind === "laptop" ? "not on a server, and not yet on a second machine" : "not yet on a second machine";
+  return {
+    short: `one ${kind} under ${docker.short}`,
+    sentence: `All ${s.runs} runs were measured on one ${kind} (${cpuName(s.machines[0])}), every stack under ${docker.long}: ${where}.`,
+  };
+}
+
 /** How the latest run's conditions repeated, and how often the predicted range held the measured knee. */
 export function repeatSentence(x: Experiment, minRuns = 3): string {
   const r = x.repeatability;

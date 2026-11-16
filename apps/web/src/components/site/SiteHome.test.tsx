@@ -76,6 +76,15 @@ describe("SiteHome", () => {
     expect(within(section).getByRole("link", { name: /every run|accuracy/i })).toHaveAttribute("href", "/accuracy/");
   });
 
+  it("describes the experiments as the accuracy page does: small synthetic services, on one machine it names", () => {
+    render(<SiteHome {...props} />);
+
+    const section = screen.getByRole("region", { name: /^Measured, not claimed/ });
+    expect(section).toHaveTextContent("small synthetic services on real PostgreSQL, Redis and Kafka");
+    expect(section).toHaveTextContent(`on ${props.accuracy.machine}`);
+    expect(section.textContent).not.toMatch(/on real services/);
+  });
+
   it("says running it on your own machine needs no account, as a fact about running it yourself", () => {
     render(<SiteHome {...props} demoUrl="https://app.archsim.io/" />);
 

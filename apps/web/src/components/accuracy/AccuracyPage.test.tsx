@@ -1,7 +1,21 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { AccuracyPage } from "@/components/accuracy/AccuracyPage";
-import { CALIBRATION_DOC, JAVA_PARITY_DOC, VALIDATION_DOC, accuracy, cpuSentence, kneeSentence, minus, spreadSentence, topStepText } from "@/lib/accuracy";
+import {
+  BENCHMARK_WORKFLOW,
+  CALIBRATION_DOC,
+  JAVA_PARITY_DOC,
+  VALIDATION_DOC,
+  accuracy,
+  cpuSentence,
+  kneeSentence,
+  measuredOn,
+  minus,
+  spreadSentence,
+  topStepText,
+} from "@/lib/accuracy";
 
 // Expectations come from the data, so this keeps passing when the benchmarks rerun.
 describe("AccuracyPage", () => {
@@ -103,5 +117,25 @@ describe("AccuracyPage", () => {
     const { container } = render(<AccuracyPage data={{ ...accuracy, javaEngine: null }} />);
 
     expect(within(container).queryByText("Java engine")).toBeNull();
+  });
+
+  it("says near the top where every run was measured", () => {
+    const { container } = render(<AccuracyPage data={accuracy} />);
+
+    const hero = container.querySelector("main > section") as HTMLElement;
+    expect(hero).toHaveTextContent(measuredOn(accuracy).sentence);
+    expect(hero.textContent).toMatch(/small synthetic services/);
+  });
+
+  it("says the benchmarks rerun by hand while the workflow's schedule is off", () => {
+    // vitest runs in apps/web: the workflow is two levels up
+    const workflow = readFileSync(resolve(process.cwd(), "../..", BENCHMARK_WORKFLOW), "utf8");
+    const scheduled = /^\s+schedule:/m.test(workflow);
+    const { container } = render(<AccuracyPage data={accuracy} />);
+
+    const history = container.querySelector("section#history") as HTMLElement;
+    expect(scheduled).toBe(false);
+    expect(history.textContent).not.toMatch(/every week|every release/);
+    expect(history.textContent).toMatch(/started by hand/);
   });
 });

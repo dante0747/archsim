@@ -28,6 +28,11 @@ for when that version changes.
   where it offers sandboxes. A local install says what it said.
 - On a phone, a sandbox's guest is offered the design's JSON to take to a computer, not a link
   that opens only in the browser the sandbox belongs to.
+- The accuracy page says near its top that every run was measured on one laptop under Docker
+  Desktop, and that the benchmarks rerun when a person starts them (the weekly and release runs
+  stay off until a run passes on Linux), where it said they rerun every week. It and the
+  website's home page call the experiments small synthetic services on real PostgreSQL, Redis and
+  Kafka.
 - A finding that counts one request says so: `1 request failed at API`, `1 client request failed
   because of them`, `refused 1 call`, where it said `1 requests`. Only words change; the engine
   stays at 1.1.1.

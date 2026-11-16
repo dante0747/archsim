@@ -23,6 +23,7 @@ import {
   formatTime,
   kneeSentence,
   lowLoadSentence,
+  measuredOn,
   minus,
   p95Sentence,
   repeatSentence,
@@ -543,8 +544,11 @@ export function AccuracyPage({ data, header = <AppHeader />, footer = <AppFooter
               How accurate is ArchSim?
             </h1>
             <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-ink-2">
-              We run small real systems, ask ArchSim to predict how they behave under load <em>before</em> measuring them, and then measure. Here is every
-              result, the good and the bad, and how far to trust them.
+              We run small synthetic services on real PostgreSQL, Redis and Kafka, ask ArchSim to predict how they behave under load <em>before</em>{" "}
+              measuring them, and then measure. Here is every result, the good and the bad, and how far to trust them.
+            </p>
+            <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-ink" data-testid="measured-on">
+              {measuredOn(data).sentence}
             </p>
             <dl className="mt-8 grid grid-cols-2 gap-x-8 gap-y-6 sm:flex sm:flex-wrap sm:gap-x-12">
               {[
@@ -755,9 +759,10 @@ export function AccuracyPage({ data, header = <AppHeader />, footer = <AppFooter
               <p className="mt-3">
                 Each experiment runs on Docker with its containers pinned to their own CPUs; the latest run&apos;s full environment is under its
                 experiment above. The model inputs and every measured repeat are in <RepoFile path={VALIDATION_DOC} small /> and{" "}
-                <RepoFile path="benchmarks/results/" small /> in the repository. A benchmark workflow (<RepoFile path={BENCHMARK_WORKFLOW} small />) is set
-                to re-run the experiments every week and for every release and to open a pull request with the new numbers; this page changes only when a
-                person merges one.
+                <RepoFile path="benchmarks/results/" small /> in the repository. For now the experiments are re-run when a person starts them: a
+                benchmark workflow (<RepoFile path={BENCHMARK_WORKFLOW} small />) is started by hand, re-runs them and opens a pull request with the new
+                numbers. Its weekly and release runs stay off until a run passes on Linux. This page changes only when a person merges such a pull
+                request.
               </p>
             </div>
           </Section>

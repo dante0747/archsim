@@ -314,7 +314,7 @@ function AccuracySummary({ accuracy: a }: Pick<SiteHomeProps, "accuracy">) {
     note: a.validated === 0 ? "So no technology counts as validated yet." : "Validated against the proposed bar.",
     tone: a.validated === 0 ? "warn" : "good",
   });
-  cards.push({ value: String(a.runs), label: "runs, every one published", note: `${a.period}, on ${a.machines === 1 ? "one machine" : `${a.machines} machines`}.`, tone: "plain" });
+  cards.push({ value: String(a.runs), label: "runs, every one published", note: `${a.period}, on ${a.machine}.`, tone: "plain" });
   return (
     <section id="accuracy" aria-labelledby="accuracy-title" className="scroll-mt-16 py-20 sm:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
@@ -322,7 +322,7 @@ function AccuracySummary({ accuracy: a }: Pick<SiteHomeProps, "accuracy">) {
           eyebrow="Accuracy"
           title="Measured, not claimed. Misses included."
           id="accuracy-title"
-          lead={`In ${a.experiments} experiments on real services, ArchSim was calibrated at low load and predicted where each would break; only then was the breaking point measured with k6. The held-out ones were sealed until a frozen engine had predicted them.`}
+          lead={`In ${a.experiments} experiments, small synthetic services on real PostgreSQL, Redis and Kafka run on ${a.machine}, ArchSim was calibrated at low load and predicted where each would break; only then was the breaking point measured with k6. The held-out ones were sealed until a frozen engine had predicted them.`}
         />
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {cards.map((c, i) => (

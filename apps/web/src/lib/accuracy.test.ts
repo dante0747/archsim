@@ -20,6 +20,7 @@ import {
   repeatSentence,
   spreadSentence,
   topStepText,
+  measuredOn,
 } from "./accuracy";
 
 // Synthetic cases built on a real entry, so these tests keep passing when the benchmarks rerun.
@@ -251,5 +252,34 @@ describe("formatting", () => {
     expect(kneeScale(3162)).toEqual({ max: 4000, ticks: [0, 1000, 2000, 3000, 4000] });
     expect(kneeScale(819)).toEqual({ max: 1000, ticks: [0, 250, 500, 750, 1000] });
     expect(kneeScale(1006)).toEqual({ max: 1500, ticks: [0, 500, 1000, 1500] });
+  });
+});
+
+describe("where the runs were measured", () => {
+  const on = (cpu: string, os: string) =>
+    ({
+      ...accuracy,
+      summary: { ...accuracy.summary, runs: 3, machines: [cpu] },
+      experiments: accuracy.experiments.map((x) => ({ ...x, environment: { ...x.environment, cpu, os } })),
+    }) as typeof accuracy;
+
+  it("says plainly that every run so far was on one laptop, under Docker Desktop", () => {
+    expect(measuredOn(on("11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz", "Windows-11-10.0.26300-SP0"))).toEqual({
+      short: "one laptop under Docker Desktop",
+      sentence: "All 3 runs were measured on one laptop (11th Gen Intel Core i7-1165G7), every stack under Docker Desktop on Windows 11: not on a server, and not yet on a second machine.",
+    });
+  });
+
+  it("calls a machine it does not know a machine, and Docker on Linux plain Docker", () => {
+    expect(measuredOn(on("AMD EPYC 7B13", "Linux-6.8.0-x86_64-with-glibc2.39"))).toEqual({
+      short: "one machine under Docker",
+      sentence: "All 3 runs were measured on one machine (AMD EPYC 7B13), every stack under Docker on Linux: not yet on a second machine.",
+    });
+  });
+
+  it("names how many machines there were once there are more", () => {
+    const two = { ...accuracy, summary: { ...accuracy.summary, runs: 9, machines: ["AMD EPYC 7B13", "Apple M3"] } };
+
+    expect(measuredOn(two)).toEqual({ short: "2 machines", sentence: "The 9 runs were measured on 2 machines: AMD EPYC 7B13 and Apple M3." });
   });
 });

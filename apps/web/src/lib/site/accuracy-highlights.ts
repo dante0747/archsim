@@ -3,7 +3,7 @@
  * many over-promised capacity (the unsafe side) and by how much, then the tuned-on ones, and the
  * runs behind them. Computed from the same data as /accuracy, so the two never disagree.
  */
-import { type Accuracy, type Experiment, formatDate, minus } from "@/lib/accuracy";
+import { type Accuracy, type Experiment, formatDate, measuredOn, minus } from "@/lib/accuracy";
 
 export interface AccuracyHighlights {
   /** The knee error a prediction must be within to count as close ("±25%"). */
@@ -14,6 +14,8 @@ export interface AccuracyHighlights {
   experiments: number;
   runs: number;
   machines: number;
+  /** Where the runs were measured, for a note: "one laptop under Docker Desktop". */
+  machine: string;
   period: string;
 }
 
@@ -51,6 +53,7 @@ export function accuracyHighlights(data: Accuracy): AccuracyHighlights {
     experiments: s.experiments,
     runs: s.runs,
     machines: s.machines.length,
+    machine: measuredOn(data).short,
     period: s.firstDate && s.firstDate !== s.latestDate ? `${formatDate(s.firstDate)} to ${formatDate(s.latestDate)}` : formatDate(s.latestDate),
   };
 }

@@ -32,7 +32,7 @@ describe("accuracyHighlights", () => {
 
     expect(h.heldOut).toBeNull();
     expect(h.tunedOn?.range).toBe("−16% to +16%");
-    expect(h).toMatchObject({ validated: 0, experiments: 2, runs: 12, machines: 2, period: "26 Oct 2026 to 4 Nov 2026" });
+    expect(h).toMatchObject({ validated: 0, experiments: 2, runs: 12, machines: 2, machine: "2 machines", period: "26 Oct 2026 to 4 Nov 2026" });
   });
 
   it("agrees with the accuracy page's data", () => {
