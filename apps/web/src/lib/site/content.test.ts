@@ -49,6 +49,14 @@ describe("Repository", () => {
     expect(() => repo.doc(["missing"])).toThrow(/no document/);
   });
 
+  it("names the pages above a document, for its breadcrumbs", () => {
+    const repo = new Repository(root);
+
+    expect(repo.ancestors(["adr", "0001-record"])).toEqual([{ title: "Decisions", path: "/docs/adr/" }]);
+    expect(repo.ancestors(["guide"])).toEqual([]);
+    expect(repo.ancestors(["validation", "deep", "page"])).toEqual([]);
+  });
+
   it("lists every page of the site, for the sitemap", () => {
     expect(new Repository(root).pages()).toEqual(["/", "/docs/", "/docs/adr/0001-record/", "/docs/adr/", "/docs/guide/", "/accuracy/", "/changelog/"]);
   });

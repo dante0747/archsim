@@ -5,7 +5,7 @@
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { type Page, expect, test } from "@playwright/test";
+import { type APIRequestContext, type Page, expect, test } from "@playwright/test";
 
 const out = resolve(process.cwd(), "out");
 const pages = [...readFileSync(resolve(out, "sitemap.xml"), "utf8").matchAll(/<loc>https:\/\/archsim\.io([^<]*)<\/loc>/g)].map((m) => m[1]);
@@ -52,6 +52,56 @@ for (const [device, viewport] of Object.entries(VIEWPORTS)) {
     });
   }
 }
+
+test.describe("search engines", () => {
+  const decode = (s: string) => s.replace(/&quot;/g, '"').replace(/&#x27;|&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+  const DESCRIPTION = /<meta name="description" content="([^"]*)"/;
+
+  async function structuredData(request: APIRequestContext, path: string): Promise<Record<string, unknown>[]> {
+    const html = await (await request.get(path)).text();
+    return [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => JSON.parse(m[1])["@graph"]);
+  }
+
+  test("every page names its language, its canonical address and what it is about", async ({ request }) => {
+    const weak: string[] = [];
+    for (const path of pages) {
+      const html = await (await request.get(path)).text();
+      expect(html, path).toMatch(/<html lang="en"/);
+      expect(html, path).toContain(`<link rel="canonical" href="https://archsim.io${path}"/>`);
+      const description = decode(DESCRIPTION.exec(html)?.[1] ?? "");
+      // the docs' and the changelog's are their first paragraph of prose, cut to fit a search result
+      const derived = path.startsWith("/docs/") || path === "/changelog/";
+      if (!description || description.endsWith(":") || (derived && description.length > 155)) weak.push(`${path}: "${description}"`);
+    }
+    expect(weak, "pages without a fitting description").toEqual([]);
+  });
+
+  test("the 404 page asks not to be indexed", async ({ request }) => {
+    const response = await request.get(MISSING);
+
+    expect(response.status()).toBe(404);
+    expect(await response.text()).toMatch(/<meta name="robots" content="noindex"/);
+  });
+
+  test("the home page describes ArchSim as software, at the version it was built from", async ({ request }) => {
+    const { version } = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8")) as { version: string };
+
+    const graph = await structuredData(request, "/");
+
+    expect(graph.find((n) => n["@type"] === "SoftwareApplication")).toMatchObject({ name: "ArchSim", softwareVersion: version, url: "https://archsim.io/" });
+    expect(graph.find((n) => n["@type"] === "WebSite")).toMatchObject({ name: "ArchSim", url: "https://archsim.io/" });
+  });
+
+  test("a decision record is an article with the breadcrumbs that lead to it", async ({ request }) => {
+    const path = "/docs/adr/0067-license-under-agpl-3.0-with-a-commercial-license/";
+
+    const graph = await structuredData(request, path);
+
+    expect(graph.find((n) => n["@type"] === "TechArticle")).toMatchObject({ url: `https://archsim.io${path}` });
+    const crumbs = graph.find((n) => n["@type"] === "BreadcrumbList")?.itemListElement as { item: string }[];
+    expect(crumbs.map((c) => c.item)).toEqual(["https://archsim.io/docs/", "https://archsim.io/docs/adr/", `https://archsim.io${path}`]);
+  });
+});
 
 test.describe("screenshots", () => {
   test.skip(!process.env.SITE_SCREENSHOTS, "set SITE_SCREENSHOTS=1 to save them");

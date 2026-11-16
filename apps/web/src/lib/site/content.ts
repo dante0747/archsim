@@ -64,6 +64,16 @@ export class Repository {
     return { ...this.render(path), path };
   }
 
+  /** The pages between the docs index and the document at `slug`: each folder above it that has a README. */
+  ancestors(slug: string[]): { title: string; path: string }[] {
+    const docs = new Set(this.docFiles());
+    return slug
+      .slice(0, -1)
+      .map((_, i) => `docs/${slug.slice(0, i + 1).join("/")}/README.md`)
+      .filter((readme) => docs.has(readme))
+      .map((readme) => ({ title: this.render(readme).title, path: docRoute(readme) ?? "/docs/" }));
+  }
+
   nav(): NavSection[] {
     return docsNav(this.read("docs/README.md"), this.context("docs/README.md"));
   }

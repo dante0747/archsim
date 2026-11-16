@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { DocsShell } from "@/components/site/DocsShell";
+import { JsonLd } from "@/components/site/JsonLd";
 import { repository } from "@/lib/site/content";
 import { docRoute, docSlug } from "@/lib/site/links";
 import { pageMetadata } from "@/lib/site/site";
+import { docStructuredData } from "@/lib/site/structured-data";
 
 interface Props {
   params: Promise<{ slug: string[] }>;
@@ -30,5 +32,11 @@ export default async function DocPage({ params }: Props) {
   const { slug } = await params;
   const repo = repository();
   const doc = repo.doc(slug);
-  return <DocsShell nav={repo.nav()} doc={doc} route={docRoute(doc.path) ?? "/docs/"} />;
+  const route = docRoute(doc.path) ?? "/docs/";
+  return (
+    <>
+      <JsonLd data={docStructuredData({ title: doc.title, description: doc.description, path: route, ancestors: repo.ancestors(slug) })} />
+      <DocsShell nav={repo.nav()} doc={doc} route={route} />
+    </>
+  );
 }

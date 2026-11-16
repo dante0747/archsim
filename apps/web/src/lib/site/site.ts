@@ -29,7 +29,7 @@ export function contentSecurityPolicy(development: boolean): string {
 }
 
 /** docs/images/social-preview.png, served under /docs-assets like every image of docs/. */
-const SOCIAL_IMAGE = { url: `${SITE_URL}/docs-assets/images/social-preview.png`, width: 1280, height: 640, alt: "ArchSim: crash-test your architecture before your users do" };
+export const SOCIAL_IMAGE = { url: `${SITE_URL}/docs-assets/images/social-preview.png`, width: 1280, height: 640, alt: "ArchSim: crash-test your architecture before your users do" };
 
 export function siteUrl(path: string): string {
   return `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
