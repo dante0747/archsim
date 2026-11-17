@@ -38,7 +38,7 @@ x-service: &service
 # archsim-app's image (ADR-0014), started as migrate, api or worker
 x-archsim-app: &archsim-app
   <<: *service
-  image: ghcr.io/dante0747/archsim-app:1.2.0
+  image: ghcr.io/dante0747/archsim-app:1.3.0
 
 # the address people open, from hosted.env's domain
 x-public-url: &public-url https://${ARCHSIM_DOMAIN:?set ARCHSIM_DOMAIN in hosted.env}
@@ -156,7 +156,7 @@ services:
   # footer and sign-in page link to your privacy notice.
   web:
     <<: *service
-    image: ghcr.io/dante0747/archsim-web:1.2.0
+    image: ghcr.io/dante0747/archsim-web:1.3.0
     environment:
       ARCHSIM_API_URL: http://api:8000
       ARCHSIM_PUBLIC_URL: *public-url

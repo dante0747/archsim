@@ -8,7 +8,23 @@ for when that version changes.
 
 ## [Unreleased]
 
-Results that agree with themselves and with the design, after a review of the live demo.
+## [1.3.0] - 2026-11-17
+
+Results that agree with themselves and with the design, after a review of the live demo, and a
+freshness objective for asynchronous designs. Results change: the engine moves from 1.1.1 to
+1.5.0, so a design simulated again can give other figures. Designs move to schema 1.10: older ones
+are upgraded when read, which leaves a third-party API's price of 0 unset (the last entry under
+Changed).
+
+### Added
+
+- **A freshness objective, and lost messages (engine 1.4.0, schema 1.10, report 1.19,
+  [ADR-0084](docs/adr/0084-judge-asynchronous-designs-by-their-messages-too.md)).** A new
+  objective, `messageAgeP95Ms`, judges how old a message is when processed at the design's slowest
+  queue, and a run with queues reports its `lostMessages` (dead-lettered or dropped). The
+  asynchronous templates set a freshness target: the Kafka order pipeline, whose orders wait
+  21.0 s (p95) for a consumer, now reads "No, it doesn't hold up" against its 10 s, where it said
+  "Yes, it holds up".
 
 ### Changed
 
@@ -42,14 +58,10 @@ Results that agree with themselves and with the design, after a review of the li
   busiest instance 35% CPU busy at the 303 req/s the run sent it (simulated 33%; 56% at the
   480 req/s peak)", CPU busy "16% · busiest 33%" and a ceiling of 927 req/s. The dashboard's
   "CPU utilization" panel, which plots the share of a part's own work, is "Own processing".
-- **Asynchronous designs are judged by their messages too (engine 1.4.0, schema 1.10, report 1.19,
-  [ADR-0084](docs/adr/0084-judge-asynchronous-designs-by-their-messages-too.md)).** A new
-  objective, `messageAgeP95Ms`, judges how old a message is when processed at the design's slowest
-  queue, and a run with queues reports its `lostMessages` (dead-lettered or dropped) and an
-  `availability` that counts a request that lost one as failed, which the availability objective
-  now judges. The asynchronous templates set a freshness target: the Kafka order pipeline, whose
-  orders wait 21.0 s (p95) for a consumer, now reads "No, it doesn't hold up" against its 10 s,
-  where it said "Yes, it holds up".
+- **Availability counts lost messages (engine 1.4.0, report 1.19,
+  [ADR-0084](docs/adr/0084-judge-asynchronous-designs-by-their-messages-too.md)).** In a run with
+  queues, `availability` counts a request that was answered but lost a message it published
+  (dead-lettered, or dropped when published) as failed, and the availability objective judges it.
 - **A Kafka broker is sized as ArchSim measured it, and idle consumers are named (engine 1.5.0,
   report 1.20,
   [ADR-0085](docs/adr/0085-size-a-kafka-broker-as-measured-and-name-idle-consumers.md)).** A Kafka
@@ -298,7 +310,8 @@ cost, and publishes how accurate it is. Start with [Getting started](docs/gettin
 - Exports are scaffolding to review, not production configuration.
 - The editor is designed for desktop screens.
 
-[Unreleased]: https://github.com/dante0747/archsim/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/dante0747/archsim/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/dante0747/archsim/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/dante0747/archsim/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/dante0747/archsim/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/dante0747/archsim/releases/tag/v1.0.0
