@@ -60,10 +60,6 @@ final class FaultFindings {
 	private static final String BUDGET_LATENCY = "Budget timeouts for the extra latency, retry on another "
 			+ "instance, or cut the number of sequential calls across this link.";
 
-	private static final String FALL_BACK_FROM_CACHE = "Treat cache errors as misses and fall back to the database: "
-			+ "turn on 'Carry on if this call fails' on the link to the cache and set the link to the database to "
-			+ "'Reads only on a cache miss' (check the database can take every read), or run a replicated cache.";
-
 	private static final String FAIL_OVER = "Add a replica with automatic failover, and fail fast "
 			+ "(timeouts, circuit breaker) so callers do not pile up while it is down.";
 
@@ -180,19 +176,20 @@ final class FaultFindings {
 		return switch (fault.kind()) {
 			case SLOWDOWN -> RELEASE_WORKERS;
 			case LATENCY -> BUDGET_LATENCY;
-			case OUTAGE -> outageSuggestion(this.resolved.architecture()
-				.nodes()
-				.stream()
-				.filter((node) -> node.id().equals(fault.target()))
-				.findFirst()
-				.map(NodeSpec::type)
-				.orElse(""));
+			case OUTAGE -> outageSuggestion(fault.target());
 		};
 	}
 
-	private static String outageSuggestion(String type) {
+	private String outageSuggestion(String target) {
+		String type = this.resolved.architecture()
+			.nodes()
+			.stream()
+			.filter((node) -> node.id().equals(target))
+			.findFirst()
+			.map(NodeSpec::type)
+			.orElse("");
 		return switch (type) {
-			case CacheSpec.TYPE -> FALL_BACK_FROM_CACHE;
+			case CacheSpec.TYPE -> CacheFallback.afterOutage(this.resolved, target, this.labels);
 			case DatabaseSpec.TYPE -> FAIL_OVER;
 			case ServiceSpec.TYPE, LoadBalancerSpec.TYPE -> RUN_REDUNDANT;
 			default -> ADD_FALLBACK;

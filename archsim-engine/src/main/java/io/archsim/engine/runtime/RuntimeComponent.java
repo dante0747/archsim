@@ -55,6 +55,15 @@ public abstract class RuntimeComponent {
 	 */
 	public abstract void handle(Request request, Consumer<Outcome> done);
 
+	/**
+	 * Counts whatever else the part counts of a request it refuses, for one it refused
+	 * because it was down; the refusal itself is counted already.
+	 * @param request the request, sent for the part's work
+	 */
+	public void refusedWhileDown(Request request) {
+		// most parts count the refusal alone
+	}
+
 	public final String id() {
 		return this.node.id();
 	}

@@ -43,7 +43,8 @@ class FindingsCasesTests {
 	Stream<DynamicTest> analyze_everyCase_givesTheFrozenEnginesFindings() {
 		return CaseFiles.entries(CASES)
 			.stream()
-			.map((entry) -> DynamicTest.dynamicTest(entry.pointer(), () -> Parity.check(entry, EngineFunctions::call)));
+			.map((entry) -> DynamicTest.dynamicTest(entry.pointer(),
+					() -> Parity.check(entry, GoldenDepartures.withCacheDepartures(EngineFunctions::call))));
 	}
 
 	@TestFactory

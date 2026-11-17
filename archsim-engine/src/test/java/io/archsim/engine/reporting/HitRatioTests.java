@@ -10,7 +10,11 @@ import io.archsim.engine.runtime.NodeMetrics;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** A part's hit ratio in a report, as the Python engine 0.16.0 writes it. */
+/**
+ * A part's hit ratio in a report: as the Python engine 0.16.0 writes it, but for the
+ * lookups the part refused, which count as lookups that did not hit (engine 1.2.1,
+ * ADR-0082).
+ */
 class HitRatioTests {
 
 	private final Timeline timeline = new Timeline(1000, 0, 1000);
@@ -62,6 +66,27 @@ class HitRatioTests {
 		ArrayNode series = HitRatio.of(this.metrics).orElseThrow().series(buckets);
 
 		assertThat(series.get(buckets - 1).isNull()).isTrue();
+	}
+
+	@Test
+	void summary_refusedLookups_countAsNotHit() {
+		this.metrics.count(NodeMetrics.HITS, 10);
+		this.metrics.count(NodeMetrics.MISSES, 20);
+		this.metrics.count(NodeMetrics.REFUSED_LOOKUPS, 30);
+		this.metrics.count(NodeMetrics.REFUSED_LOOKUPS, 40);
+
+		double ratio = HitRatio.of(this.metrics).orElseThrow().summary().asDouble();
+
+		assertThat(ratio).isEqualTo(0.25);
+	}
+
+	@Test
+	void series_aBucketWhoseLookupsWereAllRefused_isZero() {
+		this.metrics.count(NodeMetrics.REFUSED_LOOKUPS, 10);
+
+		ArrayNode series = HitRatio.of(this.metrics).orElseThrow().series(this.timeline.buckets());
+
+		assertThat(series.get(0).asDouble()).isZero();
 	}
 
 }

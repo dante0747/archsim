@@ -7,14 +7,16 @@ package io.archsim.engine.version;
  * 0.16.0; 1.1.0 bills an autoscaled part at the count it settles at under each load
  * (ADR-0074); 1.1.1 measures the base's per-request rates in the buckets nearest the base
  * load when none is at it; 1.2.0 prices a third-party API without a price at its
- * technology preset's price, or leaves it out of the month and says so (ADR-0081). The
- * report's version is the Java simulator's own too (ADR-0050). The design schema's is the
- * model's ({@code ArchitectureDocument.SCHEMA_VERSION}).
+ * technology preset's price, or leaves it out of the month and says so (ADR-0081); 1.2.1
+ * counts the lookups a cache refused in its hit ratio, and asks after a cache's outage
+ * only for the fallback its callers lack. The report's version is the Java simulator's
+ * own too (ADR-0050). The design schema's is the model's
+ * ({@code ArchitectureDocument.SCHEMA_VERSION}).
  */
 public final class EngineVersions {
 
 	/** The engine every run records. Bump it when what a simulation means changes. */
-	public static final String ENGINE = "1.2.0";
+	public static final String ENGINE = "1.2.1";
 
 	/**
 	 * The version of the report format the Java simulator writes: 1.17 adds the parts the

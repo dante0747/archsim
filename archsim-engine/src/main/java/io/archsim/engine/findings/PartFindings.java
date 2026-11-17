@@ -7,11 +7,15 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.engine.numeric.PythonRound;
 import io.archsim.engine.report.NodeSummary;
 import io.archsim.engine.report.ReportNode;
 import io.archsim.engine.report.RunReport;
+import io.archsim.engine.runtime.NodeMetrics;
 import io.archsim.engine.text.PythonStrings;
 import io.archsim.model.component.Category;
 import io.archsim.model.component.cache.CacheSpec;
@@ -105,24 +109,55 @@ final class PartFindings {
 	}
 
 	private static RunFinding cache(RunReport report, ArchitectureDocument resolved, ReportNode node, double hitRatio) {
-		double measuredS = report.window().measuredS();
-		double missRps = (measuredS != 0) ? node.summary().counter("misses") / measuredS : 0.0;
-		String misses = FindingText.wholeWithSeparators(missRps) + " reads/s";
+		Unserved reads = Unserved.of(report.window().measuredS(), node.summary());
+		String hits = FindingText.percent(hitRatio);
+		ObjectNode evidence = RunFinding.emptyEvidence()
+			.put("hitRatio", hitRatio)
+			.put("missRps", PythonRound.round(reads.missRps(), MISS_RATE_DECIMALS));
+		if (reads.refusedRps() > 0) {
+			evidence.put("refusedLookupRps", PythonRound.round(reads.refusedRps(), MISS_RATE_DECIMALS));
+		}
+		return new RunFinding(FindingSeverity.INFO, FindingKind.CACHE, node.id(), node.label() + " hit ratio " + hits,
+				hits + " of reads were served from the cache; " + whereTheyWent(report, resolved, node, reads) + ".",
+				null, evidence);
+	}
+
+	// where the reads the cache did not serve went: its misses down its miss link, or
+	// to the store its callers read; and those it refused
+	private static String whereTheyWent(RunReport report, ArchitectureDocument resolved, ReportNode node,
+			Unserved reads) {
+		String misses = FindingText.wholeWithSeparators(reads.missRps()) + " reads/s";
 		Optional<String> through = readThrough(report, resolved, node.id());
 		Optional<String> aside = cacheAside(report, resolved, node.id());
-		String then;
-		if (through.isEmpty() && aside.isPresent()) {
-			then = misses + " missed and " + aside.get();
+		boolean asideOnly = through.isEmpty() && aside.isPresent();
+		String went = asideOnly ? misses + " missed and " + aside.get()
+				: misses + " continued to " + through.orElse("the data store");
+		if (reads.refusedRps() <= 0) {
+			return went;
 		}
-		else {
-			then = misses + " continued to " + through.orElse("the data store");
+		CacheCallers callers = CacheCallers.of(resolved, node.id());
+		Optional<String> fallback = refusedFallback(report, callers);
+		String fate = fallback.map((who) -> "which " + who + (asideOnly ? " too" : ""))
+			.orElseGet(() -> callers.lookups().stream().anyMatch(callers::fallsBack)
+					? "which the callers that carry on read from the data store, and the rest failed" : "which failed");
+		return went + "; it refused " + FindingText.wholeWithSeparators(reads.refusedRps()) + " reads/s, " + fate;
+	}
+
+	// who read the lookups the cache refused, when every caller falls back to the data
+	// store, such as: API and Worker read from DB
+	private static Optional<String> refusedFallback(RunReport report, CacheCallers callers) {
+		List<EdgeSpec> lookups = callers.lookups();
+		List<EdgeSpec> fetches = lookups.stream().map(callers::fetch).flatMap(Optional::stream).toList();
+		if (lookups.isEmpty() || fetches.size() < lookups.size()) {
+			return Optional.empty();
 		}
-		String hits = FindingText.percent(hitRatio);
-		return new RunFinding(FindingSeverity.INFO, FindingKind.CACHE, node.id(), node.label() + " hit ratio " + hits,
-				hits + " of reads were served from the cache; " + then + ".", null,
-				RunFinding.emptyEvidence()
-					.put("hitRatio", hitRatio)
-					.put("missRps", PythonRound.round(missRps, MISS_RATE_DECIMALS)));
+		return Optional.of(labels(report, fetches.stream().map(EdgeSpec::source)) + " read from "
+				+ labels(report, fetches.stream().map(EdgeSpec::target)));
+	}
+
+	// the parts' labels, each once, joined: API and Worker
+	private static String labels(RunReport report, Stream<String> ids) {
+		return String.join(" and ", ids.distinct().map((id) -> label(report, id)).toList());
 	}
 
 	// The part a read-through cache's miss link reaches.
@@ -175,6 +210,25 @@ final class PartFindings {
 		}
 		return new RunFinding(FindingSeverity.OK, FindingKind.HEALTHY, (busiest != null) ? busiest.id() : null,
 				"No component is saturated", detail, null, RunFinding.emptyEvidence());
+	}
+
+	/**
+	 * The reads a cache did not serve, a second over the measurement window.
+	 *
+	 * @param missRps the reads that missed
+	 * @param refusedRps the reads it refused, down or turned away by its queue (full, or
+	 * waited past its timeout)
+	 */
+	private record Unserved(double missRps, double refusedRps) {
+
+		static Unserved of(double measuredS, NodeSummary summary) {
+			if (measuredS == 0) {
+				return new Unserved(0.0, 0.0);
+			}
+			return new Unserved(summary.counter(NodeMetrics.MISSES) / measuredS,
+					summary.counter(NodeMetrics.REFUSED_LOOKUPS) / measuredS);
+		}
+
 	}
 
 	/**

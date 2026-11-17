@@ -271,7 +271,14 @@ A miss is handled one of two ways, chosen by the links:
   that succeeds and `populateOnMiss` is on, writes the value back (one more command on the
   cache, over the same link). With `continueOnFailure` on the service's link to the cache, a
   failed lookup (outage, timeout, rejection) counts as a miss, so reads fall back to the data
-  store, and a failed invalidation is skipped instead of failing the write.
+  store, and a failed invalidation is skipped instead of failing the write. A read the cache
+  refused, down or turned away by its queue (full, or waited past `queueTimeoutMs`), is counted
+  at the cache (`refusedLookups`) and counts against its hit ratio as a read it did not serve
+  (ADR-0082): once, at its first refusal, however often its caller retries it, and not at all
+  when the cache answers it on a later attempt. Its caller reads the data store for it where it
+  carries on and reads on a miss, and fails the read otherwise. A write's invalidation and a
+  write-back are not lookups, and a lookup its caller gave up on but the cache answered later
+  counts as the hit or miss it found.
 - **Read-through**: the cache's `miss` port links to the data store, and the cache reads it
   itself (below).
 
@@ -690,7 +697,7 @@ Per-node summary (events counted by the time they happen inside the window):
 | `capacityLimit` | Which ceiling sets `capacityRps`: `slots`, `cpu` or `memory`. |
 | `cpuCapacityRps` | CPU ceiling from the CPU spec: cores x instances / CPU ms per request (null when CPU is not set). |
 | `serviceOnlyCapacityRps` | `slots / meanServiceMs`, capped by the CPU ceiling: the limit if dependencies were instant. |
-| `hitRatio`, `counters` | Cache hits/misses/invalidations/populates; database reads/writes; `wasted`. |
+| `hitRatio`, `counters` | A cache's hits over its lookups: hits, misses and lookups it refused (`refusedLookups`, ADR-0082); cache hits/misses/refusedLookups/invalidations/populates; database reads/writes; `wasted`. |
 
 **Time series** use fixed buckets chosen so the arrival window has at most 90 buckets (and
 the whole run at most 1,200), from the sizes 0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120 s.
@@ -818,11 +825,17 @@ Findings (`RunAnalysis`) are rule-based and cite the numbers they use:
   (Dependency timeouts inside the graph are not counted as wasted work.)
 - **Fault impact** (one per planned fault): success and p95 before and inside the window, and
   how long recovery took. For an outage it also says how many calls the part refused while
-  down and how many client requests failed there rather than carrying on without it.
+  down and how many client requests failed there rather than carrying on without it. After a
+  cache's outage the advice asks only for the fallback its callers lack (carry on when a lookup
+  fails, read the data store on a miss); when they have both, it asks for the capacity the
+  fallback's reads need, or a replicated cache. The design review's advice on a cache without
+  a fallback likewise asks only for what the part lacks.
 - **Hot shard:** one shard gets well over its fair share of keyed operations (scattered
   searches load every shard evenly and do not count), with its estimated load from connections
   or, when CPU is set, its cores (only the primary when reads go to the primary).
-- **Cache** hit ratio and the read rate reaching the data store.
+- **Cache** hit ratio and the read rate reaching the data store: its misses, and the reads it
+  refused with what became of them (read from the data store by callers that carry on and read
+  on a miss, failed otherwise).
 - **Healthy** when nothing is saturated, naming the busiest component.
 
 Comparisons (`RunComparer`) diff the two *resolved input snapshots* (so they explain actual

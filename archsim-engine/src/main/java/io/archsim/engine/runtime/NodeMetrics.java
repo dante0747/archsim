@@ -27,6 +27,13 @@ public final class NodeMetrics {
 	/** The counter of a part's lookups that missed, which its hit ratio reads. */
 	public static final String MISSES = "misses";
 
+	/**
+	 * The counter of the lookups a part refused, sent to its own handler while it was
+	 * down or turned away by its queue (full, or waited too long), which its hit ratio
+	 * reads too: a read it did not serve (ADR-0082).
+	 */
+	public static final String REFUSED_LOOKUPS = "refusedLookups";
+
 	/** The counter of requests a part finished after their client gave up. */
 	private static final String WASTED = "wasted";
 
@@ -140,6 +147,24 @@ public final class NodeMetrics {
 	 */
 	public void count(String name, double time, long count) {
 		this.counters.computeIfAbsent(name, (ignored) -> new Counter(this.timeline)).increment(time, count);
+	}
+
+	/**
+	 * Takes back one count made at a time, as when a cache answers a read it refused
+	 * before. A count taken back to nothing is dropped, as if nothing had been counted:
+	 * each count is taken back in the bucket it was made in, so no bucket keeps any.
+	 * @param name the name it was counted under
+	 * @param time when it was counted
+	 */
+	public void uncount(String name, double time) {
+		Counter counter = this.counters.get(name);
+		if (counter == null) {
+			throw new IllegalStateException("Nothing counted as " + name + " to take back");
+		}
+		counter.increment(time, -1);
+		if (counter.total() == 0) {
+			this.counters.remove(name);
+		}
 	}
 
 	/**

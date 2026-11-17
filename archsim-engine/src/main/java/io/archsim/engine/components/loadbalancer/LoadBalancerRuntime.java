@@ -20,6 +20,7 @@ import io.archsim.engine.random.Sampler;
 import io.archsim.engine.report.FailureReason;
 import io.archsim.engine.report.NodeSummary;
 import io.archsim.engine.runtime.Calls.Call;
+import io.archsim.engine.runtime.Calls.Errand;
 import io.archsim.engine.runtime.Outcome;
 import io.archsim.engine.runtime.Request;
 import io.archsim.engine.runtime.Request.Interval;
@@ -238,7 +239,7 @@ public final class LoadBalancerRuntime extends RuntimeComponent {
 				reason = FailureReason.GATEWAY_TIMEOUT;
 			}
 			return new Call(picked.edge(), (request, reply) -> picked.target().handleOn(request, picked.index(), reply),
-					timeoutMs, id(), reason);
+					timeoutMs, id(), reason, Errand.WORK);
 		}
 
 		private boolean exhausted(Candidate picked) {

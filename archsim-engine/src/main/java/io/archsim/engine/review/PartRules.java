@@ -169,18 +169,41 @@ final class PartRules {
 		String cache = failing.get(0).target();
 		String name = this.graph.label(id);
 		String cacheName = this.graph.label(cache);
-		String detail = fetch
-			.map((store) -> name + " reads " + this.graph.label(store.target())
-					+ " on a cache miss, but a failed lookup on " + cacheName
+		Optional<String> store = fetch.map((edge) -> this.graph.label(edge.target()));
+		String detail = store
+			.map((storeName) -> name + " reads " + storeName + " on a cache miss, but a failed lookup on " + cacheName
 					+ " fails the read instead of counting as a miss.")
 			.orElse("Every read from " + name + " goes through " + cacheName
 					+ "; if the cache itself is unavailable, reads have no other path.");
+		boolean carriesOn = failing.stream().allMatch((edge) -> edge.config().continueOnFailure());
 		this.findings.add(ReviewRule.CACHE_DEPENDENCY, Severity.MEDIUM,
 				new Involved(List.of(id, cache), failing.stream().map(EdgeSpec::id).toList()),
 				new Wording("Reads fail when " + cacheName + " is down", detail,
-						"Turn on 'Carry on if this call fails' on the link to " + cacheName + " and give " + name
-								+ " a link to the data store set to 'Reads only on a cache miss', so reads fall back "
-								+ "to the data store (check it can take every read), or run the cache with replicas."));
+						fallbackAdvice(new Reader(name, cacheName, carriesOn), store)));
+	}
+
+	/**
+	 * The advice to a part whose reads fail with its cache: only the part of the fallback
+	 * it lacks, carrying on when a lookup fails or a link to read on a miss (ADR-0082).
+	 * @param reader the part and its cache
+	 * @param store the data store it reads on a miss; empty when it has no such link
+	 * @return the advice
+	 */
+	private static String fallbackAdvice(Reader reader, Optional<String> store) {
+		String replicas = ", or run the cache with replicas.";
+		if (store.isPresent()) {
+			return "Turn on 'Carry on if this call fails' on the link to " + reader.cache() + ", so a failed lookup "
+					+ "counts as a miss and " + reader.name() + " reads " + store.get() + " instead (check it can take "
+					+ "every read)" + replicas;
+		}
+		if (reader.carriesOn()) {
+			return "Give " + reader.name() + " a link to the data store set to 'Reads only on a cache miss', so reads "
+					+ "fall back to the data store when " + reader.cache() + " fails (check it can take every read)"
+					+ replicas;
+		}
+		return "Turn on 'Carry on if this call fails' on the link to " + reader.cache() + " and give " + reader.name()
+				+ " a link to the data store set to 'Reads only on a cache miss', so reads fall back to the data store "
+				+ "(check it can take every read)" + replicas;
 	}
 
 	/**
@@ -231,6 +254,16 @@ final class PartRules {
 									+ " s); a spike saturates the existing ones first.",
 							"Target 50–70% utilization for latency-sensitive services, or keep warm spare capacity."));
 		}
+	}
+
+	/**
+	 * A part that reads through a cache.
+	 *
+	 * @param name its label
+	 * @param cache the cache's label
+	 * @param carriesOn whether its links to the cache carry on when a lookup fails
+	 */
+	private record Reader(String name, String cache, boolean carriesOn) {
 	}
 
 }

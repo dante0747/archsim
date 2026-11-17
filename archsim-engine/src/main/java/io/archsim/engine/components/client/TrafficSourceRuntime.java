@@ -5,6 +5,7 @@ import java.util.function.Consumer;
 
 import io.archsim.engine.report.FailureReason;
 import io.archsim.engine.runtime.Calls.Call;
+import io.archsim.engine.runtime.Calls.Errand;
 import io.archsim.engine.runtime.EdgeRuntime;
 import io.archsim.engine.runtime.Handler;
 import io.archsim.engine.runtime.Outcome;
@@ -70,7 +71,8 @@ public final class TrafficSourceRuntime extends RuntimeComponent {
 		}
 		EdgeRuntime edge = outEdges(OUT).getFirst();
 		Handler handler = context().component(edge.targetId())::handle;
-		new Submission(request, new Call(edge, handler, this.config.timeoutMs(), id(), FailureReason.CLIENT_TIMEOUT),
+		new Submission(request,
+				new Call(edge, handler, this.config.timeoutMs(), id(), FailureReason.CLIENT_TIMEOUT, Errand.WORK),
 				finish)
 			.attempt(0);
 	}

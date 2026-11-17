@@ -21,8 +21,9 @@ import io.archsim.parity.SchemaDepartures;
  * {@link CostDepartures} compares a cost, its design and parts as the frozen engine would
  * have written them at its schema ({@link SchemaDepartures}), its input and result
  * digests checked by their definitions and then taken over that design and those results
- * (ADR-0074, ADR-0081), and Python's findings as the Java words a count of one request
- * ({@link WordingDepartures}).
+ * (ADR-0074, ADR-0081), its caches' refused lookups and the advice on them as the frozen
+ * engine wrote them ({@link CacheDepartures}), and Python's findings as the Java words a
+ * count of one request ({@link WordingDepartures}).
  */
 public final class ReportComparison {
 
@@ -77,8 +78,8 @@ public final class ReportComparison {
 	 * @return each difference, by JSON Pointer; none when the reports agree
 	 */
 	public static List<String> differences(JsonNode python, JsonNode java, CostDepartures.Departing departing) {
-		ObjectNode javaReport = (ObjectNode) SchemaDepartures
-			.asRecorded(withRecordedDigests(comparable(java, JAVA_RUNTIME), python), python);
+		ObjectNode javaReport = (ObjectNode) asRecorded(withRecordedDigests(comparable(java, JAVA_RUNTIME), python),
+				python);
 		if (javaReport.has(COST)) {
 			javaReport.set(COST, CostDepartures.comparable(python.path(COST), javaReport.get(COST), departing));
 		}
@@ -139,9 +140,15 @@ public final class ReportComparison {
 			provenance.put(INPUT_DIGEST, ReportDigest.of(SchemaDepartures.asRecorded(input, python.path("input"))));
 		}
 		if (ReportDigest.ofResult(report).equals(provenance.path(RESULT_DIGEST).stringValue(""))) {
-			provenance.put(RESULT_DIGEST, ReportDigest.ofResult(SchemaDepartures.asRecorded(report, python)));
+			provenance.put(RESULT_DIGEST, ReportDigest.ofResult(asRecorded(report, python)));
 		}
 		return copy;
+	}
+
+	// the Java's report as the frozen engine would have written it: its schema's and its
+	// caches' departures put back
+	private static JsonNode asRecorded(JsonNode report, JsonNode python) {
+		return SchemaDepartures.asRecorded(CacheDepartures.asRecorded(report, python), python);
 	}
 
 	private static JsonNode comparable(JsonNode report, Set<String> keys) {

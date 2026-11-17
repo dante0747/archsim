@@ -77,7 +77,19 @@ public final class CacheRuntime extends RuntimeComponent {
 	public void handle(Request request, Consumer<Outcome> done) {
 		metrics().arrive(now());
 		CacheShard shard = this.shards.of(request.arrival().key());
-		this.commands.run(shard, request, () -> answer(request, shard, done), (reason) -> reject(reason, done));
+		this.commands.run(shard, request, () -> answer(request, shard, done), (reason) -> {
+			countRefusedRead(request);
+			reject(reason, done);
+		});
+	}
+
+	/**
+	 * Counts a read the cache refused because it was down as a refused lookup; a write's
+	 * invalidation is no lookup.
+	 */
+	@Override
+	public void refusedWhileDown(Request request) {
+		countRefusedRead(request);
 	}
 
 	/**
@@ -140,6 +152,7 @@ public final class CacheRuntime extends RuntimeComponent {
 	}
 
 	private void lookUp(Request request, CacheShard shard, Consumer<Outcome> done) {
+		request.removeRefusal(id()).ifPresent((refused) -> metrics().uncount(NodeMetrics.REFUSED_LOOKUPS, refused));
 		double now = now();
 		boolean hit = read(request, shard);
 		if (hit) {
@@ -218,6 +231,15 @@ public final class CacheRuntime extends RuntimeComponent {
 		}
 		double now = now();
 		return shard.keys().fill(request.arrival().key(), now, now + this.config.ttlSeconds() * MS_PER_SECOND);
+	}
+
+	// a read counts once, at its first refusal, however often its caller retries it; the
+	// count is taken back when the cache answers a later attempt (ADR-0082)
+	private void countRefusedRead(Request request) {
+		double now = now();
+		if (request.operation() == RequestType.READ && request.addRefusal(id(), now)) {
+			metrics().count(NodeMetrics.REFUSED_LOOKUPS, now);
+		}
 	}
 
 	private void reject(FailureReason reason, Consumer<Outcome> done) {

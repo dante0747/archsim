@@ -39,7 +39,7 @@ public final class Calls {
 		edge.attempts().increment(simulation.now());
 		Double timeoutMs = call.timeoutMs();
 		if (timeoutMs == null) {
-			new Hop(edge, request).travel(call.handler(), (outcome) -> {
+			new Hop(call, request).travel((outcome) -> {
 				if (!outcome.ok()) {
 					edge.failures().increment(simulation.now());
 				}
@@ -48,7 +48,7 @@ public final class Calls {
 			return;
 		}
 		Promise<Outcome> answered = simulation.promise();
-		simulation.start((finish) -> new Hop(edge, request).travel(call.handler(), (outcome) -> {
+		simulation.start((finish) -> new Hop(call, request).travel((outcome) -> {
 			answered.succeed(outcome);
 			finish.run();
 		}));
@@ -137,6 +137,24 @@ public final class Calls {
 	}
 
 	/**
+	 * What a call asks of the part at its end.
+	 */
+	public enum Errand {
+
+		/**
+		 * Its work: what its own handler takes, such as a request, a lookup or a write.
+		 */
+		WORK,
+
+		/**
+		 * A cache-aside caller's write-back to a cache after reading the data store on a
+		 * miss, which fills the key and is no lookup.
+		 */
+		WRITE_BACK
+
+	}
+
+	/**
 	 * A call across a link.
 	 *
 	 * @param edge the link
@@ -145,20 +163,35 @@ public final class Calls {
 	 * as it takes
 	 * @param callerId the caller
 	 * @param timeoutReason the failure the caller names when it gives up
+	 * @param errand what the call asks of the callee
 	 */
 	public record Call(EdgeRuntime edge, Handler handler, @Nullable Double timeoutMs, String callerId,
-			FailureReason timeoutReason) {
+			FailureReason timeoutReason, Errand errand) {
 
 		/**
-		 * A part's call to one of its dependencies, which it gives up on after the link's
-		 * timeout.
+		 * A part's call to one of its dependencies for its work, which it gives up on
+		 * after the link's timeout.
 		 * @param edge the link
 		 * @param handler the callee's handler
 		 * @param callerId the calling part
 		 * @return the call
 		 */
 		public static Call dependency(EdgeRuntime edge, Handler handler, String callerId) {
-			return new Call(edge, handler, edge.config().timeoutMs(), callerId, FailureReason.DEPENDENCY_TIMEOUT);
+			return new Call(edge, handler, edge.config().timeoutMs(), callerId, FailureReason.DEPENDENCY_TIMEOUT,
+					Errand.WORK);
+		}
+
+		/**
+		 * A cache-aside caller's write-back to a cache, which it gives up on after the
+		 * link's timeout.
+		 * @param edge the link to the cache
+		 * @param handler the cache's write-back
+		 * @param callerId the calling part
+		 * @return the call
+		 */
+		public static Call writeBack(EdgeRuntime edge, Handler handler, String callerId) {
+			return new Call(edge, handler, edge.config().timeoutMs(), callerId, FailureReason.DEPENDENCY_TIMEOUT,
+					Errand.WRITE_BACK);
 		}
 
 	}
@@ -180,6 +213,8 @@ public final class Calls {
 	 */
 	private final class Hop {
 
+		private final Call call;
+
 		private final EdgeRuntime edge;
 
 		private final Request request;
@@ -194,19 +229,20 @@ public final class Calls {
 
 		private boolean down;
 
-		Hop(EdgeRuntime edge, Request request) {
-			this.edge = edge;
+		Hop(Call call, Request request) {
+			this.call = call;
+			this.edge = call.edge();
 			this.request = request;
 			this.depth = request.depth();
 			this.sent = Calls.this.context.simulation().now();
 		}
 
-		void travel(Handler handler, Consumer<Outcome> back) {
+		void travel(Consumer<Outcome> back) {
 			Calls.this.context.enterTransit();
-			Calls.this.context.simulation().after(latency(this.edge), () -> arrive(handler, back));
+			Calls.this.context.simulation().after(latency(this.edge), () -> arrive(back));
 		}
 
-		private void arrive(Handler handler, Consumer<Outcome> back) {
+		private void arrive(Consumer<Outcome> back) {
 			@Nullable Outcome refused = outage();
 			this.arrived = Calls.this.context.simulation().now();
 			if (refused != null) {
@@ -215,7 +251,7 @@ public final class Calls {
 				return;
 			}
 			this.request.moveTo(this.depth + 1);
-			handler.handle(this.request, (outcome) -> {
+			this.call.handler().handle(this.request, (outcome) -> {
 				this.request.moveTo(this.depth);
 				answer(outcome, back);
 			});
@@ -231,7 +267,8 @@ public final class Calls {
 		}
 
 		/**
-		 * The callee refusing the request because it is down, counted at the callee.
+		 * The callee refusing the request because it is down. The callee counts the
+		 * refusal, and, for its work, whatever else it counts of a request it refuses.
 		 * @return the refusal, or {@code null} when the callee is up
 		 */
 		private @Nullable Outcome outage() {
@@ -240,9 +277,12 @@ public final class Calls {
 				return null;
 			}
 			double now = Calls.this.context.simulation().now();
-			NodeMetrics callee = Calls.this.context.component(target).metrics();
-			callee.arrive(now);
-			callee.reject(FailureReason.OUTAGE, now);
+			RuntimeComponent callee = Calls.this.context.component(target);
+			callee.metrics().arrive(now);
+			callee.metrics().reject(FailureReason.OUTAGE, now);
+			if (this.call.errand() == Errand.WORK) {
+				callee.refusedWhileDown(this.request);
+			}
 			return Outcome.rejected(FailureReason.OUTAGE, target);
 		}
 

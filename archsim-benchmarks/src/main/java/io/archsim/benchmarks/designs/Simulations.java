@@ -40,6 +40,9 @@ public final class Simulations {
 
 	private static final int RATE_DECIMALS = 2;
 
+	/** A ratio in a report keeps four decimals. */
+	private static final int RATIO_DECIMALS = 4;
+
 	private static final List<String> DATABASE_KEYS = List.of("commitsPerFlush", "meanLockWaitMs", "meanCommitWaitMs");
 
 	private final Simulator simulator;
@@ -101,13 +104,33 @@ public final class Simulations {
 		return KneeSearch.knee((rps) -> simulate(Designs.design(experiment, inputs, rps, window)), near);
 	}
 
+	/**
+	 * A cache's hit ratio as the benchmark measures it at the service: hits over the
+	 * lookups the cache answered. The report's counts the lookups it refused too
+	 * (ADR-0082), which the service's counters leave out.
+	 * @param cache the cache's summary in a report
+	 * @return its hits over its hits and misses, rounded as the report rounds a ratio
+	 */
+	static JsonNode cacheHitRatio(JsonNode cache) {
+		JsonNode counters = cache.path("counters");
+		if (counters.path("refusedLookups").asLong(0) == 0) {
+			return PythonValues.get(cache, "hitRatio");
+		}
+		double hits = counters.path("hits").asDouble(0);
+		double answered = hits + counters.path("misses").asDouble(0);
+		if (answered == 0) {
+			return PythonValues.none();
+		}
+		return PythonValues.round(PythonValues.number(hits / answered), RATIO_DECIMALS);
+	}
+
 	private static void parts(ObjectNode design, Map<String, JsonNode> nodes, ObjectNode out) {
 		if (nodes.containsKey("db")) {
 			ObjectNode database = out.putObject("database");
 			DATABASE_KEYS.forEach((key) -> database.set(key, PythonValues.get(nodes.get("db"), key)));
 		}
 		if (nodes.containsKey("cache")) {
-			out.set("cacheHitRatio", PythonValues.get(nodes.get("cache"), "hitRatio"));
+			out.set("cacheHitRatio", cacheHitRatio(nodes.get("cache")));
 		}
 		if (nodes.containsKey("kafka")) {
 			JsonNode kafka = nodes.get("kafka");

@@ -23,6 +23,18 @@ Results that agree with themselves and with the design, after a review of the li
   144.92 M calls a month at Amazon SES's list price, $100 a million ($14,492), where it billed
   $0.00; the templates' other free APIs set $0 and say why. The payments and identity-provider
   presets set no price per call.
+- **A cache's hit ratio counts the lookups it refused (engine 1.2.1,
+  [ADR-0082](docs/adr/0082-count-a-caches-refused-lookups-in-its-hit-ratio.md)).** A read the
+  cache turned away, down or by its queue, counts against its hit ratio (`refusedLookups` among
+  its counters), and its finding says what became of those reads: the starter losing Redis for
+  15 s reports a hit ratio of 57%, 50 reads/s missed and 99 refused, which API Servers read from
+  PostgreSQL, where it said 80% and 50 reads/s while PostgreSQL's arrivals rose from 112 to 188
+  req/s.
+- **Advice after a cache's outage asks only for what is missing.** The suggested fix names the
+  fallback settings the cache's callers lack; when they already carry on and read the database
+  on a miss, it asks for capacity for the fallback's reads, or a replicated cache, where it told
+  you to turn on both settings again. The design review does the same for a part that already
+  reads the data store on a miss.
 - Upgrading a design to schema 1.9 reads a third-party API's price of 0 as unset, unless its
   provenance says a person stated it: saving wrote the old default of 0 out, so it cannot be told
   from a price nobody set. The app reads a project it opens, and a file it imports, the same way.

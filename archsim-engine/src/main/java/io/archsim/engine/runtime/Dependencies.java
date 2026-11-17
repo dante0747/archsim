@@ -125,7 +125,7 @@ final class Dependencies {
 			return;
 		}
 		this.context.calls()
-			.call(Calls.Call.dependency(cache, handler.get(), this.caller.id()), this.caller.request(),
+			.call(Calls.Call.writeBack(cache, handler.get(), this.caller.id()), this.caller.request(),
 					(ignored) -> next.run());
 	}
 

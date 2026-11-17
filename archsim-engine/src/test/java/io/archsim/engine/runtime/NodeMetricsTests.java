@@ -1,5 +1,6 @@
 package io.archsim.engine.runtime;
 
+import java.util.Objects;
 import java.util.OptionalInt;
 
 import org.junit.jupiter.api.Test;
@@ -7,11 +8,14 @@ import org.junit.jupiter.api.Test;
 import io.archsim.engine.metrics.Timeline;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 /** What a part measures of its own: counts and per-bucket means. */
 class NodeMetricsTests {
 
-	private final NodeMetrics metrics = new NodeMetrics(new Timeline(1000, 0, 1000), OptionalInt.empty());
+	private final Timeline timeline = new Timeline(1000, 0, 1000);
+
+	private final NodeMetrics metrics = new NodeMetrics(this.timeline, OptionalInt.empty());
 
 	@Test
 	void count_severalAtOnce_countsThemAll() {
@@ -19,6 +23,32 @@ class NodeMetricsTests {
 
 		assertThat(this.metrics.counters()).hasEntrySatisfying("diskReads",
 				(reads) -> assertThat(reads.total()).isEqualTo(3));
+	}
+
+	@Test
+	void uncount_oneOfSeveralCounts_takesItBackFromItsBucket() {
+		this.metrics.count("refusedLookups", 10);
+		this.metrics.count("refusedLookups", 500);
+
+		this.metrics.uncount("refusedLookups", 10);
+
+		long[] buckets = Objects.requireNonNull(this.metrics.counters().get("refusedLookups")).buckets();
+		assertThat(buckets[this.timeline.index(10)]).isZero();
+		assertThat(buckets[this.timeline.index(500)]).isEqualTo(1);
+	}
+
+	@Test
+	void uncount_aNameNothingWasCountedUnder_isRefused() {
+		assertThatIllegalStateException().isThrownBy(() -> this.metrics.uncount("refusedLookups", 10));
+	}
+
+	@Test
+	void uncount_theOnlyCount_dropsTheCounter() {
+		this.metrics.count("refusedLookups", 10);
+
+		this.metrics.uncount("refusedLookups", 10);
+
+		assertThat(this.metrics.counters()).doesNotContainKey("refusedLookups");
 	}
 
 	@Test

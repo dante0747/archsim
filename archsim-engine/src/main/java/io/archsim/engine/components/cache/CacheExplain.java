@@ -38,8 +38,9 @@ final class CacheExplain {
 		formulas.add(commandCapacity(config, shards));
 		long hits = summary.counter(NodeMetrics.HITS);
 		long misses = summary.counter(NodeMetrics.MISSES);
-		if (hits + misses > 0) {
-			formulas.add(hitRatio(hits, misses));
+		long refused = summary.counter(NodeMetrics.REFUSED_LOOKUPS);
+		if (hits + misses + refused > 0) {
+			formulas.add(hitRatio(hits, misses, refused));
 		}
 		OptionalLong capacity = shards.capacity();
 		if (capacity.isPresent()) {
@@ -62,15 +63,26 @@ final class CacheExplain {
 			.withMetric("utilization");
 	}
 
-	private static Formula hitRatio(long hits, long misses) {
-		long reads = hits + misses;
+	// the hit ratio over the lookups, those it refused among them when there are any
+	// (ADR-0082)
+	private static Formula hitRatio(long hits, long misses, long refused) {
+		long lookups = hits + misses + refused;
 		String hitsText = PythonFormat.format(hits, ",");
+		boolean anyRefused = refused > 0;
+		String note = "Each miss also costs a read on the data store behind the cache ("
+				+ NumberText.percent((double) misses / lookups) + " of reads).";
+		if (anyRefused) {
+			note += " A lookup it refused (" + NumberText.percent((double) refused / lookups)
+					+ ") costs one too where its caller carries on and reads the store on a miss, and fails the read "
+					+ "otherwise.";
+		}
 		return Formula
-			.of("hit_ratio", "Hit ratio", "hit ratio = hits ÷ (hits + misses)",
-					hitsText + " ÷ (" + hitsText + " + " + PythonFormat.format(misses, ",") + ")")
-			.withResult((double) hits / reads, "")
-			.withNote("Each miss also costs a read on the data store behind the cache ("
-					+ NumberText.percent((double) misses / reads) + " of reads).")
+			.of("hit_ratio", "Hit ratio",
+					"hit ratio = hits ÷ (hits + misses" + (anyRefused ? " + refused lookups)" : ")"),
+					hitsText + " ÷ (" + hitsText + " + " + PythonFormat.format(misses, ",")
+							+ (anyRefused ? " + " + PythonFormat.format(refused, ",") : "") + ")")
+			.withResult((double) hits / lookups, "")
+			.withNote(note)
 			.withMetric("hitRatio");
 	}
 

@@ -2,7 +2,10 @@ package io.archsim.engine.runtime;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.OptionalDouble;
 
 import org.jspecify.annotations.Nullable;
 
@@ -26,6 +29,14 @@ public final class Request {
 	private boolean abandoned;
 
 	private int depth;
+
+	/**
+	 * When each part that refused this request first refused it, by the part's id: a
+	 * cache counts a read it refused once, however often the read is retried, and takes
+	 * the count back when it answers a later attempt (ADR-0082). {@code null} until a
+	 * part refuses it, and collected with the request.
+	 */
+	private @Nullable Map<String, Double> refusals;
 
 	private Request(Arrival arrival, @Nullable List<Span> trace) {
 		this.arrival = arrival;
@@ -73,6 +84,29 @@ public final class Request {
 		Request delivered = new Request(published, this.trace);
 		delivered.depth = depth;
 		return delivered;
+	}
+
+	/**
+	 * Notes that a part refused this request, unless it refused it before.
+	 * @param partId the part
+	 * @param time when it refused it
+	 * @return {@code true} when the part had not refused it yet
+	 */
+	public boolean addRefusal(String partId, double time) {
+		if (this.refusals == null) {
+			this.refusals = new HashMap<>();
+		}
+		return this.refusals.putIfAbsent(partId, time) == null;
+	}
+
+	/**
+	 * Forgets that a part refused this request, as it answered it after all.
+	 * @param partId the part
+	 * @return when the part first refused it; empty when it had not refused it
+	 */
+	public OptionalDouble removeRefusal(String partId) {
+		Double time = (this.refusals != null) ? this.refusals.remove(partId) : null;
+		return (time != null) ? OptionalDouble.of(time) : OptionalDouble.empty();
 	}
 
 	/**

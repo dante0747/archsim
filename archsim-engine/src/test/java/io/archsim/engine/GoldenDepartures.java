@@ -10,6 +10,7 @@ import java.util.regex.Pattern;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.engine.parity.CacheDepartures;
 import io.archsim.engine.parity.CostDepartures;
 import io.archsim.parity.GoldenEntry;
 import io.archsim.parity.JsonDiff;
@@ -119,14 +120,28 @@ public final class GoldenDepartures {
 			JsonNode expected = entry.expectedOutput();
 			// a case file names an entry by its case (CaseFiles), a golden file by its
 			// place, which no departing case shares
-			JsonNode actual = SchemaDepartures.asRecorded(call.apply(entry), expected);
+			JsonNode actual = SchemaDepartures.asRecorded(CacheDepartures.asRecorded(call.apply(entry), expected),
+					expected);
 			assertThat(JsonDiff.differences(expected, comparable(expected, actual, cost, caseOf(entry))))
 				.as("%s: the output differs from the Python engine's at", entry)
 				.isEmpty();
 		}
 		else {
-			Parity.check(entry, call);
+			Parity.check(entry, withCacheDepartures(call));
 		}
+	}
+
+	/**
+	 * A Java counterpart whose output reads as the frozen engine wrote it where the
+	 * Java's caches depart ({@link CacheDepartures}).
+	 * @param call the Java counterpart of an entry's function
+	 * @return the counterpart, its output read so when the entry returned
+	 */
+	static Function<GoldenEntry, JsonNode> withCacheDepartures(Function<GoldenEntry, JsonNode> call) {
+		return (entry) -> {
+			JsonNode output = call.apply(entry);
+			return entry.raised() ? output : CacheDepartures.asRecorded(output, entry.expectedOutput());
+		};
 	}
 
 	/**

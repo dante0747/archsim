@@ -54,6 +54,28 @@ class SimulationsTests {
 	}
 
 	@Test
+	void cacheHitRatio_aCacheThatRefusedNoLookup_isItsReportedHitRatio() {
+		JsonNode cache = JsonText.read("{\"hitRatio\": 0.8, \"counters\": {\"hits\": 80, \"misses\": 21}}");
+
+		assertThat(Simulations.cacheHitRatio(cache)).isEqualTo(JsonText.read("0.8"));
+	}
+
+	@Test
+	void cacheHitRatio_aCacheThatRefusedLookups_isItsHitsOverTheLookupsItAnswered() {
+		JsonNode cache = JsonText
+			.read("{\"hitRatio\": 0.5, \"counters\": {\"hits\": 50, \"misses\": 25, \"refusedLookups\": 25}}");
+
+		assertThat(Simulations.cacheHitRatio(cache)).isEqualTo(JsonText.read("0.6667"));
+	}
+
+	@Test
+	void cacheHitRatio_aCacheThatRefusedEveryLookup_isNone() {
+		JsonNode cache = JsonText.read("{\"hitRatio\": 0.0, \"counters\": {\"refusedLookups\": 25}}");
+
+		assertThat(Simulations.cacheHitRatio(cache).isNull()).isTrue();
+	}
+
+	@Test
 	void simulate_aDesignWithPostgresql_reportsWhatTheDatabaseDid() {
 		ObjectNode simulated = SIMULATIONS
 			.simulate(Designs.design(PG_MIXED, latestInputs(), JsonText.read("500"), SHORT));
