@@ -60,6 +60,20 @@ final class AssumptionFunctions {
 			"|  | Rate limit (`rateLimitRps`) | 100 req/s | illustrative |", "| Identity provider |",
 			"|  | Rate limit (`rateLimitRps`) | 200 req/s | illustrative |");
 
+	/**
+	 * The code of the Kafka broker's measured sizes, which the frozen engine did not have
+	 * (ADR-0085): its constants and their rows are left out.
+	 */
+	private static final String KAFKA_CODE = "sizing.KAFKA_";
+
+	/** Those constants' code on the page, in code font. */
+	private static final String KAFKA_CODE_ON_THE_PAGE = "`" + KAFKA_CODE;
+
+	/**
+	 * The legend's line on a measured basis, which the frozen engine's page did not have.
+	 */
+	private static final String MEASURED_BASIS = "- **measured**:";
+
 	/** The price per call those presets set, as Python listed it. */
 	private static final String PRESET_PRICE = "|  | Cost per million calls (`costPerMillionRequests`) | 0 $ "
 			+ "| illustrative |";
@@ -87,6 +101,7 @@ final class AssumptionFunctions {
 			lines.set(line, python);
 		});
 		UNPRICED_PRESETS.forEach((preset, last) -> lines.add(lastSetting(lines, preset, last) + 1, PRESET_PRICE));
+		lines.removeIf((line) -> line.contains(KAFKA_CODE_ON_THE_PAGE) || line.startsWith(MEASURED_BASIS));
 		return String.join("\n", lines) + "\n";
 	}
 
@@ -120,6 +135,9 @@ final class AssumptionFunctions {
 	private static ArrayNode constants() {
 		ArrayNode out = GoldenJson.NODES.arrayNode();
 		for (EngineConstant constant : EngineConstants.all()) {
+			if (constant.code().startsWith(KAFKA_CODE)) {
+				continue;
+			}
 			out.addObject()
 				.put("area", constant.area())
 				.put("name", constant.name())

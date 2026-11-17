@@ -50,6 +50,17 @@ Results that agree with themselves and with the design, after a review of the li
   now judges. The asynchronous templates set a freshness target: the Kafka order pipeline, whose
   orders wait 21.0 s (p95) for a consumer, now reads "No, it doesn't hold up" against its 10 s,
   where it said "Yes, it holds up".
+- **A Kafka broker is sized as ArchSim measured it, and idle consumers are named (engine 1.5.0,
+  report 1.20,
+  [ADR-0085](docs/adr/0085-size-a-kafka-broker-as-measured-and-name-idle-consumers.md)).** A Kafka
+  broker's size comes from ArchSim's Kafka experiment, a rough fit over the steps the broker kept
+  up with: 0.39 fixed cores, 0.053 ms of CPU per message and a 973 MiB working set, listed as
+  measured on the assumptions page. The Kafka order pipeline's broker needs 0.65 vCPU and 973 MiB,
+  where it said 0.01 vCPU and 11 MiB, on the same kafka.m7g.large. A queue with more consumers
+  than partitions reports the idle ones, and its finding says why, in the design review's words:
+  "16 of the 32 consumers sat idle: only one consumer per partition is active, so 16 partitions
+  keep at most 16 of them busy". It advises adding partitions, never consumers that would sit idle
+  too.
 - **Advice after a cache's outage asks only for what is missing.** The suggested fix names the
   fallback settings the cache's callers lack; when they already carry on and read the database
   on a miss, it asks for capacity for the fallback's reads, or a replicated cache, where it told

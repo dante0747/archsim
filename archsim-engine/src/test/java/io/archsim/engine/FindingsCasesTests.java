@@ -44,7 +44,7 @@ class FindingsCasesTests {
 		return CaseFiles.entries(CASES)
 			.stream()
 			.map((entry) -> DynamicTest.dynamicTest(entry.pointer(),
-					() -> Parity.check(entry, GoldenDepartures.withCacheDepartures(EngineFunctions::call))));
+					() -> Parity.check(entry, GoldenDepartures.withDepartures(EngineFunctions::call))));
 	}
 
 	@TestFactory

@@ -8,6 +8,7 @@ import io.archsim.engine.load.ComponentFamily;
 import io.archsim.engine.settings.LenientSettings;
 import io.archsim.engine.text.HalfUp;
 import io.archsim.engine.text.NumberText;
+import io.archsim.engine.text.QueueText;
 import io.archsim.model.document.EdgeSpec;
 import io.archsim.model.document.NodeSpec;
 import io.archsim.model.document.Workload;
@@ -217,14 +218,13 @@ final class StoreRules {
 			return;
 		}
 		String active = NumberText.plain(ReviewNumbers.whole(partitions.getAsDouble()));
-		this.findings.add(ReviewRule.QUEUE_PARTITIONS, Severity.LOW, Involved.node(id),
-				new Wording(
-						NumberText.plain(ReviewNumbers.whole(consumers.getAsDouble() - partitions.getAsDouble()))
-								+ " consumers of " + this.graph.label(id) + " sit idle",
-						"Only one consumer per partition is active: " + active + " partitions cap parallelism at "
-								+ active + " although " + NumberText.plain(ReviewNumbers.whole(consumers.getAsDouble()))
-								+ " consumers run.",
-						"Add partitions or reduce consumers."));
+		this.findings.add(ReviewRule.QUEUE_PARTITIONS, Severity.LOW, Involved.node(id), new Wording(
+				NumberText.plain(ReviewNumbers.whole(consumers.getAsDouble() - partitions.getAsDouble()))
+						+ " consumers of " + this.graph.label(id) + " sit idle",
+				"Only " + QueueText.ONE_CONSUMER_PER_PARTITION + ": " + active + " partitions cap parallelism at "
+						+ active + " although " + NumberText.plain(ReviewNumbers.whole(consumers.getAsDouble()))
+						+ " consumers run.",
+				QueueText.IDLE_CONSUMERS_ADVICE));
 	}
 
 	private void externalErrors(String id) {

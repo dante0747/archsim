@@ -47,6 +47,29 @@ public final class Sizing {
 	/** Illustrative: broker memory per vCPU for buffers and page cache. */
 	public static final int BROKER_GIB_PER_VCPU = 2;
 
+	/**
+	 * Measured: a Kafka broker's fixed cores, the intercept of a least-squares fit of its
+	 * busy cores to the messages it handled a second over the steps of ArchSim's Kafka
+	 * experiment that it kept up with (no backlog at the end: 522, 1,044 and 1,566
+	 * messages a second; {@code benchmarks/results/kafka/measured.json}, ADR-0085). One
+	 * combined KRaft broker and controller, replication factor 1, messages of about 50
+	 * bytes sent one a request, on one physical core. A rough figure: three points fit it
+	 * loosely (R² 0.42), and the broker was busier at 1,044 messages a second (0.48
+	 * cores) than at 1,566 (0.45).
+	 */
+	public static final double KAFKA_FIXED_CORES = 0.39;
+
+	/**
+	 * Measured: a Kafka broker's CPU per message, in milliseconds, the same fit's slope.
+	 */
+	public static final double KAFKA_CPU_MS_PER_MESSAGE = 0.053;
+
+	/**
+	 * Measured: a Kafka broker's memory, the largest working set over the same steps (973
+	 * MiB), in GiB.
+	 */
+	public static final double KAFKA_WORKING_SET_GIB = 0.95;
+
 	/** Kafka's default retention ({@code log.retention.hours = 168}), in seconds. */
 	public static final double LOG_RETENTION_S = 7 * 24 * 3600;
 

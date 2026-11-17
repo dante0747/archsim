@@ -34,7 +34,8 @@ class ExportCasesTests {
 	@TestFactory
 	Stream<DynamicTest> exportFunction_everyCase_givesTheFrozenEnginesOutput() {
 		return ENTRIES.stream()
-			.map((entry) -> DynamicTest.dynamicTest(entry.pointer(), () -> Parity.check(entry, EngineFunctions::call)));
+			.map((entry) -> DynamicTest.dynamicTest(entry.pointer(),
+					() -> Parity.check(entry, GoldenDepartures.withDepartures(EngineFunctions::call))));
 	}
 
 	@Test

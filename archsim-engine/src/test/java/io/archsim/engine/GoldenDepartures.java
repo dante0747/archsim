@@ -12,6 +12,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.engine.parity.CacheDepartures;
 import io.archsim.engine.parity.CostDepartures;
+import io.archsim.engine.parity.KafkaSizingDepartures;
 import io.archsim.parity.GoldenEntry;
 import io.archsim.parity.JsonDiff;
 import io.archsim.parity.Parity;
@@ -120,27 +121,33 @@ public final class GoldenDepartures {
 			JsonNode expected = entry.expectedOutput();
 			// a case file names an entry by its case (CaseFiles), a golden file by its
 			// place, which no departing case shares
-			JsonNode actual = SchemaDepartures.asRecorded(CacheDepartures.asRecorded(call.apply(entry), expected),
-					expected);
+			JsonNode departed = KafkaSizingDepartures
+				.asRecorded(CacheDepartures.asRecorded(call.apply(entry), expected), expected);
+			JsonNode actual = SchemaDepartures.asRecorded(departed, expected);
 			assertThat(JsonDiff.differences(expected, comparable(expected, actual, cost, caseOf(entry))))
 				.as("%s: the output differs from the Python engine's at", entry)
 				.isEmpty();
 		}
 		else {
-			Parity.check(entry, withCacheDepartures(call));
+			Parity.check(entry, withDepartures(call));
 		}
 	}
 
 	/**
 	 * A Java counterpart whose output reads as the frozen engine wrote it where the
-	 * Java's caches depart ({@link CacheDepartures}).
+	 * Java's caches depart ({@link CacheDepartures}) and its Kafka brokers' sizes
+	 * ({@link KafkaSizingDepartures}).
 	 * @param call the Java counterpart of an entry's function
 	 * @return the counterpart, its output read so when the entry returned
 	 */
-	static Function<GoldenEntry, JsonNode> withCacheDepartures(Function<GoldenEntry, JsonNode> call) {
+	static Function<GoldenEntry, JsonNode> withDepartures(Function<GoldenEntry, JsonNode> call) {
 		return (entry) -> {
 			JsonNode output = call.apply(entry);
-			return entry.raised() ? output : CacheDepartures.asRecorded(output, entry.expectedOutput());
+			if (entry.raised()) {
+				return output;
+			}
+			return KafkaSizingDepartures.asRecorded(CacheDepartures.asRecorded(output, entry.expectedOutput()),
+					entry.expectedOutput());
 		};
 	}
 

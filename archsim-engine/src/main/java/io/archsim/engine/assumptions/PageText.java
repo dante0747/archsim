@@ -22,6 +22,9 @@ import io.archsim.model.text.PythonText;
  */
 final class PageText {
 
+	/** The repository's root, seen from the page in {@code docs/}. */
+	private static final String REPOSITORY = "../";
+
 	private static final String CELL = " | ";
 
 	private PageText() {
@@ -59,6 +62,18 @@ final class PageText {
 		}
 		String authority = Objects.requireNonNullElse(URI.create(source).getRawAuthority(), "");
 		return "documented: [" + withoutPrefix(withoutPrefix(authority, "www."), "docs.") + "](" + source + ")";
+	}
+
+	/**
+	 * A value ArchSim's own benchmark measured (ADR-0085).
+	 * @param results the file of its results, from the repository's root
+	 * @return {@code measured} with a link to the file from the page, named by its folder
+	 * (the file itself at the root)
+	 */
+	static String measured(String results) {
+		int slash = results.lastIndexOf('/');
+		String name = (slash < 0) ? results : results.substring(0, slash);
+		return "measured: [" + name + "](" + REPOSITORY + results + ")";
 	}
 
 	/**

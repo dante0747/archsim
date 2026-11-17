@@ -19,6 +19,9 @@ import io.archsim.model.validation.DocumentValidator;
  */
 public final class EngineConstants {
 
+	/** Where ArchSim's Kafka experiment recorded what the broker used (ADR-0085). */
+	private static final String KAFKA_MEASURED = "benchmarks/results/kafka/measured.json";
+
 	private static final String DYNAMO_GUIDE = "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/";
 
 	private static final String DYNAMO_PARTITIONS = DYNAMO_GUIDE + "bp-partition-key-design.html";
@@ -75,6 +78,12 @@ public final class EngineConstants {
 			SIZING.of("Broker throughput per vCPU", grouped(Sizing.BROKER_MSGS_PER_VCPU) + " messages/s",
 					"sizing.BROKER_MSGS_PER_VCPU"),
 			SIZING.of("Broker memory per vCPU", Sizing.BROKER_GIB_PER_VCPU + " GiB", "sizing.BROKER_GIB_PER_VCPU"),
+			SIZING.measured("Kafka broker's fixed cores", number(Sizing.KAFKA_FIXED_CORES) + " cores",
+					"sizing.KAFKA_FIXED_CORES", KAFKA_MEASURED),
+			SIZING.measured("Kafka broker's CPU per message", number(Sizing.KAFKA_CPU_MS_PER_MESSAGE) + " ms",
+					"sizing.KAFKA_CPU_MS_PER_MESSAGE", KAFKA_MEASURED),
+			SIZING.measured("Kafka broker's working set", number(Sizing.KAFKA_WORKING_SET_GIB) + " GiB",
+					"sizing.KAFKA_WORKING_SET_GIB", KAFKA_MEASURED),
 			SIZING.of("Share of a database's data read often, when no hot working set is set",
 					percent(Sizing.DB_HOT_SHARE), "sizing.DB_HOT_SHARE"),
 			SIZING.of("Smallest auto memory of a database instance", number(Sizing.DB_MIN_MEMORY_GIB) + " GiB",
@@ -169,7 +178,11 @@ public final class EngineConstants {
 		}
 
 		EngineConstant of(String constant, String value, String code, @Nullable String source) {
-			return new EngineConstant(this.name, constant, value, code, source);
+			return new EngineConstant(this.name, constant, value, code, source, false);
+		}
+
+		EngineConstant measured(String constant, String value, String code, String results) {
+			return new EngineConstant(this.name, constant, value, code, results, true);
 		}
 
 	}

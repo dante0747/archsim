@@ -366,7 +366,9 @@ Technology behaviour (settings with `auto` defaults):
 - `partitioning`: `key` (Kafka) hashes each message's key to one of `partitions` ordered
   partitions; consumer i owns partitions p with p mod c = i (c = min(consumers, partitions))
   and processes them one message at a time, so a hot key backs up its partition while other
-  consumers idle (`partitionLagMax`). `none` is one shared FIFO with competing consumers.
+  consumers idle (`partitionLagMax`). `none` is one shared FIFO with competing consumers. On
+  either, no more consumers work than the queue has partitions: the rest sit idle, which the
+  report gives as `idleConsumers` and the queue's finding explains and advises on (ADR-0085).
 - Fetch cycles (schema 1.6; off unless `fetchOverheadMs` is set or `consumerConcurrency` is
   above 1): a consumer polls, takes its partitions' whole backlog (a shared queue: one message
   per slot), processes it in `consumerConcurrency` slots (each partition's messages one after
@@ -571,7 +573,7 @@ the effects in the table above:
 | Database | the busiest primary's CPU work (its share of reads, every scattered read for Elasticsearch-style search, every write; RF and consistency for rings) x `cpuShare` / 60%, never more than its connections x `cpuShare` can keep busy | hot data per instance / 0.75 (the buffer cache share): the working set, else an illustrative 25% of the data it stores; at least its connections x 9,531,392 bytes (RDS's default `max_connections` formula) and 1 GiB | data per instance (`dataSizeGib`, else keys x item size) kept under 70% full, at least 10 GiB |
 | Cache | commands per node x `serviceTimeMs` / 60%, never more than the commands it runs at once (1 for single-threaded Redis-style caches) | keyspace x item size per node / 0.8, +25% | - |
 | Load balancer | 5,000 req/s per vCPU (illustrative) | 1 GiB per vCPU (illustrative) | - |
-| Message queue | 10,000 messages/s per broker vCPU (illustrative) | 2 GiB per vCPU (illustrative) | Kafka and Redis Streams: 7 days at the base rate, 3 copies; others: an hour of peak publishes |
+| Message queue | Kafka: 0.39 fixed cores + 0.053 ms of CPU per message per broker, at 60% (measured, ADR-0085); others: 10,000 messages/s per broker vCPU at 60% (illustrative) | Kafka: a 973 MiB working set (measured), at least 2 GiB per vCPU; others: 2 GiB per vCPU (illustrative) | Kafka and Redis Streams: 7 days at the base rate, 3 copies; others: an hour of peak publishes |
 
 CPU is rounded up to 1, 2, 4, 8... vCPU (at least 1, since below one core the engine slows
 every request; the fraction a light part needs shows only as its need and as a Kubernetes CPU

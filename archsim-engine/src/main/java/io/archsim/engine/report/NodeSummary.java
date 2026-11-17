@@ -48,6 +48,10 @@ import org.jspecify.annotations.Nullable;
  * @param backlogAtEnd the messages a queue still held at the end
  * @param p95QueueWaitMs the p95 wait before a consumer took a message, in milliseconds
  * @param p95MessageAgeMs the p95 age of a message when processed, in milliseconds
+ * @param effectiveConsumers a queue's consumers that have work: no more than its
+ * partitions
+ * @param idleConsumers a queue's consumers beyond its partitions, which sit idle
+ * (ADR-0085)
  */
 public record NodeSummary(@Nullable Long arrivals, @Nullable Double arrivalRps, @Nullable Long completed,
 		@Nullable Double slots, @Nullable Double meanHoldMs, @Nullable Double utilization,
@@ -60,7 +64,8 @@ public record NodeSummary(@Nullable Long arrivals, @Nullable Double arrivalRps, 
 		@Nullable Long podsPendingPeak, @Nullable Double cpuRequestedRatio, @Nullable Double meanPendingS,
 		@Nullable Double maxPendingS, @Nullable Double maxReplicationLagMs, @Nullable Double meanLockWaitMs,
 		@Nullable Double replicasMean, @Nullable Long replicasPeak, @Nullable Long coldStartsTotal,
-		@Nullable Long backlogAtEnd, @Nullable Double p95QueueWaitMs, @Nullable Double p95MessageAgeMs) {
+		@Nullable Long backlogAtEnd, @Nullable Double p95QueueWaitMs, @Nullable Double p95MessageAgeMs,
+		@Nullable Long effectiveConsumers, @Nullable Long idleConsumers) {
 
 	/**
 	 * Copies the counts by reason and by name; a part without them has none.

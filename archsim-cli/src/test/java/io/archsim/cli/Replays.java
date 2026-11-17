@@ -16,6 +16,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.cli.RecordedCases.Ran;
 import io.archsim.engine.parity.CostDepartures;
+import io.archsim.engine.parity.KafkaSizingDepartures;
 import io.archsim.model.text.PythonJson;
 import io.archsim.parity.ApiPriceDepartures;
 import io.archsim.parity.JsonDiff;
@@ -136,8 +137,9 @@ final class Replays {
 			}));
 	}
 
-	// JSON (a design, a report) by its values and Python's layout; anything else word for
-	// word, with Python's line ends, without the digests a run prints where they depart
+	// JSON (a design, a report) by its values and Python's layout, a Kafka broker's size
+	// read as the frozen engine sized it; anything else word for word, with Python's line
+	// ends, without the digests a run prints where they depart
 	private static void assertSameText(String python, String java, UnaryOperator<String> digests) {
 		String text = java.replace("\r\n", "\n");
 		if (!python.startsWith("{") && !python.startsWith("[")) {
@@ -146,7 +148,8 @@ final class Replays {
 		}
 		JsonNode expected = JSON.readTree(python);
 		JsonNode printed = JSON.readTree(text);
-		JsonNode compared = withCostAsFrozen(expected, SchemaDepartures.asRecorded(printed, expected));
+		JsonNode departed = SchemaDepartures.asRecorded(KafkaSizingDepartures.asRecorded(printed, expected), expected);
+		JsonNode compared = withCostAsFrozen(expected, departed);
 		// both NaN is the same value: json.dumps and Java print it alike, but the golden
 		// files' comparison, like Python's, finds NaN unequal to itself
 		assertThat(JsonDiff.differences(expected, compared))

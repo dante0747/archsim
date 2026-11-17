@@ -37,16 +37,22 @@ final class QueueReport {
 	}
 
 	/**
-	 * The queue's own summary figures: its effective consumers, its consumer slots when a
-	 * consumer handles more than one message at once, its backlog at the end, its
-	 * messages' mean and 95th-percentile age, and its longest partition at the end.
+	 * The queue's own summary figures: its effective consumers, its idle ones when it has
+	 * more consumers than partitions, its consumer slots when a consumer handles more
+	 * than one message at once, its backlog at the end, its messages' mean and
+	 * 95th-percentile age, and its longest partition at the end.
 	 * @param state the queue
 	 * @return the figures, in the report's order
 	 */
 	static SequencedMap<String, @Nullable Number> extraSummary(QueueState state) {
 		SequencedMap<String, @Nullable Number> figures = new LinkedHashMap<>();
 		MessageQueueConfig config = state.config();
-		figures.put("effectiveConsumers", QueueState.effectiveConsumers(config));
+		int effective = QueueState.effectiveConsumers(config);
+		figures.put("effectiveConsumers", effective);
+		if (config.consumers() > effective) {
+			// no more consumers work than the queue has partitions (ADR-0085)
+			figures.put("idleConsumers", config.consumers() - effective);
+		}
 		if (config.concurrencyPerConsumer() > 1) {
 			figures.put("consumerSlots", config.consumerSlots());
 		}

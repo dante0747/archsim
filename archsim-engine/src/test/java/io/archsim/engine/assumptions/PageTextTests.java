@@ -57,6 +57,17 @@ class PageTextTests {
 	}
 
 	@Test
+	void measured_aFileInAFolder_linksItNamedByItsFolder() {
+		assertThat(PageText.measured("benchmarks/results/kafka/measured.json"))
+			.isEqualTo("measured: [benchmarks/results/kafka](../benchmarks/results/kafka/measured.json)");
+	}
+
+	@Test
+	void measured_aFileAtTheRoot_linksItNamedByItself() {
+		assertThat(PageText.measured("results.json")).isEqualTo("measured: [results.json](../results.json)");
+	}
+
+	@Test
 	void basis_linkWithoutAHost_namesNoHost() {
 		assertThat(PageText.basis("urn:example")).isEqualTo("documented: [](urn:example)");
 	}
