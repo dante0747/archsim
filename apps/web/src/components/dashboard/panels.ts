@@ -559,8 +559,8 @@ function systemRows(input: DashboardInput, nodes: NodeReport[]): RowSpec[] {
     crossPanel("sys:queue", "Queue depth per component", "queueMean", nodes, colors, {
       description: "Requests waiting for a free slot at each component (time-weighted mean per bucket).",
     }),
-    crossPanel("sys:cpu", "CPU utilization per component", "cpuUtilization", nodes, colors, {
-      description: "Share of capacity spent computing rather than waiting on downstream calls.",
+    crossPanel("sys:cpu", "Own processing per component", "cpuUtilization", nodes, colors, {
+      description: "Share of busy slot time each component spent on its own processing rather than waiting on downstream calls; not its CPU cores busy.",
     }),
     crossPanel("sys:inflight", "In flight per component", "inflightMean", nodes, colors, {
       description: "Requests inside each component at once.",

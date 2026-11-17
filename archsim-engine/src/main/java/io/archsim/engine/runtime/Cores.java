@@ -34,6 +34,8 @@ public final class Cores {
 
 	private final @Nullable Gauge busy;
 
+	private final @Nullable Gauge instanceBusy;
+
 	private final CpuMachine machine;
 
 	private final int executors;
@@ -47,12 +49,13 @@ public final class Cores {
 	 * @param simulation the run
 	 * @param cores its vCPU; {@code null} when its CPU is not modelled
 	 * @param concurrency the handlers that could run work at once
-	 * @param accounts where its work is counted: the part's busy executors and the
-	 * machine whose threads it runs on
+	 * @param accounts where its work is counted: the part's busy executors, the
+	 * instance's own, and the machine whose threads it runs on
 	 */
 	public Cores(Simulation simulation, @Nullable Double cores, int concurrency, Accounts accounts) {
 		this.simulation = simulation;
 		this.busy = accounts.busy();
+		this.instanceBusy = accounts.instanceBusy();
 		this.machine = accounts.machine();
 		if (cores == null) {
 			this.executors = concurrency;
@@ -144,8 +147,12 @@ public final class Cores {
 	}
 
 	private void count(long delta) {
+		double now = this.simulation.now();
 		if (this.busy != null) {
-			this.busy.add(this.simulation.now(), delta);
+			this.busy.add(now, delta);
+		}
+		if (this.instanceBusy != null) {
+			this.instanceBusy.add(now, delta);
 		}
 	}
 
@@ -154,9 +161,23 @@ public final class Cores {
 	 *
 	 * @param busy the part's gauge of busy executors, over all its instances;
 	 * {@code null} when it counts none
+	 * @param instanceBusy the instance's own gauge of busy executors, for a part that
+	 * tells its instances apart (ADR-0083); {@code null} when it does not
 	 * @param machine the machine whose threads the work runs on
 	 */
-	public record Accounts(@Nullable Gauge busy, CpuMachine machine) {
+	public record Accounts(@Nullable Gauge busy, @Nullable Gauge instanceBusy, CpuMachine machine) {
+
+		/**
+		 * Work counted over the part's instances alone.
+		 * @param busy the part's gauge of busy executors; {@code null} when it counts
+		 * none
+		 * @param machine the machine whose threads the work runs on
+		 * @return the accounts
+		 */
+		public static Accounts ofPart(@Nullable Gauge busy, CpuMachine machine) {
+			return new Accounts(busy, null, machine);
+		}
+
 	}
 
 }

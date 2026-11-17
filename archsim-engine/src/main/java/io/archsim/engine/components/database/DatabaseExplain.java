@@ -39,6 +39,7 @@ final class DatabaseExplain {
 	 */
 	static List<Formula> of(DatabaseState state, Workload workload, double windowMs, NodeSummary summary) {
 		List<Formula> formulas = new ArrayList<>();
+		busiestInstanceCeiling(state, summary).ifPresent(formulas::add);
 		DatabaseSettings settings = state.settings();
 		DatabaseConfig config = settings.config();
 		Double workingSetGib = config.workingSetGib();
@@ -61,6 +62,30 @@ final class DatabaseExplain {
 			formulas.add(fanOut(settings, summary));
 		}
 		return formulas;
+	}
+
+	// a database of several instances: where its busiest instance's cores fill (ADR-0083)
+	private static Optional<Formula> busiestInstanceCeiling(DatabaseState state, NodeSummary summary) {
+		Double cores = state.settings().config().cpuCores();
+		Double ceiling = summary.cpuCapacityRps();
+		Double rate = summary.arrivalRps();
+		double demand = DatabaseReport.busiestDemandMsPerSecond(state);
+		if (cores == null || ceiling == null || demand == 0) {
+			return Optional.empty();
+		}
+		if (rate == null || rate == 0) {
+			return Optional.empty();
+		}
+		String perRequest = NumberText.formula(demand / rate, TWO_DIGITS);
+		String substituted = NumberText.formula(cores, TWO_DIGITS) + " × 1000 ÷ " + perRequest + " ms";
+		return Optional.of(Formula
+			.of("cpu_capacity", "Capacity from CPU",
+					"CPU ceiling = cores × 1000 ÷ the busiest instance's CPU work per request", substituted)
+			.withResult(ceiling, "req/s")
+			.withNote("Its busiest instance, the one sent the most CPU work (a primary takes every write, a hot "
+					+ "shard more than its share), fills its cores first. Operations it refused count at the "
+					+ "cost of those it served, at the speed of its machine's threads.")
+			.withMetric("busiestInstanceCpuUtilization"));
 	}
 
 	private static Formula bufferHit(DatabaseSettings settings, double memoryGib, double workingSetGib) {

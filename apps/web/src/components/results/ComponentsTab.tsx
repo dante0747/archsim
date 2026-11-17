@@ -6,6 +6,7 @@ import { Empty } from "@/components/ui/misc";
 import { fmtMs, fmtNum, fmtPct, fmtRps } from "@/lib/format";
 import { NODE_STATUS, SERIES } from "@/lib/status";
 import type { NodeReport, Report } from "@/lib/types";
+import { cpuBusyText } from "@/lib/utilization";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 import { useActiveReport, useRuns } from "@/store/runs";
@@ -37,22 +38,33 @@ export function ComponentsTab() {
   return (
     <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
       <div className="min-w-0 overflow-x-auto rounded-md border border-line bg-surface">
-        <table className="tabular w-full min-w-[720px] text-xs">
+        <table className="tabular w-full min-w-[800px] text-xs">
           <caption className="sr-only">Per-component simulation metrics (after warm-up)</caption>
           <thead className="text-left">
             <tr className="border-b border-line">
               <th className={cn(thClass, "px-3 py-2")}>Component</th>
               <th className={cn(thClass, "px-2 py-2")}>Status</th>
               <th className={cn(thClass, "px-2 py-2 text-right")}>Arrivals</th>
-              <th className={cn(thClass, "px-2 py-2 text-right")}>Util. avg / peak</th>
-              <th className={cn(thClass, "px-2 py-2 text-right")} title="Share of busy worker time spent on its own processing (vs blocked on downstream calls)">
+              <th className={cn(thClass, "px-2 py-2 text-right")} title="Share of its slots (workers, connections or executors) busy, on average and in its busiest moment">
+                Slots busy avg / peak
+              </th>
+              <th
+                className={cn(thClass, "px-2 py-2 text-right")}
+                title="Share of its CPU cores busy, for a part with a CPU size; for a database of several instances, its busiest instance's too, which sets its CPU ceiling"
+              >
+                CPU busy
+              </th>
+              <th className={cn(thClass, "px-2 py-2 text-right")} title="Share of busy slot time spent on its own processing (vs blocked on downstream calls)">
                 Own work
               </th>
               <th className={cn(thClass, "px-2 py-2 text-right")}>Queue avg / peak</th>
               <th className={cn(thClass, "px-2 py-2 text-right")}>Wait p95</th>
               <th className={cn(thClass, "px-2 py-2 text-right")}>Rejected</th>
-              <th className={cn(thClass, "px-3 py-2 text-right")} title="Requests/s it could sustain at the observed time each request held a slot">
-                Est. capacity
+              <th
+                className={cn(thClass, "px-3 py-2 text-right")}
+                title="Requests/s at which its limiting resource fills: its slots at the observed time a request held one, its CPU cores, or its memory"
+              >
+                Ceiling
               </th>
             </tr>
           </thead>
@@ -78,6 +90,7 @@ export function ComponentsTab() {
                   <td className="px-2 py-2 text-right font-mono text-xs text-ink">
                     {fmtPct(s.utilization, 0)} / {fmtPct(s.peakUtilization, 0)}
                   </td>
+                  <td className="px-2 py-2 text-right font-mono text-xs text-ink">{cpuBusyText(s)}</td>
                   <td className="px-2 py-2 text-right font-mono text-xs text-ink-2">{fmtPct(own, 0)}</td>
                   <td className="px-2 py-2 text-right font-mono text-xs text-ink">
                     {fmtNum(s.meanQueue, 1)} / {fmtNum(s.peakQueue)}

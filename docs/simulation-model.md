@@ -487,11 +487,13 @@ behaves as if it had unlimited CPU and memory. Set, a spec has these effects:
 Whole cores above one give parallelism, a fraction keeps total capacity (2.5 vCPU = two
 executors at 1.25x). With as many whole cores as handlers nothing waits and results are the
 same as without the spec. Reports add `cpuCoreUtilization` (busy executors / executors in the
-window), `memoryPeakGiB` (services), `bufferHitRatio` (databases) and `capacityKeys` /
-`keysCached` plus an `evictions` counter (caches). Not modelled: memory pressure driving garbage
-collection (GC pauses come from the technology profile, see above, not from the memory spec),
-OOM kills and restarts (memory is a refusal limit), page-cache dynamics, disk write bandwidth,
-network bandwidth.
+window, over all a part's instances), `busiestInstanceCpuUtilization` (the same for a database's
+busiest instance, when it has several, ADR-0083), `memoryPeakGiB` (services), `bufferHitRatio`
+(databases) and `capacityKeys` / `keysCached` plus an `evictions` counter (caches). Not
+modelled: memory pressure driving garbage collection (GC pauses come from the technology
+profile, see above, not from the memory spec), OOM kills and restarts (memory is a refusal
+limit), page-cache dynamics, disk write bandwidth, network bandwidth.
+
 #### CPU threads that slow each other down (schema 1.7)
 
 A vCPU is usually a hardware thread, not a core: two threads share each physical core
@@ -607,7 +609,13 @@ Specs also feed the calculations around a run:
   the CPU (`cpuCores x instances / CPU ms per request`, at the speed of its machine's threads when
   the design has a host or the part a `siblingSpeed`) and, for services, the memory (requests
   that fit x replicas / `meanHoldMs`); `capacityLimit` says which (`slots`, `cpu`, `memory`) and
-  bottleneck findings name it. `serviceOnlyCapacityRps` also respects the CPU ceiling.
+  bottleneck findings name it. `serviceOnlyCapacityRps` also respects the CPU ceiling. A
+  database of more than one instance (read replicas, partitions) sets its CPU ceiling where its
+  busiest instance's cores fill, as a primary takes every write and a hot shard more than its
+  share: `cpuCores x 1000 / CPU ms per request` of the work that instance was sent, at full speed,
+  the operations it refused costing what the ones it served did, at the speed of its machine's
+  threads. The report gives that instance's share of its cores busy too
+  (`busiestInstanceCpuUtilization`, ADR-0083).
 - **Cost estimate (`CostEstimator`)**: a part's price per instance-hour is the price set on it; without one,
   its size at illustrative on-demand rates ($0.037 per vCPU-hour, $0.0028 per GiB-hour, $0.08 per
   GiB-month of storage); without a size, the catalog default. A price equal to the catalog
@@ -695,7 +703,8 @@ Per-node summary (events counted by the time they happen inside the window):
 | `meanHoldMs`, `meanServiceMs` | Mean slot holding time and mean sampled service time. |
 | `capacityRps` | The lowest of `slots / meanHoldMs` (the rate at the observed holding time) and any CPU or memory ceiling from resource specs (derived, not assumed). |
 | `capacityLimit` | Which ceiling sets `capacityRps`: `slots`, `cpu` or `memory`. |
-| `cpuCapacityRps` | CPU ceiling from the CPU spec: cores x instances / CPU ms per request (null when CPU is not set). |
+| `cpuCapacityRps` | CPU ceiling from the CPU spec: cores x instances / CPU ms per request; for a database of several instances, cores x 1000 / its busiest instance's CPU work per request, the operations it refused included (ADR-0083) (null when CPU is not set). |
+| `cpuCoreUtilization`, `busiestInstanceCpuUtilization` | The share of a part's CPU cores busy, over all its instances; and, for a database of several instances, its busiest instance's (ADR-0083). Neither is `utilization`, its slots busy, nor `cpuUtilization`, the share of busy slot time spent on its own work. |
 | `serviceOnlyCapacityRps` | `slots / meanServiceMs`, capped by the CPU ceiling: the limit if dependencies were instant. |
 | `hitRatio`, `counters` | A cache's hits over its lookups: hits, misses and lookups it refused (`refusedLookups`, ADR-0082); cache hits/misses/refusedLookups/invalidations/populates; database reads/writes; `wasted`. |
 

@@ -146,7 +146,7 @@ per worker (default: CPU count - 1), and the runs share the worker's heap, sized
 
 ```
 {
-  "reportVersion": "1.17",
+  "reportVersion": "1.18",
   "window":     { "warmupS", "durationS", "measuredS", "drainS", "simulatedS" },
   "summary":    { "offeredRps", "throughputRps", "successRate", "latencyMs": {p50, p95, ...},
                   "latencyWithFailuresMs", "latencyByOp", "failureBreakdown": [...],

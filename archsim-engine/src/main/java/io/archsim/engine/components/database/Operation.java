@@ -229,7 +229,7 @@ final class Operation {
 		private void execute() {
 			double started = now();
 			this.serviceMs = draws().serviceMs(operation());
-			shards().work(this.instance, this.serviceMs, () -> {
+			shards().serve(this.instance, this.serviceMs, () -> {
 				OperationDraws draws = draws();
 				if (!draws.missesBuffer(operation())) {
 					executed(started);

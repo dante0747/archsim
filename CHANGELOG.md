@@ -30,6 +30,18 @@ Results that agree with themselves and with the design, after a review of the li
   15 s reports a hit ratio of 57%, 50 reads/s missed and 99 refused, which API Servers read from
   PostgreSQL, where it said 80% and 50 reads/s while PostgreSQL's arrivals rose from 112 to 188
   req/s.
+- **A part's shares busy are named, and the estimate is compared like with like (engine 1.3.0,
+  report 1.18, [ADR-0083](docs/adr/0083-name-each-utilisation-and-compare-like-with-like.md)).**
+  A database of several instances reports its busiest instance's CPU
+  (`busiestInstanceCpuUtilization`) and sets its CPU ceiling where that instance fills, where it
+  spread every request's CPU time evenly over the primary and its replicas. The Results page sets
+  the estimate's CPU against the run's cores busy (it read the slots) at the load the run sent
+  the part (it set the peak's against the run's average), and the components table names its
+  columns "Slots busy", "CPU busy" and "Ceiling". Black Friday's Orders DB read "56% CPU busy
+  (simulated 2%)", "Util 2%" and a ceiling of 2,404 req/s at 303; it now reads "Orders DB's
+  busiest instance 35% CPU busy at the 303 req/s the run sent it (simulated 33%; 56% at the
+  480 req/s peak)", CPU busy "16% · busiest 33%" and a ceiling of 927 req/s. The dashboard's
+  "CPU utilization" panel, which plots the share of a part's own work, is "Own processing".
 - **Advice after a cache's outage asks only for what is missing.** The suggested fix names the
   fallback settings the cache's callers lack; when they already carry on and read the database
   on a miss, it asks for capacity for the fallback's reads, or a replicated cache, where it told

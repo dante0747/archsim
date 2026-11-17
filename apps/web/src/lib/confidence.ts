@@ -48,26 +48,55 @@ export function estimateText(e: Estimate): string {
 
 export interface EstimateComparison {
   p95: { estimate: number | null; simulated: number | null };
+  /** The busiest part's share busy, the estimate's at the load the run sent it, beside the run's. */
   busiest: { id: string; label: string; estimate: number; simulated: number | null } | null;
-  /** "Queueing formulas: p95 ≈ 97 ms (simulated 91 ms); API Servers 70% busy (simulated 70%)." */
+  /** "Queueing formulas: p95 ≈ 97 ms (simulated 91 ms); API Servers 70% of its slots busy (simulated 70%)." */
   text: string;
 }
 
-/** The run's estimate (same input as the run) against what the run simulated. */
+/** Off by more than this share, the run sent a part another load than the estimate's peak. */
+const SAME_LOAD = 0.05;
+
+const rpsText = (v: number | null) => Math.round(v ?? 0).toLocaleString("en-US");
+
+/**
+ * The run's estimate (same input as the run) against what the run simulated, like with like
+ * (ADR-0083): on the same resource (a CPU estimate against the cores busy, a database of several
+ * instances' busiest instance's; slots against slots busy) and at the same load. The estimate is at
+ * the peak: a CPU share, which grows with load alone, is scaled to the load the run sent the part;
+ * a slot's hold time also grows with waits downstream, so slots are given each at its own load.
+ */
 export function compareEstimate(report: Report): EstimateComparison | null {
   const e = report.estimate;
   if (!e) return null;
   const simP95 = report.summary.latencyMs.p95;
   const estP95 = e.latencyMs?.p95 ?? null;
-  const node = e.busiest ? report.nodes.find((n) => n.id === e.busiest?.id) : undefined;
-  const simUtil = e.busiest?.limitedBy === "cpu" ? (node?.summary.cpuUtilization ?? node?.summary.utilization ?? null) : (node?.summary.utilization ?? null);
-  const busiest = e.busiest ? { id: e.busiest.id, label: e.busiest.label, estimate: e.busiest.utilization, simulated: simUtil } : null;
+  const top = e.busiest;
+  const node = top ? report.nodes.find((n) => n.id === top.id) : undefined;
+  const part = top ? e.parts?.find((p) => p.id === top.id) : undefined;
+  const cpu = top?.limitedBy === "cpu";
+  const byBusiestInstance = cpu && node?.summary.busiestInstanceCpuUtilization != null;
+  const simulated = cpu ? (node?.summary.busiestInstanceCpuUtilization ?? node?.summary.cpuCoreUtilization ?? null) : (node?.summary.utilization ?? null);
+  const estRps = part?.arrivalRps ?? null;
+  const simRps = node?.summary.arrivalRps ?? null;
+  const ratio = estRps != null && simRps != null && estRps > 0 ? simRps / estRps : null;
+  const loadsDiffer = ratio != null && Math.abs(ratio - 1) > SAME_LOAD;
+  const scaled = cpu && loadsDiffer;
+  const estimate = top && ratio != null && scaled ? top.utilization * ratio : (top?.utilization ?? 0);
+  const busiest = top ? { id: top.id, label: top.label, estimate, simulated } : null;
   const parts: string[] = [];
-  if (e.overloaded) parts.push(`overloaded at ${Math.round(e.atRps ?? 0).toLocaleString("en-US")} req/s (simulated p95 ${msText(simP95)})`);
-  else if (estP95 != null) parts.push(`p95 ≈ ${msText(estP95)} (simulated ${msText(simP95)})`);
-  if (busiest) {
-    const what = e.busiest?.limitedBy === "cpu" ? "CPU busy" : "busy";
-    parts.push(`${busiest.label} ${fmtPct(busiest.estimate, 0)} ${what} (simulated ${busiest.simulated == null ? "–" : fmtPct(busiest.simulated, 0)})`);
+  const over = loadsDiffer ? " over the run" : "";
+  if (e.overloaded) parts.push(`overloaded at ${rpsText(e.atRps)} req/s (simulated p95 ${msText(simP95)}${over})`);
+  else if (estP95 != null) parts.push(`p95 ≈ ${msText(estP95)}${loadsDiffer ? " at the peak" : ""} (simulated ${msText(simP95)}${over})`);
+  if (top && busiest) {
+    const who = byBusiestInstance ? `${busiest.label}'s busiest instance` : busiest.label;
+    const what = cpu ? "CPU busy" : "of its slots busy";
+    const sim = busiest.simulated == null ? "–" : fmtPct(busiest.simulated, 0);
+    const sent = `the ${rpsText(simRps)} req/s the run sent it`;
+    const peak = `the ${rpsText(estRps)} req/s peak`;
+    if (scaled) parts.push(`${who} ${fmtPct(busiest.estimate, 0)} ${what} at ${sent} (simulated ${sim}; ${fmtPct(top.utilization, 0)} at ${peak})`);
+    else if (loadsDiffer) parts.push(`${who} ${fmtPct(busiest.estimate, 0)} ${what} at ${peak} (simulated ${sim} at ${sent})`);
+    else parts.push(`${who} ${fmtPct(busiest.estimate, 0)} ${what} (simulated ${sim})`);
   }
   const text = parts.length ? `Queueing formulas: ${parts.join("; ")}.` : "Queueing formulas give no estimate for this design.";
   return { p95: { estimate: estP95, simulated: simP95 }, busiest, text };

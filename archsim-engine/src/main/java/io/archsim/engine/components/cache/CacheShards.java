@@ -46,7 +46,7 @@ final class CacheShards {
 		for (int shard = 0; shard < config.shards(); shard++) {
 			WorkerPool pool = new WorkerPool(context.simulation(), this.executors, queue, metrics);
 			Cores cores = new Cores(context.simulation(), config.cpuCores(), this.executors,
-					new Cores.Accounts(this.coreBusy, context.machineFor(config.cpuCores(), config.siblingSpeed())));
+					Cores.Accounts.ofPart(this.coreBusy, context.machineFor(config.cpuCores(), config.siblingSpeed())));
 			built.add(new CacheShard(pool, cores, new ShardKeys(this.capacityPerShard, policy, metrics)));
 		}
 		this.shards = List.copyOf(built);

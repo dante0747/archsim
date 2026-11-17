@@ -2,6 +2,7 @@ package io.archsim.engine.explain;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
 
 import org.jspecify.annotations.Nullable;
@@ -122,12 +123,21 @@ public final class QueueingFormulas {
 			if (this.hold > 0 && servers >= 1) {
 				formulas.add(wait(Math.toIntExact(servers)));
 			}
+			cpuFormula().ifPresent(formulas::add);
+			return formulas;
+		}
+
+		// the CPU ceiling's from its work per request; a database of several instances
+		// explains its own, its busiest instance's (ADR-0083)
+		private Optional<Formula> cpuFormula() {
 			Double serviceMs = this.summary.meanServiceMs();
 			Double cpuCapacity = this.summary.cpuCapacityRps();
-			if (serviceMs != null && cpuCapacity != null && serviceMs != 0 && cpuCapacity != 0) {
-				formulas.add(cpuCapacity(serviceMs, cpuCapacity));
+			boolean ownCeiling = this.summary.busiestInstanceCpuUtilization() != null;
+			if (ownCeiling || cpuCapacity == null || cpuCapacity == 0) {
+				return Optional.empty();
 			}
-			return formulas;
+			return (serviceMs != null && serviceMs != 0) ? Optional.of(cpuCapacity(serviceMs, cpuCapacity))
+					: Optional.empty();
 		}
 
 		private Formula capacity() {

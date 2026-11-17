@@ -118,7 +118,7 @@ describe("decision report", () => {
     expect(md).toContain("- **Low confidence:** 31 of 35 inputs are illustrative defaults. To raise it: Calibrate from telemetry");
     expect(md).toContain("### Confidence: low");
     expect(md).toContain("| API Servers: Service time | illustrative |");
-    expect(md).toContain("Queueing formulas: p95 ≈ 97 ms (simulated 89 ms); API Servers 70% busy (simulated 70%).");
+    expect(md).toContain("Queueing formulas: p95 ≈ 97 ms (simulated 89 ms); API Servers 70% of its slots busy (simulated 70%).");
     expect(md).toContain("Inputs: 0 measured from telemetry, 1 documented by the vendor, 4 assumed (typed in), 30 illustrative");
     expect(md).toContain("| API Servers: GC pause | 0.1 ms | https://go.dev/doc/go1.8 |");
   });

@@ -190,7 +190,7 @@ final class ReplicationPipeline {
 		Store.Get<ApplyJob> next = log.arrived().get();
 		next.then(() -> {
 			ApplyJob job = next.value();
-			this.shards.work(replica, job.costMs(), () -> {
+			this.shards.apply(replica, job.costMs(), () -> {
 				log.replayed(job.sequence());
 				this.metrics.count(DatabaseCounters.REPLAYED, this.simulation.now());
 				job.acknowledge();

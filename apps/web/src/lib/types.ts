@@ -675,6 +675,9 @@ export interface NodeReportSummary {
   cpuCapacityRps?: number | null;
   /** Resource specs (report 1.3+, only when set): share of CPU cores busy in the window. */
   cpuCoreUtilization?: number | null;
+  /** A database of several instances with a CPU size (report 1.18+): its busiest instance's share of
+   * its cores busy, a write-taking primary's or a hot shard's; its CPU ceiling is where it fills. */
+  busiestInstanceCpuUtilization?: number | null;
   /** Services with memory set: highest memory one replica used. */
   memoryPeakGiB?: number;
   /** Databases with memory and a working set: share of reads served from memory. */

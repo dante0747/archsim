@@ -18,6 +18,8 @@ import org.jspecify.annotations.Nullable;
  * @param peakUtilization the share of slot-time busy in its busiest time bucket
  * @param cpuUtilization the share of busy slot-time spent on its own processing
  * @param cpuCoreUtilization the share of its CPU cores busy
+ * @param busiestInstanceCpuUtilization the share of its busiest instance's CPU cores
+ * busy, for a database of several instances (ADR-0083)
  * @param meanInSystem the requests inside it on average
  * @param meanQueue the requests waiting for a slot on average
  * @param peakQueue the most requests waiting for a slot at once
@@ -50,15 +52,15 @@ import org.jspecify.annotations.Nullable;
 public record NodeSummary(@Nullable Long arrivals, @Nullable Double arrivalRps, @Nullable Long completed,
 		@Nullable Double slots, @Nullable Double meanHoldMs, @Nullable Double utilization,
 		@Nullable Double peakUtilization, @Nullable Double cpuUtilization, @Nullable Double cpuCoreUtilization,
-		@Nullable Double meanInSystem, @Nullable Double meanQueue, @Nullable Long peakQueue,
-		@Nullable LatencyStats latencyMs, @Nullable Double meanServiceMs, @Nullable Double meanQueueWaitMs,
-		@Nullable Double cpuCapacityRps, @Nullable Double capacityRps, @Nullable String capacityLimit,
-		Map<String, Long> rejected, @Nullable Long rejectedTotal, Map<String, Long> counters, @Nullable Double hitRatio,
-		@Nullable Long podsPendingEnd, @Nullable Long podsPendingPeak, @Nullable Double cpuRequestedRatio,
-		@Nullable Double meanPendingS, @Nullable Double maxPendingS, @Nullable Double maxReplicationLagMs,
-		@Nullable Double meanLockWaitMs, @Nullable Double replicasMean, @Nullable Long replicasPeak,
-		@Nullable Long coldStartsTotal, @Nullable Long backlogAtEnd, @Nullable Double p95QueueWaitMs,
-		@Nullable Double p95MessageAgeMs) {
+		@Nullable Double busiestInstanceCpuUtilization, @Nullable Double meanInSystem, @Nullable Double meanQueue,
+		@Nullable Long peakQueue, @Nullable LatencyStats latencyMs, @Nullable Double meanServiceMs,
+		@Nullable Double meanQueueWaitMs, @Nullable Double cpuCapacityRps, @Nullable Double capacityRps,
+		@Nullable String capacityLimit, Map<String, Long> rejected, @Nullable Long rejectedTotal,
+		Map<String, Long> counters, @Nullable Double hitRatio, @Nullable Long podsPendingEnd,
+		@Nullable Long podsPendingPeak, @Nullable Double cpuRequestedRatio, @Nullable Double meanPendingS,
+		@Nullable Double maxPendingS, @Nullable Double maxReplicationLagMs, @Nullable Double meanLockWaitMs,
+		@Nullable Double replicasMean, @Nullable Long replicasPeak, @Nullable Long coldStartsTotal,
+		@Nullable Long backlogAtEnd, @Nullable Double p95QueueWaitMs, @Nullable Double p95MessageAgeMs) {
 
 	/**
 	 * Copies the counts by reason and by name; a part without them has none.

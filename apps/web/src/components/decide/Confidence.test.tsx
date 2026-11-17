@@ -98,7 +98,7 @@ describe("Results header", () => {
   it("sets the run's estimate against what it simulated", () => {
     useRuns.setState({ runs: [runOf("r1", "succeeded")], reports: { r1: report() }, activeRunId: "r1" });
     show(<AnswerPage />);
-    expect(screen.getByTestId("estimate-vs-sim")).toHaveTextContent("Queueing formulas: p95 ≈ 97 ms (simulated 91 ms); API Servers 70% busy (simulated 70%).");
+    expect(screen.getByTestId("estimate-vs-sim")).toHaveTextContent("Queueing formulas: p95 ≈ 97 ms (simulated 91 ms); API Servers 70% of its slots busy (simulated 70%).");
   });
 
   it("names what the formulas leave out as a link, not a stray label", () => {

@@ -21,9 +21,11 @@ import io.archsim.model.document.RequestType;
  * them
  * @param log a replica's replay of its primary's writes; {@code null} for the primary, or
  * without replication
+ * @param load what it did in the window, for a database of several instances with a CPU
+ * size (ADR-0083); {@code null} otherwise
  */
 record DatabaseInstance(int index, WorkerPool pool, Cores cores, @Nullable Resource readTickets,
-		@Nullable Resource writeTickets, @Nullable ReplicaLog log) {
+		@Nullable Resource writeTickets, @Nullable ReplicaLog log, @Nullable InstanceLoad load) {
 
 	/**
 	 * The tickets that limit an operation.

@@ -198,7 +198,7 @@ class ReplicaSetTests {
 	private Replica replica(double born) {
 		NodeMetrics metrics = new NodeMetrics(this.timeline, OptionalInt.empty());
 		WorkerPool pool = new WorkerPool(this.simulation, 4, new WorkerPool.Queue(10, null), metrics);
-		Cores cores = new Cores(this.simulation, null, 4, new Cores.Accounts(null, FullCores.INSTANCE));
+		Cores cores = new Cores(this.simulation, null, 4, Cores.Accounts.ofPart(null, FullCores.INSTANCE));
 		return new Replica(pool, cores, null, born);
 	}
 

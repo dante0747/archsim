@@ -147,13 +147,24 @@ final class RootCause {
 		String sustains = FindingText.rps(capacity);
 		String received = FindingText.rps(summary.arrivalRps());
 		return Optional.of(switch (Objects.requireNonNullElse(summary.capacityLimit(), "")) {
-			case "cpu" -> "Its CPU cores can do about " + sustains + " at " + tenths(summary.meanServiceMs())
-					+ " ms of work per request; it received " + received + ".";
+			case "cpu" -> cpuCeiling(summary, sustains) + "; it received " + received + ".";
 			case "memory" -> "Its memory holds too few requests: about " + sustains + " at the observed "
 					+ tenths(summary.meanHoldMs()) + " ms per request; it received " + received + ".";
 			default -> "At the observed " + tenths(summary.meanHoldMs()) + " ms per request it can sustain about "
 					+ sustains + "; it received " + received + ".";
 		});
+	}
+
+	// a database of several instances names its busiest instance, whose cores fill first
+	// (ADR-0083); any other part its work per request
+	private static String cpuCeiling(NodeSummary summary, String sustains) {
+		Double busiest = summary.busiestInstanceCpuUtilization();
+		if (busiest != null) {
+			return "Its busiest instance's CPU cores, " + FindingText.percent(busiest) + " busy, can do about "
+					+ sustains;
+		}
+		return "Its CPU cores can do about " + sustains + " at " + tenths(summary.meanServiceMs())
+				+ " ms of work per request";
 	}
 
 	private static String suggestion(String type, @Nullable String limit) {

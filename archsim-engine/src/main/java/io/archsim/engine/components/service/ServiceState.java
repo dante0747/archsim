@@ -130,7 +130,7 @@ final class ServiceState {
 	// a replica's CPU, on its machine: its own hyperthreads, the design's host the
 	// replicas share, or full cores
 	private Cores newCores(SimContext context) {
-		Cores.Accounts accounts = new Cores.Accounts(this.coreBusy,
+		Cores.Accounts accounts = Cores.Accounts.ofPart(this.coreBusy,
 				context.machineFor(this.config.cpuCores(), this.config.siblingSpeed()));
 		return new Cores(context.simulation(), this.config.cpuCores(), this.perReplica, accounts);
 	}

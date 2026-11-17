@@ -50,9 +50,11 @@ final class DatabaseReport {
 	}
 
 	/**
-	 * The ceiling the database's CPU sets: the instances that serve reads, each with its
-	 * cores busy for the CPU's share of the window's mean service time, at the speed of
-	 * their machine's threads.
+	 * The ceiling the database's CPU sets, at the speed of its machine's threads. With
+	 * one instance, its cores busy for the CPU's share of the window's mean service time.
+	 * With several, where its busiest instance's cores fill: the CPU work at full speed
+	 * it was sent per request, the operations it refused costing what the ones it served
+	 * did (ADR-0083).
 	 * @param state the database
 	 * @param serviceMs the mean service time, if any operation was served
 	 * @return the ceiling in requests per second, when the database has a CPU size
@@ -64,16 +66,11 @@ final class DatabaseReport {
 		if (cores == null || serviceMs.orElse(0.0) == 0 || config.cpuShare() <= 0) {
 			return ceilings;
 		}
-		// replicas add CPU only when they serve reads
-		int serving = (state.settings().readFrom() == ReadFrom.PRIMARY) ? 1 : 1 + config.readReplicas();
-		int instances = state.settings().partitions() * serving;
-		double fullSpeed = cores * instances * MS_PER_SECOND / (serviceMs.getAsDouble() * config.cpuShare());
-		ceilings.put("cpu",
-				state.shards()
-					.first()
-					.cores()
-					.machine()
-					.capacity(fullSpeed, cores * instances, state.metrics().arrivals().windowRate()));
+		double rate = state.metrics().arrivals().windowRate();
+		double demand = busiestDemandMsPerSecond(state);
+		double fullSpeed = (demand > 0) ? rate * cores * MS_PER_SECOND / demand
+				: cores * MS_PER_SECOND / (serviceMs.getAsDouble() * config.cpuShare());
+		ceilings.put("cpu", state.shards().first().cores().machine().capacity(fullSpeed, cores, rate));
 		return ceilings;
 	}
 
@@ -89,11 +86,15 @@ final class DatabaseReport {
 		SequencedMap<String, @Nullable Number> figures = new LinkedHashMap<>();
 		DatabaseSettings settings = state.settings();
 		Gauge busy = state.shards().coreBusy();
+		int executors = state.shards().first().cores().executors();
 		if (busy != null) {
 			int instances = settings.partitions() * (1 + settings.config().readReplicas());
-			figures.put("cpuCoreUtilization",
-					Cores.utilization(busy, state.shards().first().cores().executors() * instances).orElse(null));
+			figures.put("cpuCoreUtilization", Cores.utilization(busy, executors * instances).orElse(null));
 		}
+		state.shards()
+			.busiest()
+			.ifPresent((busiest) -> figures.put("busiestInstanceCpuUtilization",
+					PythonRound.round(busiest.meanBusy() / executors, DIGITS)));
 		settings.bufferHitRatio().ifPresent((hit) -> figures.put("bufferHitRatio", PythonRound.round(hit, DIGITS)));
 		if (settings.partitions() != settings.config().shards()) {
 			figures.put("partitions", settings.partitions());
@@ -107,6 +108,20 @@ final class DatabaseReport {
 			figures.put("maxReplicationLagMs", replication.maxLagMs().orElse(null));
 		}
 		return figures;
+	}
+
+	/**
+	 * The CPU work at full speed a second its busiest instance was sent inside the
+	 * window, for a database of several instances with a CPU size (ADR-0083).
+	 * @param state the database
+	 * @return the work, in milliseconds a second; 0 for one instance or without a CPU
+	 * size
+	 */
+	static double busiestDemandMsPerSecond(DatabaseState state) {
+		return state.shards()
+			.busiest()
+			.map((busiest) -> busiest.demandMs() / state.shards().windowSeconds())
+			.orElse(0.0);
 	}
 
 	/**

@@ -553,7 +553,8 @@ function NodeResults({ nodeId }: { nodeId: string }) {
   // Resource specs (when set): how hard the CPU, memory, buffer cache and key space were used.
   const cfg = nr.config;
   const resourceStats = [
-    s.cpuCoreUtilization != null && `CPU ${fmtPct(s.cpuCoreUtilization, 0)} busy`,
+    s.cpuCoreUtilization != null &&
+      `CPU ${fmtPct(s.cpuCoreUtilization, 0)} busy${s.busiestInstanceCpuUtilization != null ? ` (busiest instance ${fmtPct(s.busiestInstanceCpuUtilization, 0)})` : ""}`,
     s.capacityLimit === "cpu" && s.capacityRps != null && `CPU caps it at ${fmtRps(s.capacityRps)}`,
     s.capacityLimit === "memory" && s.capacityRps != null && `memory caps it at ${fmtRps(s.capacityRps)}`,
     s.memoryPeakGiB != null && `memory peak ${fmtGiB(s.memoryPeakGiB)} of ${fmtGiB(Number(cfg.memoryGib))}`,
