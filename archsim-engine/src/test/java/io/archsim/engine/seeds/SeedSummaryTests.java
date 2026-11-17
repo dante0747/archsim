@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class SeedSummaryTests {
 
-	private static final Objectives P95 = new Objectives(300.0, null, null, null);
+	private static final Objectives P95 = new Objectives(300.0, null, null, null, null);
 
 	@Test
 	void of_runsThatDisagree_areBorderlineWithTheirConfidenceCappedAtMedium() {
@@ -67,7 +67,7 @@ class SeedSummaryTests {
 	}
 
 	private static SeedRun run(long seed, double p95) {
-		return new SeedRun(seed, new RunFigures(p95 / 2, p95, p95 * 1.5, 1.0, 400.0));
+		return new SeedRun(seed, new RunFigures(p95 / 2, p95, p95 * 1.5, 1.0, 400.0, 1.0, null, false));
 	}
 
 }

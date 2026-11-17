@@ -42,7 +42,7 @@ class CalibrationTests {
 		assertThat(serviceTime.path("timeRange").asString()).startsWith("2026-10-01T00:00:00Z");
 		assertThat(Json.items(out.path("notes"))).anyMatch((note) -> note.asString().contains("the recording covers"));
 		assertThat(out.path("changes").size()).isEqualTo(13);
-		assertThat(out.path("document").path("schemaVersion").asString()).isEqualTo("1.9");
+		assertThat(out.path("document").path("schemaVersion").asString()).isEqualTo("1.10");
 		assertThat(serviceTime.path("kind").asString()).isEqualTo("measured");
 		assertThat(out.path("summary").asString()).startsWith("This model reproduces the observed p95");
 		// the calibrated document is valid input for the rest of the API

@@ -167,6 +167,7 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
   if (objectives.latencyP99Ms != null) objRows.push(["Latency p99", `≤ ${ms(objectives.latencyP99Ms)}`]);
   if (objectives.availability != null) objRows.push(["Availability", `≥ ${pct(objectives.availability, objectives.availability >= 0.999 ? 2 : 1)}`]);
   if (objectives.minThroughputRps != null) objRows.push(["Throughput", `≥ ${rps(objectives.minThroughputRps)}`]);
+  if (objectives.messageAgeP95Ms != null) objRows.push(["Message age p95", `≤ ${formatSloValue("messageAge", objectives.messageAgeP95Ms)}`]);
   lines.push(objRows.length ? table(["Objective", "Target"], objRows) : "No objectives set.", "");
 
   // ---- results ------------------------------------------------------------------------------

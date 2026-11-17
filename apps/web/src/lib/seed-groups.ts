@@ -150,7 +150,14 @@ export function seedRange(runs: Pick<Run, "seed" | "status" | "summary">[], obje
   for (const r of done) {
     const s = r.summary!;
     const result = evaluateSlo(objectives, {
-      summary: { latencyMs: { p95: s.p95, p99: s.p99 }, successRate: s.successRate, throughputRps: s.throughputRps } as Report["summary"],
+      summary: {
+        latencyMs: { p95: s.p95, p99: s.p99 },
+        successRate: s.successRate,
+        throughputRps: s.throughputRps,
+        lostMessages: s.lostMessages,
+        availability: s.availability,
+        messageAgeP95Ms: s.messageAgeP95Ms,
+      } as Report["summary"],
     });
     total = result.total;
     if (result.pass === true) met++;

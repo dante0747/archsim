@@ -113,7 +113,7 @@ class CacheOutageTests {
 	@Test
 	void run_aReadThroughCacheThatWasDown_saysTheLookupsItRefusedFailed() {
 		JsonNode report = this.simulator.run(JSON.readTree("""
-				{"schemaVersion": "1.9", "kind": "archsim.architecture", "metadata": {"name": "read-through"},
+				{"schemaVersion": "1.10", "kind": "archsim.architecture", "metadata": {"name": "read-through"},
 				 "architecture": {"autoSize": false, "nodes": [{"id": "clients", "type": "traffic_source"},
 				    {"id": "api", "type": "service", "label": "API", "config": {"workersPerReplica": 64}},
 				    {"id": "cache", "type": "cache", "label": "Cache", "config": {"hitRatio": 0.5}},
@@ -134,7 +134,7 @@ class CacheOutageTests {
 	@Test
 	void run_aCacheWithCallersOfBothKinds_saysTheLookupsItRefusedWereReadBySomeAndFailedForTheRest() {
 		JsonNode report = this.simulator.run(JSON.readTree("""
-				{"schemaVersion": "1.9", "kind": "archsim.architecture", "metadata": {"name": "two callers"},
+				{"schemaVersion": "1.10", "kind": "archsim.architecture", "metadata": {"name": "two callers"},
 				 "architecture": {"autoSize": false, "nodes": [{"id": "clients", "type": "traffic_source"},
 				    {"id": "jobs", "type": "traffic_source"},
 				    {"id": "api", "type": "service", "label": "API", "config": {"workersPerReplica": 64}},
@@ -162,7 +162,7 @@ class CacheOutageTests {
 	@Test
 	void run_aCacheWhoseCallersAllFallBack_namesEachThatReadTheLookupsItRefused() {
 		JsonNode report = this.simulator.run(JSON.readTree("""
-				{"schemaVersion": "1.9", "kind": "archsim.architecture", "metadata": {"name": "two callers"},
+				{"schemaVersion": "1.10", "kind": "archsim.architecture", "metadata": {"name": "two callers"},
 				 "architecture": {"autoSize": false, "nodes": [{"id": "clients", "type": "traffic_source"},
 				    {"id": "jobs", "type": "traffic_source"},
 				    {"id": "api", "type": "service", "label": "API", "config": {"workersPerReplica": 64}},

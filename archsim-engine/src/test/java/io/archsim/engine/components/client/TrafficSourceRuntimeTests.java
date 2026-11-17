@@ -6,6 +6,7 @@ import tools.jackson.databind.json.JsonMapper;
 import io.archsim.engine.kernel.Simulation;
 import io.archsim.engine.metrics.Timeline;
 import io.archsim.engine.random.RandomStreams;
+import io.archsim.engine.runtime.MessageLosses;
 import io.archsim.engine.runtime.Request;
 import io.archsim.engine.runtime.SimContext;
 import io.archsim.model.codec.RecordCodec;
@@ -32,7 +33,8 @@ class TrafficSourceRuntimeTests {
 		TrafficSourceRuntime clients = new TrafficSourceRuntime(context, node,
 				RecordCodec.read(JsonMapper.builder().build().readTree("{}"), TrafficSourceConfig.class),
 				new ClientMetrics(timeline));
-		Request request = Request.withoutTrace(new Request.Arrival(1, RequestType.READ, 0, 0, true));
+		Request request = Request.withoutTrace(new Request.Arrival(1, RequestType.READ, 0, 0, true),
+				new MessageLosses());
 
 		assertThatIllegalStateException().isThrownBy(() -> clients.handle(request, (outcome) -> {
 		})).withMessage("a traffic source cannot be the target of a call");

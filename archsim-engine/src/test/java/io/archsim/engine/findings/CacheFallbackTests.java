@@ -83,7 +83,7 @@ class CacheFallbackTests {
 
 	private static ArchitectureDocument design(boolean carriesOn, boolean readsOnMiss) {
 		return DesignDocuments.load(JSON.readTree("""
-				{"schemaVersion": "1.9", "kind": "archsim.architecture", "metadata": {"name": "cache-aside"},
+				{"schemaVersion": "1.10", "kind": "archsim.architecture", "metadata": {"name": "cache-aside"},
 				 "architecture": {"nodes": [{"id": "clients", "type": "traffic_source"},
 				    {"id": "api", "type": "service", "label": "API"},
 				    {"id": "cache", "type": "cache", "label": "Cache"},
@@ -98,7 +98,7 @@ class CacheFallbackTests {
 
 	private static ArchitectureDocument twoCallers() {
 		return DesignDocuments.load(JSON.readTree("""
-				{"schemaVersion": "1.9", "kind": "archsim.architecture", "metadata": {"name": "two callers"},
+				{"schemaVersion": "1.10", "kind": "archsim.architecture", "metadata": {"name": "two callers"},
 				 "architecture": {"nodes": [{"id": "clients", "type": "traffic_source"},
 				    {"id": "api", "type": "service"}, {"id": "worker", "type": "service"},
 				    {"id": "cache", "type": "cache"}, {"id": "db", "type": "database"}],
@@ -114,7 +114,7 @@ class CacheFallbackTests {
 
 	private static ArchitectureDocument withAWriter() {
 		return DesignDocuments.load(JSON.readTree("""
-				{"schemaVersion": "1.9", "kind": "archsim.architecture", "metadata": {"name": "a writer"},
+				{"schemaVersion": "1.10", "kind": "archsim.architecture", "metadata": {"name": "a writer"},
 				 "architecture": {"nodes": [{"id": "clients", "type": "traffic_source"},
 				    {"id": "api", "type": "service"}, {"id": "writer", "type": "service"},
 				    {"id": "cache", "type": "cache"}, {"id": "db", "type": "database"}],
@@ -131,7 +131,7 @@ class CacheFallbackTests {
 
 	private static ArchitectureDocument writerOnly() {
 		return DesignDocuments.load(JSON.readTree("""
-				{"schemaVersion": "1.9", "kind": "archsim.architecture", "metadata": {"name": "a writer alone"},
+				{"schemaVersion": "1.10", "kind": "archsim.architecture", "metadata": {"name": "a writer alone"},
 				 "architecture": {"nodes": [{"id": "clients", "type": "traffic_source"},
 				    {"id": "writer", "type": "service"}, {"id": "cache", "type": "cache"}],
 				  "edges": [{"id": "clients-writer", "source": "clients", "target": "writer",

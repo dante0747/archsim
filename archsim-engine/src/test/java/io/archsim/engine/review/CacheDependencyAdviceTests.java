@@ -60,7 +60,7 @@ class CacheDependencyAdviceTests {
 	private static ArchitectureDocument design(boolean carriesOn, boolean readsOnMiss) {
 		String fetch = readsOnMiss ? ", " + FETCH : "";
 		return DesignDocuments.load(JSON.readTree("""
-				{"schemaVersion": "1.9", "kind": "archsim.architecture", "metadata": {"name": "cache-aside"},
+				{"schemaVersion": "1.10", "kind": "archsim.architecture", "metadata": {"name": "cache-aside"},
 				 "architecture": {"nodes": [{"id": "clients", "type": "traffic_source"},
 				    {"id": "api", "type": "service", "label": "API"},
 				    {"id": "cache", "type": "cache", "label": "Cache"},

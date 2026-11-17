@@ -33,6 +33,7 @@ export function objectivesSummary(o: Objectives): string {
   if (o.latencyP99Ms != null) parts.push(`p99 ≤ ${formatSloValue("p99", o.latencyP99Ms)}`);
   if (o.availability != null) parts.push(`availability ≥ ${formatSloValue("availability", o.availability)}`);
   if (o.minThroughputRps != null) parts.push(`throughput ≥ ${formatSloValue("throughput", o.minThroughputRps)}`);
+  if (o.messageAgeP95Ms != null) parts.push(`message age p95 ≤ ${formatSloValue("messageAge", o.messageAgeP95Ms)}`);
   return parts.length ? parts.join(" · ") : "None set";
 }
 

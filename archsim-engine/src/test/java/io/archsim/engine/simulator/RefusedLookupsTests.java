@@ -93,7 +93,7 @@ class RefusedLookupsTests {
 	@Test
 	void run_aReadThroughCacheWhoseStoreIsDown_countsNoLookupAsRefused() {
 		JsonNode cache = cache(run("""
-				{"schemaVersion": "1.9", "kind": "archsim.architecture", "metadata": {"name": "read-through"},
+				{"schemaVersion": "1.10", "kind": "archsim.architecture", "metadata": {"name": "read-through"},
 				 "architecture": {"autoSize": false, "nodes": [{"id": "clients", "type": "traffic_source"},
 				    {"id": "api", "type": "service"},
 				    {"id": "cache", "type": "cache", "config": {"hitRatio": 0.5}},
@@ -128,7 +128,7 @@ class RefusedLookupsTests {
 	 */
 	private static String cacheAside(double readRatio, String cacheSettings, String linkSettings, String faults) {
 		return """
-				{"schemaVersion": "1.9", "kind": "archsim.architecture", "metadata": {"name": "cache-aside"},
+				{"schemaVersion": "1.10", "kind": "archsim.architecture", "metadata": {"name": "cache-aside"},
 				 "architecture": {"autoSize": false, "nodes": [{"id": "clients", "type": "traffic_source"},
 				    {"id": "api", "type": "service", "config": {"workersPerReplica": 64}},
 				    {"id": "cache", "type": "cache", "config": {"hitRatio": 0.5%s}},

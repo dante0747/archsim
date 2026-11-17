@@ -109,6 +109,9 @@ final class Descriptions {
 
 	static final String OBJECTIVES_MIN_THROUGHPUT_RPS = "Minimum successful requests/s";
 
+	static final String OBJECTIVES_MESSAGE_AGE_P95_MS = "p95 age of a message when a consumer has processed it, at the "
+			+ "slowest queue (ms)";
+
 	static final String OVERRIDE_TARGET_ID = "Node or edge id; omitted for workload";
 
 	static final String PRICING_PURCHASE_OPTION = "On-demand prices. Savings plans and reserved terms are not "

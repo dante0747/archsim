@@ -15,18 +15,18 @@ class StoredObjectivesTests {
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
-	private static final Objectives NONE = new Objectives(null, null, null, null);
+	private static final Objectives NONE = new Objectives(null, null, null, null, null);
 
 	@Test
 	void read_aDesignThatSetsOnlyAP99_leavesTheOtherTargetsOff() {
 		assertThat(StoredObjectives.read(JSON.readTree("{\"latencyP99Ms\": 500}")))
-			.isEqualTo(new Objectives(null, 500.0, null, null));
+			.isEqualTo(new Objectives(null, 500.0, null, null, null));
 	}
 
 	@Test
 	void read_targetsSetToNull_areOff() {
 		assertThat(StoredObjectives.read(JSON.readTree("{\"latencyP95Ms\": null, \"availability\": 0.999}")))
-			.isEqualTo(new Objectives(null, null, 0.999, null));
+			.isEqualTo(new Objectives(null, null, 0.999, null, null));
 	}
 
 	@Test

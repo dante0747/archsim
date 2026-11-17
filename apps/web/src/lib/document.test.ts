@@ -131,8 +131,9 @@ describe("withUnsetApiPrices", () => {
     const doc = { ...design("1.8", 0), provenance: { "nodes/mail/costPerMillionRequests": { kind: "assumed" } } } as unknown as ArchitectureDocument;
     expect(withUnsetApiPrices(doc).architecture.nodes[0].config).toEqual({ costPerMillionRequests: 0 });
   });
-  it("keeps a price that is not 0, and any price in a 1.9 design", () => {
+  it("keeps a price that is not 0, and any price in a design of 1.9 or later", () => {
     expect(withUnsetApiPrices(design("1.8", 100)).architecture.nodes[0].config).toEqual({ costPerMillionRequests: 100 });
     expect(withUnsetApiPrices(design("1.9", 0)).architecture.nodes[0].config).toEqual({ costPerMillionRequests: 0 });
+    expect(withUnsetApiPrices(design("1.10", 0)).architecture.nodes[0].config).toEqual({ costPerMillionRequests: 0 });
   });
 });

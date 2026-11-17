@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class SweepAnalysisTests {
 
-	private static final Objectives P95 = new Objectives(300.0, null, null, null);
+	private static final Objectives P95 = new Objectives(300.0, null, null, null, null);
 
 	@Test
 	void of_stepsInAnyOrderSomeNotCompleted_readsTheCompletedFromTheLightest() {

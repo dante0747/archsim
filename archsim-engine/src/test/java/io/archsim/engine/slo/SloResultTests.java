@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class SloResultTests {
 
-	private static final Objectives P95_AND_AVAILABILITY = new Objectives(300.0, null, 0.999, null);
+	private static final Objectives P95_AND_AVAILABILITY = new Objectives(300.0, null, 0.999, null, null);
 
 	@Test
 	void evaluate_figuresOnTheirTargets_meetEveryObjective() {
@@ -28,7 +28,7 @@ class SloResultTests {
 
 	@Test
 	void evaluate_noTargets_decidesNothing() {
-		SloResult result = SloResult.evaluate(new Objectives(null, null, null, null), figures(90.0, 1.0, 100.0));
+		SloResult result = SloResult.evaluate(new Objectives(null, null, null, null, null), figures(90.0, 1.0, 100.0));
 
 		assertThat(result.checks()).isEmpty();
 		assertThat(result.pass()).isNull();
@@ -53,7 +53,7 @@ class SloResultTests {
 
 	@Test
 	void text_eachKindOfFigureMissed_readsAsTheWebAppWritesIt() {
-		Objectives objectives = new Objectives(300.0, null, 0.999, 1300.0);
+		Objectives objectives = new Objectives(300.0, null, 0.999, 1300.0, null);
 
 		String text = SloResult.evaluate(objectives, figures(1234.56, 0.5, 1234.5)).text();
 
@@ -69,8 +69,40 @@ class SloResultTests {
 			.isEqualTo("Misses 1 of 1 objectives: Latency p99 n/a (target <= 500.0 ms)");
 	}
 
+	@Test
+	void evaluate_messagesOlderThanTheirTarget_missTheObjective() {
+		Objectives freshness = new Objectives(null, null, null, null, 5000.0);
+		RunFigures figures = new RunFigures(null, 90.0, null, 1.0, 100.0, 1.0, 21_040.0, true);
+
+		SloResult result = SloResult.evaluate(freshness, figures);
+
+		assertThat(result.pass()).isFalse();
+		assertThat(result.text())
+			.isEqualTo("Misses 1 of 1 objectives: Message age p95 21,040.0 ms (target <= 5,000.0 ms)");
+	}
+
+	@Test
+	void evaluate_aMessageAgeTargetForARunWithoutAQueue_judgesTheOtherObjectivesAlone() {
+		Objectives objectives = new Objectives(300.0, null, null, null, 5000.0);
+
+		SloResult result = SloResult.evaluate(objectives, figures(90.0, 1.0, 100.0));
+
+		assertThat(result.checks()).extracting(SloCheck::key).containsExactly(Objective.P95);
+		assertThat(result.pass()).isTrue();
+	}
+
+	@Test
+	void evaluate_lostMessages_countAgainstAvailability() {
+		RunFigures figures = new RunFigures(null, 90.0, null, 1.0, 100.0, 0.99, null, true);
+
+		SloResult result = SloResult.evaluate(P95_AND_AVAILABILITY, figures);
+
+		assertThat(result.pass()).isFalse();
+		assertThat(result.text()).isEqualTo("Misses 1 of 2 objectives: Availability 99.00% (target >= 99.90%)");
+	}
+
 	private static RunFigures figures(@Nullable Double p95, double successRate, double throughputRps) {
-		return new RunFigures(null, p95, null, successRate, throughputRps);
+		return new RunFigures(null, p95, null, successRate, throughputRps, successRate, null, false);
 	}
 
 }

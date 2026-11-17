@@ -24,7 +24,7 @@ import io.archsim.model.upgrade.Upgrades;
  *
  * <pre>{@code
  * ArchitectureDocument design = DesignDocuments.load(json); // any schema from 1.0 on
- * ObjectNode written = DesignDocuments.toJson(design);       // schema 1.9, every default filled in
+ * ObjectNode written = DesignDocuments.toJson(design);       // schema 1.10, every default filled in
  * }</pre>
  */
 public final class DesignDocuments {

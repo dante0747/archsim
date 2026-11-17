@@ -47,23 +47,31 @@ class UpgradesTests {
 	void toCurrent_olderDocument_upgradesOneStepAtATimeWithANoteForEach() {
 		Upgraded upgraded = Upgrades.toCurrent(document("1.5"));
 		assertThat(upgraded.notes()).containsExactly("migrated schema 1.5 -> 1.6", "migrated schema 1.6 -> 1.7",
-				"migrated schema 1.7 -> 1.8", "migrated schema 1.8 -> 1.9");
-		assertThat(upgraded.document().get("schemaVersion").stringValue()).isEqualTo("1.9");
+				"migrated schema 1.7 -> 1.8", "migrated schema 1.8 -> 1.9", "migrated schema 1.9 -> 1.10");
+		assertThat(upgraded.document().get("schemaVersion").stringValue()).isEqualTo("1.10");
 		assertThat(upgraded.document().get("workload")).isEqualTo(JSON.readTree("{\"rps\": 5}"));
 	}
 
 	@Test
 	void toCurrent_currentDocument_isLeftAsItIs() {
-		Upgraded upgraded = Upgrades.toCurrent(document("1.9"));
+		Upgraded upgraded = Upgrades.toCurrent(document("1.10"));
 		assertThat(upgraded.notes()).isEmpty();
-		assertThat(upgraded.document()).isEqualTo(document("1.9"));
+		assertThat(upgraded.document()).isEqualTo(document("1.10"));
 	}
 
 	@Test
 	void toCurrent_aSchemaOnePointSevenDocument_changesOnlyItsVersion() {
 		Upgraded upgraded = Upgrades.toCurrent(document("1.7"));
 
-		assertThat(upgraded.document()).isEqualTo(document("1.9"));
+		assertThat(upgraded.document()).isEqualTo(document("1.10"));
+	}
+
+	@Test
+	void toCurrent_aSchemaOnePointNineDocument_changesOnlyItsVersion() {
+		Upgraded upgraded = Upgrades.toCurrent(document("1.9"));
+
+		assertThat(upgraded.notes()).containsExactly("migrated schema 1.9 -> 1.10");
+		assertThat(upgraded.document()).isEqualTo(document("1.10"));
 	}
 
 	@Test
@@ -72,7 +80,7 @@ class UpgradesTests {
 
 		Upgraded upgraded = Upgrades.toCurrent(input);
 
-		assertThat(upgraded.document()).isEqualTo(JSON.readTree(api("1.9", "\"errorRate\": 0.01")));
+		assertThat(upgraded.document()).isEqualTo(JSON.readTree(api("1.10", "\"errorRate\": 0.01")));
 	}
 
 	@Test
@@ -101,7 +109,7 @@ class UpgradesTests {
 
 		Upgraded upgraded = Upgrades.toCurrent(input);
 
-		assertThat(upgraded.document()).isEqualTo(JSON.readTree(api("1.9", "\"costPerMillionRequests\": 100")));
+		assertThat(upgraded.document()).isEqualTo(JSON.readTree(api("1.10", "\"costPerMillionRequests\": 100")));
 	}
 
 	@Test
@@ -116,7 +124,7 @@ class UpgradesTests {
 
 	@Test
 	void toCurrent_anApiPricedAtZeroInTheCurrentSchema_keepsItsPrice() {
-		JsonNode input = JSON.readTree(api("1.9", "\"costPerMillionRequests\": 0"));
+		JsonNode input = JSON.readTree(api("1.10", "\"costPerMillionRequests\": 0"));
 
 		Upgraded upgraded = Upgrades.toCurrent(input);
 
@@ -134,7 +142,7 @@ class UpgradesTests {
 	void toCurrent_versionWrittenAsNumber_isReadAsPythonWritesIt() {
 		JsonNode input = JSON.readTree("{\"schemaVersion\": 1.6}");
 		assertThat(Upgrades.toCurrent(input).notes()).containsExactly("migrated schema 1.6 -> 1.7",
-				"migrated schema 1.7 -> 1.8", "migrated schema 1.8 -> 1.9");
+				"migrated schema 1.7 -> 1.8", "migrated schema 1.8 -> 1.9", "migrated schema 1.9 -> 1.10");
 	}
 
 	@Test
@@ -155,8 +163,8 @@ class UpgradesTests {
 			{"schemaVersion": "one"}   | 'one' is not a valid schemaVersion
 			{"schemaVersion": ""}      | '' is not a valid schemaVersion
 			{"schemaVersion": true}    | 'True' is not a valid schemaVersion
-			{"schemaVersion": "0.9"}   | no migration path from schema 0.9 to 1.9
-			{"schemaVersion": "1.3.0"} | no migration path from schema 1.3.0 to 1.9
+			{"schemaVersion": "0.9"}   | no migration path from schema 0.9 to 1.10
+			{"schemaVersion": "1.3.0"} | no migration path from schema 1.3.0 to 1.10
 			""")
 	void toCurrent_documentItCannotUpgrade_isRefusedSayingWhy(String input, String message) {
 		assertThatThrownBy(() -> Upgrades.toCurrent(JSON.readTree(input))).isInstanceOf(UpgradeException.class)
@@ -164,11 +172,11 @@ class UpgradesTests {
 	}
 
 	@ParameterizedTest(name = "schema {0}")
-	@ValueSource(strings = { "1.10", "1.9.0" })
+	@ValueSource(strings = { "1.11", "1.10.0" })
 	void toCurrent_newerSchema_isRefusedAskingForANewerArchSim(String version) {
 		JsonNode input = JSON.readTree("{\"schemaVersion\": \"%s\"}".formatted(version));
 		assertThatThrownBy(() -> Upgrades.toCurrent(input)).isInstanceOf(UpgradeException.class)
-			.hasMessage("this document uses schema %s, newer than the supported 1.9. Upgrade ArchSim to open it."
+			.hasMessage("this document uses schema %s, newer than the supported 1.10. Upgrade ArchSim to open it."
 				.formatted(version));
 	}
 

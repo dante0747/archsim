@@ -14,7 +14,7 @@ import io.archsim.model.document.Objectives;
 public final class StoredObjectives {
 
 	/** No targets: every objective is off. */
-	private static final Objectives NONE = new Objectives(null, null, null, null);
+	private static final Objectives NONE = new Objectives(null, null, null, null, null);
 
 	private StoredObjectives() {
 	}
@@ -30,7 +30,8 @@ public final class StoredObjectives {
 		}
 		return new Objectives(StoredNumbers.number(objectives, "latencyP95Ms"),
 				StoredNumbers.number(objectives, "latencyP99Ms"), StoredNumbers.number(objectives, "availability"),
-				StoredNumbers.number(objectives, "minThroughputRps"));
+				StoredNumbers.number(objectives, "minThroughputRps"),
+				StoredNumbers.number(objectives, "messageAgeP95Ms"));
 	}
 
 }

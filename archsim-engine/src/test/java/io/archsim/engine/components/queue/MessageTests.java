@@ -2,6 +2,7 @@ package io.archsim.engine.components.queue;
 
 import org.junit.jupiter.api.Test;
 
+import io.archsim.engine.runtime.MessageLosses;
 import io.archsim.engine.runtime.Request;
 import io.archsim.model.document.RequestType;
 
@@ -11,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MessageTests {
 
 	private final Message message = new Message(
-			Request.withoutTrace(new Request.Arrival(7, RequestType.READ, 3, 0, true)), 10, 5);
+			Request.withoutTrace(new Request.Arrival(7, RequestType.READ, 3, 0, true), new MessageLosses()), 10, 5);
 
 	@Test
 	void leasedUnder_aLaterLease_isFalse() {

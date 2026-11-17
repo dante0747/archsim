@@ -25,13 +25,14 @@ public record SloCheck(Objective key, String label, double target, @Nullable Dou
 	 * The objectives the design sets, each checked against the run's figure.
 	 * @param objectives the design's objectives
 	 * @param figures the run's figures
-	 * @return a check for each objective whose target is on, in {@link Objective}'s order
+	 * @return a check for each objective whose target is on and that judges the run, in
+	 * {@link Objective}'s order
 	 */
 	public static List<SloCheck> each(Objectives objectives, RunFigures figures) {
 		List<SloCheck> checks = new ArrayList<>();
 		for (Objective objective : Objective.values()) {
 			Double target = objective.target(objectives);
-			if (target != null) {
+			if (target != null && objective.judges(figures)) {
 				checks.add(check(objective, target, objective.actual(figures)));
 			}
 		}

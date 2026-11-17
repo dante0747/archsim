@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.Timeout.ThreadMode;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.engine.run.SimulationLimitException;
 import io.archsim.engine.simulation.SimulationLimits;
@@ -41,6 +42,21 @@ class ExecutionTests {
 	@AfterEach
 	void stopTheThreads() {
 		this.executions.close();
+	}
+
+	@Test
+	void start_aRunWhoseDesignHasAQueue_writesItsAvailabilityAndMessageAgeInItsSummary() {
+		ClaimedRun run = this.executions.claimed();
+		ObjectNode report = (ObjectNode) StandIns.REPORT.deepCopy();
+		((ObjectNode) report.required("summary")).put("lostMessages", 46)
+			.put("availability", 0.98)
+			.put("messageAgeP95Ms", 21040.0);
+
+		this.executions.execution(run, (document, request, observer) -> report).start().join();
+
+		ObjectNode expected = (ObjectNode) SUMMARY.deepCopy();
+		expected.put("lostMessages", 46).put("availability", 0.98).put("messageAgeP95Ms", 21040.0);
+		assertThat(QueueParts.JSON.readTree(this.queue.text(run.id(), "summary"))).isEqualTo(expected);
 	}
 
 	@Test

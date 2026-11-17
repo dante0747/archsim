@@ -51,6 +51,8 @@ public final class SimContext {
 
 	private final Calls calls = new Calls(this);
 
+	private final MessageLosses messageLosses = new MessageLosses();
+
 	private @Nullable SharedHost host;
 
 	private List<String> clusterIds = List.of();
@@ -215,6 +217,15 @@ public final class SimContext {
 
 	public Workload workload() {
 		return this.workload;
+	}
+
+	/**
+	 * What the run's measured requests lost of their messages (ADR-0084).
+	 * @return the tally of the lost messages and of the requests that succeeded but lost
+	 * one
+	 */
+	public MessageLosses messageLosses() {
+		return this.messageLosses;
 	}
 
 	public Calls calls() {

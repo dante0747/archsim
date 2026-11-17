@@ -14,7 +14,7 @@ class SweepRowTests {
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
-	private static final Objectives OBJECTIVES = new Objectives(300.0, 500.0, 0.999, 2000.0);
+	private static final Objectives OBJECTIVES = new Objectives(300.0, 500.0, 0.999, 2000.0, null);
 
 	@Test
 	void of_aStepsReport_readsItsFiguresAndTheFirstBottlenecksPart() {

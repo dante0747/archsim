@@ -182,15 +182,21 @@ final class Deliveries {
 			}
 		}
 		else {
-			this.metrics.count(FAILED_DELIVERIES, end);
-			if (message.deliveries() < this.rules.maxDeliveries()) {
-				this.backlog.add(message, end);
-			}
-			else {
-				this.metrics.count(DEAD_LETTERED, end);
-			}
+			failed(message, end);
 		}
 		done.run();
+	}
+
+	// a failed delivery: back in the backlog while it has deliveries left, else
+	// dead-lettered, which loses it (ADR-0084)
+	private void failed(Message message, double end) {
+		this.metrics.count(FAILED_DELIVERIES, end);
+		if (message.deliveries() < this.rules.maxDeliveries()) {
+			this.backlog.add(message, end);
+			return;
+		}
+		this.metrics.count(DEAD_LETTERED, end);
+		message.lost();
 	}
 
 	private Simulation simulation() {

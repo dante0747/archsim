@@ -22,11 +22,18 @@ import tools.jackson.databind.JsonNode;
  * @param attempts the attempts sent, retries included
  * @param retryAmplification the attempts per request
  * @param failureBreakdown where and why requests failed, the most first
+ * @param lostMessages the messages its measured requests lost, dead-lettered or dropped,
+ * when the design has a queue (report 1.19, ADR-0084); its presence says the run had one
+ * @param availability the share of measured requests that succeeded and lost no message,
+ * when the design has a queue
+ * @param messageAgeP95Ms the p95 age of a message when processed, at the slowest queue,
+ * when the design has one
  */
 public record RunSummary(LatencyStats latencyMs, @Nullable LatencyStats latencyWithFailuresMs,
 		@Nullable Double offeredRps, @Nullable Double throughputRps, @Nullable Double successRate,
 		@Nullable Double errorRate, @Nullable Double timeoutRate, long arrived, long failed, long timedOut,
-		long attempts, @Nullable Double retryAmplification, List<FailureCause> failureBreakdown) {
+		long attempts, @Nullable Double retryAmplification, List<FailureCause> failureBreakdown,
+		@Nullable Long lostMessages, @Nullable Double availability, @Nullable Double messageAgeP95Ms) {
 
 	/**
 	 * Checks that the summary has its latency and its failures, as every report's has.

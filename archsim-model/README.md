@@ -9,7 +9,7 @@ It is stage 1 of the [Java port](../docs/proposals/java-25-port.md#stage-1--desi
 ```java
 ArchitectureDocument design = DesignDocuments.load(json);          // any schema from 1.0 on
 ValidationResult result = DocumentValidator.standard().validate(design);
-ObjectNode written = DesignDocuments.toJson(design);               // schema 1.9, defaults filled in
+ObjectNode written = DesignDocuments.toJson(design);               // schema 1.10, defaults filled in
 ObjectNode schema = DesignDocuments.jsonSchema();                  // what GET /schema/architecture serves
 ```
 
@@ -68,11 +68,13 @@ shipped byte for byte.
   ([ADR-0081](../docs/adr/0081-price-an-unset-api-at-its-preset-or-leave-it-out-of-the-month.md)),
   where 1.7's defaulted to 0. Every golden comparison (`Parity`, and the tests that compare with
   `JsonDiff` themselves) goes through `SchemaDepartures`. It gives a recorded document (a
-  parameter named `doc`, `document` or `resolved`, or a report's design) to the Java at 1.9 as it
-  was written. It reads the Java's output as Python would have written it at 1.7: a document's
-  `schemaVersion` and the schema's own version as 1.7, no note for the upgrades from 1.7 to 1.9,
-  a message naming the supported schema with 1.7, and the JSON Schema and the catalog's workload
-  settings without `peakHoursPerMonth`. Guided by Python's output, `ApiPriceDepartures` reads an
+  parameter named `doc`, `document` or `resolved`, or a report's design) to the Java at 1.10 as
+  it was written, and a document Python's fixtures wrote at 1.10, their example of a newer schema,
+  at 1.11. It reads the Java's output as Python would have written it at 1.7: a document's
+  `schemaVersion` and the schema's own version as 1.7, no note for the upgrades from 1.7 to 1.10,
+  a message naming the supported schema with 1.7 (and the newer one with 1.10), the JSON Schema
+  without `peakHoursPerMonth` and `messageAgeP95Ms`, and the catalog's workload settings without
+  `peakHoursPerMonth`. Guided by Python's output, `ApiPriceDepartures` reads an
   API's price as Python's where Python's records it as 0: the setting where the Java leaves it
   empty, an input's value and provenance, and the catalog field's default, description and
   whether it may be empty. The rest is compared exactly.

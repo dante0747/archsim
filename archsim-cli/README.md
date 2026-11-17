@@ -207,7 +207,7 @@ Elsewhere:
   word, or for JSON printed or written the same values (`JsonDiff`, the golden files'
   comparison), laid out as
   `json.dumps(value, indent=2)` lays them out. A run's printed digests are left out where they
-  depart: its input's always (a schema 1.9 design where Python's was 1.7), and its result's for
+  depart: its input's always (a schema 1.10 design where Python's was 1.7), and its result's for
   a design that prices a third-party API at 0 the frozen engine's way, which the run's parts
   record as unset
   ([ADR-0081](../docs/adr/0081-price-an-unset-api-at-its-preset-or-leave-it-out-of-the-month.md)).

@@ -24,7 +24,7 @@ class MeasurementTests {
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
 	private static final String DESIGN = """
-			{"schemaVersion": "1.9", "kind": "archsim.architecture", "metadata": {"name": "case"},
+			{"schemaVersion": "1.10", "kind": "archsim.architecture", "metadata": {"name": "case"},
 			 "architecture": {"nodes": [{"id": "clients", "type": "traffic_source"}, {"id": "api", "type": "service"}],
 			                  "edges": [{"id": "clients-api", "source": "clients", "target": "api"}]},
 			 "workload": {"rps": 100}}""";
@@ -47,8 +47,9 @@ class MeasurementTests {
 	void kneeRange_changedAfterwards_staysAsItWas() {
 		List<Double> range = new ArrayList<>(List.of(200.0, 3000.0));
 		Measurement measurement = new Measurement("case", null, 90.0, null, 1.0, 400.0, 400.0, null,
-				new Objectives(300.0, null, 0.999, null), new SloResult(List.of(), null, 0, 0), "No objectives", null,
-				"f", "0.16.0", new MeasuredConfidence(null, null, null), 1000.0, "Breaks at 1,000 req/s", range, 100.0);
+				new Objectives(300.0, null, 0.999, null, null), new SloResult(List.of(), null, 0, 0), "No objectives",
+				null, "f", "0.16.0", new MeasuredConfidence(null, null, null), 1000.0, "Breaks at 1,000 req/s", range,
+				100.0);
 
 		range.add(4000.0);
 

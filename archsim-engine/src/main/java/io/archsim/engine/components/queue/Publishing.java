@@ -126,6 +126,7 @@ final class Publishing {
 				this.acknowledgedByAll ? "acks=all" : null);
 		if (publish.dropped()) {
 			metrics().count(DROPPED, now);
+			request.fate().lostAMessage();
 		}
 		else {
 			this.state.backlog().add(new Message(request, now, publish.start()), now);

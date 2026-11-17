@@ -14,12 +14,12 @@
     "tunedOn": ["pg-mixed", "pg-hot-row", "cache-aside", "kafka"]
   },
   {
-    "version": "1.3.0",
+    "version": "1.4.0",
     "engine": "java",
     "engineTree": null,
     "frozenAt": null,
     "tag": null,
     "tunedOn": ["pg-mixed", "pg-hot-row", "cache-aside", "kafka"],
-    "note": "The Java engine, which replayed 0.16.0 run for run up to 1.0.0; 1.1.0 changes only how the cost counts autoscaled parts and prices the peak (ADR-0074); 1.1.1 measures the base's per-request rates in the buckets nearest it when none is at it; 1.2.0 prices a third-party API without a price at its technology preset's price, or leaves it out of the month (ADR-0081); 1.2.1 counts a cache's refused lookups in its hit ratio and words the advice on a failing cache by what its callers lack (ADR-0082); 1.3.0 reports a database's busiest instance's CPU and sets its CPU ceiling where that instance fills (ADR-0083). Not frozen yet: its source trees (archsim-engine, archsim-model, archsim-cli) are pinned when it is frozen, before the next held-out campaign."
+    "note": "The Java engine, which replayed 0.16.0 run for run up to 1.0.0; 1.1.0 changes only how the cost counts autoscaled parts and prices the peak (ADR-0074); 1.1.1 measures the base's per-request rates in the buckets nearest it when none is at it; 1.2.0 prices a third-party API without a price at its technology preset's price, or leaves it out of the month (ADR-0081); 1.2.1 counts a cache's refused lookups in its hit ratio and words the advice on a failing cache by what its callers lack (ADR-0082); 1.3.0 reports a database's busiest instance's CPU and sets its CPU ceiling where that instance fills (ADR-0083); 1.4.0 counts lost messages against availability and judges a message's age (ADR-0084). Not frozen yet: its source trees (archsim-engine, archsim-model, archsim-cli) are pinned when it is frozen, before the next held-out campaign."
   }
 ]

@@ -106,7 +106,7 @@ class ApiPriceTests {
 	@Test
 	void estimate_onlyAnApiThatIsNotPriced_hasNoCost() {
 		CostEstimate cost = this.analyzer.analyze(JSON.readTree("""
-				{"schemaVersion": "1.9", "kind": "archsim.architecture", "metadata": {"name": "calls"},
+				{"schemaVersion": "1.10", "kind": "archsim.architecture", "metadata": {"name": "calls"},
 				 "architecture": {"nodes": [{"id": "clients", "type": "traffic_source"},
 				    {"id": "mail", "type": "external_api", "label": "Mail"}],
 				  "edges": [{"id": "clients-mail", "source": "clients", "target": "mail"}]},
@@ -180,7 +180,7 @@ class ApiPriceTests {
 
 	private static String design(String config, String provenance) {
 		return """
-				{"schemaVersion": "1.9", "kind": "archsim.architecture", "metadata": {"name": "calls"}, %s
+				{"schemaVersion": "1.10", "kind": "archsim.architecture", "metadata": {"name": "calls"}, %s
 				 "architecture": {"nodes": [{"id": "clients", "type": "traffic_source"},
 				    {"id": "api", "type": "service", "config": {"replicas": 1, "costPerHour": 0.5}},
 				    {"id": "mail", "type": "external_api", "label": "Mail", "config": {%s}}],

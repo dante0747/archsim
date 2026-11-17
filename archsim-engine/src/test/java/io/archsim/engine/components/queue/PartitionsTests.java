@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import io.archsim.engine.kernel.Simulation;
 import io.archsim.engine.metrics.Timeline;
+import io.archsim.engine.runtime.MessageLosses;
 import io.archsim.engine.runtime.Request;
 import io.archsim.model.document.RequestType;
 
@@ -40,7 +41,9 @@ class PartitionsTests {
 	}
 
 	private static Message message(int key) {
-		return new Message(Request.withoutTrace(new Request.Arrival(1, RequestType.WRITE, key, 0, true)), 0, 0);
+		return new Message(
+				Request.withoutTrace(new Request.Arrival(1, RequestType.WRITE, key, 0, true), new MessageLosses()), 0,
+				0);
 	}
 
 }

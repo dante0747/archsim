@@ -56,7 +56,7 @@ class CacheCallersTests {
 
 	private static ArchitectureDocument design() {
 		return DesignDocuments.load(JSON.readTree("""
-				{"schemaVersion": "1.9", "kind": "archsim.architecture", "metadata": {"name": "callers"},
+				{"schemaVersion": "1.10", "kind": "archsim.architecture", "metadata": {"name": "callers"},
 				 "architecture": {"nodes": [{"id": "clients", "type": "traffic_source"},
 				    {"id": "jobs", "type": "traffic_source"},
 				    {"id": "api", "type": "service"}, {"id": "worker", "type": "service"},

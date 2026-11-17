@@ -50,7 +50,7 @@ class CostEstimatorTests {
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
 	private static final String DESIGN = """
-			{"schemaVersion": "1.9", "kind": "archsim.architecture", "metadata": {"name": "case"},
+			{"schemaVersion": "1.10", "kind": "archsim.architecture", "metadata": {"name": "case"},
 			 "architecture": {"nodes": [{"id": "clients", "type": "traffic_source"}, {"id": "api", "type": "service"}],
 			                  "edges": [{"id": "clients-api", "source": "clients", "target": "api"}]},
 			 "workload": {"rps": 100}}""";

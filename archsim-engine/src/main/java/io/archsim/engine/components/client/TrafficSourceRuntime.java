@@ -135,6 +135,9 @@ public final class TrafficSourceRuntime extends RuntimeComponent {
 
 		private void finish(Outcome outcome, int attempts) {
 			double now = now();
+			if (outcome.ok()) {
+				this.request.fate().succeeded();
+			}
 			TrafficSourceRuntime.this.clients.record(this.request, outcome, now,
 					TrafficSourceRuntime.this.config.timeoutMs());
 			TrafficSourceRuntime.this.group.record(this.request, outcome, now);

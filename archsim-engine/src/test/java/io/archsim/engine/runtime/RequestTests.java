@@ -10,7 +10,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** What a request carries of the parts that refused it (ADR-0082). */
 class RequestTests {
 
-	private final Request request = Request.withoutTrace(new Arrival(1, RequestType.READ, 0, 0.0, true));
+	private final Request request = Request.withoutTrace(new Arrival(1, RequestType.READ, 0, 0.0, true),
+			new MessageLosses());
 
 	@Test
 	void addRefusal_aPartThatHasNotRefusedIt_isNew() {

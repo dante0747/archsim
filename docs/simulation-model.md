@@ -688,6 +688,7 @@ Client-side (end-to-end) summary:
 | `retryAmplification` | Client attempts / client requests inside the window. |
 | `failureBreakdown` | Failures of the measured cohort grouped by (status, reason, origin node, link). |
 | `clients` | One entry per client group: `share` (fraction of the workload), the measured cohort's `arrived` / `succeeded` / `failed` / `timedOut`, `offeredRps`, `successRate`, `retryAmplification` and `latencyMs`. The fields above are the totals across groups. |
+| `messageAgeP95Ms`, `lostMessages`, `availability` | A design with a queue only (report 1.19, ADR-0084): the p95 age of a message when processed at its slowest queue (null when a queue held messages it never processed); the messages the measured requests published that a queue dead-lettered or dropped, by the end of the run; and the share of measured requests that succeeded and lost no message, which the availability objective judges, as a request whose message was lost was answered all the same. |
 
 Per-node summary (events counted by the time they happen inside the window):
 

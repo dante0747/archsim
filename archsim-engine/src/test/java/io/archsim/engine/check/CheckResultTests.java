@@ -49,8 +49,8 @@ class CheckResultTests {
 
 	private static Measurement measurement() {
 		return new Measurement("case", null, 90.0, null, 1.0, 400.0, 400.0, null,
-				new Objectives(null, null, null, null), new SloResult(List.of(), null, 0, 0), "No objectives", null,
-				"f", "0.16.0", new MeasuredConfidence(null, null, null), null, null, null, null);
+				new Objectives(null, null, null, null, null), new SloResult(List.of(), null, 0, 0), "No objectives",
+				null, "f", "0.16.0", new MeasuredConfidence(null, null, null), null, null, null, null);
 	}
 
 }

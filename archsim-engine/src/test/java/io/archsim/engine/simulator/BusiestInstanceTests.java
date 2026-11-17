@@ -151,7 +151,7 @@ class BusiestInstanceTests {
 	 */
 	private JsonNode run(double rps, double cores, double cpuShare, String settings) {
 		return this.simulator.run(JSON.readTree("""
-				{"schemaVersion": "1.9", "kind": "archsim.architecture", "metadata": {"name": "instances"},
+				{"schemaVersion": "1.10", "kind": "archsim.architecture", "metadata": {"name": "instances"},
 				 "architecture": {"autoSize": false, "nodes": [{"id": "clients", "type": "traffic_source"},
 				    {"id": "api", "type": "service", "config": {"workersPerReplica": 2000}},
 				    {"id": "db", "type": "database", "config": {"cpuCores": %s, "cpuShare": %s,

@@ -16,7 +16,7 @@ class SeedRunTests {
 	void read_aCompactSummary_isFinishedWithItsFigures() {
 		SeedRun run = SeedRun.read(42, JSON.readTree("{\"p50\": 40.0, \"p95\": 90.0, \"successRate\": 1.0}"));
 
-		assertThat(run).isEqualTo(new SeedRun(42, new RunFigures(40.0, 90.0, null, 1.0, null)));
+		assertThat(run).isEqualTo(new SeedRun(42, new RunFigures(40.0, 90.0, null, 1.0, null, 1.0, null, false)));
 	}
 
 	@Test

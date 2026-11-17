@@ -303,7 +303,7 @@ public final class CheckText {
 
 	private static String figure(Objective objective, @Nullable Double value) {
 		return switch (objective) {
-			case P95, P99 -> ms(value);
+			case P95, P99, MESSAGE_AGE -> ms(value);
 			case AVAILABILITY -> (value != null) ? percent(value) : "n/a";
 			case THROUGHPUT -> rps(value);
 		};

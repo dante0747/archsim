@@ -4,12 +4,12 @@
  */
 import type { Objectives, Report, ReportTimeseries } from "./types";
 
-export type SloKey = "p95" | "p99" | "availability" | "throughput";
+export type SloKey = "p95" | "p99" | "availability" | "throughput" | "messageAge";
 
 export interface SloCheck {
   key: SloKey;
   label: string;
-  /** Target value: ms for latency, share (0..1) for availability, req/s for throughput. */
+  /** Target value: ms for latency and a message's age, share (0..1) for availability, req/s for throughput. */
   target: number;
   actual: number | null;
   /** null when the run has no data for this metric */
@@ -35,9 +35,19 @@ export function sloChecks(obj: Objectives, report: Pick<Report, "summary">): Slo
   };
   add("p95", "Latency p95", obj.latencyP95Ms, s.latencyMs.p95, "lower");
   add("p99", "Latency p99", obj.latencyP99Ms, s.latencyMs.p99, "lower");
-  add("availability", "Availability", obj.availability, s.successRate, "higher");
+  // a design with queues counts a lost message as a failed request (report 1.19+, ADR-0084)
+  add("availability", "Availability", obj.availability, s.availability ?? s.successRate, "higher");
   add("throughput", "Throughput", obj.minThroughputRps, s.throughputRps, "higher");
+  // a message's age judges only a run whose design has a queue, which reports its lost messages
+  if (s.lostMessages != null) add("messageAge", "Message age p95", obj.messageAgeP95Ms, s.messageAgeP95Ms ?? null, "lower");
   return checks;
+}
+
+const SYNCHRONOUS: SloKey[] = ["p95", "p99", "availability", "throughput"];
+
+/** The objectives to offer: the message age's too for a design with a queue, or one that sets it (ADR-0084). */
+export function objectiveKeys(hasQueue: boolean, obj: Objectives): SloKey[] {
+  return hasQueue || obj.messageAgeP95Ms != null ? [...SYNCHRONOUS, "messageAge"] : SYNCHRONOUS;
 }
 
 /** Share of failed requests above which latency percentiles stop describing the load: the
@@ -105,5 +115,6 @@ export function formatSloValue(key: SloKey, v: number | null): string {
   if (v == null) return "–";
   if (key === "availability") return `${(v * 100).toFixed(v >= 0.999 ? 2 : 1)}%`;
   if (key === "throughput") return `${Math.round(v).toLocaleString("en-US")} req/s`;
+  if (key === "messageAge" && v >= 1000) return `${(v / 1000).toFixed(1)} s`;
   return `${v < 10 ? v.toFixed(1) : Math.round(v)} ms`;
 }

@@ -79,7 +79,7 @@ API calls it directly, in the API's process, and since stage 4 simulates on it t
 calibration's replay runs on its `Simulator` through `ReplaySimulator.of`, on the API's pool of
 replay threads ([ADR-0054](adr/0054-replay-calibrations-on-a-pool-of-platform-threads.md)), and
 the worker role simulates the runs it claims
-([ADR-0053](adr/0053-simulate-runs-in-the-java-apps-worker-role.md)). It is engine 1.3.0: 1.0.0
+([ADR-0053](adr/0053-simulate-runs-in-the-java-apps-worker-role.md)). It is engine 1.4.0: 1.0.0
 replays the frozen engine 0.16.0's runs figure for figure
 ([java-parity.md](validation/java-parity.md)), 1.1.0 changes only how the cost counts
 autoscaled parts and prices the peak
@@ -88,9 +88,11 @@ run's per-request rates at the base load in the buckets nearest it when none is 
 prices a third-party API without a price at its preset's price or leaves it out of the month
 ([ADR-0081](adr/0081-price-an-unset-api-at-its-preset-or-leave-it-out-of-the-month.md)), 1.2.1
 counts a cache's refused lookups in its hit ratio
-([ADR-0082](adr/0082-count-a-caches-refused-lookups-in-its-hit-ratio.md)), and 1.3.0 reports a
+([ADR-0082](adr/0082-count-a-caches-refused-lookups-in-its-hit-ratio.md)), 1.3.0 reports a
 database's busiest instance's CPU and sets its CPU ceiling where that instance fills
-([ADR-0083](adr/0083-name-each-utilisation-and-compare-like-with-like.md)).
+([ADR-0083](adr/0083-name-each-utilisation-and-compare-like-with-like.md)), and 1.4.0 counts a
+design's lost messages against its availability and judges how old its messages are when
+processed ([ADR-0084](adr/0084-judge-asynchronous-designs-by-their-messages-too.md)).
 
 That frozen engine was the Python package `archsim_engine` (`packages/engine`, on SimPy and
 Pydantic), frozen at 0.16.0 for the port

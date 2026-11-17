@@ -24,6 +24,13 @@ final class RunOutcomes {
 	private static final String[] FIGURES = { "offeredRps", "throughputRps", "successRate", "timeoutRate",
 			"errorRate" };
 
+	/**
+	 * The figures a run's summary copies when its report has them, for a design with a
+	 * queue: its lost messages, its availability counting the requests that lost one, and
+	 * its slowest queue's p95 message age (ADR-0084).
+	 */
+	private static final String[] MESSAGE_FIGURES = { "lostMessages", "availability", "messageAgeP95Ms" };
+
 	/** The latency percentiles a run's summary copies. */
 	private static final String[] PERCENTILES = { "p50", "p95", "p99" };
 
@@ -88,6 +95,11 @@ final class RunOutcomes {
 		}
 		for (String percentile : PERCENTILES) {
 			summary.set(percentile, figures.path("latencyMs").get(percentile));
+		}
+		for (String figure : MESSAGE_FIGURES) {
+			if (figures.has(figure)) {
+				summary.set(figure, figures.get(figure));
+			}
 		}
 		JsonNode bottleneck = StreamSupport.stream(report.path("findings").spliterator(), false)
 			.filter((finding) -> "bottleneck".equals(finding.path("kind").stringValue(null)))

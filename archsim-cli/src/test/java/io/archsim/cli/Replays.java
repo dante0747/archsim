@@ -168,9 +168,9 @@ final class Replays {
 	}
 
 	/**
-	 * Text a run printed without the digests that depart: its input's, a schema 1.9
-	 * design where Python's was 1.7 (ADR-0074, ADR-0081); and its result's for a design
-	 * that prices a third-party API at 0, which the run's parts record as unset
+	 * Text a run printed without the digests that depart: its input's, a design at the
+	 * current schema where Python's was 1.7 (ADR-0074, ADR-0081); and its result's for a
+	 * design that prices a third-party API at 0, which the run's parts record as unset
 	 * (ADR-0081). A report written to a file checks both digests (ReportComparison).
 	 * @param design the design the case ran
 	 * @return what leaves them out of a text

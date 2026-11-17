@@ -23,8 +23,9 @@ import io.archsim.parity.SchemaDepartures;
  * digests checked by their definitions and then taken over that design and those results
  * (ADR-0074, ADR-0081), its caches' refused lookups and the advice on them as the frozen
  * engine wrote them ({@link CacheDepartures}), its databases of several instances' CPU
- * ceilings as the frozen engine set them ({@link BusiestInstanceDepartures}), and
- * Python's findings as the Java words a count of one request ({@link WordingDepartures}).
+ * ceilings as the frozen engine set them ({@link BusiestInstanceDepartures}), its
+ * summary's message figures left out ({@link MessageDepartures}), and Python's findings
+ * as the Java words a count of one request ({@link WordingDepartures}).
  */
 public final class ReportComparison {
 
@@ -150,7 +151,7 @@ public final class ReportComparison {
 	// caches' departures put back
 	private static JsonNode asRecorded(JsonNode report, JsonNode python) {
 		JsonNode departed = BusiestInstanceDepartures.asRecorded(CacheDepartures.asRecorded(report, python), python);
-		return SchemaDepartures.asRecorded(departed, python);
+		return SchemaDepartures.asRecorded(MessageDepartures.asRecorded(departed), python);
 	}
 
 	private static JsonNode comparable(JsonNode report, Set<String> keys) {

@@ -21,7 +21,7 @@ class RoundTripTests {
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
 	private static final ArchitectureDocument DESIGN = DesignDocuments.parse(JSON.readTree("""
-			{"schemaVersion": "1.9", "kind": "archsim.architecture", "metadata": {"name": "Shop"},
+			{"schemaVersion": "1.10", "kind": "archsim.architecture", "metadata": {"name": "Shop"},
 			 "architecture": {
 			   "nodes": [
 			     {"id": "clients", "type": "traffic_source", "label": "Shoppers", "config": {"timeoutMs": 3000}},

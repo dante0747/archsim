@@ -162,9 +162,13 @@ workload so a scenario can carry an experiment: override `faults` with a list.
 | `latencyP99Ms` | number? | none | p99 target. |
 | `availability` | number 0-1? | 0.999 | Minimum share of requests that succeed in the measured window. |
 | `minThroughputRps` | number? | none | Minimum successful requests per second. |
+| `messageAgeP95Ms` | number? | none | Schema 1.10: the p95 age of a message when a consumer has processed it, at the design's slowest queue (ADR-0084). Left out while unset. |
 
 Objectives never change the simulation; the UI evaluates runs against them (scorecard, error
 budget, breach markers on the replay timeline, experiment verdicts). `null` disables a target.
+In a design with a queue, `availability` counts a request that succeeded but lost a message
+it published (dead-lettered, or dropped when published) as one that failed, as it was
+answered all the same, and `messageAgeP95Ms` judges only a design with a queue (ADR-0084).
 
 ## Scenarios and overrides
 

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import io.archsim.engine.kernel.Simulation;
 import io.archsim.engine.metrics.Timeline;
+import io.archsim.engine.runtime.MessageLosses;
 import io.archsim.engine.runtime.NodeMetrics;
 import io.archsim.engine.runtime.Request;
 import io.archsim.model.document.RequestType;
@@ -69,7 +70,8 @@ class BacklogTests {
 	}
 
 	private void addMessages(int count) {
-		Request publisher = Request.withoutTrace(new Request.Arrival(1, RequestType.WRITE, 0, 0, true));
+		Request publisher = Request.withoutTrace(new Request.Arrival(1, RequestType.WRITE, 0, 0, true),
+				new MessageLosses());
 		for (int message = 0; message < count; message++) {
 			this.backlog.add(new Message(publisher, 0, 0), 0);
 		}

@@ -226,6 +226,8 @@ export interface Objectives {
   latencyP99Ms?: number | null;
   availability?: number | null;
   minThroughputRps?: number | null;
+  /** Schema 1.10+: the p95 age of a message when processed, at the design's slowest queue (ms). */
+  messageAgeP95Ms?: number | null;
 }
 
 export interface OverrideTarget {
@@ -280,7 +282,7 @@ export interface HostSpec {
 }
 
 export interface ArchitectureDocument {
-  schemaVersion: "1.0" | "1.1" | "1.2" | "1.3" | "1.4" | "1.5" | "1.6" | "1.7" | "1.8" | "1.9";
+  schemaVersion: "1.0" | "1.1" | "1.2" | "1.3" | "1.4" | "1.5" | "1.6" | "1.7" | "1.8" | "1.9" | "1.10";
   kind: "archsim.architecture";
   metadata: DocMetadata;
   /** false: empty CPU/memory/storage specs are not modelled (default: auto-sized by the engine).
@@ -516,6 +518,11 @@ export interface RunSummary {
   p50: number | null;
   p95: number | null;
   p99: number | null;
+  /** A design with a queue (ADR-0084): its lost messages, its availability counting the requests that lost one, and
+   * the slowest queue's p95 message age. */
+  lostMessages?: number;
+  availability?: number | null;
+  messageAgeP95Ms?: number | null;
   bottleneck: string | null;
   bottleneckNodeId: string | null;
 }
@@ -619,6 +626,12 @@ export interface ReportSummary {
   failureBreakdown: FailureRow[];
   /** What each client group experienced (one entry per client part). Missing in reports before 1.2. */
   clients?: ClientGroupReport[];
+  /** A design with a queue (report 1.19+, ADR-0084): the messages its queues lost, dead-lettered or dropped. */
+  lostMessages?: number;
+  /** The share of requests that succeeded and whose messages were not lost, which availability objectives judge. */
+  availability?: number | null;
+  /** The p95 age of a message when processed, at the slowest queue. */
+  messageAgeP95Ms?: number | null;
   accounting: {
     warmup: CohortCounts;
     measured: CohortCounts;

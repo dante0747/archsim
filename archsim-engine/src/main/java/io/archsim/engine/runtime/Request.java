@@ -26,6 +26,8 @@ public final class Request {
 
 	private final @Nullable List<Span> trace;
 
+	private final RequestFate fate;
+
 	private boolean abandoned;
 
 	private int depth;
@@ -38,36 +40,48 @@ public final class Request {
 	 */
 	private @Nullable Map<String, Double> refusals;
 
-	private Request(Arrival arrival, @Nullable List<Span> trace) {
+	private Request(Arrival arrival, @Nullable List<Span> trace, RequestFate fate) {
 		this.arrival = arrival;
 		this.trace = trace;
+		this.fate = fate;
 	}
 
 	/**
 	 * A user request as it arrives, its steps recorded.
 	 * @param arrival what it asks and when
+	 * @param losses where the run counts the requests that lost a message
 	 * @return the request, at depth 0
 	 */
-	public static Request withTrace(Arrival arrival) {
-		return new Request(arrival, new ArrayList<>());
+	public static Request withTrace(Arrival arrival, MessageLosses losses) {
+		return new Request(arrival, new ArrayList<>(), new RequestFate(losses, arrival.measured()));
 	}
 
 	/**
 	 * A user request as it arrives, its steps not recorded.
 	 * @param arrival what it asks and when
+	 * @param losses where the run counts the requests that lost a message
 	 * @return the request, at depth 0
 	 */
-	public static Request withoutTrace(Arrival arrival) {
-		return new Request(arrival, null);
+	public static Request withoutTrace(Arrival arrival, MessageLosses losses) {
+		return new Request(arrival, null, new RequestFate(losses, arrival.measured()));
 	}
 
 	/**
-	 * A new attempt of this request: the same arrival and trace, from depth 0, not given
-	 * up on.
+	 * A new attempt of this request: the same arrival, trace and fate, from depth 0, not
+	 * given up on.
 	 * @return the attempt
 	 */
 	public Request attempt() {
-		return new Request(this.arrival, this.trace);
+		return new Request(this.arrival, this.trace, this.fate);
+	}
+
+	/**
+	 * What became of the user request beyond its answer, which its attempts and the
+	 * messages it published share (ADR-0084).
+	 * @return its fate
+	 */
+	public RequestFate fate() {
+		return this.fate;
 	}
 
 	/**
@@ -81,7 +95,7 @@ public final class Request {
 	public Request delivered(double publishedAt, int depth) {
 		Arrival published = new Arrival(this.arrival.id(), this.arrival.operation(), this.arrival.key(), publishedAt,
 				this.arrival.measured());
-		Request delivered = new Request(published, this.trace);
+		Request delivered = new Request(published, this.trace, this.fate);
 		delivered.depth = depth;
 		return delivered;
 	}

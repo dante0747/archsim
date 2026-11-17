@@ -68,6 +68,7 @@ public final class ReportWriter {
 		report.set("summary", summary);
 		report.set("timeseries", timeseries(run));
 		ArrayNode nodes = this.parts.nodes(run);
+		MessageFigures.write(summary, nodes, run.context().messageLosses());
 		report.set("nodes", nodes);
 		report.set("edges", this.parts.edges(run));
 		HostSummary.of(run).ifPresent((host) -> report.set("host", host));

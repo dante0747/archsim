@@ -401,10 +401,11 @@ export function editorTools(): AgentTool[] {
           latencyP99Ms: { type: ["number", "null"] },
           availability: { type: ["number", "null"], minimum: 0, maximum: 1 },
           minThroughputRps: { type: ["number", "null"] },
+          messageAgeP95Ms: { type: ["number", "null"], description: "p95 age of a message when processed, at the slowest queue (ms)" },
         },
       },
       execute: async (input) => {
-        const keys = ["latencyP95Ms", "latencyP99Ms", "availability", "minThroughputRps"] as const;
+        const keys = ["latencyP95Ms", "latencyP99Ms", "availability", "minThroughputRps", "messageAgeP95Ms"] as const;
         const patch = Object.fromEntries(keys.filter((k) => input[k] !== undefined).map((k) => [k, input[k]]));
         ed().setObjectives(patch, "agent-objectives");
         return { objectives: ed().objectives, summary: "changed the objectives" };

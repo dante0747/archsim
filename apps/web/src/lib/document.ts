@@ -79,15 +79,25 @@ export interface DocExtras {
   pricing?: Pricing | null;
 }
 
-export const SCHEMA_VERSION = "1.9";
+export const SCHEMA_VERSION = "1.10";
+
+/** Whether a schema version is older than another: as tuples of integers, so 1.10 is newer than 1.9. */
+export function schemaBefore(version: string, than: string): boolean {
+  const parts = (v: string) => v.split(".").map((p) => Number.parseInt(p, 10) || 0);
+  const [a, b] = [parts(version), parts(than)];
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) < (b[i] ?? 0);
+  }
+  return false;
+}
 
 /**
  * A design from before schema 1.9 as 1.9 reads it: a third-party API's price per million calls of 0 is left unset,
  * for a saved design wrote the old default out (the model's upgrade step `UnsetApiPrices`, ADR-0081), unless the
- * design's provenance says a person stated it. A 1.9 design, and every other setting, is kept as it is.
+ * design's provenance says a person stated it. A design of 1.9 or later, and every other setting, is kept as it is.
  */
 export function withUnsetApiPrices(doc: ArchitectureDocument): ArchitectureDocument {
-  if (doc.schemaVersion === SCHEMA_VERSION) return doc;
+  if (!schemaBefore(doc.schemaVersion, "1.9")) return doc;
   const stated = (id: string) => {
     const kind = doc.provenance?.[`nodes/${id}/costPerMillionRequests`]?.kind;
     return kind != null && kind !== "illustrative";

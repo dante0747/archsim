@@ -10,7 +10,7 @@ import { TierBadge } from "@/components/ui/TierBadge";
 import { SignOffPanel } from "@/components/team/SignOff";
 import { costLeftOut, formatUsd, lineMonthlyText, linePriceLabel, monthText, peakCount, peakHour, priceSource } from "@/lib/cost";
 import { fmtPct, fmtRps } from "@/lib/format";
-import { type SloCheck, type SloKey, evaluateSlo, formatSloValue, sloChecks } from "@/lib/slo";
+import { type SloCheck, type SloKey, evaluateSlo, formatSloValue, objectiveKeys, sloChecks } from "@/lib/slo";
 import type { Objectives, Report } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useDecide } from "@/store/decide";
@@ -37,9 +37,22 @@ const OBJECTIVE_META: Record<SloKey, { field: keyof Objectives; label: string; u
     placeholder: "99.9",
   },
   throughput: { field: "minThroughputRps", label: "Throughput", unit: "req/s", hint: "successful requests per second", toInput: (v) => v, fromInput: (v) => v, placeholder: "500" },
+  messageAge: {
+    field: "messageAgeP95Ms",
+    label: "Message age p95",
+    unit: "s",
+    hint: "how old a message is when processed, at the slowest queue",
+    toInput: (v) => v / 1000,
+    fromInput: (v) => Math.round(v * 1000),
+    placeholder: "10",
+  },
 };
 
-const ORDER: SloKey[] = ["p95", "p99", "availability", "throughput"];
+/** The objectives this design is judged by: a message's age too when it has a queue (ADR-0084). */
+function useObjectiveKeys(objectives: Objectives): SloKey[] {
+  const hasQueue = useEditor((s) => s.nodes.some((n) => n.data.type === "message_queue"));
+  return objectiveKeys(hasQueue, objectives);
+}
 
 function validObjective(key: SloKey, v: number): string | null {
   if (!Number.isFinite(v)) return "Enter a number";
@@ -305,6 +318,7 @@ function Stat({ label, value, source, note }: { label: string; value: string; so
 /** Results → Answer: does the design hold up, why, and what to fix first. */
 export function AnswerPage() {
   const objectives = useEditor((s) => s.objectives);
+  const objectiveOrder = useObjectiveKeys(objectives);
   const select = useEditor((s) => s.select);
   const setDetailsView = useDecide((s) => s.setDetailsView);
   const followRun = useRuns((s) => s.runs.find((r) => r.id === s.followRunId) ?? null);
@@ -335,7 +349,7 @@ export function AnswerPage() {
           </EmptyPanel>
         )}
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {ORDER.map((k) => (
+          {objectiveOrder.map((k) => (
             <ObjectiveTile key={k} k={k} check={undefined} objectives={objectives} />
           ))}
         </div>
@@ -426,7 +440,7 @@ export function AnswerPage() {
       <section aria-label="Objectives">
         <h3 className="mb-3 text-[15px] font-semibold text-ink">Objectives</h3>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {ORDER.map((k) => (
+          {objectiveOrder.map((k) => (
             <ObjectiveTile key={k} k={k} check={checks.find((c) => c.key === k)} objectives={objectives} />
           ))}
         </div>

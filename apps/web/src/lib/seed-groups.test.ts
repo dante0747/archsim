@@ -39,6 +39,15 @@ describe("seed ranges", () => {
     expect(r.p95).toEqual({ min: 98.2, max: 131, median: 104.4 });
   });
 
+  it("judges a design with a queue by its lost messages and its messages' age, as the engine does", () => {
+    const queued = (seed: number, availability: number, messageAgeP95Ms: number) => ({
+      ...seedRun(seed, 90),
+      summary: { ...summary(90), lostMessages: 3, availability, messageAgeP95Ms },
+    });
+    const r = seedRange([queued(1, 0.99, 2000), queued(2, 1, 21000)], { ...OBJ, messageAgeP95Ms: 10000 });
+    expect([r.met, r.missed, r.verdict]).toEqual([0, 2, "fails"]);
+  });
+
   it("agrees, fails, waits for unfinished runs and works without objectives", () => {
     const holds = seedRange([seedRun(7, 90), seedRun(8, 90)], OBJ);
     expect(holds.verdict).toBe("holds");

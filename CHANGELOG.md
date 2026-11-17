@@ -42,6 +42,14 @@ Results that agree with themselves and with the design, after a review of the li
   busiest instance 35% CPU busy at the 303 req/s the run sent it (simulated 33%; 56% at the
   480 req/s peak)", CPU busy "16% · busiest 33%" and a ceiling of 927 req/s. The dashboard's
   "CPU utilization" panel, which plots the share of a part's own work, is "Own processing".
+- **Asynchronous designs are judged by their messages too (engine 1.4.0, schema 1.10, report 1.19,
+  [ADR-0084](docs/adr/0084-judge-asynchronous-designs-by-their-messages-too.md)).** A new
+  objective, `messageAgeP95Ms`, judges how old a message is when processed at the design's slowest
+  queue, and a run with queues reports its `lostMessages` (dead-lettered or dropped) and an
+  `availability` that counts a request that lost one as failed, which the availability objective
+  now judges. The asynchronous templates set a freshness target: the Kafka order pipeline, whose
+  orders wait 21.0 s (p95) for a consumer, now reads "No, it doesn't hold up" against its 10 s,
+  where it said "Yes, it holds up".
 - **Advice after a cache's outage asks only for what is missing.** The suggested fix names the
   fallback settings the cache's callers lack; when they already carry on and read the database
   on a miss, it asks for capacity for the fallback's reads, or a replicated cache, where it told

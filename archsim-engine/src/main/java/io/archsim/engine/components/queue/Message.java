@@ -118,6 +118,14 @@ final class Message {
 	}
 
 	/**
+	 * Notes that the message was lost, dead-lettered: its publisher's request lost a
+	 * message (ADR-0084).
+	 */
+	void lost() {
+		this.publisher.fate().lostAMessage();
+	}
+
+	/**
 	 * A consumer's hold on a message, compared by identity.
 	 */
 	static final class Lease {

@@ -8,6 +8,7 @@ import io.archsim.engine.metrics.Timeline;
 import io.archsim.engine.numeric.FloorDivision;
 import io.archsim.engine.random.PythonRandom;
 import io.archsim.engine.random.ZipfSampler;
+import io.archsim.engine.runtime.MessageLosses;
 import io.archsim.engine.runtime.Request;
 import io.archsim.engine.runtime.RuntimeComponent;
 import io.archsim.engine.runtime.SimContext;
@@ -51,6 +52,8 @@ final class Arrivals {
 
 	private final long traceEvery;
 
+	private final MessageLosses losses;
+
 	private long sent;
 
 	private double next;
@@ -63,6 +66,7 @@ final class Arrivals {
 	 */
 	Arrivals(SimContext context, Workload workload, ClientPicker clients) {
 		this.simulation = context.simulation();
+		this.losses = context.messageLosses();
 		this.workload = workload;
 		this.timeline = context.timeline();
 		this.clients = clients;
@@ -158,8 +162,8 @@ final class Arrivals {
 		int key = this.keys.getAsInt();
 		double now = this.simulation.now();
 		Request.Arrival arrival = new Request.Arrival(this.sent, operation, key, now, this.timeline.inWindow(now));
-		Request request = (this.sent % this.traceEvery == 0) ? Request.withTrace(arrival)
-				: Request.withoutTrace(arrival);
+		Request request = (this.sent % this.traceEvery == 0) ? Request.withTrace(arrival, this.losses)
+				: Request.withoutTrace(arrival, this.losses);
 		TrafficSourceRuntime source = this.clients.next();
 		this.simulation.start((finish) -> source.submit(request, finish));
 	}

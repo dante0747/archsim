@@ -55,7 +55,10 @@ public final class Upgrades {
 					"1.9 lets a third-party API's costPerMillionRequests be left unset (its technology preset's"
 							+ " price, else not priced); a saved design wrote the old default of 0, so a 0 is left"
 							+ " unset",
-					new UnsetApiPrices()));
+					new UnsetApiPrices()),
+			Upgrade.additive("1.9", "1.10",
+					"1.10 adds objectives.messageAgeP95Ms (empty by default: no objective judges how old a"
+							+ " message is when processed, as before)"));
 
 	private static final String CURRENT = ArchitectureDocument.SCHEMA_VERSION;
 
