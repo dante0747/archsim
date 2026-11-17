@@ -166,6 +166,22 @@ Each cost line has a `priceSource`; the first that applies wins:
    line is priced this way the estimate's notes say so, also next to snapshot lines.
 5. **`default`**: the catalog default.
 
+A third-party API is priced per call, by `costPerMillionRequests` (schema 1.9, ADR-0081):
+
+1. **`set`**: a price set on the part, by the rule for `costPerHour` above: one no preset of its
+   technology has, or one whose provenance is `measured` or `assumed`. 0 is a price: a free API.
+2. **`preset`**: a technology preset's illustrative price, written on the part (as adding the
+   Email API preset writes its $1,000 a million calls) or, left empty, the first preset of its
+   technology that has one (the SMS API's $7,500); a note names the preset and asks for your
+   provider's price.
+3. **None**: left empty with no such preset (a generic, payments or identity API), the API is not
+   priced. Its line has no unit price, the cost lists it in `unpriced`, a note says the month
+   leaves it out, and the app marks the total.
+
+Before schema 1.9 the price defaulted to 0 and a saved design wrote it out, so the upgrade reads an
+API's price of 0 from an older design as unset, unless the design's provenance says a person
+stated it: type 0 again for an API that is free.
+
 ## Snapshots
 
 A snapshot is a JSON file in `archsim-model/src/main/resources/io/archsim/model/pricing/snapshots/`

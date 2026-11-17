@@ -186,8 +186,10 @@ class SizingAuditTests {
 		references.put("flash-sale-order-flow", 1391.0);
 		// ring: Cassandra on full cores (c6g.medium), not a 1-GiB t4g
 		references.put("iot-cassandra-quorum", 768.0);
-		// db: 3.13 cores at the peak, 8 vCPU (4 would run 78%)
-		references.put("kafka-order-pipeline", 1610.0);
+		// db: 3.13 cores at the peak, 8 vCPU (4 would run 78%): $1,610 of parts; the
+		// e-mail API's 55.1 calls/s at the base, 144.92 M a month at Amazon SES's $100 a
+		// million calls, $14,492
+		references.put("kafka-order-pipeline", 16101.0);
 		references.put("kubernetes-pods-pending", 232.0);
 		references.put("kubernetes-shared-pool", 845.0);
 		// nearly all third-party LLM calls at the base load

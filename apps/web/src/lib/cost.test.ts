@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import catalogJson from "@/test/fixtures/catalog.json";
 import type { PricingSource } from "@/lib/api";
 import type { Catalog, CostEstimate, NodeCost } from "@/lib/types";
-import { formatUsd, monthText, paretoFrontier, peakCount, peakHour, priceOrigin, priceSource, snapshotInUse } from "./cost";
+import { costLeftOut, formatUsd, lineMonthlyText, linePriceLabel, monthText, paretoFrontier, peakCount, peakHour, priceOrigin, priceSource, snapshotInUse } from "./cost";
 
 const catalog = catalogJson as unknown as Catalog;
 
@@ -134,9 +134,95 @@ describe("priceSource", () => {
   });
   it("calls generic rates illustrative, and the user's own prices theirs", () => {
     expect(priceSource({ rates: { kind: "illustrative" }, pricing: generic, byNode: [line("api", "size")] })).toMatchObject({ label: "illustrative rates", illustrative: true });
-    expect(priceSource({ rates: { kind: "illustrative" }, pricing: generic, byNode: [line("api", "set")] }).label).toBe("your prices");
+    expect(priceSource({ rates: { kind: "illustrative" }, pricing: generic, byNode: [line("api", "set")] }).label).toBe("prices set on the parts");
     // reports from before price sources were recorded
     expect(priceSource({ byNode: [] }).label).toBe("illustrative rates");
     expect(priceSource(null).label).toBe("illustrative rates");
+  });
+});
+
+describe("costLeftOut", () => {
+  const api = (id: string, label: string): NodeCost => ({
+    id,
+    label,
+    type: "external_api",
+    technology: "generic",
+    instances: 0,
+    unitPrice: null,
+    priceSource: null,
+    unit: "million",
+    monthly: 0,
+    basis: "55.1 calls/s at the base load",
+  });
+  it("names the part the month leaves out for want of a price (engine 1.2+, ADR-0081)", () => {
+    expect(costLeftOut({ unpriced: ["mail"], byNode: [api("mail", "E-mail API")] })).toBe("leaves out E-mail API (no price)");
+  });
+  it("counts the parts when it leaves out more than one", () => {
+    expect(costLeftOut({ unpriced: ["a", "b"], byNode: [api("a", "A"), api("b", "B")] })).toBe("leaves out 2 parts with no price: A, B");
+  });
+  it("has nothing to say when every part is priced, or the report predates the list", () => {
+    expect(costLeftOut({ unpriced: [], byNode: [] })).toBeNull();
+    expect(costLeftOut({ byNode: [] })).toBeNull();
+    expect(costLeftOut(null)).toBeNull();
+  });
+});
+
+describe("linePriceLabel", () => {
+  const base: NodeCost = {
+    id: "mail",
+    label: "E-mail API",
+    type: "external_api",
+    technology: "email",
+    instances: 0,
+    unitPrice: 100,
+    priceSource: "set",
+    unit: "million",
+    monthly: 14491.8,
+    basis: "55.1 calls/s at the base load",
+  };
+  it("says a price set on a part is the design's, not the viewer's", () => {
+    expect(linePriceLabel(base)).toEqual({ text: "set on the part", title: "A price set on this part in the design" });
+  });
+  it("names the preset an API's price per call is from", () => {
+    expect(linePriceLabel({ ...base, unitPrice: 1000, priceSource: "preset" })).toEqual({
+      text: "preset price",
+      title: "The email preset's illustrative price per million calls: set your provider's price on the part",
+    });
+  });
+  it("keeps the snapshot's word for a preset's price per hour", () => {
+    expect(linePriceLabel({ ...base, unit: "hour", priceSource: "preset" })?.title).toBe(
+      "The technology preset's illustrative price: choose a price snapshot to price it as an instance type",
+    );
+  });
+  it("says an API without a price is not priced", () => {
+    expect(linePriceLabel({ ...base, unitPrice: null, priceSource: null })).toEqual({
+      text: "not priced",
+      title: "No price per million calls set, and no preset price for its technology: the month leaves it out",
+    });
+  });
+});
+
+describe("lineMonthlyText", () => {
+  const line = (unitPrice: number | null, monthly: number): NodeCost => ({
+    id: "x",
+    label: "X",
+    type: "external_api",
+    technology: null,
+    instances: 0,
+    unitPrice,
+    priceSource: null,
+    unit: "million",
+    monthly,
+    basis: "",
+  });
+  it("says a part the month leaves out is not priced", () => {
+    expect(lineMonthlyText(line(null, 0), { unpriced: ["x"] })).toBe("not priced");
+  });
+  it("prices a line priced by its items, though it has no single unit price", () => {
+    expect(lineMonthlyText(line(null, 38.2), {})).toBe("$38.20");
+  });
+  it("shows a dash for a part priced elsewhere, and a free part's $0", () => {
+    expect(lineMonthlyText(line(null, 0), {})).toBe("–");
+    expect(lineMonthlyText(line(0, 0), {})).toBe("$0.00");
   });
 });

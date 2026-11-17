@@ -17,14 +17,20 @@ import io.archsim.model.document.ArchitectureDocument;
  * moved on from 1.7, the one the frozen engine wrote, and how it is compared all the
  * same. Schema 1.8 adds {@code workload.peakHoursPerMonth} (ADR-0074), left out of a
  * document while it is 0, so a document differs from the frozen engine's by its version
- * alone.
+ * alone. Schema 1.9 lets a third-party API's price per million calls be left unset
+ * (ADR-0081), where 1.7's defaulted to 0: compared with the frozen engine's output, the
+ * Java's reads as it where that output records the price as 0
+ * ({@link ApiPriceDepartures}).
  * <ul>
  * <li>A document the frozen engine was given (a parameter named {@code doc},
- * {@code document} or {@code resolved}, or a report's design) is given to the Java at
- * 1.8: a 1.7 document is a 1.8 one that leaves the hours out.</li>
- * <li>A document's {@code schemaVersion} of 1.8 reads 1.7, and so does the schema's own
+ * {@code document} or {@code resolved}, or a report's design) is given to the Java at 1.9
+ * as it was written: a 1.7 document is a 1.9 one that leaves the hours out, and its API
+ * prices of 0 stay prices of 0, as the frozen engine read them (the upgrade to 1.9 leaves
+ * them unset, for a saved design wrote the old default out; the golden files' documents
+ * were written as they stand).</li>
+ * <li>A document's {@code schemaVersion} of 1.9 reads 1.7, and so does the schema's own
  * version.</li>
- * <li>The upgrade from 1.7 to 1.8 leaves no note.</li>
+ * <li>The upgrades from 1.7 to 1.8 and from 1.8 to 1.9 leave no note.</li>
  * <li>A message that names the supported schema names 1.7.</li>
  * <li>The JSON Schema leaves {@code peakHoursPerMonth} out and names 1.7, and so does the
  * catalog's list of workload settings.</li>
@@ -41,7 +47,9 @@ public final class SchemaDepartures {
 
 	private static final String ADDED = "peakHoursPerMonth";
 
-	private static final String UPGRADE_NOTE = "migrated schema " + RECORDED + " -> " + CURRENT;
+	/** The notes of the upgrades from the recorded schema to the current one. */
+	private static final Set<String> UPGRADE_NOTES = Set.of("migrated schema 1.7 -> 1.8",
+			"migrated schema 1.8 -> " + CURRENT);
 
 	/** The messages that name the supported schema, up to where they name it. */
 	private static final Pattern NAMES_THE_SCHEMA = Pattern
@@ -85,6 +93,17 @@ public final class SchemaDepartures {
 			copy.set("input", asCurrent(copy.path("input")));
 		}
 		return copy;
+	}
+
+	/**
+	 * The Java's output as the frozen engine would have written it at schema 1.7, its API
+	 * prices read as the frozen engine's output of the same call records them.
+	 * @param java the Java's output, which is not changed
+	 * @param python the frozen engine's output
+	 * @return a copy of it, its schema's departures put back
+	 */
+	public static JsonNode asRecorded(JsonNode java, JsonNode python) {
+		return asRecorded(ApiPriceDepartures.asRecorded(java, python));
 	}
 
 	/**
@@ -161,7 +180,7 @@ public final class SchemaDepartures {
 	}
 
 	private static boolean isUpgradeNote(JsonNode item, @Nullable String key) {
-		return "notes".equals(key) && UPGRADE_NOTE.equals(item.stringValue(""));
+		return "notes".equals(key) && UPGRADE_NOTES.contains(item.stringValue(""));
 	}
 
 	private static boolean isAddedSetting(JsonNode item, @Nullable String key) {

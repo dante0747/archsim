@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import catalogJson from "@/test/fixtures/catalog.json";
 import starterJson from "@/test/fixtures/starter.json";
-import { defaultEdgeConfig, edgeSourcePort, fromDocument, getPath, setPath, sideHandle, sideOf, slugify, toDocument, uniqueId } from "./document";
+import { defaultEdgeConfig, edgeSourcePort, fromDocument, getPath, setPath, sideHandle, sideOf, slugify, toDocument, uniqueId, withUnsetApiPrices } from "./document";
 import { convertDistribution, describeDistribution, isDistribution, meanOf, validateDistribution } from "./distributions";
 import type { ArchitectureDocument, Catalog } from "./types";
 
@@ -104,5 +104,35 @@ describe("distributions", () => {
     expect(isDistribution({ kind: "constant" })).toBe(false);
     expect(isDistribution({ kind: "constant", value: 1 })).toBe(true);
     expect(isDistribution({ kind: "burst", burstRps: 1, startS: 1, durationS: 1 })).toBe(false);
+  });
+});
+
+describe("withUnsetApiPrices", () => {
+  const design = (schemaVersion: string, price: number) =>
+    ({
+      schemaVersion,
+      kind: "archsim.architecture",
+      metadata: { name: "d" },
+      architecture: {
+        nodes: [
+          { id: "mail", type: "external_api", label: "Mail", config: { costPerMillionRequests: price } },
+          { id: "api", type: "service", label: "API", config: { costPerMillionRequests: 0 } },
+        ],
+        edges: [],
+      },
+      workload: {},
+    }) as unknown as ArchitectureDocument;
+  it("reads an older design's API price of 0 as unset, as the model's upgrade to 1.9 does", () => {
+    const doc = withUnsetApiPrices(design("1.8", 0));
+    expect(doc.architecture.nodes[0].config).toEqual({});
+    expect(doc.architecture.nodes[1].config).toEqual({ costPerMillionRequests: 0 });
+  });
+  it("keeps a 0 the design's provenance says a person stated", () => {
+    const doc = { ...design("1.8", 0), provenance: { "nodes/mail/costPerMillionRequests": { kind: "assumed" } } } as unknown as ArchitectureDocument;
+    expect(withUnsetApiPrices(doc).architecture.nodes[0].config).toEqual({ costPerMillionRequests: 0 });
+  });
+  it("keeps a price that is not 0, and any price in a 1.9 design", () => {
+    expect(withUnsetApiPrices(design("1.8", 100)).architecture.nodes[0].config).toEqual({ costPerMillionRequests: 100 });
+    expect(withUnsetApiPrices(design("1.9", 0)).architecture.nodes[0].config).toEqual({ costPerMillionRequests: 0 });
   });
 });

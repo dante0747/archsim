@@ -3,7 +3,7 @@
  * objectives, what it costs, and what to look at. Meant to be pasted into a design doc or PR.
  */
 import { CONFIDENCE_LABEL, KIND_LABEL, compareEstimate, countsText } from "./confidence";
-import { formatUsd, peakHour, priceSource } from "./cost";
+import { costLeftOut, formatUsd, lineMonthlyText, peakHour, priceSource } from "./cost";
 import { replayVerdict } from "./document";
 import { type SeedRun, seedCappedConfidence, seedResultLines, seedSummaryLines } from "./report-md-seeds";
 import { isDistribution, shortDistribution } from "./distributions";
@@ -119,8 +119,9 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
     lines.push(`- **${CONFIDENCE_LABEL[confidence.level]}${scope}:** ${confidence.reason}. To raise it: ${confidence.howToRaise}`);
   }
   if (cost?.hasCost) {
+    const leftOut = costLeftOut(cost);
     lines.push(
-      `- **Estimated cost:** ${formatUsd(cost.monthly)} per month${cost.perMillionRequests != null ? `, ${formatUsd(cost.perMillionRequests)} per million successful requests` : ""} (prices: ${priceSource(cost).label}).`,
+      `- **Estimated cost:** ${formatUsd(cost.monthly)} per month${cost.perMillionRequests != null ? `, ${formatUsd(cost.perMillionRequests)} per million successful requests` : ""} (prices: ${priceSource(cost).label}${leftOut ? `; ${leftOut}` : ""}).`,
     );
   }
   if (sweep?.verdict && sweep.rows.length) lines.push(`- **Capacity:** ${sweep.verdict}`);
@@ -258,6 +259,7 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
 
   // ---- cost ---------------------------------------------------------------------------------
   if (cost?.hasCost) {
+    const leftOut = costLeftOut(cost);
     lines.push("## Cost estimate", "");
     lines.push(
       table(
@@ -266,15 +268,15 @@ export function decisionReportMarkdown(input: DecisionReportInput): string {
           c.label,
           c.basis,
           c.unitPrice == null
-            ? "not set"
+            ? (cost.unpriced?.includes(c.id) ? "not priced" : "–")
             : c.unit === "hour"
               ? `${formatUsd(c.unitPrice)}/instance-hour${c.priceSource === "size" ? " (from size)" : c.priceSource === "preset" ? " (preset, illustrative)" : ""}${c.sku ? ` (${c.sku}, prices of ${c.snapshotDate ?? "?"})` : ""}`
-              : `${formatUsd(c.unitPrice)}/million calls`,
-          formatUsd(c.monthly),
+              : `${formatUsd(c.unitPrice)}/million calls${c.priceSource === "preset" ? " (preset, illustrative)" : c.priceSource === "set" ? " (set on the part)" : ""}`,
+          lineMonthlyText(c, cost),
         ]),
       ),
       "",
-      `Total ${formatUsd(cost.monthly)} per month (730 hours).${cost.perMillionRequests != null ? ` ${formatUsd(cost.perMillionRequests)} per million successful requests.` : ""}${peakHourText(cost)} Prices: ${priceSource(cost).detail}`,
+      `Total ${formatUsd(cost.monthly)} per month (730 hours)${leftOut ? `; it ${leftOut}` : ""}.${cost.perMillionRequests != null ? ` ${formatUsd(cost.perMillionRequests)} per million successful requests.` : ""}${peakHourText(cost)} Prices: ${priceSource(cost).detail}`,
       "",
     );
     for (const n of cost.notes) lines.push(`> ${n}`);

@@ -79,7 +79,27 @@ export interface DocExtras {
   pricing?: Pricing | null;
 }
 
-export const SCHEMA_VERSION = "1.8";
+export const SCHEMA_VERSION = "1.9";
+
+/**
+ * A design from before schema 1.9 as 1.9 reads it: a third-party API's price per million calls of 0 is left unset,
+ * for a saved design wrote the old default out (the model's upgrade step `UnsetApiPrices`, ADR-0081), unless the
+ * design's provenance says a person stated it. A 1.9 design, and every other setting, is kept as it is.
+ */
+export function withUnsetApiPrices(doc: ArchitectureDocument): ArchitectureDocument {
+  if (doc.schemaVersion === SCHEMA_VERSION) return doc;
+  const stated = (id: string) => {
+    const kind = doc.provenance?.[`nodes/${id}/costPerMillionRequests`]?.kind;
+    return kind != null && kind !== "illustrative";
+  };
+  const nodes = doc.architecture.nodes.map((n) => {
+    if (n.type !== "external_api" || n.config?.costPerMillionRequests !== 0 || stated(n.id)) return n;
+    const config = { ...n.config };
+    delete config.costPerMillionRequests;
+    return { ...n, config };
+  });
+  return { ...doc, architecture: { ...doc.architecture, nodes } };
+}
 
 /** The provenance of an input, or undefined (then it is assumed or illustrative). */
 export function provenanceOf(extras: DocExtras | undefined, path: string): InputProvenance | undefined {
@@ -188,7 +208,8 @@ export function isValidId(id: string): boolean {
   return ID_RE.test(id);
 }
 
-export function fromDocument(doc: ArchitectureDocument): GraphState & { viewport: Viewport | null } {
+export function fromDocument(design: ArchitectureDocument): GraphState & { viewport: Viewport | null } {
+  const doc = withUnsetApiPrices(design);
   const positions = doc.layout?.nodes ?? {};
   const nodes: ArchNode[] = doc.architecture.nodes.map((n, i) => ({
     id: n.id,

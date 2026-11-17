@@ -108,7 +108,7 @@ describe("editor store", () => {
     useEditor.getState().setMetadata({ name: "Renamed" });
     const doc = useEditor.getState().toDocument();
     expect(doc.metadata.name).toBe("Renamed");
-    expect(doc.schemaVersion).toBe("1.8");
+    expect(doc.schemaVersion).toBe("1.9");
   });
 });
 
@@ -123,5 +123,18 @@ describe("workload math (mirrors the engine)", () => {
     const ramp = { ...base, pattern: { kind: "ramp" as const, startRps: 0, endRps: 100 } };
     expect(rateAt(ramp, 30)).toBe(50);
     expect(expectedArrivals(ramp)).toBe(50 * 60);
+  });
+});
+
+describe("opening a project saved before schema 1.9", () => {
+  it("leaves a third-party API's saved price of 0 unset, as the API's upgrade does (ADR-0081)", () => {
+    const saved = structuredClone(starterJson) as unknown as ArchitectureDocument;
+    saved.schemaVersion = "1.8";
+    saved.architecture.nodes.push({ id: "mail", type: "external_api", label: "Mail", config: { costPerMillionRequests: 0 } });
+    useEditor.getState().load({ ...structuredClone(project), document: saved }, catalog);
+
+    const mail = useEditor.getState().nodes.find((n) => n.id === "mail")!;
+
+    expect(mail.data.config).not.toHaveProperty("costPerMillionRequests");
   });
 });

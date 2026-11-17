@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.3",
+  "schemaVersion": "1.9",
   "kind": "archsim.architecture",
   "metadata": {
     "name": "Flash sale: one hot row, two queues",
@@ -133,7 +133,7 @@
         "id": "payments",
         "type": "external_api",
         "label": "Payments API",
-        "description": null,
+        "description": "Card payments cost a share of each order (a cost of sales, not of the architecture): its price per call is set to $0, so the monthly cost covers the infrastructure only.",
         "config": {
           "technology": "payments",
           "latencyMs": {
@@ -195,7 +195,7 @@
         "id": "carrier",
         "type": "external_api",
         "label": "Carrier label API",
-        "description": null,
+        "description": "Carriers charge per shipping label (a cost of sales, not of the architecture): its price per call is set to $0, so the monthly cost covers the infrastructure only.",
         "config": {
           "technology": "generic",
           "latencyMs": {

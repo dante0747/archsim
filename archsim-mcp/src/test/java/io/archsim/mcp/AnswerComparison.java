@@ -127,7 +127,7 @@ final class AnswerComparison {
 			assertSameResource(expected.get("contents"), actual.get("contents"));
 		}
 		else {
-			assertThat(JsonDiff.differences(python, SchemaDepartures.asRecorded(java))).isEmpty();
+			assertThat(JsonDiff.differences(python, SchemaDepartures.asRecorded(java, python))).isEmpty();
 		}
 	}
 
@@ -144,7 +144,7 @@ final class AnswerComparison {
 				JsonNode value = McpSession.JSON.readTree(expected);
 				assertThat(PythonJson.writeIndented(value, 1)).isEqualTo(expected);
 				JsonNode written = McpSession.JSON.readTree(actual);
-				assertThat(JsonDiff.differences(value, SchemaDepartures.asRecorded(written))).isEmpty();
+				assertThat(JsonDiff.differences(value, SchemaDepartures.asRecorded(written, value))).isEmpty();
 				assertThat(actual).isEqualTo(PythonJson.writeIndented(written, 1));
 			}
 			else {
@@ -188,7 +188,7 @@ final class AnswerComparison {
 			assertThat(ReportComparison.differences(python, java)).isEmpty();
 		}
 		else {
-			assertThat(JsonDiff.differences(python, SchemaDepartures.asRecorded(java))).isEmpty();
+			assertThat(JsonDiff.differences(python, SchemaDepartures.asRecorded(java, python))).isEmpty();
 		}
 	}
 

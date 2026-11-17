@@ -30,7 +30,8 @@ final class Descriptions {
 			+ "Empty = no limit.";
 
 	static final String COST_PER_MILLION_REQUESTS = "Price per million calls, used for cost estimates only. "
-			+ "Illustrative default.";
+			+ "Empty: the price of the technology's preset, else the API is not priced and the monthly cost "
+			+ "leaves it out. Set 0 for a free API.";
 
 	private Descriptions() {
 	}

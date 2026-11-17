@@ -14,8 +14,8 @@ import io.archsim.model.text.PythonText;
 /**
  * The upgrade chain from schema 1.0 to the current one (ADR-0023): one {@link Upgrade}
  * per version, applied in turn, as the Python engine's {@code migrate_document} does.
- * Every step so far only adds optional fields, so older documents read unchanged; the
- * chain still runs, so a future step that changes the JSON slots in.
+ * Every step up to 1.8 only adds optional fields, so older documents read unchanged; the
+ * step to 1.9 leaves a third-party API's price of 0 unset ({@link UnsetApiPrices}).
  *
  * <p>
  * A document newer than the current schema, or with no path to it, is refused with a
@@ -50,7 +50,12 @@ public final class Upgrades {
 							+ " vCPU a full core, as before)"),
 			Upgrade.additive("1.7", "1.8",
 					"1.8 adds workload.peakHoursPerMonth (0 by default: the month is billed at the base load,"
-							+ " as before)"));
+							+ " as before)"),
+			new Upgrade("1.8", "1.9",
+					"1.9 lets a third-party API's costPerMillionRequests be left unset (its technology preset's"
+							+ " price, else not priced); a saved design wrote the old default of 0, so a 0 is left"
+							+ " unset",
+					new UnsetApiPrices()));
 
 	private static final String CURRENT = ArchitectureDocument.SCHEMA_VERSION;
 

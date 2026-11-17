@@ -160,7 +160,7 @@ class ProjectsTests extends ProjectTestSupport {
 				 "metadata": {"name": "Other"}, "architecture": {"nodes": [], "edges": []}}}"""));
 
 		assertThat(saved.path("document").path("metadata").path("name").asString()).isEqualTo("Kept");
-		assertThat(saved.path("document").path("schemaVersion").asString()).isEqualTo("1.8");
+		assertThat(saved.path("document").path("schemaVersion").asString()).isEqualTo("1.9");
 	}
 
 	@Test

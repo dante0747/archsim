@@ -119,7 +119,7 @@ public final class GoldenDepartures {
 			JsonNode expected = entry.expectedOutput();
 			// a case file names an entry by its case (CaseFiles), a golden file by its
 			// place, which no departing case shares
-			JsonNode actual = SchemaDepartures.asRecorded(call.apply(entry));
+			JsonNode actual = SchemaDepartures.asRecorded(call.apply(entry), expected);
 			assertThat(JsonDiff.differences(expected, comparable(expected, actual, cost, caseOf(entry))))
 				.as("%s: the output differs from the Python engine's at", entry)
 				.isEmpty();

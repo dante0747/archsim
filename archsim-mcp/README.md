@@ -81,7 +81,13 @@ is not JSON, the schema's key order, and an export Python crashed on.
   laid it out (the writer gives each of Python's texts exactly from its value, then Java's from
   Java's), other text exactly; ADR-0058's departures are checked as they are. A report's findings
   count one request in the singular, `1 request failed`, where Python wrote `1 requests`
-  (archsim-engine's README), and `ReportComparison` reads Python's report so.
+  (archsim-engine's README), and `ReportComparison` reads Python's report so. A run of a design
+  that prices a third-party API at 0 the frozen engine's way (unset, or 0 in a design older
+  than schema 1.9) departs by its result digest, the run id taken from it, and a monthly cost
+  left empty where only that API had a price
+  ([ADR-0081](../docs/adr/0081-price-an-unset-api-at-its-preset-or-leave-it-out-of-the-month.md)):
+  `RunsPricedAtZero` learns each such run's digest and id from the answer that first names them
+  and reads later answers with Python's in their place.
 - `McpSettingsTests` checks the settings from the environment, `KeptRunsTests` the runs a session
   keeps, `ToolResultsTests` short and empty lists (the session's one list holds every template),
   `ToolRefusalTests` a document's refusal with empty ids and hints, `RequestLinesTests` the input,

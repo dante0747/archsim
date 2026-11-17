@@ -36,7 +36,7 @@ class MetaServiceTests {
 
 		assertThat(meta)
 			.extracting(Meta::version, Meta::engineVersion, Meta::schemaVersion, Meta::reportVersion, Meta::database)
-			.containsExactly(ArchsimVersion.PRODUCT, EngineVersions.ENGINE, "1.8", EngineVersions.REPORT, "postgresql");
+			.containsExactly(ArchsimVersion.PRODUCT, EngineVersions.ENGINE, "1.9", EngineVersions.REPORT, "postgresql");
 	}
 
 	@Test

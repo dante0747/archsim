@@ -8,6 +8,26 @@ for when that version changes.
 
 ## [Unreleased]
 
+Results that agree with themselves and with the design, after a review of the live demo.
+
+### Changed
+
+- **A third-party API's price says where it came from (engine 1.2.0, schema 1.9, report 1.17,
+  [ADR-0081](docs/adr/0081-price-an-unset-api-at-its-preset-or-leave-it-out-of-the-month.md)).**
+  `costPerMillionRequests` may be left empty: the API then costs its technology preset's price,
+  with a note naming the preset, else it is not priced, and the cost lists it in `unpriced` and
+  says the month leaves it out. The app marks the total ("leaves out Payments API (no price)"),
+  labels a price "set on the part", "preset price" or "not priced", and no longer says "your
+  price" for a figure nobody set, and a price that is a preset's, written on the part or not, is
+  labelled the preset's, as a part's hourly price is. The Kafka template's E-mail API bills
+  144.92 M calls a month at Amazon SES's list price, $100 a million ($14,492), where it billed
+  $0.00; the templates' other free APIs set $0 and say why. The payments and identity-provider
+  presets set no price per call.
+- Upgrading a design to schema 1.9 reads a third-party API's price of 0 as unset, unless its
+  provenance says a person stated it: saving wrote the old default of 0 out, so it cannot be told
+  from a price nobody set. The app reads a project it opens, and a file it imports, the same way.
+  Type 0 again for an API that is free.
+
 ## [1.2.0] - 2026-11-16
 
 A privacy notice for hosted servers, pages that claim only what is true, and working API docs.

@@ -122,3 +122,4 @@ what the repository shows.
 | [0078](0078-build-the-website-as-a-static-export-of-the-web-app.md) | Build archsim.io as a static export of the web app, from the repository's own docs | Accepted | 2026-11-15 |
 | [0079](0079-let-visitors-try-archsim-in-a-sandbox-without-signing-in.md) | Let visitors try ArchSim in a sandbox for a day, without signing in | Accepted | 2026-11-16 |
 | [0080](0080-host-a-public-server-from-a-compose-kit.md) | Host a public server from a Compose kit in `deploy/`, behind Caddy or a Cloudflare Tunnel | Accepted | 2026-11-16 |
+| [0081](0081-price-an-unset-api-at-its-preset-or-leave-it-out-of-the-month.md) | Price a third-party API without a price at its preset's, or leave it out of the month and say so | Accepted | 2026-11-17 |

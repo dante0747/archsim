@@ -12,6 +12,7 @@ import io.archsim.engine.cost.SnapshotLines.Billing;
 import io.archsim.engine.settings.LenientSettings;
 import io.archsim.engine.text.HalfUp;
 import io.archsim.engine.text.NumberText;
+import io.archsim.model.component.ComponentRegistry;
 import io.archsim.model.component.service.ServiceSpec;
 import io.archsim.model.pricing.PriceSnapshot;
 
@@ -46,11 +47,11 @@ final class ManagedLines {
 
 	private final DynamoDbLine dynamoDb;
 
-	ManagedLines(PriceSnapshot snapshot, DynamoDbLine dynamoDb) {
+	ManagedLines(PriceSnapshot snapshot, ComponentRegistry registry) {
 		this.snapshot = snapshot;
 		this.lines = new SnapshotLines(snapshot.snapshotDate());
 		this.rates = snapshot.rates();
-		this.dynamoDb = dynamoDb;
+		this.dynamoDb = new DynamoDbLine(snapshot, registry);
 	}
 
 	/**

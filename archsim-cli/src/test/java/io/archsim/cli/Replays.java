@@ -17,6 +17,7 @@ import tools.jackson.databind.node.ObjectNode;
 import io.archsim.cli.RecordedCases.Ran;
 import io.archsim.engine.parity.CostDepartures;
 import io.archsim.model.text.PythonJson;
+import io.archsim.parity.ApiPriceDepartures;
 import io.archsim.parity.JsonDiff;
 import io.archsim.parity.SchemaDepartures;
 
@@ -41,6 +42,8 @@ final class Replays {
 	private static final String COST = "cost";
 
 	private static final Pattern INPUT_DIGEST = Pattern.compile("inputDigest=[0-9a-f]{12}");
+
+	private static final Pattern RESULT_DIGEST = Pattern.compile("resultDigest=[0-9a-f]{12}");
 
 	private Replays() {
 	}
@@ -83,8 +86,9 @@ final class Replays {
 
 				assertThat(List.of(java.exitCode(), SchemaDepartures.asRecordedText(java.err()))).containsExactly(
 						recorded.get("exitCode").intValue(), asJavaPrints.apply(recorded.get("stderr").stringValue()));
-				assertSameText(asJavaPrints.apply(recorded.get("stdout").stringValue()), java.out());
-				assertSameFiles(recorded.path("files"), java.written(), asJavaPrints);
+				UnaryOperator<String> digests = withoutDepartingDigests(recorded.path("design"));
+				assertSameText(asJavaPrints.apply(recorded.get("stdout").stringValue()), java.out(), digests);
+				assertSameFiles(recorded.path("files"), java.written(), asJavaPrints, digests);
 			}));
 	}
 
@@ -133,16 +137,16 @@ final class Replays {
 	}
 
 	// JSON (a design, a report) by its values and Python's layout; anything else word for
-	// word, with Python's line ends
-	private static void assertSameText(String python, String java) {
+	// word, with Python's line ends, without the digests a run prints where they depart
+	private static void assertSameText(String python, String java, UnaryOperator<String> digests) {
 		String text = java.replace("\r\n", "\n");
 		if (!python.startsWith("{") && !python.startsWith("[")) {
-			assertThat(withoutInputDigest(SchemaDepartures.asRecordedText(text))).isEqualTo(withoutInputDigest(python));
+			assertThat(digests.apply(SchemaDepartures.asRecordedText(text))).isEqualTo(digests.apply(python));
 			return;
 		}
 		JsonNode expected = JSON.readTree(python);
 		JsonNode printed = JSON.readTree(text);
-		JsonNode compared = withCostAsFrozen(expected, SchemaDepartures.asRecorded(printed));
+		JsonNode compared = withCostAsFrozen(expected, SchemaDepartures.asRecorded(printed, expected));
 		// both NaN is the same value: json.dumps and Java print it alike, but the golden
 		// files' comparison, like Python's, finds NaN unequal to itself
 		assertThat(JsonDiff.differences(expected, compared))
@@ -163,11 +167,20 @@ final class Replays {
 		return copy;
 	}
 
-	// archsim run prints the digest of its input, a schema 1.8 design where Python's
-	// was 1.7 (ADR-0074), so its text is compared without it; a report written to a
-	// file checks the digest (ReportComparison)
-	private static String withoutInputDigest(String text) {
-		return INPUT_DIGEST.matcher(text).replaceAll("inputDigest=");
+	/**
+	 * Text a run printed without the digests that depart: its input's, a schema 1.9
+	 * design where Python's was 1.7 (ADR-0074, ADR-0081); and its result's for a design
+	 * that prices a third-party API at 0, which the run's parts record as unset
+	 * (ADR-0081). A report written to a file checks both digests (ReportComparison).
+	 * @param design the design the case ran
+	 * @return what leaves them out of a text
+	 */
+	private static UnaryOperator<String> withoutDepartingDigests(JsonNode design) {
+		boolean pricedAtZero = ApiPriceDepartures.pricesAnApiAtZero(design);
+		return (text) -> {
+			String without = INPUT_DIGEST.matcher(text).replaceAll("inputDigest=");
+			return pricedAtZero ? RESULT_DIGEST.matcher(without).replaceAll("resultDigest=") : without;
+		};
 	}
 
 	private static boolean isNan(JsonNode value) {
@@ -182,10 +195,11 @@ final class Replays {
 	}
 
 	private static void assertSameFiles(JsonNode recorded, Map<String, String> written,
-			UnaryOperator<String> asJavaPrints) {
+			UnaryOperator<String> asJavaPrints, UnaryOperator<String> digests) {
 		assertThat(written.keySet()).containsAll(recorded.propertyNames());
 		for (Map.Entry<String, JsonNode> file : recorded.properties()) {
-			assertSameText(asJavaPrints.apply(file.getValue().stringValue()), written.getOrDefault(file.getKey(), ""));
+			assertSameText(asJavaPrints.apply(file.getValue().stringValue()), written.getOrDefault(file.getKey(), ""),
+					digests);
 		}
 	}
 

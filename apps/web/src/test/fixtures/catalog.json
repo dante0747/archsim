@@ -4230,9 +4230,9 @@
           "key": "costPerMillionRequests",
           "label": "Cost per million calls",
           "kind": "number",
-          "nullable": false,
-          "description": "Price per million calls, used for cost estimates only. Illustrative default.",
-          "default": 0.0,
+          "nullable": true,
+          "description": "Price per million calls, used for cost estimates only. Empty: the price of the technology's preset, else the API is not priced and the monthly cost leaves it out. Set 0 for a free API.",
+          "default": null,
           "assumption": true,
           "headline": false,
           "min": 0,
@@ -4248,8 +4248,7 @@
           "median": 120.0,
           "p95": 500.0
         },
-        "errorRate": 0.001,
-        "costPerMillionRequests": 0.0
+        "errorRate": 0.001
       },
       "modeled": [
         "Response time sampled from the configured distribution",
@@ -4277,8 +4276,7 @@
               "p95": 900
             },
             "errorRate": 0.002,
-            "rateLimitRps": 100,
-            "costPerMillionRequests": 0
+            "rateLimitRps": 100
           },
           "tags": [
             "payments",
@@ -4346,8 +4344,7 @@
               "p95": 250
             },
             "errorRate": 0.0005,
-            "rateLimitRps": 200,
-            "costPerMillionRequests": 0
+            "rateLimitRps": 200
           },
           "tags": [
             "auth",

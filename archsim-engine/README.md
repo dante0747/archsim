@@ -25,7 +25,7 @@ which an ArchUnit rule checks, and the digests keep the Python engine's definiti
 ([ADR-0050](../docs/adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)).
 The app simulates on it: a calibration's replay, through `ReplaySimulator.of`, and the runs its
 worker role claims ([ADR-0053](../docs/adr/0053-simulate-runs-in-the-java-apps-worker-role.md)).
-It is engine 1.1.1, and stage 4 is done: its exit is checked off in the port plan.
+It is engine 1.2.0, and stage 4 is done: its exit is checked off in the port plan.
 
 ## Packages
 
@@ -70,7 +70,7 @@ It is engine 1.1.1, and stage 4 is done: its exit is checked off in the port pla
 | `yaml` | YAML from anyone (imported files, calibration mappings): `YamlDocuments` (read as PyYAML reads it through SnakeYAML, within the Python engine's bounds; [ADR-0043](../docs/adr/0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md)), what is wrong with a text is one of four exceptions, as Python told them apart: `InvalidYamlException` (not valid YAML), `YamlValueException` (a value Python refuses, or beyond the bounds), `YamlKeyException` (a scalar Python looks up in vain) and `YamlScalarException` (another scalar Python fails to read) |
 | `calibration` | calibration, as the Python engine's `calibration` package, deterministic but for its HTTP client (`prometheus.http`): `mapping` (`MappingLoader`: the mapping file read into a `CalibrationMapping` of each part's, link's and the workload's sources, refused in the Python engine's words without the text or its values; `TimeRange.parse`), `prometheus` (`PrometheusSeries`: a range query's series as a `Histogram`, one figure, or summed per timestamp; `RecordingPrometheus`: a client's responses kept, written as the Python engine's `RecordingPrometheus` saved them for `--recorded` to replay), `prometheus.http` (`HttpPrometheus`: range queries over HTTP, each pinned to the address it checks, under one deadline and a size cap, failing in the Python engine's words; `PrometheusServer`, the server and how it is called, and `PrometheusUrls`, what a policy asks of a URL: [ADR-0046](../docs/adr/0046-call-prometheus-with-apache-httpclient-5.md), [ADR-0057](../docs/adr/0057-move-the-prometheus-client-into-the-engine.md)), `fit` (`LatencyFits`: a histogram's or samples' latencies fitted to a lognormal or an empirical table, with the fit's error; `NormalQuantile`, Python's `NormalDist().inv_cdf`), `resources` (`CpuFits`: `cpuShare` from CPU in use against the request rate; `LoadCurves`: CPU per request against load, fitted never rising; `CurveExtensions`: how that curve continues above its top rate; `MemoryFits`: the working set against the request rate and requests held, by non-negative least squares), `otlp` (`OtlpSpans`: the spans of an OTLP JSON export; `TraceSummaries`: each service's own time, each database's reads and writes, the call graph and CPU time; `OtlpMappings`: services and databases to parts) `ReplaySummary` (the line on how well a calibrated model reproduces what was observed), and the whole calibrations: `PrometheusCalibration` (a design calibrated from a `PrometheusClient`'s range queries: `RecordedPrometheus` reads recorded responses, `Matrices` checks a response as the Python engine did) and `OtlpCalibration` (from an OTLP export, named in the result by its `OtlpRequest`'s source: `UNNAMED_SOURCE`, `OpenTelemetry traces`, for the app, and `sourceNamed(file)`, `OpenTelemetry traces file.json`, for the CLI), each giving a `CalibrationOutcome` and replaying the calibrated design through a `ReplaySimulator`, with the time it stamps from a `Clock`; a range's times are read as Python 3.12's C `datetime.fromisoformat` reads them (`IsoFormat`, checked against Python on 120,000 generated texts) |
 | `assumptions` | `AssumptionsPage`: `docs/assumptions.md`, every number ArchSim uses without the user typing it (technology tiers and defaults, preset numbers, the defaults of a new part, from the catalog the editor reads) and where each comes from, documented or illustrative; `EngineConstants`: the engine-wide constants behind sizing, prices and the component models, read from the code that uses them, each an `EngineConstant` named as the Python engine named it |
-| `version` | `ArchsimVersion`: ArchSim's own version, the release's, which the build writes from `gradle.properties` (ADR-0076). `EngineVersions`: the engine's version (1.1.1) and its reports' (1.16), which every run and `GET /meta` record; runs the Python worker stored name the frozen Python engine (0.16.0, report 1.14), runs the Java worker stored before 1.0.0 name 0.16.0 with report 1.15, runs before ADR-0074 name 1.0.0 with report 1.15, and runs from then until 1.1.1 name 1.1.0 |
+| `version` | `ArchsimVersion`: ArchSim's own version, the release's, which the build writes from `gradle.properties` (ADR-0076). `EngineVersions`: the engine's version (1.2.0) and its reports' (1.17), which every run and `GET /meta` record; runs the Python worker stored name the frozen Python engine (0.16.0, report 1.14), runs the Java worker stored before 1.0.0 name 0.16.0 with report 1.15, runs before ADR-0074 name 1.0.0 with report 1.15, runs from then until 1.1.1 name 1.1.0, and runs from then until ADR-0081 name 1.1.1 with report 1.16 |
 | `report` | reading a run's report: `RunReport` and its parts, records of what the engine reads, each read by its own `read` ([ADR-0039](../docs/adr/0039-engine-reads-reports-as-partial-records.md)); `ReportDigest`; the words a report is written with: `ModelNotes`, `FailureReason` |
 
 Where a Python function parses a node's config, the Java reads it as its type's record; where it
@@ -125,15 +125,16 @@ Java gives a result instead (the owner's decision):
   strictly; every other table is the Python's
   (`LatencyFitsTests.fitHistogram_empiricalSharesThatRoundAlike_keepTheLastOfEachSoTheTableIsValid`).
 
-A report differs from the Python engine's in nine ways, none in a result digest
-([ADR-0050](../docs/adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)):
+A report differs from the Python engine's in ten ways, which leave its result digest as Python
+defined it ([ADR-0050](../docs/adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)) and
+change its value only where the last two say:
 
-- it names its own engine, 1.1.1, where Python's named 0.16.0, so the golden files' `ENGINE_VERSION` is
+- it names its own engine, 1.2.0, where Python's named 0.16.0, so the golden files' `ENGINE_VERSION` is
   not checked (the assumptions page names the engine too, and the golden page is checked
   rendered for 0.16.0, the version its file records; the page also names the command that writes
   it, `./gradlew :archsim-engine:generate` where Python's named `scripts/gen_assumptions.py`, and
   the golden page is checked with those two lines put back to Python's);
-- it is report 1.16, where Python's were 1.14, so the golden files' `REPORT_VERSION` is not
+- it is report 1.17, where Python's were 1.14, so the golden files' `REPORT_VERSION` is not
   checked;
 - its provenance names the Java runtime (`java`, the `java.version` property) where Python's
   named `python` and `simpy`;
@@ -170,23 +171,35 @@ A report differs from the Python engine's in nine ways, none in a result digest
   Python's does, item by item, then puts Python's basis and item quantities back;
 - its findings count one request, and one refused call, in the singular (`1 request failed at
   API`, `1 client request failed because of them`, `refused 1 call`), where Python wrote
-  `1 requests`, `1 client requests` and `1 calls`. Only words change, so the engine stays at 1.1.1.
+  `1 requests`, `1 client requests` and `1 calls`. Only words change, so the engine stayed at 1.1.1.
   Some recorded simulations, two of the CLI's recorded runs and one of the MCP server's answers
   hold a count of one request (none holds one refused call): `ReportComparison` and the CLI's
   replays read Python's words through `WordingDepartures`, which puts one request in the
   singular, so the rest is still compared exactly, and `RunAnalysisTests` checks each finding with
   its count cut to one;
-- its design is schema 1.8, which adds `workload.peakHoursPerMonth` (ADR-0074) and leaves it out
-  while it is 0, so the report's `input` and `provenance` name 1.8 where Python's named 1.7, and
-  its `inputDigest`, the digest of that input, differs. The model's `SchemaDepartures` (see
-  [archsim-model's README](../archsim-model/README.md#tests)) gives the recorded documents to the
-  Java at 1.8 and reads its outputs back at 1.7. `ReportComparison` also checks that a report's
-  `inputDigest` is its input's digest, then compares the digest of that input at 1.7 with
-  Python's. The cases that read recorded documents themselves, and the calibration replays, do the
-  same.
+- a third-party API whose price the design leaves unset costs its technology preset's price, or is
+  not priced, listed in the cost's `unpriced` and a note (engine 1.2.0,
+  [ADR-0081](../docs/adr/0081-price-an-unset-api-at-its-preset-or-leave-it-out-of-the-month.md)),
+  where Python billed it at its default, 0. The recorded designs that leave it unset (black-friday's
+  payments API and the Kafka pipeline's e-mail API, and the hand-made cases with an API and no
+  price) depart. `CostDepartures`, through `ApiCostDepartures`, checks that such a line says
+  what Python's says (its rate at the base load, or the basis listed for the case), then puts
+  Python's line back and prices the month and the cost per million back by what it changed; the
+  cost's `unpriced` is left out, its `hasCost` is Python's, and its notes are Python's once the
+  Java's are shown to differ only in the notes on prices;
+- its design is schema 1.9, which adds `workload.peakHoursPerMonth` (ADR-0074) and leaves it out
+  while it is 0, and lets an API's price be left unset (ADR-0081), so the report's `input` and
+  `provenance` name 1.9 where Python's named 1.7, an unset API price is written empty where
+  Python wrote 0, and its `inputDigest` and `resultDigest` differ. The model's `SchemaDepartures`
+  (see [archsim-model's README](../archsim-model/README.md#tests)) gives the recorded documents
+  to the Java at 1.9 as they were written and reads its outputs back at 1.7, an API's price read
+  as Python's output records it where that is 0 (`ApiPriceDepartures`). `ReportComparison` also
+  checks that a report's `inputDigest` is its input's digest and its `resultDigest` its results',
+  then compares the digests of that input and those results at 1.7 with Python's. The cases that
+  read recorded documents themselves, and the calibration replays, do the same.
 
 A run comparison of a Python run and a Java run names the two engines, and their two versions
-(0.16.0 and 1.1.1), as it names any two engine versions.
+(0.16.0 and 1.2.0), as it names any two engine versions.
 
 The importers read YAML as PyYAML reads it
 ([ADR-0043](../docs/adr/0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md)), and

@@ -1,9 +1,10 @@
 # Implementation status
 
-State as of 2026-11-15 (engine 1.1.1, the Java engine: 1.0.0 reproduces the frozen engine 0.16.0
+State as of 2026-11-17 (engine 1.2.0, the Java engine: 1.0.0 reproduces the frozen engine 0.16.0
 measured on the held-out experiments, 1.1.0 changes only how the cost counts autoscaled parts
-and prices the peak, ADR-0074, and 1.1.1 where a run's per-request rates at the base load are
-measured; schema 1.8, report 1.16; the API, the engine, the CLI, the MCP server, the benchmark
+and prices the peak, ADR-0074, 1.1.1 where a run's per-request rates at the base load are
+measured, and 1.2.0 how a third-party API without a price is priced, ADR-0081; schema 1.9,
+report 1.17; the API, the engine, the CLI, the MCP server, the benchmark
 harness and the repository's tooling in Java, and no Python left but the benchmarked stacks and
 three trial records). This file separates what is implemented, how it was verified, what is
 known to be limited, and what comes next. Nothing listed under "Implemented" is a stub or a mock.

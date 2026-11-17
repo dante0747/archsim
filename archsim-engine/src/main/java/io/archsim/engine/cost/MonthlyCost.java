@@ -56,8 +56,9 @@ final class MonthlyCost {
 			monthly = FloatSum.of(lines.stream().mapToDouble(CostLine::monthly));
 		}
 		HourlyCost hourly = new HourlyCost(base.monthly() / HOURS, peak.monthly() / HOURS);
-		return new CostEstimate(monthly, month.perMillion(monthly, base, peak), peakHours, hourly, lines, base.notes(),
-				base.hasCost(), "USD", CostEstimator.HOURS_PER_MONTH, base.rates(), base.pricing());
+		return new CostEstimate(monthly, month.perMillion(monthly, base, peak), peakHours, hourly, lines,
+				base.unpriced(), base.notes(), base.hasCost(), "USD", CostEstimator.HOURS_PER_MONTH, base.rates(),
+				base.pricing());
 	}
 
 	/**

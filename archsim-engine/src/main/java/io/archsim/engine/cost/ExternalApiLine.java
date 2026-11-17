@@ -9,31 +9,26 @@ import io.archsim.engine.text.HalfUp;
 /** A third-party API, priced per call at the base load. */
 final class ExternalApiLine {
 
-	private static final String PRICE = "costPerMillionRequests";
-
 	private ExternalApiLine() {
 	}
 
 	/**
 	 * An API's line.
 	 * @param part the API
+	 * @param price its price per million calls and where it came from (ADR-0081)
 	 * @param use its usage at the base load; {@code null} when unknown
-	 * @return its line
+	 * @return its line; without a unit price when the API has none
 	 */
-	static CostLine of(CostPart part, @Nullable Usage use) {
-		Double price = part.valueNumber(PRICE);
+	static CostLine of(CostPart part, ApiPrice price, @Nullable Usage use) {
+		Double perMillion = price.perMillion();
 		Double rate = (use != null) ? use.rps() : null;
 		String basis = (rate != null) ? HalfUp.fixed(rate, 1) + " calls/s at the base load" : "per call";
-		if (price == null) {
-			return line(part, new Charge(null, null, 0.0, null), basis);
-		}
-		PriceBasis source = (part.writtenNumber(PRICE) != null) ? PriceBasis.SET : PriceBasis.DEFAULT;
-		if (rate == null) {
-			return line(part, new Charge(price, source, 0.0, null), basis);
+		if (perMillion == null || rate == null) {
+			return line(part, new Charge(perMillion, price.source(), 0.0, null), basis);
 		}
 		double calls = rate * CostEstimator.SECONDS_PER_MONTH;
-		return line(part, new Charge(price, source, calls * price / CostItem.MILLION,
-				List.of(CostItem.perMillion("calls", calls, price, "call"))), basis);
+		return line(part, new Charge(perMillion, price.source(), calls * perMillion / CostItem.MILLION,
+				List.of(CostItem.perMillion("calls", calls, perMillion, "call"))), basis);
 	}
 
 	private static CostLine line(CostPart part, Charge charge, String basis) {

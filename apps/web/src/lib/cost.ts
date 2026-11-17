@@ -47,7 +47,7 @@ export function priceSource(cost: Pick<CostEstimate, "rates" | "pricing" | "byNo
     return { label, detail, illustrative: false };
   }
   if (priced.length > 0 && priced.every((c) => c.priceSource === "set")) {
-    return { label: "your prices", detail: "Prices you set on the parts.", illustrative: false };
+    return { label: "prices set on the parts", detail: "Prices set on the parts in the design.", illustrative: false };
   }
   return {
     label: "illustrative rates",
@@ -86,6 +86,50 @@ export function monthText(cost: Pick<CostEstimate, "peakHours"> | null | undefin
 export function peakCount(line: Pick<NodeCost, "instances" | "peakInstances">): string | null {
   const peak = line.peakInstances;
   return peak != null && peak !== line.instances ? `${Math.round(peak * 10) / 10} at the peak` : null;
+}
+
+/**
+ * What the month leaves out for want of a price (engine 1.2+, ADR-0081): "leaves out E-mail API (no price)", or
+ * the count and names of several; null when it prices every part, or the report predates the list.
+ */
+export function costLeftOut(cost: Pick<CostEstimate, "unpriced" | "byNode"> | null | undefined): string | null {
+  const ids = cost?.unpriced ?? [];
+  if (!ids.length || !cost) return null;
+  const names = ids.map((id) => cost.byNode.find((c) => c.id === id)?.label ?? id);
+  return names.length === 1 ? `leaves out ${names[0]} (no price)` : `leaves out ${names.length} parts with no price: ${names.join(", ")}`;
+}
+
+/**
+ * The label beside a part's line that says where its price came from, and what it means (ADR-0081); null for a
+ * snapshot's price, which its instance type names, and a part priced from its size or the catalog default keep
+ * their own labels.
+ */
+export function linePriceLabel(line: NodeCost): { text: string; title: string } | null {
+  if (line.unitPrice == null && line.type === "external_api") {
+    return { text: "not priced", title: "No price per million calls set, and no preset price for its technology: the month leaves it out" };
+  }
+  if (line.priceSource === "set") return { text: "set on the part", title: "A price set on this part in the design" };
+  if (line.priceSource === "preset" && line.unit === "million") {
+    return {
+      text: "preset price",
+      title: `The ${line.technology ?? "technology"} preset's illustrative price per million calls: set your provider's price on the part`,
+    };
+  }
+  if (line.priceSource === "preset") {
+    return { text: "preset price", title: "The technology preset's illustrative price: choose a price snapshot to price it as an instance type" };
+  }
+  if (line.priceSource === "size") return { text: "from size", title: "No price set: priced from its CPU, memory and storage at illustrative on-demand rates" };
+  if (line.priceSource === "default") return { text: "default price", title: "The catalog's default price for this kind of part (illustrative)" };
+  return null;
+}
+
+/**
+ * A line's month: "not priced" for a part the month leaves out (ADR-0081), "–" for one priced elsewhere (a pod on its
+ * cluster's nodes), else its cost.
+ */
+export function lineMonthlyText(line: NodeCost, cost: Pick<CostEstimate, "unpriced">): string {
+  if (cost.unpriced?.includes(line.id)) return "not priced";
+  return line.unitPrice == null && line.monthly === 0 ? "–" : formatUsd(line.monthly);
 }
 
 /**

@@ -206,8 +206,12 @@ Elsewhere:
   case in Java, and `Replays` makes tests of them: the same exit code and the same text, word for
   word, or for JSON printed or written the same values (`JsonDiff`, the golden files'
   comparison), laid out as
-  `json.dumps(value, indent=2)` lays them out. A usage error is checked by its exit code. The
-  cases:
+  `json.dumps(value, indent=2)` lays them out. A run's printed digests are left out where they
+  depart: its input's always (a schema 1.9 design where Python's was 1.7), and its result's for
+  a design that prices a third-party API at 0 the frozen engine's way, which the run's parts
+  record as unset
+  ([ADR-0081](../docs/adr/0081-price-an-unset-api-at-its-preset-or-leave-it-out-of-the-month.md)).
+  A usage error is checked by its exit code. The cases:
   - `run`: a run, one without failures, one whose every call fails, a scenario with a seed of its
     own, a seed given, a seed for a design without a workload, a quick check, a report written to
     a file (compared as the simulator's recorded runs are, `ReportComparison`), an invalid design,

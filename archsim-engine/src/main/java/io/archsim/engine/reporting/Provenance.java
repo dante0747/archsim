@@ -1,7 +1,5 @@
 package io.archsim.engine.reporting;
 
-import java.util.List;
-
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -18,9 +16,6 @@ import io.archsim.model.document.ArchitectureDocument;
  * result, the work it took, and the runtime that ran it.
  */
 final class Provenance {
-
-	/** The figures the result's digest covers. */
-	private static final List<String> RESULT = List.of("summary", "timeseries", "nodes", "edges", "window");
 
 	private static final int WALL_DIGITS = 3;
 
@@ -47,9 +42,7 @@ final class Provenance {
 		ArrayNode overrides = provenance.putArray("overrides");
 		prepared.overrides().forEach((override) -> overrides.add(RecordCodec.write(override)));
 		provenance.put("inputDigest", ReportDigest.of(input));
-		ObjectNode result = Figures.NODES.objectNode();
-		RESULT.forEach((part) -> result.set(part, report.get(part)));
-		provenance.put("resultDigest", ReportDigest.of(result));
+		provenance.put("resultDigest", ReportDigest.ofResult(report));
 		provenance.put("requestsGenerated", run.clients().offered().total());
 		provenance.put("eventsProcessed", run.events());
 		provenance.put("wallSeconds", PythonRound.round(wallSeconds, WALL_DIGITS));

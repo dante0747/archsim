@@ -35,7 +35,8 @@ public final class Parity {
 		if (entry.raised()) {
 			fail("%s: the Python engine raised %s, Java returned %s", entry, entry.expectedError(), actual);
 		}
-		assertThat(JsonDiff.differences(entry.expectedOutput(), SchemaDepartures.asRecorded(actual)))
+		assertThat(JsonDiff.differences(entry.expectedOutput(),
+				SchemaDepartures.asRecorded(actual, entry.expectedOutput())))
 			.as("%s: the output differs from the Python engine's at", entry)
 			.isEmpty();
 	}

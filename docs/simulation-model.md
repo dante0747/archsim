@@ -451,7 +451,14 @@ lines list each priced quantity with its unit price (`items`: "394.20 M requests
 illustrative, so with a price snapshot the part is priced at the instance type it snaps to (or
 the snapshot's managed rate) instead; parts without either are priced from their size at
 illustrative rates. Each cost line says which (`priceSource`), see
-[pricing.md](pricing.md#which-price-a-part-gets). With a snapshot, sizes snap to its instance
+[pricing.md](pricing.md#which-price-a-part-gets). A third-party API's price per million calls
+follows the same rule (a price equal to a preset's of its technology is the preset's, unless a
+person measured or typed it) and may be left empty (schema 1.9): it then takes the price of its
+technology's first preset that has one (`preset`, with a note naming the preset), else the API is
+not priced: its line has no unit price, the cost lists it in `unpriced` and a note says the month
+leaves it out (ADR-0081). A price of 0 is a free API; before schema 1.9 a saved design wrote 0 for
+an unset price, so the upgrade reads an API's 0 from an older design as unset, unless its
+provenance says a person stated it. With a snapshot, sizes snap to its instance
 types, so the snapshot changes results too: a design pins one with `pricing.snapshotDate`, and a
 run's `input.pricing` records the one it used.
 

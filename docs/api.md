@@ -146,7 +146,7 @@ per worker (default: CPU count - 1), and the runs share the worker's heap, sized
 
 ```
 {
-  "reportVersion": "1.16",
+  "reportVersion": "1.17",
   "window":     { "warmupS", "durationS", "measuredS", "drainS", "simulatedS" },
   "summary":    { "offeredRps", "throughputRps", "successRate", "latencyMs": {p50, p95, ...},
                   "latencyWithFailuresMs", "latencyByOp", "failureBreakdown": [...],
@@ -162,7 +162,8 @@ per worker (default: CPU count - 1), and the runs share the worker's heap, sized
   "assumptions":{ "modelNotes", "technologies", "userInputs", "provenanceCounts", "calibration",
                   "components", "validationWarnings" },
   "sizing":     { "auto", "targetCpuUtilization", "nodes": { id: { "specs", "auto", "why", ... } } },
-  "cost":       { "monthly", "perMillionRequests", "byNode": [...], "notes", "hasCost", ... },
+  "cost":       { "monthly", "perMillionRequests", "byNode": [...], "unpriced"?, "notes",
+                  "hasCost", ... },
   "review":     [ { "severity", "rule", "title", "detail", "suggestion", "nodeIds", "edgeIds" } ],
   "estimate":   { "method", "atRps", "latencyMs": {mean, p95}, "busiest", "overloaded",
                   "saturationRps", "summary", "paths", "breakdown", "parts": [...], "notes" },

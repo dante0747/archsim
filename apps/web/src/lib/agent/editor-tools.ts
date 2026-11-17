@@ -89,6 +89,8 @@ export function summarizeReport(report: Report, runId: string) {
       p95Ms: round(n.summary.latencyMs?.p95 ?? null),
     })),
     costPerMonthUsd: cost?.hasCost ? Math.round(cost.monthly) : null,
+    /** Parts the monthly cost leaves out for want of a price (ADR-0081). */
+    costNotPriced: cost?.unpriced ?? [],
   };
 }
 

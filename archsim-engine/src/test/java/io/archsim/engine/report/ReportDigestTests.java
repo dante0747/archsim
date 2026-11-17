@@ -34,6 +34,18 @@ class ReportDigestTests {
 	}
 
 	@Test
+	void ofResult_aReport_isTheDigestOfItsResultAlone() {
+		ObjectNode report = (ObjectNode) JSON.readTree("""
+				{"summary": {"a": 1}, "timeseries": {}, "nodes": [], "edges": [], "window": {},
+				 "findings": [{"title": "left out"}], "cost": {"monthly": 1}}""");
+
+		String digest = ReportDigest.ofResult(report);
+
+		assertThat(digest).isEqualTo(ReportDigest.of(JSON.readTree("""
+				{"summary": {"a": 1}, "timeseries": {}, "nodes": [], "edges": [], "window": {}}""")));
+	}
+
+	@Test
 	void of_aNumberThatIsNotFinite_isRefused() {
 		ObjectNode value = JsonNodeFactory.instance.objectNode();
 		value.putArray("x").add(Double.NaN);

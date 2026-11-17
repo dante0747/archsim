@@ -15,7 +15,7 @@ import { ProvenanceBar } from "@/components/report-view/ProvenanceBar";
 import { fmtAxisMs, PERCENTILE_SERIES, TimeSeriesChart } from "@/components/results/charts";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { TooltipProvider } from "@/components/ui/misc";
-import { formatUsd, priceSource } from "@/lib/cost";
+import { costLeftOut, formatUsd, priceSource } from "@/lib/cost";
 import { fmtPct, fmtRps } from "@/lib/format";
 import type { PublicShare } from "@/lib/share-types";
 import { type ShareView, shareFindings, shareObjectives, shareVerdict } from "@/lib/share-view";
@@ -142,7 +142,7 @@ export function SharePage({ share }: { share: SharePageData }) {
               <Stat label="Success" value={fmtPct(s.successRate, s.successRate === 1 ? 0 : 1)} />
               <Stat label="Offered load" value={fmtRps(s.offeredRps)} hint="what clients sent" />
               <Stat label="Objectives met" value={verdict.slo.total ? `${verdict.slo.met}/${verdict.slo.total}` : "–"} />
-              {cost?.hasCost ? <Stat label="Per month" value={formatUsd(cost.monthly)} hint={priceSource(cost).label} /> : <Stat label="Per month" value="–" hint="no prices set" />}
+              {cost?.hasCost ? <Stat label="Per month" value={formatUsd(cost.monthly)} hint={[priceSource(cost).label, costLeftOut(cost)].filter(Boolean).join("; ")} /> : <Stat label="Per month" value="–" hint="no prices set" />}
             </dl>
           </section>
 

@@ -34,6 +34,9 @@ final class LevelPricing {
 
 	private final List<CostLine> lines = new ArrayList<>();
 
+	/** The third-party APIs, priced per call (ADR-0081). */
+	private final ApiLines apis;
+
 	private final CostFlags flags = new CostFlags();
 
 	private final DesignPricing pricing;
@@ -59,10 +62,11 @@ final class LevelPricing {
 		this.pricing.note().ifPresent(this.notes::add);
 		this.snapshot = this.pricing.snapshot();
 		this.quotes = new Quotes(this.snapshot, this.pricing.purchase(), inputs.provenance());
-		this.managed = new ManagedLines(this.snapshot, new DynamoDbLine(this.snapshot, catalog.registry()));
+		this.managed = new ManagedLines(this.snapshot, catalog.registry());
 		this.clusterIds = KubernetesLines.clusterIds(document);
 		this.load = load;
 		this.settled = SettledCounts.of(document, catalog.registry(), load);
+		this.apis = new ApiLines(inputs.provenance());
 	}
 
 	/**
@@ -101,8 +105,9 @@ final class LevelPricing {
 				new CostNotes.Context(this.snapshot, this.pricing.purchase().option(),
 						new CostNotes.BilledMonth(this.document.workload(), this.peakHours),
 						perRequest() || perMillion != null, this.load));
-		return new PricedLoad(this.lines, monthly, this.load.successfulRps(), this.notes, this.flags.priced(),
-				this.pricing.rates(), this.pricing.toJson());
+		this.notes.addAll(this.apis.notes());
+		return new PricedLoad(this.lines, monthly, this.load.successfulRps(), this.apis.unpriced(), this.notes,
+				this.flags.priced(), this.pricing.rates(), this.pricing.toJson());
 	}
 
 	/**
@@ -138,7 +143,7 @@ final class LevelPricing {
 	}
 
 	private void addCalls(CostPart part) {
-		CostLine line = ExternalApiLine.of(part, this.load.usage().get(part.id()));
+		CostLine line = this.apis.add(part, this.load.usage().get(part.id()));
 		this.flags.markCalls(line);
 		this.lines.add(line);
 	}

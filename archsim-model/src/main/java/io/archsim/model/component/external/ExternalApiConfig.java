@@ -21,7 +21,8 @@ import io.archsim.model.distribution.LogNormal;
  * @param errorRate the share of calls it fails
  * @param rateLimitRps calls per second it accepts; {@code null}: no limit
  * @param concurrencyLimit calls in flight it accepts; {@code null}: no limit
- * @param costPerMillionRequests the price per million calls, in USD
+ * @param costPerMillionRequests the price per million calls, in USD; {@code null}: the
+ * technology preset's price, else not priced (schema 1.9, ADR-0081)
  */
 public record ExternalApiConfig(
 		@Default("generic") @Description(Descriptions.TECHNOLOGY) @Ui(label = "Kind of service",
@@ -37,9 +38,9 @@ public record ExternalApiConfig(
 				headline = true) @Gt(0) @Le(1_000_000) @Nullable Double rateLimitRps,
 		@Description(Descriptions.CONCURRENCY_LIMIT) @Ui(group = Descriptions.LIMITS_GROUP,
 				assumption = true) @Ge(1) @Le(100_000) @Nullable Integer concurrencyLimit,
-		@Default("0.0") @Description(Descriptions.COST_PER_MILLION_REQUESTS) @Ui(label = "Cost per million calls",
-				unit = "$", group = Descriptions.COST_GROUP,
-				assumption = true) @Ge(0) @Le(10_000_000) double costPerMillionRequests) {
+		@Description(Descriptions.COST_PER_MILLION_REQUESTS) @Ui(label = "Cost per million calls", unit = "$",
+				group = Descriptions.COST_GROUP,
+				assumption = true) @Ge(0) @Le(10_000_000) @Nullable Double costPerMillionRequests) {
 
 	/** The provider's default response time: 120 ms median, 500 ms p95. */
 	static final Distribution DEFAULT_LATENCY = new LogNormal(120.0, 500.0);

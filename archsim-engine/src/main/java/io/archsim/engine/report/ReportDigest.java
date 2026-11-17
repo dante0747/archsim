@@ -4,8 +4,11 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.List;
 
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.JsonNodeFactory;
+import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.model.text.CanonicalJson;
 import io.archsim.model.text.PythonText;
@@ -16,7 +19,22 @@ import io.archsim.model.text.PythonText;
  */
 public final class ReportDigest {
 
+	/** The parts of a report its result's digest covers. */
+	private static final List<String> RESULT = List.of("summary", "timeseries", "nodes", "edges", "window");
+
 	private ReportDigest() {
+	}
+
+	/**
+	 * The digest of a report's result: its summary, time series, parts, links and window,
+	 * what the same design and seed give again within an engine version.
+	 * @param report the report
+	 * @return the digest of those parts alone
+	 */
+	public static String ofResult(JsonNode report) {
+		ObjectNode result = JsonNodeFactory.instance.objectNode();
+		RESULT.forEach((part) -> result.set(part, report.get(part)));
+		return of(result);
 	}
 
 	/**

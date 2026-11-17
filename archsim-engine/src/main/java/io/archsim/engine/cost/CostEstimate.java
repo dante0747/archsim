@@ -5,6 +5,9 @@ import java.util.List;
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.model.codec.Default;
+import io.archsim.model.codec.OmitWhenDefault;
+
 /**
  * A design's monthly cost: its peak hours at the peak and the rest of the month at the
  * base load (ADR-0074). Written by {@code RecordCodec}.
@@ -16,6 +19,8 @@ import tools.jackson.databind.node.ObjectNode;
  * a pattern whose peak is its base
  * @param hourly an hour at the base load and an hour at the peak
  * @param byNode each part's cost, the largest first
+ * @param unpriced the ids of the parts the month leaves out, for want of a price (report
+ * 1.17, ADR-0081); left out when there are none
  * @param notes how it was priced and what it leaves out
  * @param hasCost whether any part has a price
  * @param currency always {@code USD}
@@ -25,14 +30,15 @@ import tools.jackson.databind.node.ObjectNode;
  * @param pricing the prices it used: the snapshot, the purchase option and the families
  */
 public record CostEstimate(double monthly, @Nullable Double perMillionRequests, double peakHours, HourlyCost hourly,
-		List<CostLine> byNode, List<String> notes, boolean hasCost, String currency, int hoursPerMonth,
-		ObjectNode rates, ObjectNode pricing) {
+		List<CostLine> byNode, @OmitWhenDefault @Default("[]") List<String> unpriced, List<String> notes,
+		boolean hasCost, String currency, int hoursPerMonth, ObjectNode rates, ObjectNode pricing) {
 
 	/**
 	 * Copies the lists and the rates and prices, so the record does not change.
 	 */
 	public CostEstimate {
 		byNode = List.copyOf(byNode);
+		unpriced = List.copyOf(unpriced);
 		notes = List.copyOf(notes);
 		rates = rates.deepCopy();
 		pricing = pricing.deepCopy();

@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import io.archsim.engine.text.HalfUp;
 import io.archsim.engine.text.NumberText;
+import io.archsim.model.catalog.Preset;
 import io.archsim.model.document.Workload;
 import io.archsim.model.pricing.PriceSnapshot;
 import io.archsim.model.pricing.PriceSource;
@@ -49,6 +50,28 @@ final class CostNotes {
 		if (flags.snapshotPriced()) {
 			notes.add(CostEstimator.NOT_MODELLED);
 		}
+	}
+
+	/**
+	 * The note on an API priced at a technology preset's price (ADR-0081).
+	 * @param part the API
+	 * @param preset the preset
+	 * @param perMillion its price of a million calls
+	 * @return the note
+	 */
+	static String presetPrice(CostPart part, Preset preset, double perMillion) {
+		return part.label() + " is priced at the " + preset.name() + " preset's illustrative $"
+				+ CostText.price(perMillion) + " per million calls: set your provider's price on the part.";
+	}
+
+	/**
+	 * The note on an API the month leaves out, for want of a price (ADR-0081).
+	 * @param part the API
+	 * @return the note
+	 */
+	static String unpriced(CostPart part) {
+		return "Not priced: " + part.label() + " (no price per million calls set, and no preset price for its"
+				+ " technology): the month leaves it out.";
 	}
 
 	private static String sizes(PriceSnapshot snapshot) {

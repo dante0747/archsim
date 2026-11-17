@@ -8,7 +8,7 @@ import { SINGLE_SERIES } from "@/components/results/charts";
 import { Button } from "@/components/ui/button";
 import { TierBadge } from "@/components/ui/TierBadge";
 import { SignOffPanel } from "@/components/team/SignOff";
-import { formatUsd, monthText, peakCount, peakHour, priceSource } from "@/lib/cost";
+import { costLeftOut, formatUsd, lineMonthlyText, linePriceLabel, monthText, peakCount, peakHour, priceSource } from "@/lib/cost";
 import { fmtPct, fmtRps } from "@/lib/format";
 import { type SloCheck, type SloKey, evaluateSlo, formatSloValue, sloChecks } from "@/lib/slo";
 import type { Objectives, Report } from "@/lib/types";
@@ -170,6 +170,7 @@ function CostPanel({ report }: { report: Report }) {
   }
   const max = Math.max(...cost.byNode.map((c) => c.monthly), 1e-9);
   const source = priceSource(cost);
+  const leftOut = costLeftOut(cost);
   const hour = peakHour(cost);
   return (
     <Panel title="Cost per month">
@@ -183,6 +184,11 @@ function CostPanel({ report }: { report: Report }) {
             <div>
               <p className="tabular font-mono text-[26px] font-semibold leading-8 tracking-tight text-ink">{formatUsd(cost.monthly)}</p>
               <p className="font-mono text-xs text-ink-3">per month · 730 h</p>
+              {leftOut && (
+                <p className="text-xs text-[var(--status-warning)]" data-testid="cost-left-out">
+                  {leftOut}
+                </p>
+              )}
             </div>
             <div className="text-right">
               <p className="tabular font-mono text-[15px] font-semibold text-ink">{formatUsd(cost.perMillionRequests)}</p>
@@ -210,38 +216,25 @@ function CostPanel({ report }: { report: Report }) {
             </p>
           )}
           <ul className="mt-4 space-y-2.5" aria-label="Cost by component">
-            {cost.byNode.map((c) => (
+            {cost.byNode.map((c) => {
+              const label = linePriceLabel(c);
+              return (
               <li key={c.id}>
                 <div className="flex items-baseline justify-between gap-2 text-xs">
                   <span className="min-w-0 truncate text-ink">
                     {c.label}
-                    {c.priceSource === "size" && (
-                      <span className="ml-1.5 font-mono text-[11px] text-ink-3" title="No price set: priced from its CPU, memory and storage at illustrative on-demand rates">
-                        from size
-                      </span>
-                    )}
-                    {c.priceSource === "preset" && (
-                      <span className="ml-1.5 font-mono text-[11px] text-ink-3" title="The technology preset's illustrative price: choose a price snapshot to price it as an instance type">
-                        preset price
-                      </span>
-                    )}
                     {c.sku && (
                       <span className="ml-1.5 font-mono text-[11px] text-ink-3" title={`On-demand list price of ${c.sku} on ${c.snapshotDate ?? "the snapshot date"}`}>
                         {c.sku}
                       </span>
                     )}
-                    {c.priceSource === "set" && (
-                      <span className="ml-1.5 font-mono text-[11px] text-ink-3" title="A price you set on the part">
-                        your price
-                      </span>
-                    )}
-                    {c.priceSource === "default" && (
-                      <span className="ml-1.5 font-mono text-[11px] text-ink-3" title="The catalog's default price for this kind of part (illustrative)">
-                        default price
+                    {label && (
+                      <span className="ml-1.5 font-mono text-[11px] text-ink-3" title={label.title} data-testid="cost-price-label">
+                        {label.text}
                       </span>
                     )}
                   </span>
-                  <span className="tabular shrink-0 font-mono text-ink">{c.unitPrice == null ? "not set" : formatUsd(c.monthly)}</span>
+                  <span className="tabular shrink-0 font-mono text-ink">{lineMonthlyText(c, cost)}</span>
                 </div>
                 <div className="mt-1 flex items-center gap-2">
                   <div className="h-1.5 flex-1 rounded-[2px] bg-surface-3" aria-hidden>
@@ -262,7 +255,8 @@ function CostPanel({ report }: { report: Report }) {
                   </p>
                 )}
               </li>
-            ))}
+              );
+            })}
           </ul>
         </>
       )}
@@ -285,7 +279,7 @@ function CostPanel({ report }: { report: Report }) {
 
 const SEVERITY_RANK: Record<string, number> = { critical: 0, warning: 1, info: 2, ok: 3 };
 
-function Stat({ label, value, source }: { label: string; value: string; source?: { label: string; detail: string } }) {
+function Stat({ label, value, source, note }: { label: string; value: string; source?: { label: string; detail: string }; note?: string | null }) {
   return (
     <div>
       <dd className="tabular font-mono text-[22px] font-semibold leading-7 tracking-tight text-ink">{value}</dd>
@@ -295,6 +289,12 @@ function Stat({ label, value, source }: { label: string; value: string; source?:
           <span title={source.detail} data-testid="stat-price-source">
             {" "}
             · {source.label}
+          </span>
+        )}
+        {note && (
+          <span className="text-[var(--status-warning)]" data-testid="stat-cost-left-out">
+            {" "}
+            · {note}
           </span>
         )}
       </dt>
@@ -399,7 +399,7 @@ export function AnswerPage() {
             <Stat label="p95 counting failures as timeouts" value={formatSloValue("p95", report.summary.latencyWithFailuresMs.p95)} />
           )}
           <Stat label="success" value={fmtPct(report.summary.successRate, report.summary.successRate === 1 ? 0 : 1)} />
-          {cost.hasCost && <Stat label="per month" value={formatUsd(cost.monthly)} source={priceSource(cost)} />}
+          {cost.hasCost && <Stat label="per month" value={formatUsd(cost.monthly)} source={priceSource(cost)} note={costLeftOut(cost)} />}
         </dl>
         <EstimateVsSimulation report={report} />
       </section>

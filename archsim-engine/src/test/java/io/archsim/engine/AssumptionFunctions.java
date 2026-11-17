@@ -1,6 +1,7 @@
 package io.archsim.engine;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -41,6 +42,28 @@ final class AssumptionFunctions {
 			"Generated from the code that uses these values (`uv run python scripts/gen_assumptions.py`); a test "
 					+ "fails when this file is out of date.");
 
+	/**
+	 * The page's line on a third-party API's default price per million calls, the Java's
+	 * to the Python's: schema 1.9 leaves the price unset where it defaulted to 0
+	 * (ADR-0081).
+	 */
+	private static final Map<String, String> API_PRICE_LINES = Map.of(
+			"|  | Cost per million calls (`costPerMillionRequests`) | none |",
+			"|  | Cost per million calls (`costPerMillionRequests`) | 0 $ |");
+
+	/**
+	 * The presets that no longer set a price per call (ADR-0081), whose price of 0 Python
+	 * listed after their last setting: each preset's first row on the page, and that
+	 * setting.
+	 */
+	private static final Map<String, String> UNPRICED_PRESETS = Map.of("| Payments API |",
+			"|  | Rate limit (`rateLimitRps`) | 100 req/s | illustrative |", "| Identity provider |",
+			"|  | Rate limit (`rateLimitRps`) | 200 req/s | illustrative |");
+
+	/** The price per call those presets set, as Python listed it. */
+	private static final String PRESET_PRICE = "|  | Cost per million calls (`costPerMillionRequests`) | 0 $ "
+			+ "| illustrative |";
+
 	private AssumptionFunctions() {
 	}
 
@@ -48,19 +71,37 @@ final class AssumptionFunctions {
 	 * A page as the frozen engine rendered it, which named its own script.
 	 * @param page the page the Java engine renders
 	 * @return the page with the lines that name the Gradle task replaced by the frozen
-	 * engine's, which named its script
+	 * engine's, which named its script, and its lines on an API's price by the frozen
+	 * engine's: its default, and the payments and identity presets'
 	 * @throws IllegalStateException when the page lacks one of those lines
 	 */
 	private static String asTheFrozenEngineWroteIt(String page) {
 		List<String> lines = new ArrayList<>(page.lines().toList());
-		GENERATOR_LINES.forEach((java, python) -> {
+		Map<String, String> replaced = new HashMap<>(GENERATOR_LINES);
+		replaced.putAll(API_PRICE_LINES);
+		replaced.forEach((java, python) -> {
 			int line = lines.indexOf(java);
 			if (line < 0) {
 				throw new IllegalStateException("the page no longer has the line: " + java);
 			}
 			lines.set(line, python);
 		});
+		UNPRICED_PRESETS.forEach((preset, last) -> lines.add(lastSetting(lines, preset, last) + 1, PRESET_PRICE));
 		return String.join("\n", lines) + "\n";
+	}
+
+	// a preset's last setting on the page
+	private static int lastSetting(List<String> lines, String preset, String last) {
+		int first = lines.stream()
+			.filter((line) -> line.startsWith(preset))
+			.findFirst()
+			.map(lines::indexOf)
+			.orElseThrow(() -> new IllegalStateException("the page no longer lists the preset " + preset));
+		int setting = lines.subList(first, lines.size()).indexOf(last);
+		if (setting < 0) {
+			throw new IllegalStateException("the preset " + preset + " no longer lists " + last);
+		}
+		return first + setting;
 	}
 
 	/**

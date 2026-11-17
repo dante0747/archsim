@@ -280,7 +280,7 @@ export interface HostSpec {
 }
 
 export interface ArchitectureDocument {
-  schemaVersion: "1.0" | "1.1" | "1.2" | "1.3" | "1.4" | "1.5" | "1.6" | "1.7" | "1.8";
+  schemaVersion: "1.0" | "1.1" | "1.2" | "1.3" | "1.4" | "1.5" | "1.6" | "1.7" | "1.8" | "1.9";
   kind: "archsim.architecture";
   metadata: DocMetadata;
   /** false: empty CPU/memory/storage specs are not modelled (default: auto-sized by the engine).
@@ -896,6 +896,8 @@ export interface CostEstimate {
   /** The hours of the month billed at the peak, the rest at the base load (schema 1.8, ADR-0074). */
   peakHours?: number;
   byNode: NodeCost[];
+  /** The parts the month leaves out for want of a price, by id (engine 1.2+, report 1.17, ADR-0081). */
+  unpriced?: string[];
   notes: string[];
   /** True when at least one component carries a price. */
   hasCost: boolean;

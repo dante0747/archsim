@@ -108,6 +108,8 @@ class McpSessionTests {
 
 		private String run = "";
 
+		private final RunsPricedAtZero pricedAtZero = new RunsPricedAtZero();
+
 		Answers(McpSession session, String fixtures) {
 			this.session = session;
 			this.fixtures = fixtures;
@@ -124,9 +126,11 @@ class McpSessionTests {
 			if (this.run.isEmpty() && "simulate".equals(request.at("/params/name").stringValue(""))) {
 				this.run = java.at("/result/structuredContent/runId").stringValue("");
 			}
-			JsonNode answered = McpSession.JSON
-				.readTree(placeheld(java.toString(), exchange.get("request").toString()));
-			AnswerComparison.assertAnsweredAs(withJavasEngine(exchange.get("answer")), answered, request);
+			JsonNode python = withJavasEngine(exchange.get("answer"));
+			String text = placeheld(java.toString(), exchange.get("request").toString());
+			this.pricedAtZero.learn(request.at("/params/arguments/document"), python, McpSession.JSON.readTree(text));
+			JsonNode answered = this.pricedAtZero.asPython(text);
+			AnswerComparison.assertAnsweredAs(python, answered, request);
 		}
 
 		// the answer with the files' folder named by its placeholder, and a file

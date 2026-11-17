@@ -44,7 +44,9 @@ class ComponentCatalogTests {
 		return GOLDEN.path("components").valueStream().map((expected) -> {
 			String type = expected.path("type").asString();
 			return DynamicTest.dynamicTest(type,
-					() -> assertThat(JsonDiff.differences(expected, entryOf(type))).isEmpty());
+					() -> assertThat(
+							JsonDiff.differences(expected, SchemaDepartures.asRecorded(entryOf(type), expected)))
+						.isEmpty());
 		});
 	}
 
@@ -68,6 +70,25 @@ class ComponentCatalogTests {
 		assertThat(JsonDiff.differences(GOLDEN.path("workloadFields"),
 				SchemaDepartures.asRecorded(CATALOG).path("workloadFields")))
 			.isEmpty();
+	}
+
+	@Test
+	void of_anApisPricePerMillionCalls_mayBeLeftEmptyForItsPresetsPrice() {
+		JsonNode api = CATALOG.path("components")
+			.valueStream()
+			.filter((type) -> "external_api".equals(type.path("type").stringValue("")))
+			.findFirst()
+			.orElseThrow();
+		JsonNode price = api.path("fields")
+			.valueStream()
+			.filter((field) -> "costPerMillionRequests".equals(field.path("key").stringValue("")))
+			.findFirst()
+			.orElseThrow();
+
+		assertThat(List.of(price.path("nullable").booleanValue(), price.path("default").isNull(),
+				api.path("defaultConfig").has("costPerMillionRequests")))
+			.containsExactly(true, true, false);
+		assertThat(price.path("description").stringValue("")).contains("Empty: the price of the technology's preset");
 	}
 
 	@Test

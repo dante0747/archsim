@@ -10,8 +10,8 @@ import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * Where a cost of the Java engine departs from the frozen engine's, by ADR-0074, and how
- * it is compared with it all the same.
+ * Where a cost of the Java engine departs from the frozen engine's, by ADR-0074 and
+ * ADR-0081, and how it is compared with it all the same.
  * <ul>
  * <li>The cost adds the hours it bills at the peak ({@code peakHours}), an hour at each
  * load ({@code hourly}) and each line's instances at the peak ({@code peakInstances}):
@@ -66,25 +66,16 @@ public final class CostDepartures {
 		if (!java.isObject() || !python.isObject()) {
 			return java;
 		}
-		Map<String, Double> counts = departing.counts();
 		ObjectNode copy = (ObjectNode) java.deepCopy();
 		copy.remove("hourly");
 		copy.remove("peakHours");
-		double hours = java.path("hoursPerMonth").doubleValue();
-		double repriced = 0.0;
-		for (JsonNode line : copy.path(BY_NODE)) {
-			ObjectNode javaLine = (ObjectNode) line;
-			javaLine.remove("peakInstances");
-			JsonNode pythonLine = lineOf(python, javaLine.path("id").stringValue());
-			if (pythonLine != null) {
-				String id = javaLine.path("id").stringValue();
-				putWords(javaLine, pythonLine);
-				putRates(javaLine, pythonLine, departing.bases().get(id));
-				repriced += putCount(javaLine, pythonLine, counts.get(id), hours);
-			}
+		Lines lines = new Lines(python, departing, java.path("hoursPerMonth").doubleValue());
+		copy.path(BY_NODE).forEach((line) -> lines.put((ObjectNode) line));
+		if (lines.pricesDeparted()) {
+			ApiCostDepartures.putPriced(copy, python, lines.unpriced());
 		}
-		if (!counts.isEmpty()) {
-			putMonth(copy, repriced);
+		if (!departing.counts().isEmpty() || lines.pricesDeparted()) {
+			putMonth(copy, lines.repriced());
 			putOrder(copy, python);
 		}
 		return copy;
@@ -164,7 +155,7 @@ public final class CostDepartures {
 		double back = monthly + repriced;
 		cost.put(MONTHLY, back);
 		JsonNode perMillion = cost.path(PER_MILLION);
-		if (perMillion.isNumber()) {
+		if (perMillion.isNumber() && monthly != 0) {
 			cost.put(PER_MILLION, perMillion.doubleValue() * back / monthly);
 		}
 	}
@@ -218,6 +209,68 @@ public final class CostDepartures {
 		 * @param monthly its month
 		 */
 		record Item(String what, double unitPrice, double monthly) {
+		}
+
+	}
+
+	/**
+	 * One cost's lines as they compare with Python's: each line's departures put back,
+	 * and what that changed.
+	 */
+	private static final class Lines {
+
+		private final JsonNode python;
+
+		private final Departing departing;
+
+		private final double hours;
+
+		private final List<String> unpriced = new ArrayList<>();
+
+		private double repriced;
+
+		private boolean pricesDeparted;
+
+		Lines(JsonNode python, Departing departing, double hours) {
+			this.python = python;
+			this.departing = departing;
+			this.hours = hours;
+		}
+
+		/**
+		 * Puts back what departs of a line that Python's cost has too.
+		 * @param javaLine the Java's line, changed in place
+		 */
+		void put(ObjectNode javaLine) {
+			javaLine.remove("peakInstances");
+			String id = javaLine.path("id").stringValue("");
+			JsonNode pythonLine = lineOf(this.python, id);
+			if (pythonLine == null) {
+				return;
+			}
+			if (ApiCostDepartures.departs(javaLine, pythonLine)) {
+				this.pricesDeparted = true;
+				if (ApiCostDepartures.unpriced(javaLine)) {
+					this.unpriced.add(id);
+				}
+				this.repriced += ApiCostDepartures.putLine(javaLine, pythonLine, this.departing.bases().get(id));
+				return;
+			}
+			putWords(javaLine, pythonLine);
+			putRates(javaLine, pythonLine, this.departing.bases().get(id));
+			this.repriced += putCount(javaLine, pythonLine, this.departing.counts().get(id), this.hours);
+		}
+
+		double repriced() {
+			return this.repriced;
+		}
+
+		boolean pricesDeparted() {
+			return this.pricesDeparted;
+		}
+
+		List<String> unpriced() {
+			return List.copyOf(this.unpriced);
 		}
 
 	}

@@ -12,6 +12,10 @@ import tools.jackson.databind.JsonNode;
 import io.archsim.engine.cost.CostEstimator;
 import io.archsim.engine.load.BaseRate;
 import io.archsim.model.DesignDocuments;
+import io.archsim.model.catalog.ComponentFacts;
+import io.archsim.model.catalog.Preset;
+import io.archsim.model.component.external.ExternalApiSpec;
+import io.archsim.model.component.standard.StandardComponents;
 
 /**
  * Each per-request cost line of a run against a hand calculation: the part's rate while
@@ -33,6 +37,16 @@ final class PerRequestCheck {
 	private static final double MS_PER_SECOND = 1000.0;
 
 	private static final double MIB_PER_GIB = 1024.0;
+
+	private static final String API_PRICE = "costPerMillionRequests";
+
+	/**
+	 * The third-party API presets, whose prices stand in for one left unset (ADR-0081).
+	 */
+	private static final List<Preset> API_PRESETS = new ComponentFacts(StandardComponents.registry())
+		.type(ExternalApiSpec.TYPE)
+		.orElseThrow()
+		.presets();
 
 	private final AuditedRun run;
 
@@ -90,6 +104,22 @@ final class PerRequestCheck {
 				String.format(Locale.ROOT, "$%,.2f vs $%,.2f by hand (%s)", monthly, hand.monthly(), hand.how()));
 	}
 
+	// an API's list price a million calls: the design's, else its technology preset's
+	// (ADR-0081), else none
+	private static double apiPrice(JsonNode config) {
+		JsonNode set = config.path(API_PRICE);
+		if (set.isNumber()) {
+			return set.doubleValue();
+		}
+		String technology = AuditJson.text(config.path("technology"));
+		return API_PRESETS.stream()
+			.filter((preset) -> preset.technology().equals(technology))
+			.flatMap((preset) -> preset.setting(API_PRICE).stream())
+			.findFirst()
+			.map(JsonNode::doubleValue)
+			.orElse(0.0);
+	}
+
 	// the line by hand; null for a DynamoDB table. The order decides a part that
 	// is several of these: its type first, then an API gateway's or SQS's
 	// technology, then a serverless platform, then DynamoDB's technology
@@ -100,8 +130,7 @@ final class PerRequestCheck {
 		String technology = AuditJson.text(config.path("technology"));
 		String perSecond = String.format(Locale.ROOT, "%.1f req/s", rps);
 		if (AuditJson.is(node.path("type"), "external_api")) {
-			return new Hand(month * AuditJson.number(config.path("costPerMillionRequests"), 0.0) / MILLION,
-					String.format(Locale.ROOT, "%.1f calls/s", rps));
+			return new Hand(month * apiPrice(config) / MILLION, String.format(Locale.ROOT, "%.1f calls/s", rps));
 		}
 		if ("api_gateway".equals(technology)) {
 			return new Hand(month * rate("apiGatewayPerMillion") / MILLION, perSecond);
