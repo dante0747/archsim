@@ -113,4 +113,4 @@ reference, worked out by hand.
 
 The instance-hour rule this follows: `Quotes` in archsim-engine's `cost` package (a price equal to
 the catalog default counts as not set, and a preset's price stands in for it).
-[docs/simulation-model.md](../simulation-model.md#cost) describes the cost.
+[docs/simulation-model.md](../simulation-model.md#cost-assumptions) describes the cost.
