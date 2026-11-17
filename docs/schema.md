@@ -1,4 +1,4 @@
-# Architecture document format (schema 1.8)
+# Architecture document format (schema 1.10)
 
 An ArchSim project is one human-readable JSON document. It is what the editor saves, what
 `GET /api/v1/projects/{id}/export` downloads and what `POST /api/v1/projects/import` accepts.
@@ -18,7 +18,7 @@ are here for explanation only):
 
 ```jsonc
 {
-  "schemaVersion": "1.8",                 // required; drives migrations
+  "schemaVersion": "1.10",                // required; drives migrations
   "kind": "archsim.architecture",
   "metadata": { "name": "Cache-aside web API", "description": "...", "tags": ["starter"] },
 
@@ -68,7 +68,7 @@ materialised and the fully resolved document is stored in the report's `input`.
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `schemaVersion` | `"1.7"` | Required. Older versions are migrated; newer versions are rejected. |
+| `schemaVersion` | `"1.10"` | Required. Older versions are migrated; newer versions are rejected. |
 | `kind` | `"archsim.architecture"` | |
 | `metadata` | object | `name` (1-120 chars), `description`, `tags` (max 20). |
 | `architecture` | object | `nodes` (max 200), `edges` (max 1,000), `autoSize` (default true) and, 1.7, an optional `host`: the one machine every part with a CPU size runs on (see [Versioning and migrations](#versioning-and-migrations)). |
@@ -189,14 +189,22 @@ overrides in `provenance`.
 ## Versioning and migrations
 
 - `schemaVersion` follows `MAJOR.MINOR`. The engine supports documents up to its
-  `SCHEMA_VERSION` (currently `1.8`). 1.0 to 1.1 only adds optional fields (`provenance`,
+  `SCHEMA_VERSION` (currently `1.10`). 1.0 to 1.1 only adds optional fields (`provenance`,
   `calibration`, the `empirical` distribution and the `trace` pattern), 1.1 to 1.2 adds
   `pricing`, 1.2 to 1.3 the cache-aside link settings, 1.3 to 1.4 a part's optional
   `instanceType`, 1.4 to 1.5 the service settings `cpuShare` and `memoryPerRpsMb`, 1.5 to
   1.6 the service setting `serviceTimeByLoad` and the message-queue settings `consumerConcurrency`
   and `fetchOverheadMs`, 1.6 to 1.7 `architecture.host` and the service, database and cache
-  setting `siblingSpeed`, and 1.7 to 1.8 `workload.peakHoursPerMonth`, so older documents load
-  unchanged.
+  setting `siblingSpeed`, 1.7 to 1.8 `workload.peakHoursPerMonth`, and 1.9 to 1.10
+  `objectives.messageAgeP95Ms`, so those steps load older documents unchanged. 1.8 to 1.9 changes
+  one setting: a third-party API's `costPerMillionRequests` of 0 is left unset (below), unless the
+  design's provenance records it as `measured` or `assumed`.
+- `costPerMillionRequests` (1.9; third-party APIs; empty by default, left out of the JSON): the
+  price of a million calls. Left empty, the API costs its technology preset's price, with a note
+  naming the preset, or is not priced, and the cost lists it in `unpriced`
+  ([pricing.md](pricing.md), ADR-0081). 0 is a free API. Before 1.9 the price defaulted to 0 and
+  a saved design wrote it out, so 0 cannot be told from a price nobody set: type 0 again, after
+  the upgrade, for an API that is free.
 - `architecture.host` (1.7; empty by default, left out of the JSON: each part's vCPUs are its
   own, as before): the one machine every part with a CPU size runs on, such as docker compose on
   one VM or a benchmark on a laptop. `physicalCores` (required, 1 to 512), `threadsPerCore` (1 or

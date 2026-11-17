@@ -1,6 +1,6 @@
 # Implementation status
 
-State as of 2026-11-17 (engine 1.3.0, the Java engine: 1.0.0 reproduces the frozen engine 0.16.0
+State as of 2026-11-17 (engine 1.5.0, the Java engine: 1.0.0 reproduces the frozen engine 0.16.0
 measured on the held-out experiments, 1.1.0 changes only how the cost counts autoscaled parts and
 prices the peak, ADR-0074, 1.1.1 where a run's per-request rates at the base load are measured,
 1.2.0 how a third-party API without a price is priced, ADR-0081, 1.2.1 how a cache's hit ratio
