@@ -30,7 +30,22 @@ class RulesTests {
 	@ParameterizedTest
 	@CsvFileSource(resources = "changes.csv", delimiter = '|')
 	void jobs_aChange_runsTheJobsThatReadItsFiles(String files, String jobs) {
-		assertThat(ids(Rules.jobs(words(files)))).isEqualTo(Set.copyOf(words(jobs)));
+		List<ChangedFile> changed = words(files).stream().map((path) -> new ChangedFile(path, false)).toList();
+
+		assertThat(ids(Rules.jobs(changed))).isEqualTo(Set.copyOf(words(jobs)));
+	}
+
+	// the website's build fails on a link to a file that no longer exists, wherever it is
+	@Test
+	void neededBy_aDeletedFileNoJobReads_runsTheWebsite() {
+		assertThat(Rules.neededBy(new ChangedFile("CONTRIBUTING.md", true))).containsExactly(Job.SITE);
+	}
+
+	@Test
+	void neededBy_aDeletedFileAJobReads_runsThatJobAndTheWebsite() {
+		ChangedFile deleted = new ChangedFile("archsim-mcp/src/main/java/io/archsim/mcp/McpTools.java", true);
+
+		assertThat(Rules.neededBy(deleted)).containsExactlyInAnyOrder(Job.JAVA, Job.SITE);
 	}
 
 	@Test
@@ -43,7 +58,7 @@ class RulesTests {
 			strings = { ".github/workflows/ci.yml", "archsim-tools/src/main/java/io/archsim/tools/changes/Rules.java",
 					"examples/cache-aside-starter.json", "docker-compose.yml", "a-folder-no-rule-names/file.txt" })
 	void jobs_ciItselfTheExamplesOrAPathNoRuleNames_isEveryJob(String path) {
-		assertThat(Rules.jobs(List.of(path))).isEqualTo(Rules.EVERY);
+		assertThat(Rules.jobs(List.of(new ChangedFile(path, false)))).isEqualTo(Rules.EVERY);
 	}
 
 	@Test

@@ -36,7 +36,8 @@ class ChangedPartsTests {
 		git.run("commit", "-q", "-am", "docs: change");
 
 		assertThat(GitDiff.changedFiles(base, git.output("rev-parse", "HEAD"), folder).orElseThrow())
-			.containsExactlyInAnyOrder("docs/a.md", "new.txt", "old.txt");
+			.containsExactlyInAnyOrder(new ChangedFile("docs/a.md", false), new ChangedFile("new.txt", false),
+					new ChangedFile("old.txt", true));
 	}
 
 	// none, a new branch's all zeros, or a commit rewritten history left out of the clone
@@ -51,7 +52,7 @@ class ChangedPartsTests {
 	}
 
 	@Test
-	void run_aDocsOnlyPush_writesEveryJobFalse(@TempDir Path folder, @TempDir Path outputs)
+	void run_aDocsOnlyPush_writesOnlyTheWebsiteTrue(@TempDir Path folder, @TempDir Path outputs)
 			throws IOException, InterruptedException {
 		Git git = Git.start(folder);
 		String base = git.output("rev-parse", "HEAD");
@@ -63,11 +64,11 @@ class ChangedPartsTests {
 
 		assertThat(exitCode).isZero();
 		assertThat(Files.readAllLines(output)).containsExactly("java=false", "archsim_check=false", "web=false",
-				"e2e=false");
+				"e2e=false", "site=true");
 	}
 
 	@Test
-	void run_aDocsOnlyPush_saysEachJobIsSkipped(@TempDir Path folder) throws IOException, InterruptedException {
+	void run_aDocsOnlyPush_skipsEveryJobButTheWebsite(@TempDir Path folder) throws IOException, InterruptedException {
 		Git git = Git.start(folder);
 		String base = git.output("rev-parse", "HEAD");
 		Files.writeString(folder.resolve("docs/a.md"), "b\n");
@@ -76,7 +77,25 @@ class ChangedPartsTests {
 		run(folder, "--base", base, "--head", "HEAD");
 
 		assertThat(this.out.toString().lines()).containsExactly("1 changed file(s)", "  java: skipped",
-				"  archsim_check: skipped", "  web: skipped", "  e2e: skipped");
+				"  archsim_check: skipped", "  web: skipped", "  e2e: skipped", "  site: runs (docs/a.md)");
+	}
+
+	// the docs may link to it, and the website's build fails on a link to a file that is
+	// gone
+	@Test
+	void run_aPushThatDeletesAFile_runsTheWebsite(@TempDir Path folder) throws IOException, InterruptedException {
+		Git git = Git.start(folder);
+		Files.writeString(folder.resolve("AGENTS.md"), "a\n");
+		git.run("add", ".");
+		git.run("commit", "-q", "-m", "docs: add the agents' guide");
+		String base = git.output("rev-parse", "HEAD");
+		git.run("rm", "-q", "AGENTS.md");
+		git.run("commit", "-q", "-m", "docs: drop the agents' guide");
+
+		run(folder, "--base", base, "--head", "HEAD");
+
+		assertThat(this.out.toString().lines()).containsExactly("1 changed file(s)", "  java: skipped",
+				"  archsim_check: skipped", "  web: skipped", "  e2e: skipped", "  site: runs (deleted: AGENTS.md)");
 	}
 
 	@Test
@@ -108,7 +127,7 @@ class ChangedPartsTests {
 		run(folder, arguments.toArray(String[]::new));
 
 		assertThat(Files.readAllLines(output)).containsExactly("java=true", "archsim_check=true", "web=true",
-				"e2e=true");
+				"e2e=true", "site=true");
 		assertThat(this.out.toString().lines())
 			.containsExactly("every job: a run by hand, or no usable base to compare with");
 	}

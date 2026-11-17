@@ -100,7 +100,7 @@ public final class ChangedParts {
 			out.flush();
 			return 0;
 		}
-		Optional<List<String>> files = parsed.all() ? Optional.empty()
+		Optional<List<ChangedFile>> files = parsed.all() ? Optional.empty()
 				: GitDiff.changedFiles(parsed.base(), parsed.head().orElseThrow(), directory);
 		Set<Job> needed = files.map(Rules::jobs).orElse(Rules.EVERY);
 		files.ifPresentOrElse((changed) -> report(changed, out),
@@ -122,11 +122,11 @@ public final class ChangedParts {
 	}
 
 	// each job, and the first file that needs it
-	private static void report(List<String> files, PrintWriter out) {
+	private static void report(List<ChangedFile> files, PrintWriter out) {
 		out.println(files.size() + " changed file(s)");
 		for (Job job : Job.values()) {
-			Optional<String> why = files.stream().filter((path) -> Rules.neededBy(path).contains(job)).findFirst();
-			out.println("  " + job.id() + ": " + why.map((path) -> "runs (" + path + ")").orElse("skipped"));
+			Optional<ChangedFile> why = files.stream().filter((file) -> Rules.neededBy(file).contains(job)).findFirst();
+			out.println("  " + job.id() + ": " + why.map((file) -> "runs (" + file.label() + ")").orElse("skipped"));
 		}
 	}
 

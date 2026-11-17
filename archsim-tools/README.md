@@ -45,13 +45,17 @@ java archsim-tools/src/main/java/io/archsim/tools/changes/ChangedParts.java --al
 | `Arguments` | `--all`, or `--base` and `--head`, and `--github-output`, as `argparse` read them | its `argparse` parser |
 | `Rules`, `Rule` | the paths CI knows and the jobs each needs, the first covering rule deciding, every job for a path no rule names | `RULES`, `covers`, `needed_by`, `jobs` |
 | `Job` | the jobs that run only when a change needs them | `JOBS` |
-| `GitDiff` | the files a change touched through `git diff`, none without a usable base | `changed_files` |
+| `GitDiff`, `ChangedFile` | the files a change touched through `git diff`, each marked when it deleted them, none without a usable base | `changed_files` |
 
 The rules began as `ci_changes.py`'s, but for CI itself, which became this package, and
 `archsim-tools/`, which the Java job tests: on main's last 80 commits then, both gave the same
 report but for the two that changed `scripts/ci_changes.py`. With the Python gone (stage 7's last
 slice) they hold the Java, archsim-check, web and end-to-end jobs alone, and a change to
-`.github/actions/` runs the Java job, where `ArchsimCheckActionTests` runs the action's step.
+`.github/actions/` runs the Java job, where `ArchsimCheckActionTests` runs the action's step. The
+website's checks joined them after a broken anchor in an ADR reached main unchecked: a change to
+what the site is built from (`apps/web/`, `docs/`, `examples/`, the README, the changelog,
+`NOTICE`) runs them, and so does a change that deletes a file anywhere, which `GitDiff` reports
+(`ChangedFile`), since the docs may link to it.
 
 ## The release's check
 

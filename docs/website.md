@@ -70,7 +70,10 @@ it they are hidden.
 [`.github/workflows/site.yml`](../.github/workflows/site.yml) builds and checks the site on every
 pull request that changes what it reads (`apps/web/`, `docs/`, `examples/`, the README, the
 changelog and `NOTICE`), and on a push to main it also deploys it with GitHub's Pages actions. A run
-by hand from the Actions tab on main rebuilds and deploys. The repository variable
+by hand from the Actions tab on main rebuilds and deploys. CI's `Website (build, links, browsers)`
+job runs the same build and browser checks whenever a change touches what the site reads or
+deletes a file, and on every CI run started by hand, so a broken link fails before a change reaches
+main, not when main deploys ([ci.md](ci.md#which-jobs-a-change-runs)). The repository variable
 `ARCHSIM_SITE_DEMO_URL` turns on the "Try it live" links.
 
 The repository's settings, once: Pages' source is **GitHub Actions**, and its custom domain is

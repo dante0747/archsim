@@ -1,9 +1,9 @@
 name: CI
 
 # The `changes` job (archsim-tools' ChangedParts) works out which jobs a change can affect, and the
-# others are skipped, so that a run takes no longer than the change needs: a docs change runs none,
-# a web change runs Web and End-to-end. A run started by hand (Actions > CI > Run workflow) runs
-# every job.
+# others are skipped, so that a run takes no longer than the change needs: a docs change runs the
+# website's checks, a web change runs Web, End-to-end and the website's checks. A run started by hand
+# (Actions > CI > Run workflow) runs every job.
 on:
   pull_request:
   push:
@@ -56,6 +56,7 @@ jobs:
       archsim_check: ${{ steps.jobs.outputs.archsim_check }}
       web: ${{ steps.jobs.outputs.web }}
       e2e: ${{ steps.jobs.outputs.e2e }}
+      site: ${{ steps.jobs.outputs.site }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -234,3 +235,35 @@ jobs:
           name: playwright-trace
           path: apps/web/test-results/
           retention-days: 14
+
+  site:
+    # the website (ADR-0078) as the Website workflow checks it before deploying it: the static
+    # export, which fails on any broken link or anchor (apps/web/scripts/site-check.mjs), and the
+    # browser checks of every page (apps/web/e2e-site). A change merged without them fails only when
+    # main deploys, and the site stays on the last good build. A change that deletes a file runs
+    # them too, since the docs may link to it.
+    name: Website (build, links, browsers)
+    needs: changes
+    if: needs.changes.outputs.site == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      # checked out as the Website workflow checks it out, so that the build is the one it deploys
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run build:site
+        env:
+          ARCHSIM_SITE_DEMO_URL: ${{ vars.ARCHSIM_SITE_DEMO_URL }}
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e:site

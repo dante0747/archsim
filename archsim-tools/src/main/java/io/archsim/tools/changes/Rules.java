@@ -12,7 +12,8 @@ import java.util.Set;
  * folder is tested until it has a rule. When a test starts reading a file outside its own
  * part of the repository (the Java tests read {@code docs/assumptions.md},
  * {@code parity/fixtures} and {@code examples/}), add that file or its folder here, or a
- * change to it alone will not run the test.
+ * change to it alone will not run the test. A change that deletes a file also runs the
+ * website's job, wherever the file is: the docs may link to it.
  */
 final class Rules {
 
@@ -24,6 +25,18 @@ final class Rules {
 	private static final Set<Job> JAVA = Set.of(Job.JAVA, Job.E2E);
 
 	private static final Set<Job> JAVA_ONLY = Set.of(Job.JAVA);
+
+	/**
+	 * What the website is built from (ADR-0078): its build fails on a broken link, which
+	 * would otherwise first fail when main deploys it.
+	 */
+	private static final Set<Job> SITE = Set.of(Job.SITE);
+
+	/**
+	 * The documents the Java tests compare with what they generate, which the website
+	 * renders.
+	 */
+	private static final Set<Job> GENERATED_DOCUMENTS = union(JAVA_ONLY, SITE);
 
 	/**
 	 * The archsim-check action builds the Java CLI into its image from these modules and
@@ -51,19 +64,19 @@ final class Rules {
 		// (ADR-0077)
 		.rule(".github/workflows/release.yml", JAVA_ONLY)
 		.rule(".github/", NONE)
-		// The web app. The Java harness's ReportParityTests compares the
-		// accuracy page's copy with docs/validation/. archsim-engine's
-		// GeneratedFileTests checks the fixtures `./gradlew
-		// :archsim-engine:generate` writes from the starter; archsim-model's
-		// DesignDocumentsTests reads the starter too.
-		.rule("apps/web/src/data/accuracy.json", Set.of(Job.WEB, Job.E2E, Job.JAVA))
+		// The web app, whose *.site.tsx routes are the website. The Java
+		// harness's ReportParityTests compares the accuracy page's copy with
+		// docs/validation/. archsim-engine's GeneratedFileTests checks the
+		// fixtures that `./gradlew :archsim-engine:generate` writes from the
+		// starter; archsim-model's DesignDocumentsTests reads the starter too.
+		.rule("apps/web/src/data/accuracy.json", Set.of(Job.WEB, Job.E2E, Job.JAVA, Job.SITE))
 		.rule("apps/web/src/test/fixtures/starter.json", WEB_FIXTURES)
 		.rule("apps/web/src/test/fixtures/catalog.json", WEB_FIXTURES)
 		.rule("apps/web/src/test/fixtures/analysis-starter.json", WEB_FIXTURES)
 		// the end-to-end launcher: the Java tests check the worker's
 		// command line in it
 		.rule("apps/web/e2e/api-server.mjs", Set.of(Job.WEB, Job.JAVA, Job.E2E))
-		.rule("apps/web/", Set.of(Job.WEB, Job.E2E))
+		.rule("apps/web/", Set.of(Job.WEB, Job.E2E, Job.SITE))
 		// The Java build. The black-box API tests, the command line, the MCP
 		// server, the harness and the tooling are not part of the app the
 		// end-to-end tests run.
@@ -110,11 +123,11 @@ final class Rules {
 		// the templates: every part loads them
 		.rule("examples/", EVERY)
 		// the documents the tests compare with what the engine or the
-		// harness generates; no job reads the rest
-		.rule("docs/assumptions.md", JAVA_ONLY)
-		.rule("docs/validation.md", JAVA_ONLY)
-		.rule("docs/validation/", JAVA_ONLY)
-		.rule("docs/", NONE)
+		// harness generates; the website renders them all
+		.rule("docs/assumptions.md", GENERATED_DOCUMENTS)
+		.rule("docs/validation.md", GENERATED_DOCUMENTS)
+		.rule("docs/validation/", GENERATED_DOCUMENTS)
+		.rule("docs/", SITE)
 		// for people and assistants only
 		.rule(".claude/", NONE)
 		.rule("AGENTS.md", NONE)
@@ -123,31 +136,41 @@ final class Rules {
 		.rule("CONTRIBUTING.md", NONE)
 		.rule("IMPLEMENTATION_STATUS.md", NONE)
 		.rule("LICENSE", NONE)
-		.rule("NOTICE", NONE)
-		.rule("README.md", NONE)
+		// the website renders the changelog, its home page reads the README,
+		// and its footer NOTICE's copyright line
+		.rule("CHANGELOG.md", SITE)
+		.rule("NOTICE", SITE)
+		.rule("README.md", SITE)
 		.rule("SECURITY.md", NONE)
 		.rules();
 
 	private Rules() {
 	}
 
-	/**
-	 * The jobs a change to one file needs: the first covering rule's, or every job.
-	 * @param path the file, from the repository's root
-	 * @return the jobs
-	 */
-	static Set<Job> neededBy(String path) {
+	// the jobs a path needs: the first covering rule's, or every job
+	private static Set<Job> ruleFor(String path) {
 		return STANDARD.stream().filter((rule) -> rule.covers(path)).findFirst().map(Rule::jobs).orElse(EVERY);
 	}
 
 	/**
-	 * The jobs a change to these files needs.
-	 * @param files the files, from the repository's root
+	 * The jobs a change to one file needs: its path's, and the website's when the change
+	 * deleted it, since the docs may link to it.
+	 * @param file the file
 	 * @return the jobs
 	 */
-	static Set<Job> jobs(Collection<String> files) {
+	static Set<Job> neededBy(ChangedFile file) {
+		Set<Job> jobs = ruleFor(file.path());
+		return file.deleted() ? union(jobs, SITE) : jobs;
+	}
+
+	/**
+	 * The jobs a change to these files needs.
+	 * @param files the files
+	 * @return the jobs
+	 */
+	static Set<Job> jobs(Collection<ChangedFile> files) {
 		EnumSet<Job> needed = EnumSet.noneOf(Job.class);
-		files.forEach((path) -> needed.addAll(neededBy(path)));
+		files.forEach((file) -> needed.addAll(neededBy(file)));
 		return Set.copyOf(needed);
 	}
 

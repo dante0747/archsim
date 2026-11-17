@@ -175,9 +175,13 @@ jobs. CI still runs no more than a change needs, so that a run is short:
 
 - **CI runs only the jobs a change can affect.** The `changes` job runs archsim-tools'
   `ChangedParts`, from its source, on the files a pull request or push changes; its log says which
-  file needs each job. A change to docs (other than the ones the Java tests read), the README or
-  `.claude/` runs no job but `Commit messages`; a web change runs Web and End-to-end; a Java change
-  runs Java and End-to-end, and a change to the CLI, the engine, the model or the Gradle build
+  file needs each job. A change to `.claude/` or to a root file only people read (`AGENTS.md`,
+  `CONTRIBUTING.md` and the like) runs no job but `Commit messages`; a change to docs, the README,
+  the changelog or `NOTICE` runs the website's build, which fails on any broken link or anchor, and
+  its browser checks (and Java too for the docs the Java tests read); a web change runs Web,
+  End-to-end and the website's checks; a change that deletes a file, wherever it is, runs the
+  website's checks as well, since the docs may link to it; a Java change runs Java and End-to-end,
+  and a change to the CLI, the engine, the model or the Gradle build
   (Dependabot's Gradle updates included) also runs `ArchSim check`, whose image build (several
   minutes cold, [ADR-0060](adr/0060-run-the-check-action-in-an-image-the-job-builds.md)) costs more
   than the Python action's set-up did. A path no rule names runs every job, and so does a change to

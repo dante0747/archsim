@@ -26,14 +26,15 @@ parity/fixtures/calibration/starter-mapping.yaml | java
 config/checkstyle/checkstyle.xml gradlew.bat | java e2e
 # the table repr reads, one of the model's main resources
 archsim-model/src/main/resources/io/archsim/model/text/nonprintable.tsv | java e2e archsim_check
-apps/web/src/app/page.tsx apps/web/package-lock.json | web e2e
-# the Java harness's report tests compare the accuracy page's copy with docs/validation/
-apps/web/src/data/accuracy.json | web e2e java
+apps/web/src/app/page.tsx apps/web/package-lock.json | web e2e site
+# the Java harness's report tests compare the accuracy page's copy with docs/validation/, and the
+# website's accuracy page shows it
+apps/web/src/data/accuracy.json | web e2e java site
 # the Java engine's tests check the web fixtures; the Java model's tests read the starter
 apps/web/src/test/fixtures/starter.json | web java e2e
 apps/web/src/test/fixtures/catalog.json | web java e2e
 apps/web/src/test/fixtures/analysis-starter.json | web java e2e
-apps/web/src/test/fixtures/share.ts | web e2e
+apps/web/src/test/fixtures/share.ts | web e2e site
 # the end-to-end launcher starts the worker, whose command line the Java tests check
 apps/web/e2e/api-server.mjs | web java e2e
 # the kept results, which the Java harness's tests reduce again
@@ -45,20 +46,21 @@ benchmarks/k6/load.js benchmarks/service-python/app.py | java
 archsim-tools/src/main/java/io/archsim/tools/commits/CheckCommits.java | java
 # the frozen engine's golden files and simulation baselines, which the Java tests read
 parity/golden/manifest.json parity/simulation/manifest.json | java e2e
-# the Java harness's report tests read them too
-docs/validation.md docs/validation/accuracy.json | java
+# the Java harness's report tests read them too, and the website renders them
+docs/validation.md | java site
+docs/validation/accuracy.json | java site
 benchmarks/engines.json | java
 benchmarks/compose.yaml | java
 benchmarks/knee-range.json | java
 # stage 4's parity page, which the Java harness writes and checks, and its runs
-docs/validation/java-parity.md | java
-docs/validation/simulation-parity.json | java
+docs/validation/java-parity.md | java site
+docs/validation/simulation-parity.json | java site
 # the engines' speed, which only the parity page's test reads, and the earlier measurements,
 # which nothing does
 benchmarks/perf/java-port.json benchmarks/perf/python-0.16.0.json | java
 benchmarks/perf/baseline.json |
-# the Java engine generates the page, and its tests check it
-docs/assumptions.md | java
+# the Java engine generates the page, and its tests check it; the website renders it
+docs/assumptions.md | java site
 .github/actions/archsim-check/action.yml | java archsim_check
 .github/actions/archsim-check/sticky-comment.js | java archsim_check
 # the Java harness's tests read its cpuset loop
@@ -69,10 +71,14 @@ docs/assumptions.md | java
 # no job reads the rest of it
 deploy/compose.yaml | java
 deploy/Caddyfile deploy/hosted.env.example deploy/backup.sh deploy/update.sh |
+# what the website is built from: its build checks every link
+docs/architecture.md docs/adr/0026-component-specs-and-price-snapshots-in-the-model.md | site
+README.md | site
+NOTICE | site
+CHANGELOG.md | site
 # files no job reads
-docs/architecture.md docs/adr/0026-component-specs-and-price-snapshots-in-the-model.md |
-README.md AGENTS.md CLAUDE.md .claude/skills/test-first/SKILL.md |
+AGENTS.md CLAUDE.md .claude/skills/test-first/SKILL.md |
 .github/dependabot.yml .github/workflows/prices.yml .github/PULL_REQUEST_TEMPLATE.md |
 .github/workflows/deploy-demo.yml |
 # files from several parts run what any of them needs
-apps/web/src/app/page.tsx archsim-mcp/src/main/java/io/archsim/mcp/McpTools.java | web e2e java
+apps/web/src/app/page.tsx archsim-mcp/src/main/java/io/archsim/mcp/McpTools.java | web e2e java site

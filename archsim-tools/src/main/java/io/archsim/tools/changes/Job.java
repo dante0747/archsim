@@ -3,8 +3,8 @@ package io.archsim.tools.changes;
 /**
  * The jobs of {@code .github/workflows/ci.yml} that run only when a change needs them, in
  * the order the {@code changes} job reports them: the Java build, the archsim-check
- * action's own check, the web app and the end-to-end tests. The commit messages' check
- * always runs and is not one of them.
+ * action's own check, the web app, the end-to-end tests and the website. The commit
+ * messages' check always runs and is not one of them.
  */
 enum Job {
 
@@ -18,7 +18,12 @@ enum Job {
 	WEB("web"),
 
 	/** The end-to-end tests. */
-	E2E("e2e");
+	E2E("e2e"),
+
+	/**
+	 * The website's build and browser checks, which fail on any broken link (ADR-0078).
+	 */
+	SITE("site");
 
 	private final String id;
 
