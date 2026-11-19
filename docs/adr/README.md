@@ -130,5 +130,5 @@ what the repository shows.
 | [0086](0086-keep-the-load-open-loop-past-the-objective-and-close-in-on-the-measured-knee.md) | Keep the load open-loop past the objective, and close in on the measured knee | Accepted | 2026-11-19 |
 | [0087](0087-compare-the-simulator-with-simple-estimates.md) | Compare the simulator with simple estimates of the knee | Accepted | 2026-11-19 |
 | [0088](0088-freeze-the-java-engine-by-its-sources-and-fix-the-criteria-before-a-campaign.md) | Freeze the Java engine by its sources, and fix the criteria before a campaign | Accepted | 2026-11-19 |
-| [0089](0089-count-a-commits-log-flush-as-a-wait-in-the-instant-estimate.md) | Count a commit's log flush as a wait in the instant estimate, not as CPU | Proposed | 2026-11-19 |
+| [0089](0089-count-a-commits-log-flush-as-a-wait-in-the-instant-estimate.md) | Count a commit's log flush as a wait in the instant estimate, not as CPU | Accepted | 2026-11-19 |
 | [0090](0090-register-a-second-held-out-set-before-the-next-model-change.md) | Register a second held-out set before the next model change | Accepted | 2026-11-19 |
