@@ -1,0 +1,69 @@
+{
+ "aws": [
+  {
+   "families": ["m6g", "m6gd", "m7g", "m7gd", "m8g", "m8gb", "m8gd", "m8gn", "m9g", "m9gd", "t4g"],
+   "reason": "They run on AWS Graviton processors, which have one thread per core: AWS's specifications of the general purpose instances give every type of these families as many CPU cores as vCPUs, at one thread per core.",
+   "source": "https://docs.aws.amazon.com/ec2/latest/instancetypes/gp.html"
+  },
+  {
+   "families": ["c6g", "c6gd", "c6gn", "c7g", "c7gd", "c7gn", "c8g", "c8gb", "c8gd", "c8gn", "c9g", "c9gd"],
+   "reason": "They run on AWS Graviton processors, which have one thread per core: AWS's specifications of the compute optimized instances give every type of these families as many CPU cores as vCPUs, at one thread per core.",
+   "source": "https://docs.aws.amazon.com/ec2/latest/instancetypes/co.html"
+  },
+  {
+   "families": ["r6g", "r6gd", "r7g", "r7gd", "r8g", "r8gb", "r8gd", "r8gn", "r9g", "r9gd", "x2gd", "x8g"],
+   "reason": "They run on AWS Graviton processors, which have one thread per core: AWS's specifications of the memory optimized instances give every type of these families as many CPU cores as vCPUs, at one thread per core.",
+   "source": "https://docs.aws.amazon.com/ec2/latest/instancetypes/mo.html"
+  },
+  {
+   "families": ["i4g", "i8g", "i8ge", "im4gn", "is4gen"],
+   "reason": "They run on AWS Graviton processors, which have one thread per core: AWS's specifications of the storage optimized instances give every type of these families as many CPU cores as vCPUs, at one thread per core.",
+   "source": "https://docs.aws.amazon.com/ec2/latest/instancetypes/so.html"
+  },
+  {
+   "families": ["hpc7g"],
+   "reason": "It runs on AWS Graviton processors, which have one thread per core: AWS's specifications of the high-performance computing instances give every type of the family as many CPU cores as vCPUs, at one thread per core.",
+   "source": "https://docs.aws.amazon.com/ec2/latest/instancetypes/hpc.html"
+  },
+  {
+   "families": ["x2g"],
+   "reason": "Amazon RDS's db.x2g classes are powered by AWS Graviton2 processors, by RDS's page on its instance class types, and a Graviton processor runs one hardware thread, one vCPU, per physical core, by the AWS Graviton performance runbook (https://aws.github.io/graviton/perfrunbook/system-load-and-compute-headroom.html). EC2 sells no x2g types, so its specification tables do not list the family.",
+   "source": "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.Types.html"
+  },
+  {
+   "families": ["t2"],
+   "reason": "T2 instances run one thread per core, on Intel processors: AWS's specifications of the general purpose instances give every T2 type as many CPU cores as vCPUs, at one thread per core.",
+   "source": "https://docs.aws.amazon.com/ec2/latest/instancetypes/gp.html"
+  },
+  {
+   "families": ["m7a"],
+   "reason": "AWS's page for M7a says that every vCPU of an M7a instance is a physical core, with no simultaneous multithreading; on M6a and earlier a vCPU is a thread.",
+   "source": "https://aws.amazon.com/ec2/instance-types/m7a/"
+  },
+  {
+   "families": ["c7a"],
+   "reason": "AWS's page for C7a says that every vCPU of a C7a instance is a physical core, with no simultaneous multithreading; on C6a and earlier a vCPU is a thread.",
+   "source": "https://aws.amazon.com/ec2/instance-types/c7a/"
+  },
+  {
+   "families": ["r7a"],
+   "reason": "AWS's page for R7a says that every vCPU of an R7a instance is a physical core, with no simultaneous multithreading; on R6a and earlier a vCPU is a thread.",
+   "source": "https://aws.amazon.com/ec2/instance-types/r7a/"
+  },
+  {
+   "families": ["m8a", "m8azn"],
+   "reason": "AWS's page for M8a, which covers M8azn too, says that each vCPU of an M8a or M8azn instance is a physical core.",
+   "source": "https://aws.amazon.com/ec2/instance-types/m8a/"
+  },
+  {
+   "families": ["c8a"],
+   "reason": "AWS's page for C8a says that each vCPU of a C8a instance is a physical core, with no simultaneous multithreading.",
+   "source": "https://aws.amazon.com/ec2/instance-types/c8a/"
+  },
+  {
+   "families": ["r8a"],
+   "reason": "AWS's page for R8a says that each vCPU of an R8a instance is a physical core, with no simultaneous multithreading.",
+   "source": "https://aws.amazon.com/ec2/instance-types/r8a/"
+  }
+ ]
+}

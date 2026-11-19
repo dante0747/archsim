@@ -1,7 +1,6 @@
 package io.archsim.model.pricing;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -100,15 +99,7 @@ final class SnapshotFiles {
 
 	// a file of the shipped snapshots' resources
 	private static byte[] resource(String name) {
-		try (InputStream input = SnapshotFiles.class.getResourceAsStream("snapshots/" + name)) {
-			if (input == null) {
-				throw new IllegalStateException("the shipped snapshots' " + name + " is missing from the jar");
-			}
-			return input.readAllBytes();
-		}
-		catch (IOException ex) {
-			throw new UncheckedIOException(ex);
-		}
+		return ShippedFiles.read("snapshots/" + name);
 	}
 
 }

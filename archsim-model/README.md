@@ -29,7 +29,7 @@ Each package uses only those below it, and ArchUnit checks it
 | `scenario` | finding a scenario and applying its overrides | |
 | `catalog` | `ComponentCatalog`: the component catalog the editor renders (`GET /components`), from the specifications and each type's `catalog/<type>.json`; `ComponentFacts`: the same facts typed, for code that reads them (each type's `Setting`s, defaults, `Preset`s, suggested link settings, its technologies' defaults and their documentation); each technology's `TechnologyTrait`s, which a run's report lists for each part (`ComponentCatalog.technologyTraits`) | [0031](../docs/adr/0031-component-catalog-facts-and-presentation.md) |
 | `component` | `ComponentSpec` (ports, config, routing, rules), `ComponentRegistry`, technology profiles; one package per type, and `standard` assembles ArchSim's eleven | [0026](../docs/adr/0026-component-specs-and-price-snapshots-in-the-model.md) |
-| `pricing` | price snapshots: the `archsim.prices/1` format, which there are, which a document uses | [0026](../docs/adr/0026-component-specs-and-price-snapshots-in-the-model.md) |
+| `pricing` | price snapshots: the `archsim.prices/1` format, which there are, which a document uses; `WholeCoreFamilies`: the instance families whose vCPUs are whole cores, by provider | [0026](../docs/adr/0026-component-specs-and-price-snapshots-in-the-model.md) |
 | `upgrade` | the chain of upgrades from schema 1.0 to 1.10, on the JSON | [0023](../docs/adr/0023-upgrade-chain-on-the-json.md) |
 | `issue` | `Issue`, `Severity`, `DocumentInvalidException`; codec errors as issues | [0024](../docs/adr/0024-validation-issues-with-stable-codes.md) |
 | `document`, `distribution` | the records of schema 1.10 | [0022](../docs/adr/0022-records-and-a-pydantic-compatible-codec.md) |
@@ -43,6 +43,25 @@ in an index `PriceSnapshots` reads, so the model ships what the folder holds. A 
 tests still expect 0.16.0's two snapshots to be the only ones, so a refresh fails them until they
 stop assuming it. Until stage 5 deleted the frozen Python engine, a test checked its snapshots were
 shipped byte for byte.
+
+Beside that folder, `whole-core-families.json` lists by provider the instance families whose vCPUs
+are whole cores, where most x86 families sell hyperthreads: for AWS the Graviton families, T2 and
+the AMD families from M7a on. Each group of families has its reason and the provider's page that
+says so, and a family is listed only when the whole family is whole cores. RDS's `x2g` is listed
+by two pages, since EC2 sells no such types: RDS's, which says db.x2g runs on Graviton2, and the
+Graviton runbook's, which says a Graviton processor runs one thread per core. `u-6tb1` is left
+out because it mixes the two: its 56xlarge has one thread per core, its other types two.
+`WholeCoreFamilies` reads the list; nothing in the engine uses it yet.
+
+`WholeCoreFamiliesTests` holds the list against the shipped snapshots. Every listed family is one
+a snapshot prices. And every family that sells a 1-vCPU type in the newest snapshot of a provider
+and region is listed: a 1-vCPU type is not a pair of hyperthreads, and each family that sells one
+today is a whole-core family throughout. A refreshed snapshot with a new such family fails that
+test until someone reads the family's page: it is listed if the page says its vCPUs are cores,
+and if the page does not (a family may mix the two, as u-6tb1 does), the guard is narrowed
+rather than the list padded. The converse does not hold: a whole-core family whose smallest type
+has 2 vCPU or more (t4g, for one) is on the list by its source alone, and the tests name those
+seven families and `u-6tb1`.
 
 ## Tests
 

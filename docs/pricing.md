@@ -305,6 +305,15 @@ by hand only: the golden pricing entries and some sizing tests still expect 0.16
 snapshots to be the only ones, so a new snapshot fails them until they stop assuming it
 ([ADR-0026](adr/0026-component-specs-and-price-snapshots-in-the-model.md)).
 
+A new snapshot is also held against `whole-core-families.json`, the file beside the snapshots'
+folder that lists by provider the instance families whose vCPUs are whole cores rather than
+hyperthreads (for AWS the Graviton families, T2 and the AMD families from M7a on), each
+group with the page or pages that say so. A 1-vCPU type is not a pair of hyperthreads, and
+every family that sells one today is a whole-core family, so the model's tests fail when a
+snapshot sells a 1-vCPU type of a family that is not listed. Read the family's page then: add
+the family with the page if it says the family's vCPUs are cores; if it does not, narrow the
+test, and do not list the family. The engine does not read the list yet.
+
 After the merge, **new projects** pin the new snapshot (the API pins the newest AWS us-east-1
 snapshot the model ships). **Templates** keep the date they name, because a new snapshot can
 snap parts to other types and so change results. To move them: set `pricing.snapshotDate` in
