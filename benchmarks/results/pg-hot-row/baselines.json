@@ -6,14 +6,14 @@
   "designedAfterMeasurements": true,
   "how": "Simple estimates of the knee from this run's calibration alone, to set beside the simulator's prediction: no measured load step is used. Their rules were fixed on 2026-11-19. This run was calibrated and measured before that, so the rules were written with its results in view: its estimates check what the simulation adds and are not predictions.",
   "inputs": "calibration.json's inputs as recorded, the ones predictions.json used, in the design today's harness builds from them",
-  "at": "2026-11-19T05:55:08Z",
-  "engineVersion": "1.5.0",
+  "at": "2026-11-19T11:12:34Z",
+  "engineVersion": "1.5.1",
   "provenance": {
-    "commit": "7fc25bf42279e30e98f5fa9df74accf9625938ce",
+    "commit": "46abeae2c560c7c30431325a1f3d0f292f22b1ae",
     "engineSources": "28ec8d7792d09d055294b07e3b04e46e8b6fe1d07f0b5344c3bd25db39e86aef",
-    "javaBuild": "188507f507c175fc71f3de7c0ad5dadc3f8ebbef14802b4271f933d715bb7e17",
-    "harnessHash": "21c2518e85013b0ee745e28752e5b1f53868340bd17dbe67644329bd378f052d",
-    "dirty": false,
+    "javaBuild": "593f8b1611edde75026e407386d12caddf03b8167949eca663875bbd4bd05331",
+    "harnessHash": "8d008855e94df739126e01bc173610c9b05e55489d1e8e489ffbd55e160a5d8e",
+    "dirty": true,
     "machineId": "i7-1165g7"
   },
   "objective": {
@@ -65,13 +65,13 @@
     },
     "analyticEstimate": {
       "how": "The highest load at which the engine's instant estimate of the design (queueing formulas at one load, not a simulation) gives a p95 within the objective, searched as the simulated knee is: by doubling from 100 req/s, then bisection to 1%. The estimate fails no request, so a load meets the objective when the estimate has a p95 there and it is within the objective's; it has none once a part a request waits for is overloaded. No measured load step is used.",
-      "kneeRps": 1712,
+      "kneeRps": 3000,
       "basis": "p95",
       "atKnee": {
-        "p95": 3.51,
+        "p95": 42.01,
         "overloaded": false,
-        "saturationRps": 1715.6,
-        "summary": "p95 \u2248 3.5 ms; busiest PostgreSQL 100%"
+        "saturationRps": 3069.1,
+        "summary": "p95 \u2248 42 ms; busiest Node.js service 98%"
       },
       "tried": [
         {
@@ -100,31 +100,27 @@
         },
         {
           "offeredRps": 2400,
+          "p95": 5.66
+        },
+        {
+          "offeredRps": 2800,
+          "p95": 11.97
+        },
+        {
+          "offeredRps": 3000,
+          "p95": 42.01
+        },
+        {
+          "offeredRps": 3100,
           "p95": null
         },
         {
-          "offeredRps": 2000,
-          "p95": null
+          "offeredRps": 3050,
+          "p95": 147.39
         },
         {
-          "offeredRps": 1800,
-          "p95": null
-        },
-        {
-          "offeredRps": 1700,
-          "p95": 3.49
-        },
-        {
-          "offeredRps": 1750,
-          "p95": null
-        },
-        {
-          "offeredRps": 1725,
-          "p95": null
-        },
-        {
-          "offeredRps": 1712,
-          "p95": 3.51
+          "offeredRps": 3025,
+          "p95": 64.85
         }
       ]
     },

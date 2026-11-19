@@ -16,7 +16,7 @@ The engine versions on this page are the engine's own, not ArchSim's release num
 engine's version changes only when the same design and seed could give different results, and
 every report records it ([Two version numbers](getting-started.md#two-version-numbers)). The
 measured runs were predicted by the Python engine, up to its last version, 0.16.0; the Java
-engine, 1.5.0 today, re-simulates them ([The Java engine](#the-java-engine)).
+engine, 1.5.1 today, re-simulates them ([The Java engine](#the-java-engine)).
 
 ## Headline
 
@@ -161,13 +161,13 @@ Would simple arithmetic on the same calibration find the knee as well as the sim
 
 | Experiment | Sample | Knee measured | Simulator | Bottleneck arithmetic | Engine's analytic estimate | Utilisation extrapolation |
 | --- | --- | --- | --- | --- | --- | --- |
-| [java-mixed](#java-mixed) | held out | 4,650 req/s | 7,907 (+70%) | 7,902 (+70%) | 7,850 (+69%) | 8,289 (+78%) |
-| [go-mixed](#go-mixed) | held out | 5,950 req/s | 9,916 (+67%) | 9,930 (+67%) | 8,650 (+45%) | 10,140 (+70%) |
+| [java-mixed](#java-mixed) | held out | 4,650 req/s | 7,907 (+70%) | 7,902 (+70%) | 7,900 (+70%) | 8,289 (+78%) |
+| [go-mixed](#go-mixed) | held out | 5,950 req/s | 9,916 (+67%) | 9,930 (+67%) | 9,900 (+66%) | 10,140 (+70%) |
 | [python-mixed](#python-mixed) | held out | 1,388 req/s | 1,762 (+27%) | 1,785 (+29%) | 1,775 (+28%) | 1,857 (+34%) |
 | [chain](#chain) | held out | 3,388 req/s | 4,455 (+32%) | 4,464 (+32%) | 4,400 (+30%) | 4,475 (+32%) |
 | [cache-ttl](#cache-ttl) | held out | 5,420 req/s | 5,104 (-6%) | 5,212 (-4%) | 5,150 (-5%) | 5,368 (-1%) |
 | [pg-mixed](#pg-mixed) | tuned on | 4,483 req/s | 5,203 (+16%) | 5,205 (+16%) | 5,100 (+14%) | 5,234 (+17%) |
-| [pg-hot-row](#pg-hot-row) | tuned on | 947 req/s | 857 (-10%) | 858 (-9%) | 1,712 (+81%) | 3,781 (+299%) |
+| [pg-hot-row](#pg-hot-row) | tuned on | 947 req/s | 857 (-10%) | 858 (-9%) | 3,000 (+217%) | 3,781 (+299%) |
 | [cache-aside](#cache-aside) | tuned on | 6,752 req/s | 5,652 (-16%) | 5,701 (-16%) | 5,600 (-17%) | 5,899 (-13%) |
 | [kafka](#kafka) | tuned on | 2,387 req/s | 2,090 (-12%) | 2,110 (-12%) | 2,050 (-14%) | 1,984 (-17%) |
 
@@ -175,9 +175,9 @@ Median absolute knee error, held out (5 experiments): simulator 32%, bottleneck 
 
 Median absolute knee error, tuned on (4 experiments): simulator 14%, bottleneck arithmetic 14%, engine's analytic estimate 16%, utilisation extrapolation 17%.
 
-The simulator's knees are the predictions in the [headline](#headline), made before each run was measured. The three estimates were computed afterwards (on 2026-11-19; the analytic estimate by engine 1.5.0), from the calibration each prediction used and no measured load step. Their rules were fixed on 2026-11-19, with the results of every run calibrated before that day in view: for those runs the estimates check what the simulation adds and are not predictions. Each run's `baselines.json`, beside its `comparison.json`, has every figure and how it was found ([ADR 0087](adr/0087-compare-the-simulator-with-simple-estimates.md)).
+The simulator's knees are the predictions in the [headline](#headline), made before each run was measured. The three estimates were computed afterwards (on 2026-11-19; the analytic estimate by engine 1.5.0 and 1.5.1), from the calibration each prediction used and no measured load step. Their rules were fixed on 2026-11-19, with the results of every run calibrated before that day in view: for those runs the estimates check what the simulation adds and are not predictions. Each run's `baselines.json`, beside its `comparison.json`, has every figure and how it was found ([ADR 0087](adr/0087-compare-the-simulator-with-simple-estimates.md)).
 
-At kafka's knee the engine's estimate already calls the design overloaded, for work no request waits for ("Overloaded at 2,050 req/s: PostgreSQL needs 127% of its capacity; it saturates at about 1,612 req/s."); the p95 it gives there is the requests', which is what the objective judges.
+At kafka's knee the engine's estimate already calls the design overloaded, for work no request waits for ("Overloaded at 2,050 req/s: Kafka needs 105% of its capacity; it saturates at about 1,959 req/s."); the p95 it gives there is the requests', which is what the objective judges.
 <!-- END GENERATED: baselines -->
 
 Read it as plainly as the headline (figures as of 19 Nov 2026):
@@ -199,20 +199,30 @@ Read it as plainly as the headline (figures as of 19 Nov 2026):
 - **What does not know the design fails on pg-hot-row.** No core fills there: the hot row's lock
   binds. The simulator models the lock and the arithmetic counts it (-10% and -9%); the
   utilisation line, which sees CPU alone, is +299%. The engine's analytic estimate leaves lock
-  waits out too, and its +81% understates what that costs. Its knee is PostgreSQL's two cores
-  filling at 1,716 req/s, by the term the next point describes: two cores over the write and its
-  flush, which is exactly twice the lock's 858 req/s. Without that term its next limit would be
-  the service's core at 3,069 req/s (+224%).
-- **The engine's analytic estimate counts a commit's flush as PostgreSQL CPU**, which the
-  calibration measured without it (the estimator's `PartShapes`, where a write's time takes the
-  flush before the CPU share is applied). That term sets its knee on three experiments and shows
-  on a fourth. go-mixed: it fills the database's two cores at 8,676 req/s, before the service's
-  9,930, which is why the estimate departs from the simulator there (+45% against +67%).
-  java-mixed: it puts PostgreSQL at 7,897 req/s, 6 req/s under the service's 7,902, so the
-  estimate's agreement with the simulator there is a coincidence. pg-hot-row: the 1,716 req/s
-  above. Kafka: it is the "PostgreSQL needs 127% of its capacity; it saturates at about 1,612
-  req/s" quoted under the table, where the same run's arithmetic puts PostgreSQL's cores at
-  6,438 req/s. The estimator is not changed here.
+  waits out too: its knee is 3,000 req/s (+217%), where the service's core fills at 3,069.
+- **The engine's analytic estimate counted a commit's flush as PostgreSQL CPU until engine
+  1.5.1**, which the calibration measures without it, and that term set its knee on three
+  experiments and showed on a fourth. Engine 1.5.1 counts the flush as the wait it is, as the
+  simulator does ([ADR 0089](adr/0089-count-a-commits-log-flush-as-a-wait-in-the-instant-estimate.md)),
+  and the table shows the estimate after that change. What moved:
+  - go-mixed: the term filled the database's two cores at 8,676 req/s, before the service's
+    9,930, so the knee was 8,650 (+45%). It is 9,900 (+66%), the service's core, beside the
+    simulator's 9,916 (+67%).
+  - java-mixed: the term put PostgreSQL at 7,897 req/s, 6 req/s under the service's 7,902, an
+    agreement by coincidence. The knee was 7,850 and is 7,900, the service's core.
+  - pg-hot-row: the term filled PostgreSQL's two cores at 1,716 req/s, exactly twice the lock's
+    858, so the knee was 1,712 (+81%). It is the 3,000 above.
+  - Kafka: the estimate said "PostgreSQL needs 127% of its capacity; it saturates at about 1,612
+    req/s", where the same run's arithmetic puts PostgreSQL's cores at 6,438 req/s. The overload
+    it reports now, quoted under the table, is the consumers', at the arithmetic's own 1,959
+    req/s. The knee, 2,050, did not move.
+
+  On go-mixed and pg-hot-row the estimate was nearer the measured knee before the change, for a
+  reason that was not true of either stack. Its medians are unchanged, 30% held out and 16%
+  tuned on. Its knee is now within 2% of the simulator's on eight experiments and apart only on
+  pg-hot-row, whose lock it does not model. The change was made with these results in view and
+  touches the estimate alone: the simulator's predictions are the same
+  ([Held-out experiments](#held-out-experiments)).
 - **Kafka's consumers do not bound any of these knees.** The objective judges the producer's
   requests, and neither the measured nor the simulated knee waits for the work behind the queue,
   so the estimates leave it out too and list it in `baselines.json`. Counted, the consumers'
@@ -226,7 +236,7 @@ Read it as plainly as the headline (figures as of 19 Nov 2026):
 ## The Java engine
 
 <!-- BEGIN GENERATED: java-engine -->
-Re-simulated, in-sample: engine 1.5.0 (Java) re-simulates every kept calibration with exactly 0.16.0's knees (65 of 65); the latest predictions shown are 0.16.0's, which 1.5.0 reproduces ([java-parity.md](validation/java-parity.md)).
+Re-simulated, in-sample: engine 1.5.1 (Java) re-simulates every kept calibration with exactly 0.16.0's knees (65 of 65); the latest predictions shown are 0.16.0's, which 1.5.1 reproduces ([java-parity.md](validation/java-parity.md)).
 <!-- END GENERATED: java-engine -->
 
 ## Reproduce
@@ -713,9 +723,13 @@ results, misses included, lead the [headline](#headline):
   version that changes how capacity or latency is modelled after that date lists all five in
   `tunedOn`, and can show out-of-sample accuracy only on experiments registered before the
   change. A change to how the harness derives the model inputs or builds the designs counts
-  as one too. The Java engine up to 1.5.0 predicts every kept calibration, the 15 held-out
+  as one too. The Java engine up to 1.5.1 predicts every kept calibration, the 15 held-out
   runs among them, exactly as 0.16.0 did, knees and steps (`:archsim-benchmarks:parity`: 65 of
-  65 on 19 Nov 2026), so they are still held out for it.
+  65 on 19 Nov 2026), so they are still held out for it. Engine 1.5.1 changed how the instant
+  estimate counts a commit's flush, with every result in view
+  ([ADR 0089](adr/0089-count-a-commits-log-flush-as-a-wait-in-the-instant-estimate.md)): the
+  simulator does not predict with that estimate, and the estimate's figures on this page were
+  never predictions ([Against simple estimates](#against-simple-estimates)).
 - **Changed after registration, before any measurement (31 Oct 2026):** two library updates to
   clear GitHub's dependency alerts. go-mixed's PostgreSQL driver pgx went from 5.7.6 to 5.9.2,
   which also drops `golang.org/x/crypto`, and python-mixed's Flask from 3.1.2 to 3.1.3. None of

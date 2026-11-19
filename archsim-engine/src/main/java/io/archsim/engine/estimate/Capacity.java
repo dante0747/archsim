@@ -124,8 +124,9 @@ record Capacity(double meanHoldMs, @Nullable Double slotUtilization, @Nullable D
 	 */
 	EstimatedPart estimate(NodeSpec node, boolean onPath, NodeLoad here, PartShape shape) {
 		double total = here.total();
-		double service = (total > 0) ? (here.read() * shape.read().mean() + here.write() * shape.write().mean()) / total
-				: shape.read().mean();
+		double readMs = shape.own(Op.READ).mean();
+		double writeMs = shape.own(Op.WRITE).mean();
+		double service = (total > 0) ? (here.read() * readMs + here.write() * writeMs) / total : readMs;
 		return new EstimatedPart(node.id(), node.name(), node.type(), onPath, Rounded.of(total, Rounded.RATE), status(),
 				shape.slots(), shape.pools(), Rounded.of(service, Rounded.TIME),
 				Rounded.of(this.meanHoldMs, Rounded.TIME), Rounded.of(this.utilization, Rounded.SHARE),

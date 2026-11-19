@@ -69,19 +69,22 @@ final class PartShapes {
 			own = own.scaledBy(curve.factorAt(perReplica));
 		}
 		if (serverless) {
-			return new PartShape(own, own, null, 1, config.concurrencyLimit(), false, true, null, null, false);
+			return new PartShape(own, own, Moments.ZERO, null, 1, config.concurrencyLimit(), false, true, null, null,
+					false);
 		}
 		Double cores = config.cpuCores();
 		Double cpu = (cores != null && cores != 0)
 				? load.total() * own.mean() * config.cpuShare() / (MILLIS_PER_SECOND * cores * Math.max(1, replicas))
 				: null;
-		return new PartShape(own, own, null, Math.max(1, replicas), config.handlersPerReplica(), true,
+		return new PartShape(own, own, Moments.ZERO, null, Math.max(1, replicas), config.handlersPerReplica(), true,
 				config.holdsHandlerThroughCalls(), cpu, null, false);
 	}
 
 	/**
 	 * A database: connections per instance, a write waiting for the log flush, and the
-	 * throughput limits of a metered table.
+	 * throughput limits of a metered table. Its CPU is its primary's, busy with the CPU
+	 * share of its queries: a write waits for the flush on its connection with no core at
+	 * work, as a run models it.
 	 * @param config the database's config
 	 * @param load its load
 	 * @return its shape
@@ -89,9 +92,7 @@ final class PartShapes {
 	private static PartShape database(DatabaseConfig config, NodeLoad load) {
 		Moments read = Moments.of(config.readServiceTimeMs());
 		Moments write = Moments.of(config.writeServiceTimeMs());
-		if (config.flushesCommits()) {
-			write = write.plus(Moments.of(config.commitFlushMs()));
-		}
+		Moments flush = config.flushesCommits() ? Moments.of(config.commitFlushMs()) : Moments.ZERO;
 		int copies = 1 + config.readReplicas();
 		Double cores = config.cpuCores();
 		Double cpu = null;
@@ -100,8 +101,8 @@ final class PartShapes {
 					/ MILLIS_PER_SECOND / Math.max(1, config.shards());
 			cpu = primary / cores;
 		}
-		return new PartShape(read, write, null, Math.max(1, config.partitions() * copies), config.maxConnections(),
-				true, false, cpu, limit(config, load), false);
+		return new PartShape(read, write, flush, null, Math.max(1, config.partitions() * copies),
+				config.maxConnections(), true, false, cpu, limit(config, load), false);
 	}
 
 	/**
@@ -126,19 +127,19 @@ final class PartShapes {
 		Moments own = Moments.of(config.serviceTimeMs());
 		Double cores = config.cpuCores();
 		Double cpu = (cores != null && cores != 0) ? load.total() * own.mean() / MILLIS_PER_SECOND / cores : null;
-		return new PartShape(own, own, null, Math.max(1, config.shards()), config.executors(), true, false, cpu, null,
-				config.populateOnMiss());
+		return new PartShape(own, own, Moments.ZERO, null, Math.max(1, config.shards()), config.executors(), true,
+				false, cpu, null, config.populateOnMiss());
 	}
 
 	private static PartShape balancer(LoadBalancerConfig config, NodeLoad load) {
 		Moments own = Moments.of(config.overheadMs());
-		return new PartShape(own, own, null, 1, config.maxConnections(), false, true, null,
+		return new PartShape(own, own, Moments.ZERO, null, 1, config.maxConnections(), false, true, null,
 				share(load, config.rateLimitRps()), false);
 	}
 
 	private static PartShape api(ExternalApiConfig config, NodeLoad load) {
 		Moments own = Moments.of(config.latencyMs());
-		return new PartShape(own, own, null, 1, config.concurrencyLimit(), false, false, null,
+		return new PartShape(own, own, Moments.ZERO, null, 1, config.concurrencyLimit(), false, false, null,
 				share(load, config.rateLimitRps()), false);
 	}
 
@@ -159,7 +160,8 @@ final class PartShapes {
 			publish = publish.plus(Moments.of(config.replicationMs()));
 		}
 		Moments consumer = Moments.of(config.consumerTimeMs());
-		return new PartShape(consumer, consumer, publish, 1, config.consumerSlots(), true, true, null, null, false);
+		return new PartShape(consumer, consumer, Moments.ZERO, publish, 1, config.consumerSlots(), true, true, null,
+				null, false);
 	}
 
 	private static @Nullable Double share(NodeLoad load, @Nullable Double rateLimit) {

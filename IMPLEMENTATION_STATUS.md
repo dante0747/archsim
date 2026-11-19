@@ -1,16 +1,17 @@
 # Implementation status
 
-State as of 2026-11-17 (engine 1.5.0, the Java engine: 1.0.0 reproduces the frozen engine 0.16.0
+State as of 2026-11-19 (engine 1.5.1, the Java engine: 1.0.0 reproduces the frozen engine 0.16.0
 measured on the held-out experiments, 1.1.0 changes only how the cost counts autoscaled parts and
 prices the peak, ADR-0074, 1.1.1 where a run's per-request rates at the base load are measured,
 1.2.0 how a third-party API without a price is priced, ADR-0081, 1.2.1 how a cache's hit ratio
 counts refused lookups, ADR-0082, 1.3.0 a database's busiest instance's CPU and ceiling, ADR-0083,
-1.4.0 lost messages and a message's age, ADR-0084, and 1.5.0 a Kafka broker's measured size and
-idle consumers, ADR-0085; schema 1.10, report 1.20; the API, the engine, the CLI, the MCP server,
-the benchmark harness and the repository's tooling in Java, and no Python left but the benchmarked
-stacks and three trial records). This file separates what is implemented, how it was verified,
-what is known to be limited, and what comes next. Nothing listed under "Implemented" is a stub or
-a mock.
+1.4.0 lost messages and a message's age, ADR-0084, 1.5.0 a Kafka broker's measured size and
+idle consumers, ADR-0085, and 1.5.1 the instant estimate's count of a commit's log flush as a
+wait, not database CPU, ADR-0089; schema 1.10, report 1.20; the API, the engine, the CLI, the MCP
+server, the benchmark harness and the repository's tooling in Java, and no Python left but the
+benchmarked stacks and three trial records). This file separates what is implemented, how it was
+verified, what is known to be limited, and what comes next. Nothing listed under "Implemented" is
+a stub or a mock.
 
 ## Implemented and covered by automated tests
 

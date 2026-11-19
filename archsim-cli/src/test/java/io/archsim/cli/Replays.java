@@ -15,6 +15,7 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.cli.RecordedCases.Ran;
+import io.archsim.engine.parity.CommitFlushDepartures;
 import io.archsim.engine.parity.CostDepartures;
 import io.archsim.engine.parity.KafkaSizingDepartures;
 import io.archsim.model.text.PythonJson;
@@ -31,7 +32,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * and a float alike, keys in any order; a cost as {@link CostDepartures} compares one,
  * ADR-0074), laid out as {@code json.dumps(value, indent=2)} lays it out. What it prints
  * is compared as the frozen engine would have printed it at its schema
- * ({@link SchemaDepartures}).
+ * ({@link SchemaDepartures}), with the CPU it counted for a database that flushes its
+ * commits ({@link CommitFlushDepartures}, ADR-0089).
  */
 final class Replays {
 
@@ -138,8 +140,9 @@ final class Replays {
 	}
 
 	// JSON (a design, a report) by its values and Python's layout, a Kafka broker's size
-	// read as the frozen engine sized it; anything else word for word, with Python's line
-	// ends, without the digests a run prints where they depart
+	// read as the frozen engine sized it and the estimate of a database that flushes its
+	// commits as the frozen engine counted its CPU; anything else word for word, with
+	// Python's line ends, without the digests a run prints where they depart
 	private static void assertSameText(String python, String java, UnaryOperator<String> digests) {
 		String text = java.replace("\r\n", "\n");
 		if (!python.startsWith("{") && !python.startsWith("[")) {
@@ -148,7 +151,9 @@ final class Replays {
 		}
 		JsonNode expected = JSON.readTree(python);
 		JsonNode printed = JSON.readTree(text);
-		JsonNode departed = SchemaDepartures.asRecorded(KafkaSizingDepartures.asRecorded(printed, expected), expected);
+		JsonNode estimated = CommitFlushDepartures.asRecorded(printed, expected);
+		JsonNode departed = SchemaDepartures.asRecorded(KafkaSizingDepartures.asRecorded(estimated, expected),
+				expected);
 		JsonNode compared = withCostAsFrozen(expected, departed);
 		// both NaN is the same value: json.dumps and Java print it alike, but the golden
 		// files' comparison, like Python's, finds NaN unequal to itself

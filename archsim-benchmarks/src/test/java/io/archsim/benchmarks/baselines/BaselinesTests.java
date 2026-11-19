@@ -113,15 +113,15 @@ class BaselinesTests {
 				"""));
 	}
 
-	// the estimate's p95 is the producer's requests': PostgreSQL works behind the queue
+	// the estimate's p95 is the producer's requests': the consumers work behind the queue
 	@Test
 	void of_aRunWithAQueue_recordsThatTheEstimateCallsItOverloadedAtItsKnee() {
 		JsonNode estimate = baselines("kafka", "run-10").at("/baselines/analyticEstimate");
 
 		assertThat(estimate.get("kneeRps")).isEqualTo(PythonValues.integer(2675));
 		assertThat(estimate.at("/atKnee/overloaded").booleanValue()).isTrue();
-		assertThat(estimate.at("/atKnee/summary").stringValue()).isEqualTo("Overloaded at 2,675 req/s: PostgreSQL "
-				+ "needs 163% of its capacity; it saturates at about 1,640 req/s.");
+		assertThat(estimate.at("/atKnee/summary").stringValue()).isEqualTo(
+				"Overloaded at 2,675 req/s: Kafka needs 156% of its capacity; it saturates at about 1,717 req/s.");
 	}
 
 	@Test

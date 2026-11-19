@@ -146,9 +146,9 @@ class BaselinesBlockTests {
 		String block = keptRunsBlock();
 
 		assertThat(block)
-			.contains("| [pg-hot-row](#pg-hot-row) | tuned on | 947 req/s | 863 (-9%) | 866 (-9%) | 1,725 (+82%) | "
+			.contains("| [pg-hot-row](#pg-hot-row) | tuned on | 947 req/s | 863 (-9%) | 866 (-9%) | 3,050 (+222%) | "
 					+ "3,711 (+292%) |")
-			.contains("| [go-mixed](#go-mixed) | held out | 6,204 req/s | 9,802 (+58%) | 9,796 (+58%) | 8,350 (+35%) | "
+			.contains("| [go-mixed](#go-mixed) | held out | 6,204 req/s | 9,802 (+58%) | 9,796 (+58%) | 9,750 (+57%) | "
 					+ "10,051 (+62%) |");
 	}
 

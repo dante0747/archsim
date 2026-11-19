@@ -1,0 +1,30 @@
+{
+  "why": "On threads a host machine slows, the Java stretches the CPU share of a write's query and not the log flush the write then waits for; the frozen engine 0.16.0 stretched both (engine 1.5.1, ADR-0089). In the two recorded cases with such a database, these figures are the Java's own: the database's own time, the slots it holds for it, what a caller that waits on it and the latency take from them, and the p95 the summary gives. Every other figure of the two cases is the frozen engine's (InstantEstimatorTests).",
+  "cases": {
+    "onAHostMachine_slowsEveryPartsCpuWork": {
+      "/parts/1/meanHoldMs": 467.041,
+      "/parts/1/meanServiceMs": 467.041,
+      "/parts/1/slotUtilization": 14.0112
+    },
+    "onABusyHostMachine_slowsTheOwnTimesItsRequestsWait": {
+      "/breakdown/0/share": 0.5103,
+      "/breakdown/1/meanMs": 10.926,
+      "/breakdown/1/share": 0.414,
+      "/breakdown/2/share": 0.0758,
+      "/latencyMs/mean": 26.39,
+      "/latencyMs/p95": 48.36,
+      "/parts/0/load": 0.0952,
+      "/parts/0/meanHoldMs": 25.389,
+      "/parts/0/meanResidenceMs": 25.394,
+      "/parts/0/slotUtilization": 0.0952,
+      "/parts/0/utilization": 0.0952,
+      "/parts/1/meanHoldMs": 10.926,
+      "/parts/1/meanResidenceMs": 10.926,
+      "/parts/1/meanServiceMs": 10.926,
+      "/parts/1/perRequestMs": 10.926,
+      "/parts/1/slotUtilization": 0.0328,
+      "/paths/1/meanMs": 34.511,
+      "/summary": "p95 ≈ 48 ms; busiest db 10%"
+    }
+  }
+}

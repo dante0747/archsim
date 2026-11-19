@@ -96,6 +96,17 @@ which engine the estimates were computed, when their rules were fixed and which 
 calibrated after that day, and quotes the engine's estimate where it calls a design overloaded at
 its knee. `accuracy.json` and the web app are unchanged.
 
+**Status (19 Nov 2026):**
+[ADR-0089](0089-count-a-commits-log-flush-as-a-wait-in-the-instant-estimate.md) (proposed, engine
+1.5.1) takes out of the estimator the term the last-but-one consequence below describes, and
+`baselines` wrote again the 17 files whose figures moved. The figures below are the estimate's
+before that change. After it the analytic estimate's knee is the service's core on the three
+experiments the term had set: go-mixed 9,900 req/s (+66%), where it was 8,650 (+45%); java-mixed
+7,900, where it was 7,850; pg-hot-row 3,000 (+217%), where it was 1,712 (+81%), so the two
+estimates that do not know of the row's lock are +217% and +299%. Its Kafka note names the
+consumers falling behind at 1,959 req/s, not PostgreSQL. Its medians did not move (30% held out,
+16% tuned on), and its knee is within 2% of the simulator's on eight experiments.
+
 ### Consequences
 
 - Good, because the page now answers the review's question, and the answer is the unwelcome

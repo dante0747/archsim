@@ -61,18 +61,18 @@ describe("instant estimate", () => {
 
   it("compares a database of several instances with its busiest instance", () => {
     const r = run();
-    r.estimate!.busiest = { id: "db", label: "PostgreSQL", utilization: 0.2835, limitedBy: "cpu" };
-    expect(compareEstimate(r)!.text).toContain("PostgreSQL's busiest instance 28% CPU busy (simulated 27%)");
+    r.estimate!.busiest = { id: "db", label: "PostgreSQL", utilization: 0.271, limitedBy: "cpu" };
+    expect(compareEstimate(r)!.text).toContain("PostgreSQL's busiest instance 27% CPU busy (simulated 27%)");
   });
 
   it("compares CPU at the load the run sent the part, not the estimate's peak", () => {
     const r = run();
-    r.estimate!.busiest = { id: "db", label: "PostgreSQL", utilization: 0.2835, limitedBy: "cpu" };
+    r.estimate!.busiest = { id: "db", label: "PostgreSQL", utilization: 0.271, limitedBy: "cpu" };
     r.nodes[1].summary.arrivalRps = 84;
     const cmp = compareEstimate(r)!;
-    expect(cmp.busiest).toMatchObject({ estimate: 0.2835 * 0.75, simulated: 0.27 });
+    expect(cmp.busiest).toMatchObject({ estimate: 0.271 * 0.75, simulated: 0.27 });
     expect(cmp.text).toBe(
-      "Queueing formulas: p95 ≈ 97 ms at the peak (simulated 91 ms over the run); PostgreSQL's busiest instance 21% CPU busy at the 84 req/s the run sent it (simulated 27%; 28% at the 112 req/s peak).",
+      "Queueing formulas: p95 ≈ 97 ms at the peak (simulated 91 ms over the run); PostgreSQL's busiest instance 20% CPU busy at the 84 req/s the run sent it (simulated 27%; 27% at the 112 req/s peak).",
     );
   });
 

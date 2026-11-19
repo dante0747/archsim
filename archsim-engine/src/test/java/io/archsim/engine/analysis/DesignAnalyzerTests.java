@@ -13,6 +13,7 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.engine.parity.CommitFlushDepartures;
 import io.archsim.engine.parity.CostDepartures;
 import io.archsim.engine.review.ReviewRule;
 import io.archsim.model.component.standard.StandardComponents;
@@ -31,7 +32,9 @@ import static org.assertj.core.api.Assertions.catchThrowableOfType;
  * record; a document that cannot be read. Each case ({@code analysis/cases.json},
  * recorded from the frozen engine by {@code scripts/export_analysis_cases.py}, since
  * deleted) has the analysis the Python engine 0.16.0 gives, or the error it raises; its
- * cost is compared as {@link CostDepartures} compares one (ADR-0074).
+ * cost is compared as {@link CostDepartures} compares one (ADR-0074), and its estimate of
+ * a database that flushes its commits, with the confidence weighed by it, as
+ * {@link CommitFlushDepartures} reads them (ADR-0089).
  */
 class DesignAnalyzerTests {
 
@@ -72,7 +75,7 @@ class DesignAnalyzerTests {
 		DesignAnalysis analysis = this.analyzer.analyze(entry.path("design"), scenario(entry));
 
 		JsonNode expected = entry.path("analysis").path("output");
-		ObjectNode actual = analysis.toJson();
+		ObjectNode actual = (ObjectNode) CommitFlushDepartures.asRecorded(analysis.toJson(), expected);
 		actual.set("cost",
 				CostDepartures.comparable(expected.path("cost"), actual.path("cost"), CostDepartures.Departing.NONE));
 

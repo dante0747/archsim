@@ -8,6 +8,24 @@ for when that version changes.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The instant estimate no longer counts a commit's log flush as database CPU (engine 1.5.1,
+  [ADR-0089](docs/adr/0089-count-a-commits-log-flush-as-a-wait-in-the-instant-estimate.md)).**
+  A write waits for the log flush on its connection with no core at work, as a run models it
+  and as the sizing counts it. The estimate applied the CPU share to the query and the flush
+  together, which filled a database's cores too early wherever it writes. A write still holds
+  its connection through the flush, and the flush still counts in the latency; on threads a host
+  machine slows, only the query's CPU share takes longer. Black Friday's Orders DB reads 52%
+  busy at its 480 req/s peak, as its sizing counts it, where it read 56%, and the starter's
+  PostgreSQL 27%, where it read 28%. A report's `estimate` changes for the same design and
+  seed, so the engine moves from 1.5.0 to 1.5.1; nothing a run simulates changes, and its result
+  digest is the same. On the accuracy benchmarks the estimate's knee for go-mixed moves from
+  8,650 to 9,900 req/s (the simulator's is 9,916) and no longer calls Kafka's PostgreSQL
+  overloaded; on pg-hot-row, where a row lock the estimate does not model binds, it moves from
+  1,712 to 3,000 req/s, further from the measured 947
+  ([docs/validation.md](docs/validation.md#against-simple-estimates)).
+
 ## [1.3.0] - 2026-11-17
 
 Results that agree with themselves and with the design, after a review of the live demo, and a

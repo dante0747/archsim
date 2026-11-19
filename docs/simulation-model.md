@@ -772,6 +772,13 @@ the time until the key expires or is next written):
   utilization measures; a rate or throughput limit is not work, so its share is `rateLimitShare`,
   and `load` (the largest of them) says whether the part can keep up (before engine 0.13 a
   gateway at 75% of its rate limit showed as 75% busy).
+- **A database's commit** is a wait, as in a run: a write holds its connection for its query and
+  one log flush, and both count in its latency, but only the CPU share of its queries is work on
+  its cores, and only that work takes longer on threads a host machine or a hyperthread sibling
+  slows. Its `cpuUtilization` is its primary's: `((reads ÷ instances of a shard) × read time +
+  writes × write time) × cpuShare ÷ 1000 ÷ shards ÷ cores`. Before engine 1.5.1 the flush counted
+  as CPU time too, which filled a write-heavy database's cores too early
+  ([ADR-0089](adr/0089-count-a-commits-log-flush-as-a-wait-in-the-instant-estimate.md)).
 - **Waiting:** an M/M/c queue per pool (a service replica, a database instance, a cache shard),
   Wq = C(c, a) / (c·μ - λ) with Erlang C. Load balancers, serverless functions and third-party
   APIs refuse rather than queue, so they add no wait.
@@ -796,7 +803,8 @@ pauses, autoscaling delays and the memory model. On the starter the estimate is 
 simulated mean and p95 and within a point of its busiest part's utilization; on the queueing lab
 (an M/M/4 queue) within 5%. archsim-engine's `EstimateAgreementTests` keeps both within 15%,
 and the estimate gives the frozen engine 0.16.0's figures on every golden entry and recorded
-case.
+case, but for the CPU of a database that flushes its commits and what follows from it
+(`CommitFlushDepartures`).
 
 ## Accounting invariants
 
