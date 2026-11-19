@@ -21,12 +21,8 @@ class ExperimentsTests {
 
 	private static final HeldOut FIRST_SET = new HeldOut("2026-10-30", "ce2d109d534b9a9cd18a4a42690b71dcf86342f4");
 
-	/**
-	 * The second set's registration (ADR-0090). Its commit reads {@code pending} until
-	 * the commit after the registering one records that one's hash, here and in
-	 * {@code experiments.json}.
-	 */
-	private static final HeldOut SECOND_SET = new HeldOut("2026-11-19", "pending");
+	/** The second set's registration (ADR-0090). */
+	private static final HeldOut SECOND_SET = new HeldOut("2026-11-19", "61ceaa32f27e4bfe601edab6922f3c342c3b9580");
 
 	@Test
 	void standard_theExperiments_areTheTunedOnFourThenTheTwoHeldOutSets() {
