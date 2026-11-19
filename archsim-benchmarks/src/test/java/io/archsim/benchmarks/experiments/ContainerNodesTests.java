@@ -10,7 +10,8 @@ class ContainerNodesTests {
 
 	@ParameterizedTest
 	@CsvSource({ "api-java, api", "api-go, api", "api-python, api", "chain-api, api", "api-ttl, api",
-			"gateway, gateway", "redis-ttl, cache", "postgres, db" })
+			"gateway, gateway", "redis-ttl, cache", "postgres, db", "api-python-cores, api", "api-python-wide, api",
+			"api-go-pool, api" })
 	void of_aHeldOutStacksContainer_isTheModelsNode(String container, String node) {
 		assertThat(ContainerNodes.of(container)).contains(node);
 	}

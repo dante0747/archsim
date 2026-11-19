@@ -754,6 +754,64 @@ connections and PostgreSQL 16 on CPUs 4,5.
   k6 draws keys from a keyspace this large by rejection-inversion, which gives exactly the same
   distribution without a table in every VU.
 
+### The second set, registered 19 Nov 2026
+
+The first five cannot show out-of-sample accuracy for the next change to the model: the review
+of 18 Nov 2026 read their results, and that change is made with them in view
+([ADR-0088](adr/0088-freeze-the-java-engine-by-its-sources-and-fix-the-criteria-before-a-campaign.md)).
+ADR-0090 (`docs/adr/0090`) therefore registers five more, on 19 Nov 2026, before the change,
+so that it can be judged on results nobody has seen. They are **sealed and not yet measured**:
+nothing has calibrated, predicted or measured them, and until an engine frozen in
+`benchmarks/engines.json` predicts them the harness only smoke-tests them (`smoke <experiment>`:
+20 req/s for 10 s, nothing kept). Each one's registration, its date and the commit that
+registered its stack, workload and model, is recorded in the harness's `experiments.json`
+(`heldOut`). The report lists the experiments that are registered and have no kept run:
+
+<!-- BEGIN GENERATED: registered -->
+| Experiment | What it runs | Registered |
+| --- | --- | --- |
+| python-cores | Flask on gunicorn (10 sync workers) on two CPUs the VM numbers as separate cores + PostgreSQL: 90% reads, 10% writes over 100,000 rows | 2026-11-19 |
+| python-wide | Flask on gunicorn (10 sync workers) on four CPUs + PostgreSQL: 90% reads, 10% writes over 100,000 rows | 2026-11-19 |
+| java-hot-row | Spring Boot (Tomcat, HikariCP) + PostgreSQL: every request updates the same row | 2026-11-19 |
+| go-pool | Go (net/http, pgx) + PostgreSQL through a pool of 2 connections: 50% reads, 50% writes over 100,000 rows | 2026-11-19 |
+| cache-miss | Cache-aside: Node.js, Redis (5 s TTL) and PostgreSQL; uniform over 1,000,000 keys, so nearly every lookup misses | 2026-11-19 |
+
+5 held-out experiments are registered with no kept run: nothing on this page is measured on them.
+<!-- END GENERATED: registered -->
+
+| Experiment | What it tests | Stack |
+| --- | --- | --- |
+| python-cores | python-mixed's service sits on CPUs 2 and 3, which the VM numbers as one core's two hyperthreads; this one sits on 0 and 2, numbered as two cores, with 1 and 3 left idle. Two explanations of python-mixed's knee (measured about a fifth below the prediction) part here. If the VM's pairs are real hyperthread pairs, this knee is about a quarter above python-mixed's measured in the same campaign. If Windows schedules the VM's CPUs itself, as the contention check of 1 Nov 2026 found, the two knees are the same, and what slows the service is how much of the whole machine is busy | Flask on gunicorn, 10 sync workers, on CPUs 0,2; pg-mixed's workload |
+| python-wide | The same service on four CPUs (0 to 3), still with 10 workers: about twice the CPU for the service and more of the machine busy at its knee (the service's four, PostgreSQL's and k6's), which is where the contention check saw work slow down most | Flask on gunicorn, 10 sync workers, on CPUs 0-3; pg-mixed's workload |
+| java-hot-row | A row lock behind a thread pool and a connection pool, on a second runtime; pg-hot-row is the one experiment where the simulation told more than arithmetic | java-mixed's stack (Tomcat's 200 threads, HikariCP's 10 connections); every request updates the same row |
+| go-pool | A knee set by the connection pool and the commit flush with the service's CPU far from full, so neither the hyperthreads nor the load generator can be what binds | go-mixed's service and CPUs (2,3, GOMAXPROCS 2) with a pgx pool of 2 connections; 50% reads and 50% writes over 100,000 rows |
+| cache-miss | The miss path, three parts in almost every request, which cache-aside (high hit ratio) rarely takes | cache-ttl's stack (Node.js, Redis with a 5 s TTL, PostgreSQL); keys drawn uniformly over 1,000,000, so about 1% of the lookups hit at 2,500 req/s |
+
+Otherwise each keeps its stack's setup: PostgreSQL 16 on CPUs 4,5 and a pool of 10 connections
+(go-pool's 2 apart).
+
+- **CPUs as the VM numbers them.** Docker's VM numbers its CPUs as hyperthread pairs (0-1, 2-3,
+  4-5, 6-7), and by that numbering no container of these stacks shares a core with k6 or with
+  another container. The contention check found that Windows schedules the VM's CPUs itself
+  ([Environment](#environment)), so the numbering may not say who shares a physical core;
+  python-cores beside python-mixed tests which it is.
+- **Knees and k6.** Each is expected to have its knee below about 4,000 req/s, where k6 has been
+  checked under protocol v7
+  ([ADR-0086](adr/0086-keep-the-load-open-loop-past-the-objective-and-close-in-on-the-measured-knee.md)).
+  python-wide is the one near k6's limit: its service has CPUs 0 to 3 and PostgreSQL 4,5, which
+  leaves k6 CPUs 6 and 7 alone, so each repeat's record of k6's own CPU decides whether its knee
+  counts.
+- **Two experiments share a first-set stack.** java-hot-row runs on java-mixed's stack and
+  cache-miss on cache-ttl's. Asked for by its stack (`java-mixed`, `cache-ttl`), the harness
+  runs both of the stack's experiments on one start of it, the first set's first, as it runs
+  pg-hot-row after pg-mixed, so the first set's experiment is measured again beside the new one;
+  `--only java-hot-row` or `--only cache-miss` runs the new one alone.
+- **What the model takes from the registration.** python-wide's service node has 4 CPUs where
+  the `python` runtime's other stacks have 2, and go-pool's PostgreSQL serves 2 connections at
+  once where every other stack's serves 10 (`serviceCpus` and `pool` in `experiments.json`).
+  The calibration's staircase keeps to half the capacity of the experiment's own pool, and
+  treats java-hot-row's row lock as it does pg-hot-row's.
+
 ## java-mixed
 
 <!-- BEGIN GENERATED: java-mixed -->

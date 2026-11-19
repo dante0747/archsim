@@ -9,6 +9,7 @@ import tools.jackson.databind.node.JsonNodeFactory;
 import io.archsim.benchmarks.docker.Stacks;
 import io.archsim.benchmarks.experiments.Experiment;
 import io.archsim.benchmarks.experiments.Experiments;
+import io.archsim.benchmarks.experiments.ServiceRuntime;
 import io.archsim.benchmarks.values.PythonValues;
 import io.archsim.model.text.PythonText;
 
@@ -17,7 +18,9 @@ import io.archsim.model.text.PythonText;
  * meant to send was sent and succeeded, and was counted by the service (on chain, at the
  * gateway and at the API behind it) as a request and in its handler's timings, by
  * PostgreSQL's timings, as a cache hit or miss, by Redis, by the garbage collector's
- * counts, by gunicorn's workers, and as a produced message.
+ * counts, by gunicorn's workers, and as a produced message. A Go service also reports its
+ * threads ({@code GOMAXPROCS}), which are its experiment's CPUs. No service reports its
+ * connection pool, so a smoke test cannot check an experiment's.
  */
 final class SmokeProblems {
 
@@ -43,7 +46,7 @@ final class SmokeProblems {
 		if (!PythonValues.get(stats, "gc").has("collections")) {
 			problems.add("the service reported no garbage collection counts");
 		}
-		problems.addAll(workers(experiment, stats));
+		problems.addAll(runtime(experiment, stats));
 		problems.addAll(producer(experiment, stats, count));
 		return problems;
 	}
@@ -103,12 +106,20 @@ final class SmokeProblems {
 		return problems;
 	}
 
-	// gunicorn's workers, each holding a slot of the shared statistics
-	private static List<String> workers(Experiment experiment, JsonNode stats) {
-		Integer workers = Experiments.standard().runtime(experiment).workers();
+	// how the runtime runs, where its /stats says: gunicorn's workers, each holding a
+	// slot of the shared statistics, and Go's threads, one for each CPU of the
+	// experiment's service
+	private static List<String> runtime(Experiment experiment, JsonNode stats) {
+		ServiceRuntime runtime = Experiments.standard().runtime(experiment);
+		Integer workers = runtime.workers();
 		JsonNode reported = PythonValues.get(stats, "workers");
 		if ("python".equals(experiment.runtime()) && workers != null && !equalTo(reported, workers)) {
 			return List.of(PythonText.str(reported) + " gunicorn workers hold a statistics slot, not " + workers);
+		}
+		JsonNode threads = PythonValues.get(stats, "gomaxprocs");
+		if ("go".equals(experiment.runtime()) && !equalTo(threads, runtime.cpuCores())) {
+			return List.of("the Go service reported GOMAXPROCS " + PythonText.str(threads) + ", not its "
+					+ runtime.cpuCores() + " CPUs");
 		}
 		return List.of();
 	}

@@ -3,6 +3,8 @@ package io.archsim.benchmarks.designs;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -60,6 +62,29 @@ class NodesTests {
 		assertThat(config.get("gcPauseMs").intValue()).isZero();
 		assertThat(config.propertyNames()).doesNotContain("gcEveryRequests", "serviceTimeByLoad", "memoryBaselineMb",
 				"memoryPerRpsMb", "memoryPerRequestMb");
+	}
+
+	// python-wide's four CPUs, with gunicorn's ten workers
+	@Test
+	void service_aRuntimeOnOtherCpus_hasThoseCpusAndItsWorkers() {
+		ServiceRuntime wide = Experiments.standard().runtime("python").onCpus(4);
+
+		JsonNode config = Nodes
+			.service(JsonText.object("{\"serviceTimeMs\": {\"kind\": \"constant\", \"value\": 0.2}}"),
+					new Nodes.Service("api", wide, "serviceTimeMs", wide.label(), "service"))
+			.get("config");
+
+		assertThat(List.of(config.get("cpuCores").intValue(), config.get("workersPerReplica").intValue()))
+			.containsExactly(4, 10);
+	}
+
+	// the service's pool is all PostgreSQL serves at once: go-pool's two connections
+	@ParameterizedTest
+	@ValueSource(ints = { 2, 10 })
+	void database_aPoolOfConnections_isPostgresqlsMostAtOnce(int pool) {
+		JsonNode config = Nodes.database(JsonText.object("{}"), pool).get("config");
+
+		assertThat(config.get("maxConnections").intValue()).isEqualTo(pool);
 	}
 
 }

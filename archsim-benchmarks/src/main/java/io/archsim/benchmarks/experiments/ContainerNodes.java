@@ -13,7 +13,8 @@ public final class ContainerNodes {
 			Map.entry("producer", "api"), Map.entry("postgres", "db"), Map.entry("redis", "cache"),
 			Map.entry("api-java", "api"), Map.entry("api-go", "api"), Map.entry("api-python", "api"),
 			Map.entry("gateway", "gateway"), Map.entry("chain-api", "api"), Map.entry("api-ttl", "api"),
-			Map.entry("redis-ttl", "cache"));
+			Map.entry("redis-ttl", "cache"), Map.entry("api-python-cores", "api"), Map.entry("api-python-wide", "api"),
+			Map.entry("api-go-pool", "api"));
 
 	private ContainerNodes() {
 	}

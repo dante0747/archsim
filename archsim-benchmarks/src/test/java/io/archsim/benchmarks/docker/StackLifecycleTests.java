@@ -34,10 +34,22 @@ class StackLifecycleTests {
 		assertThat(StackLifecycle.items("cache-ttl")).isEqualTo(1_000_000);
 	}
 
+	// java-hot-row's one key is among the Java stack's 100,000 rows
 	@ParameterizedTest
-	@ValueSource(strings = { "postgres", "cache", "kafka", "java-mixed", "go-mixed", "python-mixed", "chain" })
+	@ValueSource(strings = { "postgres", "cache", "kafka", "java-mixed", "go-mixed", "python-mixed", "chain",
+			"python-cores", "python-wide", "go-pool" })
 	void items_aStackOfFewerKeys_loadsTheDefaultRows(String stack) {
 		assertThat(StackLifecycle.items(stack)).isEqualTo(StackLifecycle.DEFAULT_ITEMS);
+	}
+
+	@Test
+	void up_pythonWide_tellsComposeTheTwoCpusItLeavesK6(@TempDir Path folder) {
+		FakeDocker docker = FakeDocker.silent();
+
+		lifecycle(docker, StackLifecycleTests::healthy, folder).up("python-wide");
+
+		assertThat(docker.environments().getLast())
+			.isEqualTo(Map.of("BENCH_CPUS_K6", "6,7", "BENCH_REDIS_URL", "", "BENCH_ITEMS", "100000"));
 	}
 
 	@Test

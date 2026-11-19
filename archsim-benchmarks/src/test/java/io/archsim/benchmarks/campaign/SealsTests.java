@@ -47,6 +47,39 @@ class SealsTests {
 			.contains("`./gradlew :archsim-benchmarks:run --args=\"smoke java-mixed\"`");
 	}
 
+	// the second set (ADR-0090): sealed like the first, and smoke is the one way in
+	@ParameterizedTest
+	@ValueSource(strings = { "python-cores", "python-wide", "java-hot-row", "go-pool", "cache-miss" })
+	void of_anExperimentOfTheSecondSetOnAnEngineNotFrozen_isSealedAndSaysHowToSmokeIt(String experiment,
+			@TempDir Path folder) throws IOException {
+		Experiment registered = Experiments.standard().get(experiment);
+
+		String why = seals(folder, "[]", SOURCES).of(registered, CLEAN).orElseThrow();
+
+		assertThat(why).startsWith(experiment + " is a held-out experiment (registered 2026-11-19, commit ")
+			.contains("stays sealed", "is not frozen")
+			.contains("`./gradlew :archsim-benchmarks:run --args=\"smoke " + experiment + "\"`");
+	}
+
+	// frozen for them, with nothing uncommitted: the seal opens as for the first set
+	@ParameterizedTest
+	@ValueSource(strings = { "python-cores", "python-wide", "java-hot-row", "go-pool", "cache-miss" })
+	void of_anExperimentOfTheSecondSetOnTheFrozenEngine_isNotSealed(String experiment, @TempDir Path folder)
+			throws IOException {
+		assertThat(seals(folder, FROZEN, SOURCES).of(Experiments.standard().get(experiment), CLEAN)).isEmpty();
+	}
+
+	// engines.json today: no Java engine is frozen
+	@ParameterizedTest
+	@ValueSource(strings = { "python-cores", "python-wide", "java-hot-row", "go-pool", "cache-miss" })
+	void of_theCommittedEngines_sealsTheSecondSet(String experiment) {
+		RepositoryLayout layout = RepositoryLayout.current();
+
+		Seals seals = Seals.of(layout.engines(), new GitRepository(layout.root()), false);
+
+		assertThat(seals.of(Experiments.standard().get(experiment), CLEAN)).isPresent();
+	}
+
 	@Test
 	void of_anEngineNoFreezeNames_saysWhatAFreezeRecords(@TempDir Path folder) throws IOException {
 		assertThat(seals(folder, "[]", SOURCES).of(JAVA_MIXED, CLEAN)).hasValueSatisfying((why) -> assertThat(why)

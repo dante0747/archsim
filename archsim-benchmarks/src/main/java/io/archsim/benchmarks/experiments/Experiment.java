@@ -21,12 +21,53 @@ import tools.jackson.databind.JsonNode;
  * @param ttlS the cache's TTL, on the cache stacks
  * @param heldOut its registration when it is held out; {@code null} for the four the
  * model was built with
+ * @param serviceCpus the CPUs of its service's container when they are not its runtime's
+ * (python-wide's four); {@code null} for the runtime's
+ * ({@link Experiments#runtime(Experiment)})
+ * @param pool the connections its service's pool holds when they are not
+ * {@value #DEFAULT_POOL} (go-pool's two); {@code null} for {@value #DEFAULT_POOL}
+ * ({@link #connections})
  */
 public record Experiment(String id, String stack, String title, String mix, double readRatio, int keys, double skew,
-		List<String> calibration, String runtime, int ttlS, @Nullable HeldOut heldOut) {
+		List<String> calibration, String runtime, int ttlS, @Nullable HeldOut heldOut, @Nullable Integer serviceCpus,
+		@Nullable Integer pool) {
 
+	/** The connections a service's pool holds unless its experiment says otherwise. */
+	public static final int DEFAULT_POOL = 10;
+
+	/**
+	 * Copies the calibration's mixes, and checks the CPUs and the pool it names.
+	 * @throws IllegalArgumentException when it names no CPU for its service or no
+	 * connection for its pool
+	 */
 	public Experiment {
 		calibration = List.copyOf(calibration);
+		if (serviceCpus != null && serviceCpus < 1) {
+			throw new IllegalArgumentException(
+					id + "'s service has " + serviceCpus + " CPUs: a service needs at least 1");
+		}
+		if (pool != null && pool < 1) {
+			throw new IllegalArgumentException(
+					id + "'s pool holds " + pool + " connections: a service needs at least 1");
+		}
+	}
+
+	/**
+	 * The connections its service holds to PostgreSQL, which are all PostgreSQL serves at
+	 * once: its own pool's, else {@value #DEFAULT_POOL}.
+	 * @return the connections
+	 */
+	public int connections() {
+		return (this.pool != null) ? this.pool : DEFAULT_POOL;
+	}
+
+	/**
+	 * Whether every request updates the same row, so that the row's lock lets one through
+	 * at a time: all writes, over one key (pg-hot-row and java-hot-row).
+	 * @return whether its traffic is a hot row's
+	 */
+	public boolean updatesOneRow() {
+		return this.keys == 1 && this.readRatio == 0;
 	}
 
 	/**

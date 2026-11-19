@@ -1,6 +1,8 @@
 {
   "cacheStacks": ["cache", "cache-ttl"],
-  "postgresEveryRequest": ["postgres", "java-mixed", "go-mixed", "python-mixed", "chain"],
+  "postgresEveryRequest": [
+    "postgres", "java-mixed", "go-mixed", "python-mixed", "chain", "python-cores", "python-wide", "go-pool"
+  ],
   "containers": {
     "postgres": ["api", "postgres"],
     "cache": ["api", "postgres", "redis"],
@@ -9,7 +11,10 @@
     "go-mixed": ["api-go", "postgres"],
     "python-mixed": ["api-python", "postgres"],
     "chain": ["gateway", "chain-api", "postgres"],
-    "cache-ttl": ["api-ttl", "postgres", "redis-ttl"]
+    "cache-ttl": ["api-ttl", "postgres", "redis-ttl"],
+    "python-cores": ["api-python-cores", "postgres"],
+    "python-wide": ["api-python-wide", "postgres"],
+    "go-pool": ["api-go-pool", "postgres"]
   },
   "behindQueue": {
     "kafka": ["consumer", "postgres"]
@@ -22,6 +27,9 @@
     "go-mixed": "0,1,6,7",
     "python-mixed": "0,1,6,7",
     "chain": "6,7",
-    "cache-ttl": "6,7"
+    "cache-ttl": "6,7",
+    "python-cores": "6,7",
+    "python-wide": "6,7",
+    "go-pool": "0,1,6,7"
   }
 }

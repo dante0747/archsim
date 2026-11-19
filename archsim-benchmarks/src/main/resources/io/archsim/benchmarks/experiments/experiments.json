@@ -146,16 +146,86 @@
       "runtime": "nodejs",
       "ttlS": 5,
       "heldOut": {"registered": "2026-10-30", "commit": "ce2d109d534b9a9cd18a4a42690b71dcf86342f4"}
+    },
+    {
+      "id": "python-cores",
+      "stack": "python-cores",
+      "title": "Flask on gunicorn (10 sync workers) on two CPUs the VM numbers as separate cores + PostgreSQL: 90% reads, 10% writes over 100,000 rows",
+      "mix": "read:0.9,write:0.1",
+      "readRatio": 0.9,
+      "keys": 100000,
+      "skew": 0.0,
+      "calibration": ["read:0.9,write:0.1", "write_async:1"],
+      "runtime": "python",
+      "ttlS": 30,
+      "heldOut": {"registered": "2026-11-19", "commit": "pending"}
+    },
+    {
+      "id": "python-wide",
+      "stack": "python-wide",
+      "title": "Flask on gunicorn (10 sync workers) on four CPUs + PostgreSQL: 90% reads, 10% writes over 100,000 rows",
+      "mix": "read:0.9,write:0.1",
+      "readRatio": 0.9,
+      "keys": 100000,
+      "skew": 0.0,
+      "calibration": ["read:0.9,write:0.1", "write_async:1"],
+      "runtime": "python",
+      "serviceCpus": 4,
+      "ttlS": 30,
+      "heldOut": {"registered": "2026-11-19", "commit": "pending"}
+    },
+    {
+      "id": "java-hot-row",
+      "stack": "java-mixed",
+      "title": "Spring Boot (Tomcat, HikariCP) + PostgreSQL: every request updates the same row",
+      "mix": "hot:1",
+      "readRatio": 0.0,
+      "keys": 1,
+      "skew": 0.0,
+      "calibration": ["hot:1", "write_async:1"],
+      "runtime": "java",
+      "ttlS": 30,
+      "heldOut": {"registered": "2026-11-19", "commit": "pending"}
+    },
+    {
+      "id": "go-pool",
+      "stack": "go-pool",
+      "title": "Go (net/http, pgx) + PostgreSQL through a pool of 2 connections: 50% reads, 50% writes over 100,000 rows",
+      "mix": "read:0.5,write:0.5",
+      "readRatio": 0.5,
+      "keys": 100000,
+      "skew": 0.0,
+      "calibration": ["read:0.5,write:0.5", "write_async:1"],
+      "runtime": "go",
+      "pool": 2,
+      "ttlS": 30,
+      "heldOut": {"registered": "2026-11-19", "commit": "pending"}
+    },
+    {
+      "id": "cache-miss",
+      "stack": "cache-ttl",
+      "title": "Cache-aside: Node.js, Redis (5 s TTL) and PostgreSQL; uniform over 1,000,000 keys, so nearly every lookup misses",
+      "mix": "cached:1",
+      "readRatio": 1.0,
+      "keys": 1000000,
+      "skew": 0.0,
+      "calibration": ["cached:1"],
+      "runtime": "nodejs",
+      "ttlS": 5,
+      "heldOut": {"registered": "2026-11-19", "commit": "pending"}
     }
   ],
   "stacks": {
     "postgres": ["pg-mixed", "pg-hot-row"],
     "cache": ["cache-aside"],
     "kafka": ["kafka"],
-    "java-mixed": ["java-mixed"],
+    "java-mixed": ["java-mixed", "java-hot-row"],
     "go-mixed": ["go-mixed"],
     "python-mixed": ["python-mixed"],
     "chain": ["chain"],
-    "cache-ttl": ["cache-ttl"]
+    "cache-ttl": ["cache-ttl", "cache-miss"],
+    "python-cores": ["python-cores"],
+    "python-wide": ["python-wide"],
+    "go-pool": ["go-pool"]
   }
 }

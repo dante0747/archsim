@@ -14,4 +14,13 @@ import org.jspecify.annotations.Nullable;
  */
 public record ServiceRuntime(String technology, String label, int cpuCores, @Nullable Integer workers, String image) {
 
+	/**
+	 * This runtime in a container with other CPUs: the same service, image and workers.
+	 * @param cpus the container's CPUs
+	 * @return the runtime on those CPUs
+	 */
+	public ServiceRuntime onCpus(int cpus) {
+		return new ServiceRuntime(this.technology, this.label, cpus, this.workers, this.image);
+	}
+
 }

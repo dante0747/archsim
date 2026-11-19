@@ -22,6 +22,13 @@ import tools.jackson.databind.json.JsonMapper;
  * physical core shared with k6 or another container. A chain's gateway comes first: both
  * of its hops have one CPU, and the API's CPU per request is in the gateway's
  * {@code /stats} as {@code upstream}.
+ *
+ * <p>
+ * The cores are the ones Docker's VM numbers (CPUs 0-1, 2-3, 4-5, 6-7). Windows schedules
+ * the VM's CPUs itself, so the numbering may not say who shares a physical core (the
+ * contention check of 1 Nov 2026). The second held-out set's stacks (python-cores,
+ * python-wide and go-pool, ADR-0090) are laid out by that numbering too: no container of
+ * theirs is numbered on a core with k6 or another container.
  */
 public final class Stacks {
 

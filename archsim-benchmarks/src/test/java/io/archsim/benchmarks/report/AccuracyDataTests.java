@@ -64,8 +64,9 @@ class AccuracyDataTests {
 		assertThat(AccuracyData.text(sources(folder.resolve("none")))).isEqualTo("null\n");
 	}
 
+	// every experiment that has one: the held-out ones not yet measured have no folder
 	private static void copyLatestRuns(Path results) throws IOException {
-		for (Experiment experiment : LatestRuns.inPageOrder()) {
+		for (Experiment experiment : Runs.measured(LAYOUT.results())) {
 			ResultCopies.copyLatest(LAYOUT.results().resolve(experiment.id()), results.resolve(experiment.id()));
 		}
 	}

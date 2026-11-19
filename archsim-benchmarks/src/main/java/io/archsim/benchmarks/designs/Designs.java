@@ -15,7 +15,9 @@ import io.archsim.benchmarks.values.PythonValues;
 /**
  * The ArchSim design of an experiment's stack at one offered load, from its model inputs:
  * k6's clients, the service (chain: the gateway, then the API), and the stack's
- * PostgreSQL, Redis or Kafka, each node from the inputs of its part.
+ * PostgreSQL, Redis or Kafka, each node from the inputs of its part. The service's CPUs
+ * and the connections PostgreSQL serves at once are the experiment's own: its runtime's
+ * and ten, unless it names others.
  */
 public final class Designs {
 
@@ -96,17 +98,18 @@ public final class Designs {
 	// PostgreSQL, behind Redis on the cache stacks and behind Kafka on its own
 	private static void backends(Experiment experiment, ObjectNode values, ArrayNode nodes, ArrayNode edges) {
 		JsonNode dbLink = values.has("dbLinkLatencyMs") ? values.get("dbLinkLatencyMs") : PythonValues.number(0.0);
+		ObjectNode database = Nodes.database(values, experiment.connections());
 		if (Stacks.standard().callsPostgresEveryRequest(experiment.stack())) {
-			nodes.add(Nodes.database(values));
+			nodes.add(database);
 			edges.add(Edge.of("e-db", "api", "db", dbLink).json());
 		}
 		else if (experiment.hasCache()) {
-			nodes.add(Nodes.cache(values, experiment.ttlS())).add(Nodes.database(values));
+			nodes.add(Nodes.cache(values, experiment.ttlS())).add(database);
 			edges.add(Edge.of("e-cache", "api", "cache", values.get("cacheLinkLatencyMs")).reads().json());
 			edges.add(Edge.of("e-miss", "cache", "db", dbLink).fromPort("miss").reads().json());
 		}
 		else {
-			nodes.add(Nodes.queue(values)).add(Nodes.database(values));
+			nodes.add(Nodes.queue(values)).add(database);
 			edges.add(Edge.of("e-kafka", "api", "kafka", PythonValues.number(0.0)).json());
 			edges.add(Edge.of("e-db", "kafka", "db", dbLink).json());
 		}

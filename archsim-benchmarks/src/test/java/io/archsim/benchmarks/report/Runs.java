@@ -1,5 +1,8 @@
 package io.archsim.benchmarks.report;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 import org.jspecify.annotations.Nullable;
@@ -7,6 +10,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
+
+import io.archsim.benchmarks.experiments.Experiment;
 
 /**
  * Comparisons and kept runs for the report's tests, as {@code comparison.json} and the
@@ -17,6 +22,26 @@ final class Runs {
 	private static final JsonNodeFactory NODES = JsonNodeFactory.instance;
 
 	private Runs() {
+	}
+
+	/**
+	 * The experiments with a kept run under a results folder, in the page's order: every
+	 * one but the held-out experiments registered and not yet measured.
+	 */
+	static List<Experiment> measured(Path results) {
+		List<Experiment> awaiting = LatestRuns.awaitingMeasurement(results);
+		return LatestRuns.inPageOrder().stream().filter((experiment) -> !awaiting.contains(experiment)).toList();
+	}
+
+	/**
+	 * Keeps a run under a results folder: a folder holds one once it has a
+	 * {@code measured.json}, here an empty one.
+	 * @param run the run's folder, {@code go-pool} for the latest or
+	 * {@code go-pool/run-1}
+	 */
+	static void keep(Path results, String run) throws IOException {
+		Files.createDirectories(results.resolve(run));
+		Files.writeString(results.resolve(run).resolve("measured.json"), "{}");
 	}
 
 	/**

@@ -58,7 +58,10 @@ final class HeldOutPasses {
 		own.put("handler", new double[] { 1.2, 3.0 });
 		own.put("own", new double[] { 0.3, 0.9 });
 		Map<String, double[]> database = new LinkedHashMap<>(own);
-		database.put("db_read", new double[] { 0.6, 1.2 });
+		// a hot row's requests are all writes: its service times no read
+		if (!experiment.updatesOneRow()) {
+			database.put("db_read", new double[] { 0.6, 1.2 });
+		}
 		database.put("db_write", new double[] { 2.0, 4.0 });
 		if (experiment.stack().equals("chain")) {
 			Map<String, double[]> gateway = new LinkedHashMap<>(own);

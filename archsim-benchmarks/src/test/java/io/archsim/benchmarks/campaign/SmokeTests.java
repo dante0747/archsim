@@ -66,6 +66,24 @@ class SmokeTests {
 		assertThat(smoke(results, 200).run(PYTHON)).isEmpty();
 	}
 
+	// the second experiment on the Java stack: java-mixed's stack, its own traffic
+	@Test
+	void run_javaHotRow_sendsItsOwnMixOnTheJavaStack(@TempDir Path results) {
+		smoke(results, 200).run(Experiments.standard().get("java-hot-row"));
+
+		assertThat(this.events).contains("--profile java-mixed up -d --build --wait",
+				"k6 TARGET=http://api-java:8080 MIX=hot:1 RATE=20 WARMUP_S=0 DURATION_S=10",
+				"--profile java-mixed down -v --remove-orphans");
+	}
+
+	@Test
+	void run_cacheMiss_sendsItsLookupsOnTheCacheTtlStack(@TempDir Path results) {
+		smoke(results, 200).run(Experiments.standard().get("cache-miss"));
+
+		assertThat(this.events).contains("--profile cache-ttl up -d --build --wait",
+				"k6 TARGET=http://api-ttl:8080 MIX=cached:1 RATE=20 WARMUP_S=0 DURATION_S=10");
+	}
+
 	// no latency, no results
 	@Test
 	void run_anExperiment_keepsNothing(@TempDir Path results) throws IOException {

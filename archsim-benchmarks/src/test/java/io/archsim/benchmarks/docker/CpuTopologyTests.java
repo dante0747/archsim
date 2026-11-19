@@ -9,6 +9,7 @@ import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -93,6 +94,30 @@ class CpuTopologyTests {
 		ObjectNode topology = CpuTopology.of(Cpusets.declaredIn(COMPOSE).of(heldOut.stack(), Map.of()), LAPTOP);
 
 		assertThat(topology.get("sharedCores")).isEmpty();
+	}
+
+	// the second held-out set, on the cores as Docker's VM numbers them (0-1, 2-3, ...):
+	// Windows schedules the VM's CPUs itself, so the numbering may not be who shares a
+	// physical core (the contention check of 1 Nov 2026)
+	@ParameterizedTest
+	@ValueSource(strings = { "python-cores", "python-wide", "java-hot-row", "go-pool", "cache-miss" })
+	void of_aStackOfTheSecondSet_sharesNoCoreAsTheVmNumbersThem(String experiment) {
+		Experiment heldOut = Experiments.standard().get(experiment);
+
+		ObjectNode topology = CpuTopology.of(Cpusets.declaredIn(COMPOSE).of(heldOut.stack(), Map.of()), LAPTOP);
+
+		assertThat(topology.get("sharedCores")).isEmpty();
+	}
+
+	// python-mixed's two CPUs are numbered as one core, python-cores' two as two cores,
+	// and python-wide has both CPUs of each of those two
+	@ParameterizedTest
+	@CsvSource({ "python-mixed, api-python, 1", "python-cores, api-python-cores, 2",
+			"python-wide, api-python-wide, 2" })
+	void of_aPythonStack_countsTheCoresItsServiceIsNumberedOn(String stack, String service, int cores) {
+		ObjectNode topology = CpuTopology.of(Cpusets.declaredIn(COMPOSE).of(stack, Map.of()), LAPTOP);
+
+		assertThat(topology.at("/physicalCores/" + service).intValue()).isEqualTo(cores);
 	}
 
 	// no topology known: each CPU its own core

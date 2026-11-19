@@ -3,6 +3,8 @@ package io.archsim.benchmarks.campaign;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -54,6 +56,64 @@ class SmokeProblemsTests {
 	void of_aGunicornWorkerWithoutAStatisticsSlot_saysSo() {
 		assertThat(problems(PYTHON, sent(200, 200, 0), good().put("workers", 9)))
 			.containsExactly("9 gunicorn workers hold a statistics slot, not 10");
+	}
+
+	// python-wide has four CPUs and still gunicorn's ten workers
+	@Test
+	void of_pythonWideWithAWorkerMissing_saysSo() {
+		assertThat(problems(experiment("python-wide"), sent(200, 200, 0), good().put("workers", 4)))
+			.containsExactly("4 gunicorn workers hold a statistics slot, not 10");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "go-mixed", "go-pool" })
+	void of_aGoServiceWithAThreadForEachOfItsCpus_findsNothing(String experiment) {
+		assertThat(problems(experiment(experiment), sent(200, 200, 0), good().put("gomaxprocs", 2))).isEmpty();
+	}
+
+	// GOMAXPROCS unset: Go counts the machine's CPUs, not its container's two
+	@ParameterizedTest
+	@ValueSource(strings = { "go-mixed", "go-pool" })
+	void of_aGoServiceWithOtherThreadsThanItsCpus_saysSo(String experiment) {
+		assertThat(problems(experiment(experiment), sent(200, 200, 0), good().put("gomaxprocs", 8)))
+			.containsExactly("the Go service reported GOMAXPROCS 8, not its 2 CPUs");
+	}
+
+	@Test
+	void of_aGoServiceThatReportedNoThreads_saysSo() {
+		assertThat(problems(experiment("go-pool"), sent(200, 200, 0), good()))
+			.containsExactly("the Go service reported GOMAXPROCS None, not its 2 CPUs");
+	}
+
+	// java-hot-row on the Java stack: every request a write PostgreSQL timed
+	@Test
+	void of_aHotRowWhoseEveryWriteWasTimed_findsNothing() {
+		ObjectNode stats = counted(200, 0, 200).setAll(JsonText.object("{\"gc\": {\"collections\": 0}}"));
+
+		assertThat(problems(experiment("java-hot-row"), sent(200, 200, 0), stats)).isEmpty();
+	}
+
+	@Test
+	void of_aHotRowWithWritesNotTimed_findsThemMissingFromPostgres() {
+		ObjectNode stats = counted(200, 0, 150).setAll(JsonText.object("{\"gc\": {\"collections\": 0}}"));
+
+		assertThat(problems(experiment("java-hot-row"), sent(200, 200, 0), stats))
+			.containsExactly("PostgreSQL calls timed: 150, k6 sent 200");
+	}
+
+	// cache-miss on the cache-ttl stack, whose service reports Redis's commands
+	@Test
+	void of_cacheMissCountingEveryLookup_findsNothing() {
+		assertThat(problems(experiment("cache-miss"), sent(200, 200, 0), cacheTtl())).isEmpty();
+	}
+
+	@Test
+	void of_cacheMissWithRedisReportingNoGets_saysSo() {
+		ObjectNode stats = cacheTtl();
+		stats.putObject("redis");
+
+		assertThat(problems(experiment("cache-miss"), sent(200, 200, 0), stats))
+			.containsExactly("Redis counted None GET commands, k6 sent 200");
 	}
 
 	@Test
@@ -147,6 +207,10 @@ class SmokeProblemsTests {
 
 		assertThat(problems(CACHE_TTL, sent(200, 200, 0), stats))
 			.containsExactly("Redis counted None GET commands, k6 sent 200");
+	}
+
+	private static Experiment experiment(String id) {
+		return Experiments.standard().get(id);
 	}
 
 	private static List<String> problems(Experiment experiment, JsonNode sent, JsonNode stats) {

@@ -15,10 +15,11 @@ import io.archsim.benchmarks.values.PythonValues;
  * The calibration staircase's rule (protocol v6): each rising pass at most 65% of the
  * service's CPUs at the pass before's CPU per request (the whole process's, idle
  * included, so the climb undershoots while the cost still falls), and at most half of any
- * other capacity that pass implies (the connection pool, the hot row's lock, the Kafka
- * consumers), whose times include the network and the driver and past which a backlog
- * would carry into the next pass. The staircase stops once a pass's p95 passes 10 ms,
- * after five rises, or when the next rate would not be a tenth above the last.
+ * other capacity that pass implies (the experiment's connection pool, the lock of a row
+ * every request updates, the Kafka consumers), whose times include the network and the
+ * driver and past which a backlog would carry into the next pass. The staircase stops
+ * once a pass's p95 passes 10 ms, after five rises, or when the next rate would not be a
+ * tenth above the last.
  */
 final class Staircase {
 
@@ -36,9 +37,6 @@ final class Staircase {
 
 	/** How much above the last a next step must be, or the staircase stops (v5: 1.25). */
 	static final double MIN_RISE = 1.1;
-
-	/** The connections each service's pool holds. */
-	private static final int POOL = 10;
 
 	/** Kafka's consumers. */
 	private static final int CONSUMERS = 3;
@@ -123,7 +121,8 @@ final class Staircase {
 		return MILLISECONDS * this.serviceCpus / Math.max(cpu, LEAST_CPU_MS);
 	}
 
-	// the pool's, the hot row's and the consumers' capacity; infinite when none applies
+	// the capacity of the experiment's pool, of a hot row's lock and of the consumers;
+	// infinite when none applies
 	private static double otherBound(Experiment experiment, JsonNode entry) {
 		JsonNode service = entry.get("service");
 		double bound = Double.POSITIVE_INFINITY;
@@ -131,11 +130,11 @@ final class Staircase {
 			for (String query : List.of("db_read", "db_write")) {
 				JsonNode timing = hop.get("timings").get(query);
 				if (timing != null) {
-					bound = Math.min(bound, POOL * MILLISECONDS / timing.get("mean").doubleValue());
+					bound = Math.min(bound, experiment.connections() * MILLISECONDS / timing.get("mean").doubleValue());
 				}
 			}
 		}
-		if ("pg-hot-row".equals(experiment.id())) {
+		if (experiment.updatesOneRow()) {
 			bound = Math.min(bound, MILLISECONDS / service.at("/timings/db_write/mean").doubleValue());
 		}
 		if ("kafka".equals(experiment.stack())) {

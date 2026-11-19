@@ -117,7 +117,7 @@ class CommittedCriteriaTests {
 		RepositoryLayout layout = RepositoryLayout.current();
 		Map<String, List<JsonNode>> history = RunHistory.of(layout.results());
 		Map<String, JsonNode> criteria = new LinkedHashMap<>();
-		for (Experiment experiment : LatestRuns.inPageOrder()) {
+		for (Experiment experiment : Runs.measured(layout.results())) {
 			JsonNode comparison = LatestRuns.load(layout.results(), experiment.id(), KeptRun.COMPARISON).orElseThrow();
 			criteria.put(experiment.id(), Tiers.criteria(comparison, history.getOrDefault(experiment.id(), List.of())));
 		}

@@ -20,7 +20,9 @@ import io.archsim.model.text.PythonText;
  * {@code docs/validation.md}'s generated blocks, rewritten from the results: only the
  * text between {@code <!-- BEGIN GENERATED: name -->} and
  * {@code <!-- END GENERATED: name -->} is replaced, so the hand-written text is kept. The
- * output depends only on the results, so rendering twice gives the same bytes.
+ * output depends only on the results, so rendering twice gives the same bytes. A held-out
+ * experiment that is registered and not yet measured is listed in the {@code registered}
+ * block, and needs no section of its own until it has a kept run.
  */
 final class ValidationPage {
 
@@ -35,12 +37,14 @@ final class ValidationPage {
 	 * @param page the page as it is
 	 * @param sources the results and what labels them
 	 * @return the page and each chart's SVG by file name
-	 * @throws IllegalStateException when the page lacks a generated block
+	 * @throws IllegalStateException when the page lacks a generated block: one of the
+	 * tables', or an experiment's section, which only a held-out experiment without a
+	 * kept run may lack
 	 */
 	static Reports.Page render(String page, ReportSources sources) {
 		Path results = sources.results();
-		List<Experiment> order = LatestRuns.inPageOrder();
-		List<JsonNode> comparisons = order.stream()
+		List<JsonNode> comparisons = LatestRuns.inPageOrder()
+			.stream()
 			.map((experiment) -> LatestRuns.load(results, experiment.id(), KeptRun.COMPARISON))
 			.flatMap(Optional::stream)
 			.toList();
@@ -57,13 +61,30 @@ final class ValidationPage {
 		text = replace(text, "environment", EnvironmentBlock.of(environments(results), sources.cpusets()));
 		text = replace(text, "java-engine", JavaEngineCheck.block(results, sources.engines()));
 		text = replace(text, "baselines", BaselinesBlock.of(comparisons, sources));
+		return new Reports.Page(sections(text, results), charts(results));
+	}
+
+	// the list of the held-out experiments registered and not yet measured, then each
+	// experiment's section: one not yet measured has none until the page gives it one
+	private static String sections(String page, Path results) {
+		List<Experiment> awaiting = LatestRuns.awaitingMeasurement(results);
+		String text = replace(page, "registered", RegisteredBlock.of(awaiting));
+		for (Experiment experiment : LatestRuns.inPageOrder()) {
+			if (!awaiting.contains(experiment) || hasBlock(text, experiment.id())) {
+				text = replace(text, experiment.id(), ExperimentBlock.of(experiment, results));
+			}
+		}
+		return text;
+	}
+
+	// the chart of each experiment's latest comparison, in the page's order
+	private static Map<String, String> charts(Path results) {
 		Map<String, String> charts = new LinkedHashMap<>();
-		for (Experiment experiment : order) {
-			text = replace(text, experiment.id(), ExperimentBlock.of(experiment, results));
+		for (Experiment experiment : LatestRuns.inPageOrder()) {
 			LatestRuns.load(results, experiment.id(), KeptRun.COMPARISON)
 				.ifPresent((comparison) -> charts.put(experiment.id() + ".svg", Chart.of(comparison)));
 		}
-		return new Reports.Page(text, charts);
+		return charts;
 	}
 
 	/**
@@ -105,13 +126,27 @@ final class ValidationPage {
 	 * @throws IllegalStateException when the page has no such block
 	 */
 	static String replace(String page, String name, String body) {
-		Pattern block = Pattern.compile("(<!-- BEGIN GENERATED: " + Pattern.quote(name)
-				+ " -->\n).*?(\n<!-- END GENERATED: " + Pattern.quote(name) + " -->)", Pattern.DOTALL);
-		Matcher matcher = block.matcher(page);
+		Matcher matcher = block(name).matcher(page);
 		if (!matcher.find()) {
 			throw new IllegalStateException("docs/validation.md has no generated block '" + name + "'");
 		}
 		return matcher.replaceAll((found) -> Matcher.quoteReplacement(found.group(1) + body + found.group(2)));
+	}
+
+	/**
+	 * Whether a page has a generated block.
+	 * @param page the page
+	 * @param name the block's name
+	 * @return whether the block is somewhere on the page
+	 */
+	static boolean hasBlock(String page, String name) {
+		return block(name).matcher(page).find();
+	}
+
+	// a generated block: its opening line, its body and its closing line
+	private static Pattern block(String name) {
+		return Pattern.compile("(<!-- BEGIN GENERATED: " + Pattern.quote(name) + " -->\n).*?(\n<!-- END GENERATED: "
+				+ Pattern.quote(name) + " -->)", Pattern.DOTALL);
 	}
 
 }

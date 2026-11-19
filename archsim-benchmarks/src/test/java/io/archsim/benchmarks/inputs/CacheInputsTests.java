@@ -74,10 +74,11 @@ class CacheInputsTests {
 		assertThat(inputs.at("/cacheServiceTimeMs/how").stringValue()).contains("per extra command between the passes");
 	}
 
-	// (2,000 - 5 x 30 ms at rest) / 45,000 GET/SET calls
-	@Test
-	void of_cacheTtl_readsItsOwnRedisContainer() {
-		ObjectNode inputs = CacheInputs.of(CACHE_TTL, redisPasses("redis-ttl", true));
+	// (2,000 - 5 x 30 ms at rest) / 45,000 GET/SET calls; cache-miss is on that stack too
+	@ParameterizedTest
+	@ValueSource(strings = { "cache-ttl", "cache-miss" })
+	void of_anExperimentOnTheCacheTtlStack_readsThatStacksRedisContainer(String experiment) {
+		ObjectNode inputs = CacheInputs.of(Experiments.standard().get(experiment), redisPasses("redis-ttl", true));
 
 		assertThat(inputs.at("/cacheServiceTimeMs/value/mean").doubleValue())
 			.isEqualTo(PythonRound.round(1850.0 / 45_000, MEAN_DECIMALS));

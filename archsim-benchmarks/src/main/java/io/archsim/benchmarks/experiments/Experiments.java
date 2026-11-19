@@ -12,11 +12,16 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The harness's experiments, its service runtimes and the stacks they run on, from
- * {@code experiments.json}: the four the model was built with, then the five held-out
- * ones (registered on 30 Oct 2026, sealed until a frozen engine predicted them). The
- * cache-ttl experiment's Zipf skew is 1.1, not the 0.8 first proposed: over 1,000,000
- * keys with a 5 s TTL, 0.8 gives a hit ratio of 9% to 24% from 250 to 4,000 req/s, 1.1
- * the intended 52% to 69%, rising with load.
+ * {@code experiments.json}: the four the model was built with, then the two sets of
+ * held-out ones, each sealed until a frozen engine has predicted it. The first five were
+ * registered on 30 Oct 2026 and measured on 3-4 Nov; a review read their results, so they
+ * are spent for the next model change (ADR-0088). The second five were registered on 19
+ * Nov 2026 (ADR-0090) and are not measured: two of them run on the first set's stacks
+ * (java-hot-row on java-mixed's, cache-miss on cache-ttl's), one has other CPUs than its
+ * runtime's (python-wide) and one a smaller pool (go-pool). The cache-ttl experiment's
+ * Zipf skew is 1.1, not the 0.8 first proposed: over 1,000,000 keys with a 5 s TTL, 0.8
+ * gives a hit ratio of 9% to 24% from 250 to 4,000 req/s, 1.1 the intended 52% to 69%,
+ * rising with load.
  */
 public final class Experiments {
 
@@ -68,7 +73,8 @@ public final class Experiments {
 	}
 
 	/**
-	 * Every experiment, the tuned-on four first.
+	 * Every experiment: the tuned-on four, then the held-out ones in the order they were
+	 * registered.
 	 * @return the experiments
 	 */
 	public List<Experiment> all() {
@@ -99,16 +105,20 @@ public final class Experiments {
 	}
 
 	/**
-	 * How an experiment's service runs.
+	 * How an experiment's service runs: its runtime, on the experiment's own CPUs when it
+	 * names them.
 	 * @param experiment the experiment
-	 * @return its runtime
+	 * @return its runtime, with the CPUs of the experiment's service
 	 */
 	public ServiceRuntime runtime(Experiment experiment) {
-		return runtime(experiment.runtime());
+		ServiceRuntime runtime = runtime(experiment.runtime());
+		Integer cpus = experiment.serviceCpus();
+		return (cpus != null) ? runtime.onCpus(cpus) : runtime;
 	}
 
 	/**
-	 * A service runtime by its name.
+	 * A service runtime by its name, on the CPUs its stacks give it unless an experiment
+	 * says otherwise.
 	 * @param name its name ({@code nodejs}, {@code java}, {@code go}, {@code python})
 	 * @return the runtime
 	 */

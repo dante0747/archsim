@@ -42,7 +42,7 @@ class JavaEngineCheckTests {
 	void of_theCommittedResults_showTheFrozenEnginesPredictions() {
 		JsonNode check = JavaEngineCheck.of(LAYOUT.results(), ENGINES).orElseThrow();
 
-		assertThat(LatestRuns.inPageOrder())
+		assertThat(Runs.measured(LAYOUT.results()))
 			.map((experiment) -> LatestRuns.load(LAYOUT.results(), experiment.id(), KeptRun.PREDICTIONS)
 				.orElseThrow()
 				.get("engineVersion"))

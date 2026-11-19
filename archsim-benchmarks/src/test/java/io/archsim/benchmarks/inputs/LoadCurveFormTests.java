@@ -138,7 +138,11 @@ class LoadCurveFormTests {
 		});
 	}
 
+	// a held-out experiment not yet measured has no folder, and so no calibration
 	private static Stream<Path> calibrations(Path folder) {
+		if (!Files.isDirectory(folder)) {
+			return Stream.empty();
+		}
 		try (Stream<Path> runs = Files.list(folder)) {
 			return Stream
 				.concat(Stream.of(folder), runs.filter((run) -> run.getFileName().toString().startsWith("run-")))

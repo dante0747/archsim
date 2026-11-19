@@ -12,9 +12,6 @@ import io.archsim.benchmarks.experiments.ServiceRuntime;
  */
 final class Nodes {
 
-	/** The service's connection pool, which PostgreSQL's connections are. */
-	static final int PG_POOL = 10;
-
 	/**
 	 * The service node's memory: the containers have no memory limit, and this one is
 	 * large enough never to bind, so the model only reports the memory it predicts.
@@ -44,15 +41,18 @@ final class Nodes {
 	}
 
 	/**
-	 * PostgreSQL behind the service's pool of connections.
+	 * PostgreSQL behind the service's pool of connections, which are all it serves at
+	 * once.
 	 * @param values the model inputs' values
+	 * @param connections the connections the service's pool holds
+	 * ({@code Experiment.connections})
 	 * @return the node
 	 */
-	static ObjectNode database(ObjectNode values) {
+	static ObjectNode database(ObjectNode values, int connections) {
 		ObjectNode node = NODES.objectNode().put("id", "db").put("type", "database").put("label", "PostgreSQL");
 		ObjectNode config = node.putObject("config")
 			.put("technology", "postgresql")
-			.put("maxConnections", PG_POOL)
+			.put("maxConnections", connections)
 			.put("queueCapacity", QUEUE_CAPACITY)
 			.putNull("queueTimeoutMs")
 			.put("cpuCores", DATABASE_CORES);
@@ -110,12 +110,12 @@ final class Nodes {
 	}
 
 	/**
-	 * A service on its runtime's profile: Node.js is one event loop on one CPU; Java, Go
-	 * and Python are a pool of workers that each wait for their own PostgreSQL calls.
-	 * Garbage collection and the service time by load apply to the service under test
-	 * only, not to chain's API behind the gateway.
+	 * A service on its runtime's profile and its container's CPUs: Node.js is one event
+	 * loop on one CPU; Java, Go and Python are a pool of workers that each wait for their
+	 * own PostgreSQL calls. Garbage collection and the service time by load apply to the
+	 * service under test only, not to chain's API behind the gateway.
 	 * @param values the model inputs' values
-	 * @param service which service, and its runtime
+	 * @param service which service, and its runtime as its experiment runs it
 	 * @return the node
 	 */
 	static ObjectNode service(ObjectNode values, Service service) {
@@ -187,7 +187,8 @@ final class Nodes {
 	 * A service of the design.
 	 *
 	 * @param id its node's id
-	 * @param runtime its runtime
+	 * @param runtime its runtime, on the CPUs of the experiment's service
+	 * ({@code Experiments.runtime})
 	 * @param timeKey the input of its service time
 	 * @param label its node's label
 	 * @param memory the prefix of its memory inputs

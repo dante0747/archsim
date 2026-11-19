@@ -10,8 +10,9 @@ import io.archsim.benchmarks.experiments.Protocol;
 import io.archsim.benchmarks.values.PythonValues;
 
 /**
- * PostgreSQL alone: a pass's queries sent at its rate over the service-to-database link,
- * to fit the WAL flush with which the model's writes wait as the service's did.
+ * PostgreSQL alone, behind the experiment's pool of connections: a pass's queries sent at
+ * its rate over the service-to-database link, to fit the WAL flush with which the model's
+ * writes wait as the service's did.
  */
 public final class DatabaseAlone {
 
@@ -52,7 +53,7 @@ public final class DatabaseAlone {
 			.put("type", "traffic_source")
 			.put("label", "service");
 		clients.putObject("config").put("timeoutMs", Protocol.TIMEOUT_MS).put("maxAttempts", 1);
-		nodes.add(Nodes.database(values));
+		nodes.add(Nodes.database(values, experiment.connections()));
 		JsonNode link = values.has("dbLinkLatencyMs") ? values.get("dbLinkLatencyMs") : PythonValues.number(0.0);
 		architecture.putArray("edges").add(Edge.of("e-db", "clients", "db", link).json());
 		architecture.put("autoSize", false);

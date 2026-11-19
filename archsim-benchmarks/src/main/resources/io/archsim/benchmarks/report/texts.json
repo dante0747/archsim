@@ -8,7 +8,12 @@
     "go-mixed": "Go and PostgreSQL, mixed reads and writes",
     "python-mixed": "Flask on gunicorn and PostgreSQL, mixed reads and writes",
     "chain": "A gateway in front of an API, then PostgreSQL",
-    "cache-ttl": "Redis cache with a 5 s TTL in front of PostgreSQL"
+    "cache-ttl": "Redis cache with a 5 s TTL in front of PostgreSQL",
+    "python-cores": "Flask on gunicorn and PostgreSQL, on two CPUs numbered as separate cores",
+    "python-wide": "Flask on gunicorn and PostgreSQL, on four CPUs",
+    "java-hot-row": "Spring Boot and PostgreSQL, every request updating one row",
+    "go-pool": "Go and PostgreSQL through a pool of 2 connections",
+    "cache-miss": "Redis cache with a 5 s TTL that nearly every lookup misses"
   },
   "technologies": {
     "pg-mixed": [
@@ -49,6 +54,27 @@
       "Node.js",
       "Redis",
       "PostgreSQL"
+    ],
+    "python-cores": [
+      "Python (Flask, gunicorn)",
+      "PostgreSQL"
+    ],
+    "python-wide": [
+      "Python (Flask, gunicorn)",
+      "PostgreSQL"
+    ],
+    "java-hot-row": [
+      "Java (Spring Boot)",
+      "PostgreSQL"
+    ],
+    "go-pool": [
+      "Go",
+      "PostgreSQL"
+    ],
+    "cache-miss": [
+      "Node.js",
+      "Redis",
+      "PostgreSQL"
     ]
   },
   "parts": {
@@ -64,7 +90,10 @@
     "gateway": "Node.js gateway",
     "chain-api": "Node.js API",
     "api-ttl": "Node.js service",
-    "redis-ttl": "Redis"
+    "redis-ttl": "Redis",
+    "api-python-cores": "Flask service (gunicorn)",
+    "api-python-wide": "Flask service (gunicorn)",
+    "api-go-pool": "Go service"
   },
   "notModelled": {
     "consumer": "inside the model's queue node, which has no CPU or memory",
@@ -92,7 +121,10 @@
     "gateway": "gateway",
     "chain-api": "API",
     "api-ttl": "service",
-    "redis-ttl": "Redis"
+    "redis-ttl": "Redis",
+    "api-python-cores": "service",
+    "api-python-wide": "service",
+    "api-go-pool": "service"
   },
   "harnessCaveats": {
     "kafka": {

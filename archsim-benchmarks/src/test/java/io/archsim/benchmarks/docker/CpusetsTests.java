@@ -15,6 +15,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.archsim.benchmarks.RepositoryLayout;
+import io.archsim.benchmarks.experiments.Experiment;
 import io.archsim.benchmarks.experiments.Experiments;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -69,11 +70,34 @@ class CpusetsTests {
 
 	// calibration reads the service's CPUs against the /stats of the one k6 calls
 	@ParameterizedTest
-	@CsvSource({ "java-mixed, api-java, 2", "go-mixed, api-go, 2", "python-mixed, api-python, 2", "chain, gateway, 1" })
+	@CsvSource({ "java-mixed, api-java, 2", "go-mixed, api-go, 2", "python-mixed, api-python, 2", "chain, gateway, 1",
+			"python-cores, api-python-cores, 2", "python-wide, api-python-wide, 4", "go-pool, api-go-pool, 2" })
 	void of_aHeldOutStacksService_hasItsCpus(String stack, String service, int cpus) {
 		Map<String, String> sets = COMPOSE.of(stack, Map.of());
 
 		assertThat(Cpusets.count(Objects.requireNonNull(sets.get(service)))).isEqualTo(cpus);
+	}
+
+	// python-mixed's service is on CPUs 2,3; these put it on 0,2 and on 0-3, and go-pool
+	// keeps go-mixed's CPUs
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', value = { "python-cores | api-python-cores | 0,2 | 6,7",
+			"python-wide | api-python-wide | 0-3 | 6,7", "go-pool | api-go-pool | 2,3 | 0,1,6,7" })
+	void of_aStackOfTheSecondSet_isItsServicesCpusPostgresAndK6(String stack, String service, String cpus, String k6) {
+		Map<String, String> sets = COMPOSE.of(stack, Map.of());
+
+		assertThat(sets).containsExactly(Map.entry(service, cpus), Map.entry("postgres", "4,5"), Map.entry("k6", k6));
+	}
+
+	// the model's service node has the CPUs compose.yaml pins the service under test to
+	@ParameterizedTest
+	@MethodSource("experiments")
+	void of_anExperimentsService_hasTheCpusItsDesignGivesIt(Experiment experiment) {
+		Map<String, String> sets = COMPOSE.of(experiment.stack(), Map.of());
+		String service = Stacks.standard().containers(experiment.stack()).getFirst();
+
+		assertThat(Cpusets.count(Objects.requireNonNull(sets.get(service))))
+			.isEqualTo(Experiments.standard().runtime(experiment).cpuCores());
 	}
 
 	// benchmark.yml shares the hosted runner's few CPUs out by naming every cpuset's
@@ -104,6 +128,10 @@ class CpusetsTests {
 
 	static Stream<String> stacks() {
 		return Experiments.standard().stacks().keySet().stream();
+	}
+
+	static Stream<Experiment> experiments() {
+		return Experiments.standard().all().stream();
 	}
 
 }

@@ -5,7 +5,7 @@
 # periods and add latency spikes the model does not have). The ArchSim model of each stack uses
 # the same CPU counts. The defaults assume Docker with at least 8 CPUs; on a smaller machine set
 # BENCH_CPUS_POSTGRES, _REDIS, _REDIS_TTL, _KAFKA, _SERVICE, _CONSUMER, _GATEWAY, _CHAIN_API,
-# _JAVA, _GO, _PYTHON and _K6 (results are then noisier).
+# _JAVA, _GO, _PYTHON, _PYTHON_CORES, _PYTHON_WIDE, _GO_POOL and _K6 (results are then noisier).
 #
 # Held-out stacks (docs/validation.md, "Held-out experiments"; sealed: only the harness's `smoke` runs
 # them until a frozen engine has predicted them): java-mixed, go-mixed and python-mixed run
@@ -14,6 +14,17 @@
 # cache-ttl is a Node.js cache-aside service with a 5 s TTL over 1,000,000 keys. On the laptop
 # (siblings 0-1, 2-3, 4-5, 6-7) no container of these stacks shares a physical core with k6 or
 # another container: chain and cache-ttl leave CPUs 1 and 3 idle and give k6 one core (6,7).
+#
+# The second held-out set (ADR-0090, docs/adr/0090; registered on 19 Nov 2026, sealed and not yet
+# measured) adds three stacks. python-cores and python-wide run python-mixed's service and workload
+# on CPUs 0,2 and on CPUs 0-3; go-pool runs go-mixed's service on go-mixed's CPUs with a pool of 2
+# PostgreSQL connections where every other service has 10. The set's other two experiments run on
+# stacks above: java-hot-row on java-mixed's and cache-miss on cache-ttl's. Docker's VM numbers its
+# CPUs as hyperthread pairs (0-1, 2-3, 4-5, 6-7), so it numbers 0 and 2 as two cores and 0-3 as
+# both CPUs of each; Windows schedules the VM's CPUs itself, so the numbering may not say who
+# shares a physical core (the contention check of 1 Nov 2026, docs/validation.md, "Environment").
+# As numbered, no container of these three stacks shares a core with k6 or another container; the
+# two Python stacks leave k6 CPUs 6,7.
 name: archsim-bench
 
 x-service: &service
@@ -42,7 +53,8 @@ x-runtime: &runtime
 services:
   postgres:
     image: postgres:16-alpine
-    profiles: [postgres, cache, kafka, java-mixed, go-mixed, python-mixed, chain, cache-ttl]
+    profiles: [postgres, cache, kafka, java-mixed, go-mixed, python-mixed, chain, cache-ttl,
+               python-cores, python-wide, go-pool]
     cpuset: "${BENCH_CPUS_POSTGRES:-4,5}"
     environment:
       POSTGRES_USER: bench
@@ -234,6 +246,42 @@ services:
         condition: service_started
     ports:
       - "127.0.0.1:18080:8080"
+
+  # ---- the second held-out set's stacks (sealed, ADR-0090) --------------------------------------
+
+  # python-mixed's service on CPUs 0 and 2, which the VM numbers as two cores; 1 and 3 stay idle.
+  api-python-cores:
+    <<: *runtime
+    build: ./service-python
+    image: archsim-bench-python:1
+    profiles: [python-cores]
+    cpuset: "${BENCH_CPUS_PYTHON_CORES:-0,2}"
+    environment:
+      <<: *runtime-env
+      WEB_WORKERS: "10"
+
+  # python-mixed's service on four CPUs, still with gunicorn's 10 workers.
+  api-python-wide:
+    <<: *runtime
+    build: ./service-python
+    image: archsim-bench-python:1
+    profiles: [python-wide]
+    cpuset: "${BENCH_CPUS_PYTHON_WIDE:-0-3}"
+    environment:
+      <<: *runtime-env
+      WEB_WORKERS: "10"
+
+  # go-mixed's service on go-mixed's CPUs, with a pool of 2 PostgreSQL connections instead of 10.
+  api-go-pool:
+    <<: *runtime
+    build: ./service-go
+    image: archsim-bench-go:1
+    profiles: [go-pool]
+    cpuset: "${BENCH_CPUS_GO_POOL:-2,3}"
+    environment:
+      <<: *runtime-env
+      GOMAXPROCS: "2"
+      PG_POOL: "2"
 
   k6:
     image: grafana/k6:1.3.0

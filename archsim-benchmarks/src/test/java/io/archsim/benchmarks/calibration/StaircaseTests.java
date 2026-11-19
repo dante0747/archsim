@@ -1,6 +1,8 @@
 package io.archsim.benchmarks.calibration;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.benchmarks.JsonText;
@@ -61,10 +63,28 @@ class StaircaseTests {
 		assertThat(new Staircase(2).nextRise(PG_MIXED, pass(2.0))).hasValue(650);
 	}
 
-	// one write at a time on the hot row: 1,000 / 2 ms, half of it
+	// one write at a time on the hot row, whatever the service: 1,000 / 2 ms, half of it
+	@ParameterizedTest
+	@ValueSource(strings = { "pg-hot-row", "java-hot-row" })
+	void nextRise_aHotRow_isHalfItsLocksCapacity(String experiment) {
+		assertThat(new Staircase(4).nextRise(Experiments.standard().get(experiment), pass(0.1))).hasValue(250);
+	}
+
+	// ten connections at 2 ms a write: 5,000 req/s, half of it
 	@Test
-	void nextRise_theHotRow_isHalfItsLocksCapacity() {
-		assertThat(new Staircase(4).nextRise(Experiments.standard().get("pg-hot-row"), pass(0.1))).hasValue(250);
+	void nextRise_aPoolOfTenConnections_isHalfThePoolsCapacity() {
+		assertThat(new Staircase(4).nextRise(PG_MIXED, pass(0.1))).hasValue(2500);
+	}
+
+	// go-pool's two connections at 2 ms a write: 1,000 req/s, half of it
+	@Test
+	void nextRise_aPoolOfTwoConnections_isHalfThePoolsCapacity() {
+		assertThat(new Staircase(4).nextRise(Experiments.standard().get("go-pool"), pass(0.1))).hasValue(500);
+	}
+
+	@Test
+	void capacityBound_aPoolOfTwoConnections_isThePools() {
+		assertThat(new Staircase(4).capacityBound(Experiments.standard().get("go-pool"), pass(0.1))).isEqualTo(1000);
 	}
 
 	// three consumers at 4 ms a message: 750 req/s, half of it
