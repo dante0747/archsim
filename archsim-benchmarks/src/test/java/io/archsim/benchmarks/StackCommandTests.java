@@ -29,6 +29,19 @@ class StackCommandTests {
 		assertThat(machine.docker().commands()).isEmpty();
 	}
 
+	// BENCH_HOST=on: the designs' host machine is a model choice no freeze names
+	@Test
+	void execute_aHeldOutStackOnAHostMachine_stopsBeforeDockerSayingToUnsetIt(@TempDir Path root) throws IOException {
+		FakeMachine machine = FakeMachine.smoking(root, Map.of("BENCH_HOST", "on"), 200);
+		StringWriter err = new StringWriter();
+
+		machine.commandLine(root, new StringWriter(), err).execute("go-mixed");
+
+		assertThat(err.toString()).contains("stays sealed: BENCH_HOST=on puts the designs on a host machine")
+			.contains("Unset it.");
+		assertThat(machine.docker().commands()).isEmpty();
+	}
+
 	@Test
 	void execute_onlyAnUnknownExperiment_isRefused(@TempDir Path root) throws IOException {
 		FakeMachine machine = FakeMachine.smoking(root, Map.of(), 200);

@@ -60,6 +60,20 @@ class EnginesTests {
 		assertThat(frozen).extracting((engine) -> engine.get("version").stringValue()).containsExactly("c");
 	}
 
+	// a Java engine is frozen by the hash over its source trees, where the Python one had
+	// a tree
+	@Test
+	void frozen_aJavaEngineWithADateATagAndItsSources_isFrozen(@TempDir Path folder) throws IOException {
+		Path file = write(folder, """
+				[{"version": "a", "engineTree": null, "engineSources": "s", "frozenAt": null, "tag": null},
+				 {"version": "b", "engineTree": null, "engineSources": null, "frozenAt": "2026-11-20", "tag": "x"},
+				 {"version": "c", "engineTree": null, "engineSources": "s", "frozenAt": "2026-11-20", "tag": "x"}]""");
+
+		List<JsonNode> frozen = Engines.read(file).frozen();
+
+		assertThat(frozen).extracting((engine) -> engine.get("version").stringValue()).containsExactly("c");
+	}
+
 	@Test
 	void frozen_noEnginesFile_isNone(@TempDir Path folder) {
 		assertThat(Engines.read(folder.resolve("missing.json")).frozen()).isEmpty();

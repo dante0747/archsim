@@ -7,16 +7,21 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import tools.jackson.databind.JsonNode;
 
+import io.archsim.benchmarks.RepositoryLayout;
+import io.archsim.benchmarks.experiments.Engines;
 import io.archsim.benchmarks.history.GitFixture;
 import io.archsim.benchmarks.history.GitRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
  * What produced a prediction or a check: the commit, the engine's and the harness's
@@ -38,6 +43,52 @@ class ProvenanceTests {
 		JsonNode provenance = new Provenance(new GitRepository(folder), MACHINE, null).of();
 
 		assertThat(provenance.get("engineSources").stringValue()).isEqualTo(sha256(trees));
+	}
+
+	// what a freeze records for its tag is what a run from that commit records
+	@Test
+	void engineSources_aCommit_isTheHashAProvenanceThereRecords(@TempDir Path folder) throws IOException {
+		GitFixture fixture = GitFixture.init(folder);
+		String commit = fixture.commit(Map.of("archsim-engine/Engine.java", "class Engine {}\n",
+				"archsim-model/Model.java", "class Model {}\n", "archsim-cli/Cli.java", "class Cli {}\n"));
+		GitRepository git = new GitRepository(folder);
+
+		Optional<String> sources = Provenance.engineSources(git, commit);
+
+		assertThat(sources).contains(new Provenance(git, MACHINE, null).of().get("engineSources").stringValue());
+	}
+
+	// a tag this clone lacks, for one
+	@Test
+	void engineSources_aRevisionGitCannotName_isEmpty(@TempDir Path folder) throws IOException {
+		GitFixture fixture = GitFixture.init(folder);
+		fixture.commit(Map.of("archsim-engine/Engine.java", "class Engine {}\n"));
+
+		assertThat(Provenance.engineSources(new GitRepository(folder), "engine-9.9.9")).isEmpty();
+	}
+
+	// skipped while engines.json freezes no Java engine, and for a tag this clone lacks
+	// (CI's checkout fetches none)
+	@Test
+	void engineSources_eachFrozenJavaEngine_isTheHashOverItsTagsTrees() {
+		RepositoryLayout layout = RepositoryLayout.current();
+		GitRepository git = new GitRepository(layout.root());
+		List<JsonNode> frozen = Engines.read(layout.engines())
+			.frozen()
+			.stream()
+			.filter((engine) -> engine.path("engineSources").isString())
+			.toList();
+		assumeThat(frozen).as("a Java engine is frozen in engines.json").isNotEmpty();
+		assumeThat(frozen).as("the frozen engines' tags are in this clone")
+			.allSatisfy((engine) -> assertThat(git.revision(tagOf(engine))).isPresent());
+
+		assertThat(frozen).allSatisfy((engine) -> assertThat(Provenance.engineSources(git, tagOf(engine)))
+			.contains(engine.get("engineSources").stringValue()));
+	}
+
+	// a freeze's tag, which a branch of the same name must not stand in for
+	private static String tagOf(JsonNode engine) {
+		return "refs/tags/" + engine.get("tag").stringValue();
 	}
 
 	// a path the commit lacks is named None, as the Python harness's f-string named it

@@ -158,10 +158,11 @@ describe("repeated runs", () => {
     medianError: -0.1,
     minError: -0.1,
     maxError: -0.1,
+    meanAbsError: 0.1,
     withRange: 0,
     inRange: 0,
     nominalCoverage: null,
-    text: { medianError: "-10%", errors: "-10%", coverage: "-" },
+    text: { medianError: "-10%", errors: "-10%", meanAbsError: "10%", coverage: "-" },
     ...over,
   });
 
@@ -174,7 +175,7 @@ describe("repeated runs", () => {
       "1 counted run under these conditions (protocol v5, engine 0.15.0); the thresholds need 3. " +
         "2 disturbed runs are not counted: each missed the objective at one load step and met it at a higher one.",
     );
-    const r = rep({ runs: 3, disturbed: 1, withRange: 3, inRange: 1, nominalCoverage: 0.5, text: { medianError: "+4%", errors: "+3% to +20%", coverage: "1 of 3" } });
+    const r = rep({ runs: 3, disturbed: 1, withRange: 3, inRange: 1, nominalCoverage: 0.5, text: { medianError: "+4%", errors: "+3% to +20%", meanAbsError: "9%", coverage: "1 of 3" } });
     expect(repeatSentence(exp({ repeatability: r }))).toBe(
       "Over 3 runs under these conditions (protocol v5, engine 0.15.0) the knee error had a median of +4% (+3% to +20%). " +
         "1 disturbed run is not counted: it missed the objective at one load step and met it at a higher one. " +
@@ -191,7 +192,7 @@ describe("repeated runs", () => {
       withRange: 3,
       inRange: 2,
       nominalCoverage: 0.5,
-      text: { medianError: "-12%", errors: "-20% to -5%", coverage: "2 of 3" },
+      text: { medianError: "-12%", errors: "-20% to -5%", meanAbsError: "12%", coverage: "2 of 3" },
     });
     expect(repeatSentence(exp({ repeatability: r }))).toBe(
       "Over 3 runs under these conditions (protocol v5, engine 0.15.0) the knee error had a median of −12% (−20% to −5%). " +

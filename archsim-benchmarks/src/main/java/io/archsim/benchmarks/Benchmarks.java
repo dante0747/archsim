@@ -79,6 +79,7 @@ public final class Benchmarks implements Runnable {
 			.addSubcommand(new ReportCommand(layout))
 			.addSubcommand(new JavaParityCommand(layout))
 			.addSubcommand(new TreeIdsCommand(layout))
+			.addSubcommand(new EngineIdCommand(layout, log))
 			.setColorScheme(Help.defaultColorScheme(Help.Ansi.OFF));
 		MachineCommands.addTo(commandLine, setup);
 		Experiments.standard()

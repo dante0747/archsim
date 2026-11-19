@@ -1,8 +1,10 @@
 package io.archsim.benchmarks.report;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import tools.jackson.databind.JsonNode;
 
@@ -58,15 +60,22 @@ final class SummaryBlocks {
 	 * @return the table and its note
 	 */
 	static String repeatability(Map<String, List<JsonNode>> history, Engines engines) {
-		List<String> lines = new ArrayList<>(List
-			.of("| Experiment | Sample | Runs repeating the latest | Median knee error | Knee errors | Measured knee "
-					+ "inside the predicted range |", "| --- | --- | --- | --- | --- | --- |"));
+		List<String> lines = new ArrayList<>(List.of(
+				"| Experiment | Sample | Runs repeating the latest | Median knee error | Knee errors | Mean absolute "
+						+ "knee error | Measured knee inside the predicted range |",
+				"| --- | --- | --- | --- | --- | --- | --- |"));
+		Map<String, List<JsonNode>> errorsBySample = new LinkedHashMap<>();
 		for (Experiment experiment : LatestRuns.inPageOrder()) {
-			Repeatability.of(history.getOrDefault(experiment.id(), List.of()))
-				.ifPresent((repeated) -> lines.add(repeatabilityRow(experiment, repeated, engines)));
+			Repeatability.of(history.getOrDefault(experiment.id(), List.of())).ifPresent((repeated) -> {
+				lines.add(repeatabilityRow(experiment, repeated, engines));
+				errorsBySample.computeIfAbsent(sampleOf(experiment, repeated, engines), (sample) -> new ArrayList<>())
+					.addAll(repeated.get("errors").valueStream().toList());
+			});
 		}
 		lines.add("");
-		lines.add("The tier criteria below judge the median over at least " + Tiers.MIN_RUNS + " such runs. The "
+		lines.addAll(meanAbsBySample(errorsBySample));
+		lines.add("The tier criteria below judge the median over at least " + Tiers.MIN_RUNS + " such runs. The mean "
+				+ "absolute error counts every run's miss in full, which the median of a few runs can hide. The "
 				+ "nominal coverage is how often the measured knee should fall inside the predicted range. Engine "
 				+ "0.14.0's runs took the range from their three replicate calibration sets ((R - 1) / (R + 1) = "
 				+ "50%), which leaves out how much a calibration moves from one day to the next and the model's own "
@@ -82,12 +91,32 @@ final class SummaryBlocks {
 				: "no range (protocol v5 adds it)";
 		int disturbed = repeated.get("disturbed").intValue();
 		String leftOut = (disturbed > 0) ? "; " + disturbed + " disturbed, not counted" : "";
-		String sample = SAMPLE_TEXT.get(engines.sampleLabel(repeated.get("engineVersion"), experiment));
+		String sample = sampleOf(experiment, repeated, engines);
 		return "| [" + experiment.id() + "](#" + experiment.id() + ") | " + sample + " | "
 				+ PythonText.str(repeated.get("runs")) + " (" + PythonText.str(repeated.get("protocol")) + ", engine "
 				+ PythonText.str(repeated.get("engineVersion")) + leftOut + ") | "
 				+ repeated.at("/text/medianError").stringValue() + " | " + repeated.at("/text/errors").stringValue()
-				+ " | " + coverage + " |";
+				+ " | " + repeated.at("/text/meanAbsError").stringValue() + " | " + coverage + " |";
+	}
+
+	private static String sampleOf(Experiment experiment, JsonNode repeated, Engines engines) {
+		String label = engines.sampleLabel(repeated.get("engineVersion"), experiment);
+		return Objects.requireNonNull(SAMPLE_TEXT.get(label), label);
+	}
+
+	// each sample's mean absolute knee error over every run of the table, and a blank
+	// line
+	private static List<String> meanAbsBySample(Map<String, List<JsonNode>> errorsBySample) {
+		List<String> lines = new ArrayList<>();
+		errorsBySample.forEach((sample, errors) -> {
+			if (!errors.isEmpty()) {
+				lines.add("Mean absolute knee error over every such run, " + sample + ": "
+						+ Figures.magnitude(Repeatability.meanAbs(errors)) + " (" + errors.size()
+						+ ((errors.size() == 1) ? " run)." : " runs)."));
+				lines.add("");
+			}
+		});
+		return lines;
 	}
 
 	/**

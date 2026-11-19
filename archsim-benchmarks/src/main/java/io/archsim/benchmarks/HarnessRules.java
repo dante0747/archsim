@@ -60,8 +60,8 @@ final class HarnessRules {
 
 	/**
 	 * A command that refuses to run while {@code BENCH_ENGINE} names an engine other than
-	 * Java's: the ones {@code run.py} had. {@code report.py}'s and the parity page's
-	 * never looked at the variable.
+	 * Java's: the ones {@code run.py} had, and those added since that run the engine or
+	 * name it. {@code report.py}'s and the parity page's never looked at the variable.
 	 */
 	interface JavaEngineOnly {
 

@@ -16,8 +16,9 @@ import io.archsim.model.text.PythonText;
 
 /**
  * How an experiment's latest conditions repeated over its kept runs: the runs that repeat
- * the latest one, their knee errors, and how often the predicted range held the measured
- * knee against how often it claims to.
+ * the latest one, their knee errors (the median, the range, and the mean of their sizes,
+ * which no run's miss hides in), and how often the predicted range held the measured knee
+ * against how often it claims to.
  */
 final class Repeatability {
 
@@ -82,13 +83,29 @@ final class Repeatability {
 		repeatability.set("medianError", median);
 		repeatability.set("minError", errors.isEmpty() ? PythonValues.none() : PythonValues.min(errors));
 		repeatability.set("maxError", errors.isEmpty() ? PythonValues.none() : PythonValues.max(errors));
+		repeatability.set("meanAbsError", meanAbs(errors));
 		coverage(repeatability, group);
 		ObjectNode text = repeatability.putObject("text").put("medianError", Figures.percent(median));
 		text.put("errors", errorsText(repeatability, errors.size()));
+		text.put("meanAbsError", Figures.magnitude(repeatability.get("meanAbsError")));
 		int withRange = repeatability.get("withRange").intValue();
 		text.put("coverage",
 				(withRange == 0) ? Figures.NONE : repeatability.get("inRange").intValue() + " of " + withRange);
 		return Optional.of(repeatability);
+	}
+
+	/**
+	 * The mean of the errors' sizes: unlike the median of a few runs, it counts every
+	 * run's miss in full.
+	 * @param errors the runs' knee errors
+	 * @return the mean absolute error; None without errors
+	 */
+	static JsonNode meanAbs(List<? extends JsonNode> errors) {
+		if (errors.isEmpty()) {
+			return PythonValues.none();
+		}
+		return PythonValues.divide(PythonValues.sum(errors.stream().map(PythonValues::abs).toList()),
+				PythonValues.integer(errors.size()));
 	}
 
 	// the runs with a range, those whose measured knee it held, and

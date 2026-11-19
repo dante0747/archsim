@@ -13,10 +13,17 @@ import io.archsim.benchmarks.values.PythonValues;
 import io.archsim.model.text.PythonText;
 
 /**
- * The engine versions in {@code benchmarks/engines.json}: each one's source tree, when it
- * was frozen (its tag) and the experiments it was tuned on.
+ * The engine versions in {@code benchmarks/engines.json}: what identifies each one's
+ * sources (the Python engine's tree, the hash over the Java engine's source trees), when
+ * it was frozen (its tag) and the experiments it was tuned on.
  */
 public final class Engines {
+
+	/**
+	 * What a frozen Java engine's entry, and a run's provenance, keep the hash over the
+	 * engine's source trees under.
+	 */
+	public static final String SOURCES_KEY = "engineSources";
 
 	private final List<JsonNode> entries;
 
@@ -42,13 +49,16 @@ public final class Engines {
 	}
 
 	/**
-	 * The engines frozen for prospective predictions: {@code frozenAt}, {@code tag} and
-	 * {@code engineTree} set.
+	 * The engines frozen for prospective predictions: {@code frozenAt} and {@code tag}
+	 * set, and what identifies their sources: {@code engineTree}, the frozen Python
+	 * engine's tree, or {@code engineSources}, the hash over the Java engine's source
+	 * trees that a run's provenance records.
 	 * @return each one's entry, in the file's order
 	 */
 	public List<JsonNode> frozen() {
 		return this.entries.stream()
-			.filter((entry) -> isFrozen(entry) && PythonText.truthy(PythonValues.get(entry, "engineTree")))
+			.filter((entry) -> isFrozen(entry) && (PythonText.truthy(PythonValues.get(entry, "engineTree"))
+					|| PythonText.truthy(PythonValues.get(entry, SOURCES_KEY))))
 			.toList();
 	}
 

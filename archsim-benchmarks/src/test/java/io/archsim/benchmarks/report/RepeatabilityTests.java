@@ -64,7 +64,7 @@ class RepeatabilityTests {
 		JsonNode repeatability = Repeatability.of(runs).orElseThrow();
 
 		assertThat(repeatability.get("text")).isEqualTo(JsonText.read("""
-				{"medianError": "-20%", "errors": "-30% to -10%", "coverage": "2 of 3"}"""));
+				{"medianError": "-20%", "errors": "-30% to -10%", "meanAbsError": "20%", "coverage": "2 of 3"}"""));
 	}
 
 	@Test
@@ -100,7 +100,22 @@ class RepeatabilityTests {
 		JsonNode repeatability = Repeatability.of(List.of(ranged(-0.08, null))).orElseThrow();
 
 		assertThat(repeatability.get("text")).isEqualTo(JsonText.read("""
-				{"medianError": "-8%", "errors": "-8%", "coverage": "-"}"""));
+				{"medianError": "-8%", "errors": "-8%", "meanAbsError": "8%", "coverage": "-"}"""));
+	}
+
+	// misses of 30%, 10% and 20%, on either side: the median says -20%
+	@Test
+	void of_runsMissingOnEitherSide_takesTheMeanOfTheirErrorsSizes() {
+		List<JsonNode> runs = List.of(ranged(-0.3, true), ranged(0.1, false), ranged(-0.2, true));
+
+		JsonNode repeatability = Repeatability.of(runs).orElseThrow();
+
+		assertThat(repeatability.at("/text/meanAbsError").stringValue()).isEqualTo("20%");
+	}
+
+	@Test
+	void meanAbs_noErrors_isNone() {
+		assertThat(Repeatability.meanAbs(List.of()).isNull()).isTrue();
 	}
 
 	@Test

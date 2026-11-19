@@ -37,19 +37,23 @@ engine, 1.5.0 today, re-simulates them ([The Java engine](#the-java-engine)).
 Runs that repeat each experiment's latest conditions:
 
 <!-- BEGIN GENERATED: repeatability -->
-| Experiment | Sample | Runs repeating the latest | Median knee error | Knee errors | Measured knee inside the predicted range |
-| --- | --- | --- | --- | --- | --- |
-| [java-mixed](#java-mixed) | held out | 3 (v6, engine 0.16.0) | +70% | +64% to +89% | 0 of 3 runs (nominal 80%) |
-| [go-mixed](#go-mixed) | held out | 3 (v6, engine 0.16.0) | +67% | +58% to +73% | 0 of 3 runs (nominal 80%) |
-| [python-mixed](#python-mixed) | held out | 3 (v6, engine 0.16.0) | +29% | +27% to +30% | 3 of 3 runs (nominal 80%) |
-| [chain](#chain) | held out | 3 (v6, engine 0.16.0) | +30% | +24% to +32% | 3 of 3 runs (nominal 80%) |
-| [cache-ttl](#cache-ttl) | held out | 3 (v6, engine 0.16.0) | -6% | -8% to +1% | 3 of 3 runs (nominal 80%) |
-| [pg-mixed](#pg-mixed) | tuned on | 6 (v6, engine 0.16.0) | +16% | +6% to +88% | 5 of 6 runs (nominal 80%) |
-| [pg-hot-row](#pg-hot-row) | tuned on | 5 (v6, engine 0.16.0; 1 disturbed, not counted) | -10% | -10% to -9% | 5 of 5 runs (nominal 80%) |
-| [cache-aside](#cache-aside) | tuned on | 6 (v6, engine 0.16.0) | -23% | -27% to -1% | 5 of 6 runs (nominal 80%) |
-| [kafka](#kafka) | tuned on | 5 (v6, engine 0.16.0; 1 disturbed, not counted) | -3% | -12% to +10% | 5 of 5 runs (nominal 80%) |
+| Experiment | Sample | Runs repeating the latest | Median knee error | Knee errors | Mean absolute knee error | Measured knee inside the predicted range |
+| --- | --- | --- | --- | --- | --- | --- |
+| [java-mixed](#java-mixed) | held out | 3 (v6, engine 0.16.0) | +70% | +64% to +89% | 74% | 0 of 3 runs (nominal 80%) |
+| [go-mixed](#go-mixed) | held out | 3 (v6, engine 0.16.0) | +67% | +58% to +73% | 66% | 0 of 3 runs (nominal 80%) |
+| [python-mixed](#python-mixed) | held out | 3 (v6, engine 0.16.0) | +29% | +27% to +30% | 29% | 3 of 3 runs (nominal 80%) |
+| [chain](#chain) | held out | 3 (v6, engine 0.16.0) | +30% | +24% to +32% | 29% | 3 of 3 runs (nominal 80%) |
+| [cache-ttl](#cache-ttl) | held out | 3 (v6, engine 0.16.0) | -6% | -8% to +1% | 5% | 3 of 3 runs (nominal 80%) |
+| [pg-mixed](#pg-mixed) | tuned on | 6 (v6, engine 0.16.0) | +16% | +6% to +88% | 26% | 5 of 6 runs (nominal 80%) |
+| [pg-hot-row](#pg-hot-row) | tuned on | 5 (v6, engine 0.16.0; 1 disturbed, not counted) | -10% | -10% to -9% | 9% | 5 of 5 runs (nominal 80%) |
+| [cache-aside](#cache-aside) | tuned on | 6 (v6, engine 0.16.0) | -23% | -27% to -1% | 19% | 5 of 6 runs (nominal 80%) |
+| [kafka](#kafka) | tuned on | 5 (v6, engine 0.16.0; 1 disturbed, not counted) | -3% | -12% to +10% | 7% | 5 of 5 runs (nominal 80%) |
 
-The tier criteria below judge the median over at least 3 such runs. The nominal coverage is how often the measured knee should fall inside the predicted range. Engine 0.14.0's runs took the range from their three replicate calibration sets ((R - 1) / (R + 1) = 50%), which leaves out how much a calibration moves from one day to the next and the model's own error; since W28 the range is an 80% one that carries both ([Protocol](#protocol), step 3). A disturbed run missed the objective at one load step and met it at a higher one; it is kept and listed under the run history, but not counted.
+Mean absolute knee error over every such run, held out: 40% (15 runs).
+
+Mean absolute knee error over every such run, tuned on: 16% (22 runs).
+
+The tier criteria below judge the median over at least 3 such runs. The mean absolute error counts every run's miss in full, which the median of a few runs can hide. The nominal coverage is how often the measured knee should fall inside the predicted range. Engine 0.14.0's runs took the range from their three replicate calibration sets ((R - 1) / (R + 1) = 50%), which leaves out how much a calibration moves from one day to the next and the model's own error; since W28 the range is an 80% one that carries both ([Protocol](#protocol), step 3). A disturbed run missed the objective at one load step and met it at a higher one; it is kept and listed under the run history, but not counted.
 <!-- END GENERATED: repeatability -->
 
 The knee is the load where the ladder first misses the objective (p95 at most 50 ms with at least
@@ -690,14 +694,28 @@ results, misses included, lead the [headline](#headline):
   predictions are then saved before the first measured step, as for every experiment, so no
   model change can be tuned on its results first. Engine 0.16.0 was known by its source tree
   (`git rev-parse HEAD:packages/engine`); since stage 5 of the Java port deleted it, the harness
-  runs the Java engine only, which keeps them sealed until its freeze says what identifies it
-  ([ADR-0062](adr/0062-make-the-java-engine-the-harnesss-default.md)).
+  runs the Java engine only. A frozen Java engine is known by `engineSources`, the hash over
+  its three source trees at its tag, which a run's provenance records too
+  ([ADR-0088](adr/0088-freeze-the-java-engine-by-its-sources-and-fix-the-criteria-before-a-campaign.md);
+  `engine-id` prints what a freeze records). The seal also wants the entry's tag in the clone,
+  holding those very sources, and `BENCH_HOST` off: a host machine fitted from this machine's
+  own checks is a model choice no freeze names. A freeze is never edited: an engine that
+  changed gets a new version. None is frozen yet, so the held-out experiments stay sealed
+  until the engine that predicts the next campaign is.
 - Before the freeze, `smoke <experiment>` was the only way to start their stacks: 20
   req/s for 10 s, checking that every request succeeded and that the services counted it. It
   keeps no latency and no results.
 - The report labels each pair of engine and experiment `held-out` or `tuned-on`. An experiment
   is held out for a frozen engine that does not list it in `tunedOn`. The held-out experiments
   lead this page's tables, and an engine tuned on them later must list them in `tunedOn`.
+- **The five are spent for the next model change.** The accuracy review of 18 Nov 2026 read
+  their results, and the changes it recommends are made with those results in view. The first
+  version that changes how capacity or latency is modelled after that date lists all five in
+  `tunedOn`, and can show out-of-sample accuracy only on experiments registered before the
+  change. A change to how the harness derives the model inputs or builds the designs counts
+  as one too. The Java engine up to 1.5.0 predicts every kept calibration, the 15 held-out
+  runs among them, exactly as 0.16.0 did, knees and steps (`:archsim-benchmarks:parity`: 65 of
+  65 on 19 Nov 2026), so they are still held out for it.
 - **Changed after registration, before any measurement (31 Oct 2026):** two library updates to
   clear GitHub's dependency alerts. go-mixed's PostgreSQL driver pgx went from 5.7.6 to 5.9.2,
   which also drops `golang.org/x/crypto`, and python-mixed's Flask from 3.1.2 to 3.1.3. None of
@@ -1470,6 +1488,15 @@ counted runs under the same protocol, machine, OS build, power mode and engine:
    sub-millisecond noise does not fail it), in at least two of three runs;
 3. no unstable step at or below the measured knee, in at least two of three runs (3a), and a run
    under the same protocol on a second machine, or the hosted runner (3b).
+
+**Fixed before a campaign**
+([ADR-0088](adr/0088-freeze-the-java-engine-by-its-sources-and-fix-the-criteria-before-a-campaign.md)):
+before a held-out campaign's first calibration the engine is frozen, the harness is committed,
+the experiments are registered, and the protocol and these criteria are the ones this page
+states at that commit. A rule changed after that campaign's first measurement is reported both
+ways for it, with the date, as criterion 2 is below. The criteria judge the median; the
+repeatability table also gives the mean absolute knee error, in which no run's miss hides
+(pg-mixed's median is +16% and its mean absolute error 26%, for one run at +88%).
 
 Criterion 2 is symmetric: predicting half the measured p95 misses as much as predicting double
 ([ADR 0018](adr/0018-p95-within-a-factor-of-two.md)). Until 2 Nov 2026 it read "within ±100%",

@@ -129,3 +129,4 @@ what the repository shows.
 | [0085](0085-size-a-kafka-broker-as-measured-and-name-idle-consumers.md) | Size a Kafka broker as measured, and name idle consumers | Accepted | 2026-11-17 |
 | [0086](0086-keep-the-load-open-loop-past-the-objective-and-close-in-on-the-measured-knee.md) | Keep the load open-loop past the objective, and close in on the measured knee | Proposed | 2026-11-19 |
 | [0087](0087-compare-the-simulator-with-simple-estimates.md) | Compare the simulator with simple estimates of the knee | Proposed | 2026-11-19 |
+| [0088](0088-freeze-the-java-engine-by-its-sources-and-fix-the-criteria-before-a-campaign.md) | Freeze the Java engine by its sources, and fix the criteria before a campaign | Proposed | 2026-11-19 |

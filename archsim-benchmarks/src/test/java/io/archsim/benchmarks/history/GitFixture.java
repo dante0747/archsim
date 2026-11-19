@@ -54,6 +54,24 @@ public final class GitFixture {
 	}
 
 	/**
+	 * Tags the commit the repository is at.
+	 * @param name the tag's name
+	 * @throws IOException when git cannot run
+	 */
+	public void tag(String name) throws IOException {
+		git("tag", name);
+	}
+
+	/**
+	 * Starts a branch at the commit the repository is at, without moving to it.
+	 * @param name the branch's name
+	 * @throws IOException when git cannot run
+	 */
+	public void branch(String name) throws IOException {
+		git("branch", name);
+	}
+
+	/**
 	 * A folder's tree in a commit.
 	 * @param commit the commit
 	 * @param folder the folder

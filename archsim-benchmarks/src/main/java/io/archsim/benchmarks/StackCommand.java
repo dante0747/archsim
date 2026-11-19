@@ -20,6 +20,7 @@ import io.archsim.benchmarks.designs.Simulations;
 import io.archsim.benchmarks.experiments.Experiment;
 import io.archsim.benchmarks.experiments.Experiments;
 import io.archsim.benchmarks.history.GitRepository;
+import io.archsim.benchmarks.machine.HostSwitch;
 import io.archsim.benchmarks.provenance.EngineBuild;
 import io.archsim.benchmarks.provenance.MachineName;
 import io.archsim.benchmarks.provenance.Provenance;
@@ -107,7 +108,8 @@ final class StackCommand implements Callable<Integer>, HarnessRules.JavaEngineOn
 		CampaignTools tools = new CampaignTools(this.setup.modelInputs(simulations),
 				new Prediction(simulations, layout.kneeRange(), provenance::of, this.setup.log()), layout.k6Summaries(),
 				this.setup.log());
-		Seals seals = Seals.of(layout.engines(), layout.treeIds());
+		Seals seals = Seals.of(layout.engines(), new GitRepository(layout.root()),
+				HostSwitch.isOn(this.setup.environment()));
 		// each check reads the provenance afresh, as run.py did:
 		// a campaign runs for hours
 		return new Campaign(this.setup.instruments(), tools, (experiment) -> seals.of(experiment, provenance.of()),

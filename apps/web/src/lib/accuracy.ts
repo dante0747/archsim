@@ -163,13 +163,15 @@ export interface Repeatability {
   medianError: number | null;
   minError: number | null;
   maxError: number | null;
+  /** The mean of the runs' knee errors' sizes: no run's miss hides in it as in a median. */
+  meanAbsError: number | null;
   withRange: number;
   inRange: number;
   nominalCoverage: number | null;
   /** The runs inside the range that its nominal coverage expects. */
   expectedInRange?: number;
   coverageVerdict?: CoverageVerdict | null;
-  text: { medianError: string; errors: string; coverage: string };
+  text: { medianError: string; errors: string; meanAbsError: string; coverage: string };
 }
 
 export interface Experiment {

@@ -6,12 +6,14 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.benchmarks.experiments.Engines;
 import io.archsim.benchmarks.history.GitRepository;
 
 /**
@@ -69,19 +71,32 @@ public final class Provenance {
 		paths.addAll(HARNESS);
 		ObjectNode provenance = NODES.objectNode();
 		provenance.put("commit", this.git.revision("HEAD").orElse(null));
-		provenance.put("engineSources", treesHash(ENGINE_SOURCES));
+		provenance.put(Engines.SOURCES_KEY, treesHash(this.git, "HEAD", ENGINE_SOURCES));
 		provenance.put("javaBuild", this.javaBuild);
-		provenance.put("harnessHash", treesHash(HARNESS));
+		provenance.put("harnessHash", treesHash(this.git, "HEAD", HARNESS));
 		provenance.put("dirty", this.git.hasChanges(paths).orElse(null));
 		provenance.put("machineId", this.machineId);
 		return provenance;
 	}
 
+	/**
+	 * What identifies the Java engine at a commit: the hash over its three source trees
+	 * there. A frozen engine records its tag's ({@code engines.json}), and a run's
+	 * provenance the commit's it ran from, so the two agree only for the frozen sources.
+	 * @param git the repository
+	 * @param revision the commit: {@code HEAD}, or a freeze's tag
+	 * @return the hash; empty when git cannot name the revision, a tag this clone lacks
+	 * for one
+	 */
+	public static Optional<String> engineSources(GitRepository git, String revision) {
+		return git.revision(revision).map((commit) -> treesHash(git, revision, ENGINE_SOURCES));
+	}
+
 	// a SHA-256 over "<path> <tree>" lines, a path the commit lacks named None as the
 	// Python harness's f-string named it
-	private String treesHash(List<String> paths) {
+	private static String treesHash(GitRepository git, String revision, List<String> paths) {
 		String trees = paths.stream()
-			.map((path) -> path + " " + this.git.revision("HEAD:" + path).orElse("None"))
+			.map((path) -> path + " " + git.revision(revision + ":" + path).orElse("None"))
 			.collect(Collectors.joining("\n"));
 		try {
 			return HexFormat.of()
