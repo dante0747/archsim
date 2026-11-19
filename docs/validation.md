@@ -759,7 +759,8 @@ connections and PostgreSQL 16 on CPUs 4,5.
 The first five cannot show out-of-sample accuracy for the next change to the model: the review
 of 18 Nov 2026 read their results, and that change is made with them in view
 ([ADR-0088](adr/0088-freeze-the-java-engine-by-its-sources-and-fix-the-criteria-before-a-campaign.md)).
-ADR-0090 (`docs/adr/0090`) therefore registers five more, on 19 Nov 2026, before the change,
+[ADR-0090](adr/0090-register-a-second-held-out-set-before-the-next-model-change.md)
+therefore registers five more, on 19 Nov 2026, before the change,
 so that it can be judged on results nobody has seen. They are **sealed and not yet measured**:
 nothing has calibrated, predicted or measured them, and until an engine frozen in
 `benchmarks/engines.json` predicts them the harness only smoke-tests them (`smoke <experiment>`:
@@ -798,9 +799,12 @@ Otherwise each keeps its stack's setup: PostgreSQL 16 on CPUs 4,5 and a pool of 
 - **Knees and k6.** Each is expected to have its knee below about 4,000 req/s, where k6 has been
   checked under protocol v7
   ([ADR-0086](adr/0086-keep-the-load-open-loop-past-the-objective-and-close-in-on-the-measured-knee.md)).
-  python-wide is the one near k6's limit: its service has CPUs 0 to 3 and PostgreSQL 4,5, which
-  leaves k6 CPUs 6 and 7 alone, so each repeat's record of k6's own CPU decides whether its knee
-  counts.
+  python-wide and cache-miss are the two nearest k6's limit: on their stacks k6 has CPUs 6 and 7
+  alone, cache-miss's knee is expected above 3,000 req/s, and python-wide's ladder, which
+  reaches one and a half times the predicted knee, is expected to pass 4,000. Before the
+  campaign k6 is run at those rates against chain's stack, which gives it the same CPUs, and
+  each repeat's record of k6's own CPU shows what it had left. python-cores also differs from
+  python-mixed in k6's CPUs (6,7 against 0,1,6,7), which that record covers too.
 - **Two experiments share a first-set stack.** java-hot-row runs on java-mixed's stack and
   cache-miss on cache-ttl's. Asked for by its stack (`java-mixed`, `cache-ttl`), the harness
   runs both of the stack's experiments on one start of it, the first set's first, as it runs
