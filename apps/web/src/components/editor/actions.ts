@@ -71,8 +71,10 @@ export function useEditorActions() {
       if (!raw || typeof raw !== "object" || raw.kind !== "archsim.architecture") {
         throw new Error("This file is not an ArchSim architecture document.");
       }
-      // 1.0 -> 1.8 and 1.10 only add optional fields and 1.9 reads an API price of 0 as unset, so all open in place
-      if (!(["1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "1.8", "1.9", "1.10"] as unknown[]).includes(raw.schemaVersion)) {
+      // 1.0 -> 1.8 and 1.10 only add optional fields, 1.9 reads an API price of 0 as unset and 1.11 pins a
+      // saved design's vCPUs to whole cores (architecture.siblingSpeed: 1); the editor's fromDocument applies
+      // both steps, so every older design opens in place
+      if (!(["1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "1.8", "1.9", "1.10", "1.11"] as unknown[]).includes(raw.schemaVersion)) {
         throw new Error(
           `Schema ${String(raw.schemaVersion)} cannot be opened in place. Use “Import JSON” on the projects page, which migrates older documents.`,
         );

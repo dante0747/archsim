@@ -24,11 +24,14 @@ import io.archsim.model.codec.OmitWhenDefault;
  * none
  * @param smallest its CPU need is below the smallest size it can get; left out when not
  * @param skipped why it is not sized; left out when it is
+ * @param vcpus how its vCPUs counted (ADR-0091); left out for a part of fewer than 2
+ * vCPU, a part of another type and a design with a host machine
  */
 public record PartSummary(Map<String, SpecValue> specs, Map<String, @Nullable Double> auto, double peakRps,
 		Map<String, String> why, @Nullable Double pricePerHour, @Nullable String sku,
 		@OmitWhenDefault @Nullable Map<String, Double> need, @OmitWhenDefault @Nullable Map<String, String> needText,
-		@Default("false") @OmitWhenDefault boolean smallest, @OmitWhenDefault @Nullable String skipped) {
+		@Default("false") @OmitWhenDefault boolean smallest, @OmitWhenDefault @Nullable String skipped,
+		@OmitWhenDefault @Nullable VcpuSummary vcpus) {
 
 	/**
 	 * Copies the maps, so the record does not change.

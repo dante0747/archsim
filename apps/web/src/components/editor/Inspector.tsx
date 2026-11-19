@@ -18,6 +18,7 @@ import { CLIENT_BLOCK_FIELDS, ClientBlock } from "@/components/editor/ClientBloc
 import { type AutoHint, FieldGroups, isFieldVisible } from "@/components/editor/FieldControl";
 import { PricingCard } from "@/components/editor/PricingCard";
 import { RESOURCE_FIELDS, ResourceBlock } from "@/components/editor/ResourceBlock";
+import { SiblingSpeedCard } from "@/components/editor/SiblingSpeedCard";
 import { TechIcon } from "@/components/TechIcon";
 import { ScenariosPanel } from "@/components/editor/ScenariosPanel";
 import { TechnologyPicker } from "@/components/build/TechnologyPicker";
@@ -37,11 +38,12 @@ import { NODE_STATUS } from "@/lib/status";
 import { defaultSource } from "@/lib/tier";
 import { KIND_LABEL, REQ_GLYPH, kindOf, technologyLabel, type Kind } from "@/lib/theme";
 import type { DocExtras } from "@/lib/document";
-import type { ComponentType, FieldDescriptor, InputProvenance, Issue, NodeConfig, RequestType } from "@/lib/types";
+import type { ComponentType, FieldDescriptor, InputProvenance, Issue, NodeConfig, RequestType, SizingEntry } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useDecide } from "@/store/decide";
 import { type RightTab, useEditor } from "@/store/editor";
 import { useActiveReport, useRuns } from "@/store/runs";
+import { countedVcpus, useAutoSize } from "@/store/sizes";
 import { useUi } from "@/store/ui";
 
 export function Inspector() {
@@ -148,6 +150,7 @@ function DesignOverview() {
     <div className="space-y-4 p-4">
       <TrafficCard />
       <PricingCard />
+      <SiblingSpeedCard />
       <ProblemsList />
       <CommentsSection anchorKind="project" />
       <details className="group rounded-xl bg-surface-2/60">
@@ -360,6 +363,7 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
   const updateNode = useEditor((s) => s.updateNode);
   const deleteElements = useEditor((s) => s.deleteElements);
   const duplicate = useEditor((s) => s.duplicateSelection);
+  const sizing = useAutoSize(nodeId);
   if (!node) return null;
   const comp = componentOf(catalog, node.data.type);
   const kind = kindOf(node.data.type, comp?.category);
@@ -415,7 +419,7 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
           values={node.data.config}
           onChange={(key, v) => setNodeConfig(nodeId, key, v)}
           idPrefix={`node-${nodeId}`}
-          autoValues={autoHints(comp, node.data.config)}
+          autoValues={partHints(comp, node.data.config, sizing)}
           between={<ResourceBlock nodeId={nodeId} comp={comp} config={node.data.config} />}
           extraAdvanced={
             <div className="space-y-3">
@@ -448,6 +452,15 @@ function provenanceUnder(extras: DocExtras | undefined, prefix: string, values: 
     out[key] = v;
   }
   return out;
+}
+
+/** What a part's empty settings stand for: its technology's defaults, and for its sibling speed the one
+ * the last analysis counted its vCPUs at (schema 1.11). */
+export function partHints(comp: ComponentType, config: NodeConfig, sizing: SizingEntry | null | undefined): Record<string, AutoHint> | undefined {
+  const hints = autoHints(comp, config);
+  const vcpus = countedVcpus(sizing);
+  if (!vcpus) return hints;
+  return { ...hints, siblingSpeed: { value: vcpus.value, source: "the last analysis", text: vcpus.text } };
 }
 
 /** The technology defaults behind this node's "auto" and empty settings. */

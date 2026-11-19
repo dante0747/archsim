@@ -90,7 +90,7 @@ public final class EstimateDepartures {
 	 * A design without links: an analysis does not hold its design, so a driver that is a
 	 * link would be named by its input and show as a difference. No recording has one.
 	 */
-	private static final Architecture NO_LINKS = new Architecture(List.of(), List.of(), true, null);
+	private static final Architecture NO_LINKS = new Architecture(List.of(), List.of(), true, null, null);
 
 	private EstimateDepartures() {
 	}

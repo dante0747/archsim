@@ -1,17 +1,22 @@
 package io.archsim.engine.sizing;
 
+import java.util.Objects;
+
 import org.jspecify.annotations.Nullable;
 
 import io.archsim.engine.host.HostMachine;
+import io.archsim.engine.host.SiblingSpeed;
+import io.archsim.engine.host.SiblingSpeeds;
+import io.archsim.engine.host.VcpuBasis;
 import io.archsim.engine.settings.LenientSettings;
 import io.archsim.engine.sizing.Placement.Work;
 import io.archsim.engine.sizing.Steps.Explained;
-import io.archsim.model.document.HostSpec;
+import io.archsim.model.document.Architecture;
 
 /**
  * What a part's vCPUs are, as the number it needs for its work depends on it: whole
- * cores, or hyperthreads, two per physical core, which slow each other down when both are
- * busy.
+ * cores; hyperthreads, two per physical core, which slow each other down when both are
+ * busy; or, by default (ADR-0091), whichever the instance family it lands on gives.
  */
 sealed interface Vcpus {
 
@@ -19,18 +24,29 @@ sealed interface Vcpus {
 	Vcpus WHOLE_CORES = new WholeCores();
 
 	/**
-	 * What a part's vCPUs are: its own hyperthreads when it sets a sibling speed below 1,
-	 * else whole cores. On a design with a host machine every part's threads are the
-	 * host's, whose speed the part's placement carries, and its own sibling speed does
-	 * not count.
-	 * @param host the design's host machine; {@code null} when it has none
+	 * What a part's vCPUs are, by the rule every reader of them goes by
+	 * ({@link SiblingSpeeds#beforeFamily}): hyperthreads at the part's own sibling speed,
+	 * else the design's; whole cores for a serverless service, a pod and a speed of 1;
+	 * else, by default, whole cores on a whole-core family's machines and pairs at the
+	 * default speed on the others. On a design with a host machine every part's threads
+	 * are the host's, whose speed the part's placement carries, and they count as whole
+	 * cores here.
+	 * @param architecture the design's architecture, for its host and its sibling speed
+	 * @param nodeType the part's component type
 	 * @param settings the settings of the part's config, which bound: a sibling speed in
 	 * them is above 0 and at most 1
 	 * @return its vCPUs
 	 */
-	static Vcpus of(@Nullable HostSpec host, LenientSettings settings) {
-		double siblingSpeed = settings.number("siblingSpeed").orElse(1.0);
-		return (host == null && siblingSpeed < 1.0) ? new Hyperthreads(siblingSpeed) : WHOLE_CORES;
+	static Vcpus of(Architecture architecture, String nodeType, LenientSettings settings) {
+		return SiblingSpeeds.beforeFamily(architecture, nodeType, settings).map(Vcpus::counted).orElse(WHOLE_CORES);
+	}
+
+	private static Vcpus counted(SiblingSpeed speed) {
+		if (!speed.pairs()) {
+			return WHOLE_CORES;
+		}
+		Hyperthreads pairs = new Hyperthreads(speed.speed());
+		return (speed.basis() == VcpuBasis.DEFAULT) ? new ByFamily(pairs) : pairs;
 	}
 
 	/**
@@ -40,27 +56,28 @@ sealed interface Vcpus {
 	 * @param work the cores it keeps busy at the peak, and how they were worked out
 	 * @param handlers the pieces of work one instance runs at once
 	 * @param reason why the handlers cannot use more
-	 * @return the vCPU it gets, and the vCPU it needs
+	 * @return the vCPU it gets, and on each kind of vCPU where its machine decides
 	 */
-	CpuSize forWork(Work work, int handlers, String reason);
+	SizedVcpus forWork(Work work, int handlers, String reason);
 
 	/**
 	 * The vCPU a part gets for its work.
 	 *
-	 * @param vcpu the vCPU
-	 * @param why how they were worked out
-	 * @param needed the vCPU the work needs at the target utilization, before rounding
+	 * @param chosen its size where nothing more is known of its machine, as on a standard
+	 * shape: on hyperthreads, pairs, unless 1 vCPU of whole cores does its work
+	 * @param kinds its size on each kind of vCPU, where the machine it lands on decides;
+	 * {@code null} on whole cores
 	 */
-	record CpuSize(double vcpu, String why, double needed) {
+	record SizedVcpus(CpuSize chosen, @Nullable CpuKinds kinds) {
 	}
 
 	/** Whole cores: a vCPU does a core's work, however many of them are busy. */
 	record WholeCores() implements Vcpus {
 
 		@Override
-		public CpuSize forWork(Work work, int handlers, String reason) {
+		public SizedVcpus forWork(Work work, int handlers, String reason) {
 			Explained cpu = Steps.capped(Steps.cpu(work.busy(), work.intro()), handlers, reason);
-			return new CpuSize(cpu.value(), cpu.why(), work.busy() / Sizing.TARGET_CPU);
+			return new SizedVcpus(new CpuSize(cpu.value(), cpu.why(), work.busy() / Sizing.TARGET_CPU, null), null);
 		}
 
 	}
@@ -68,6 +85,7 @@ sealed interface Vcpus {
 	/**
 	 * Hyperthreads, two per physical core: a vCPU whose core's other vCPU is busy too
 	 * does less than a core's work, so together they can do less than a core's work each.
+	 * Every machine of 2 or more vCPU gives a part such vCPUs, whatever its family.
 	 *
 	 * @param siblingSpeed the speed of a vCPU whose core's other vCPU is busy too
 	 */
@@ -83,20 +101,25 @@ sealed interface Vcpus {
 		/**
 		 * The vCPU of the whole-core rule for the vCPUs the work takes with all of them
 		 * busy: the same target, sizes and slack, and a cap of two vCPU for each handler.
-		 * A part that gets one vCPU on whole cores keeps it: one vCPU has no sibling, and
-		 * one handler never has two vCPUs busy.
+		 * A part that gets one vCPU on whole cores keeps it where nothing more is known
+		 * of its machine: one vCPU has no sibling. On a machine of 2 or more vCPU it
+		 * needs the pairs' size all the same; one handler, which never has two vCPUs
+		 * busy, needs no more than on whole cores.
 		 */
 		@Override
-		public CpuSize forWork(Work work, int handlers, String reason) {
-			CpuSize onWholeCores = WHOLE_CORES.forWork(work, handlers, reason);
-			if (onWholeCores.vcpu() <= 1.0) {
-				return onWholeCores;
-			}
+		public SizedVcpus forWork(Work work, int handlers, String reason) {
+			CpuSize onWholeCores = WHOLE_CORES.forWork(work, handlers, reason).chosen();
+			CpuSize onPairs = (handlers == 1) ? onWholeCores : onPairs(work, handlers, reason);
+			CpuSize chosen = (onWholeCores.vcpu() <= 1.0) ? onWholeCores : onPairs;
+			return new SizedVcpus(chosen, new CpuKinds(onWholeCores, onPairs, false));
+		}
+
+		private CpuSize onPairs(Work work, int handlers, String reason) {
 			double perVcpu = coresPerVcpu();
 			double taken = work.busy() / perVcpu;
 			Explained sized = Steps.atTarget(taken, explained(work, perVcpu, taken), " of what they can do");
 			Explained cpu = Steps.cappedOnHyperthreads(sized, handlers, reason);
-			return new CpuSize(cpu.value(), cpu.why(), taken / Sizing.TARGET_CPU);
+			return new CpuSize(cpu.value(), cpu.why(), taken / Sizing.TARGET_CPU, perVcpu);
 		}
 
 		/**
@@ -123,6 +146,24 @@ sealed interface Vcpus {
 					+ "(the sibling speed)")
 				.formatted(work.intro(), SizingText.brief(work.busy()), SizingText.brief(taken),
 						SizingText.brief(perVcpu));
+		}
+
+	}
+
+	/**
+	 * The default (ADR-0091): whole cores on a machine of a whole-core family,
+	 * hyperthread pairs at the default sibling speed on the others, and pairs where
+	 * nothing more is known of the machine.
+	 *
+	 * @param pairs the vCPUs on the machines whose vCPUs are pairs
+	 */
+	record ByFamily(Hyperthreads pairs) implements Vcpus {
+
+		@Override
+		public SizedVcpus forWork(Work work, int handlers, String reason) {
+			SizedVcpus onPairs = this.pairs.forWork(work, handlers, reason);
+			CpuKinds kinds = Objects.requireNonNull(onPairs.kinds(), "hyperthreads size both kinds");
+			return new SizedVcpus(onPairs.chosen(), new CpuKinds(kinds.onWholeCores(), kinds.onPairs(), true));
 		}
 
 	}

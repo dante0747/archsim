@@ -10,6 +10,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.engine.host.SiblingSpeeds;
 import io.archsim.engine.provenance.Input;
 import io.archsim.engine.provenance.InputProvenances;
 import io.archsim.engine.report.ModelNotes;
@@ -23,16 +24,15 @@ import io.archsim.model.component.Tier;
 import io.archsim.model.document.ArchitectureDocument;
 import io.archsim.model.document.CalibrationRecord;
 import io.archsim.model.document.NodeSpec;
+import io.archsim.model.pricing.PriceSnapshots;
 
 /**
- * A report's {@code assumptions}: what the model leaves out, each part's technology tier,
- * every input with where it came from, the design's calibration, what each part's type
- * models and does not, and the design's warnings.
+ * A report's {@code assumptions}: what the model leaves out, the parts whose technology
+ * is experimental and whose vCPUs counted as the default or as pods, each part's
+ * technology tier, every input with where it came from, the design's calibration, what
+ * each part's type models and does not, and the design's warnings.
  */
 final class Assumptions {
-
-	/** At most this many experimental parts are named in the note about them. */
-	private static final int NAMED = 5;
 
 	/** What the "experimental" badge says, within a sentence. */
 	private static final String TIER_NOTE = ComponentCatalog.TIER_NOTE.substring(0, 1).toLowerCase(Locale.ROOT)
@@ -40,11 +40,14 @@ final class Assumptions {
 
 	private final TechnologyTiers tiers;
 
+	private final SiblingSpeeds siblingSpeeds;
+
 	/** What each type models and does not, by type: the editor's catalog's lists. */
 	private final Map<String, ObjectNode> modeled = new HashMap<>();
 
-	Assumptions(ComponentRegistry registry) {
+	Assumptions(ComponentRegistry registry, PriceSnapshots prices) {
 		this.tiers = new TechnologyTiers(registry);
+		this.siblingSpeeds = new SiblingSpeeds(prices);
 		for (JsonNode entry : ComponentCatalog.of(registry).get("components")) {
 			ObjectNode lists = Figures.NODES.objectNode();
 			lists.set("modeled", entry.get("modeled"));
@@ -66,6 +69,8 @@ final class Assumptions {
 		ArrayNode notes = assumptions.putArray("modelNotes");
 		ModelNotes.all().forEach(notes::add);
 		tierNotes(technologies).forEach(notes::add);
+		VcpuNotes.of(resolved.architecture(), this.siblingSpeeds.asRun(prepared.document(), resolved))
+			.forEach(notes::add);
 		assumptions.set("technologies", records(technologies));
 		assumptions.set("userInputs", records(inputs));
 		ObjectNode counts = assumptions.putObject("provenanceCounts");
@@ -100,11 +105,7 @@ final class Assumptions {
 		if (names.isEmpty()) {
 			return List.of();
 		}
-		String shown = String.join(", ", names.subList(0, Math.min(NAMED, names.size())));
-		if (names.size() > NAMED) {
-			shown += " and " + (names.size() - NAMED) + " more";
-		}
-		return List.of("Experimental technologies (" + shown + "): " + TIER_NOTE);
+		return List.of("Experimental technologies (" + PartNames.shown(names) + "): " + TIER_NOTE);
 	}
 
 	private static ArrayNode records(List<? extends Record> records) {

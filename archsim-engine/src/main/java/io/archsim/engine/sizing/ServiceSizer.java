@@ -4,7 +4,7 @@ import java.util.Map;
 
 import io.archsim.engine.settings.LoadCurve;
 import io.archsim.engine.sizing.Placement.Work;
-import io.archsim.engine.sizing.Vcpus.CpuSize;
+import io.archsim.engine.sizing.Vcpus.SizedVcpus;
 import io.archsim.model.component.service.Platform;
 import io.archsim.model.component.service.ServiceConfig;
 
@@ -43,13 +43,14 @@ final class ServiceSizer {
 		double replicas = replicas(config);
 		double perReplica = totalRps / replicas;
 		Work work = placement.atSpeed(busy(config, perReplica), intro(config, perReplica, totalRps, replicas));
-		CpuSize cpu = placement.vcpus().forWork(work, config.handlersPerReplica(), handlersReason(config));
+		SizedVcpus sized = placement.vcpus().forWork(work, config.handlersPerReplica(), handlersReason(config));
+		CpuSize cpu = sized.chosen();
 		ReplicaMemory memory = ReplicaMemory.of(config, perReplica, placement.onVm());
 		Map<Need, Double> need = Map.of(Need.BUSY_CORES, work.busy(), Need.CPU_CORES, cpu.needed(), Need.MEMORY_GIB_MAX,
 				memory.mostGib());
 		return new PartSize(cpu.vcpu(), memory.gib(), null, 0.0,
 				Map.of(Spec.CPU_CORES, cpu.why(), Spec.MEMORY_GIB, memory.why()), null, null, need,
-				memory.model(replicas), false);
+				memory.model(replicas), false, cpu.siblingSpeed(), sized.kinds());
 	}
 
 	/**

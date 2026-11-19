@@ -82,7 +82,7 @@ final class GoldenSizes {
 			}
 			return new PartSize(number("cpuCores"), number("memoryGib"), number("storageGib"),
 					this.json.path("peakRps").doubleValue(), why, text("skipped"), text("sku"), need, model(),
-					this.json.path("smallest").booleanValue());
+					this.json.path("smallest").booleanValue(), null, null);
 		}
 
 		private @Nullable MemoryModel model() {

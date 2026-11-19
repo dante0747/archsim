@@ -1,10 +1,12 @@
 package io.archsim.engine.simulator;
 
+import java.util.Set;
 import java.util.function.LongSupplier;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.engine.host.SiblingSpeeds;
 import io.archsim.engine.report.RunReport;
 import io.archsim.engine.reporting.ReportWriter;
 import io.archsim.engine.reporting.SimulatedRun;
@@ -32,6 +34,8 @@ public final class Simulator {
 
 	private final LongSupplier clock;
 
+	private final SiblingSpeeds siblingSpeeds;
+
 	/**
 	 * A simulator.
 	 * @param registry the component types
@@ -52,6 +56,7 @@ public final class Simulator {
 		this.preparer = new RunPreparer(registry, prices);
 		this.writer = new ReportWriter(registry, prices);
 		this.clock = clock;
+		this.siblingSpeeds = new SiblingSpeeds(prices);
 	}
 
 	/**
@@ -109,7 +114,10 @@ public final class Simulator {
 		if (simulatedS == null) {
 			return runWhole(document, request, observer);
 		}
-		ObjectNode sample = runWhole(Sampling.shortened(prepared.resolved(), simulatedS),
+		// a sibling speed the run's resolution wrote is left for the sample's to write
+		// again, so the sample's report says why its parts' vCPUs counted as they did
+		Set<String> written = this.siblingSpeeds.writtenIn(prepared.document(), prepared.resolved());
+		ObjectNode sample = runWhole(Sampling.shortened(prepared.resolved(), simulatedS, written),
 				RunRequest.of(null).withLimits(request.limits()), observer);
 		SteadyState steady = Stationarity.judge(RunReport.read(sample));
 		if (!steady.reached()) {

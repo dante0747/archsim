@@ -8,6 +8,7 @@ import io.archsim.engine.cost.CostEstimator;
 import io.archsim.engine.cost.GenericRates;
 import io.archsim.engine.pricing.Busy;
 import io.archsim.engine.sizing.Sizing;
+import io.archsim.model.component.Resources;
 import io.archsim.model.component.cache.CacheConfig;
 import io.archsim.model.component.database.DatabaseConfig;
 import io.archsim.model.text.PythonFormat;
@@ -45,11 +46,23 @@ public final class EngineConstants {
 	private static final String T4G_BASELINE = "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/"
 			+ "burstable-credits-baseline-concepts.html";
 
+	/**
+	 * VMware's guidance on hyperthreads, one of the published measurements behind
+	 * ArchSim's default sibling speed (ADR-0091): each of two busy threads of a core does
+	 * 55% to 65% of what one thread alone does. The default is the middle of what those
+	 * measurements give for request-serving work, 0.55 to 0.70
+	 * ({@code Resources.DEFAULT_SIBLING_SPEED}).
+	 */
+	private static final String HYPERTHREAD_SPEED = "https://knowledge.broadcom.com/external/article/326271/"
+			+ "allowing-vcpus-of-an-smp-virtual-machine.html";
+
 	private static final double PERCENT = 100;
 
 	private static final double SECONDS_PER_MINUTE = 60;
 
 	private static final double SECONDS_PER_HOUR = 3600;
+
+	private static final Area CPU = new Area("CPU model");
 
 	private static final Area SIZING = new Area("Auto-sizing");
 
@@ -62,6 +75,12 @@ public final class EngineConstants {
 	private static final Area LIMITS = new Area("Limits");
 
 	private static final List<EngineConstant> ALL = List.of(
+			CPU.of("Speed of a vCPU whose core's other vCPU is busy too, on a part with 2 or more vCPU that nothing "
+					+ "says are whole cores (the instance families below, serverless, pods): the middle of what "
+					+ "published measurements of request-serving work give, 0.55 to 0.70",
+					number(Resources.DEFAULT_SIBLING_SPEED) + " (a busy pair does "
+							+ number(2 * Resources.DEFAULT_SIBLING_SPEED) + " cores' work)",
+					"vcpus.DEFAULT_SIBLING_SPEED", HYPERTHREAD_SPEED),
 			SIZING.of("CPU utilisation a part is sized for at its peak", percent(Sizing.TARGET_CPU),
 					"sizing.TARGET_CPU"),
 			SIZING.of("CPU at the peak a size below the target's may run at, rather than double the cores",

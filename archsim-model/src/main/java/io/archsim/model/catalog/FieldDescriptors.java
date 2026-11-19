@@ -19,6 +19,7 @@ import io.archsim.model.codec.Gt;
 import io.archsim.model.codec.Le;
 import io.archsim.model.codec.Lt;
 import io.archsim.model.codec.RecordCodec;
+import io.archsim.model.codec.Ui;
 import io.archsim.model.codec.UiHints;
 
 /**
@@ -61,6 +62,24 @@ final class FieldDescriptors {
 		ArrayNode fields = NODES.arrayNode();
 		for (RecordComponent component : config.getRecordComponents()) {
 			fields.add(describe(component, defaults));
+		}
+		return fields;
+	}
+
+	/**
+	 * One descriptor per field of a record that the editor's forms show, those with
+	 * {@code @Ui} hints, in declaration order: the settings of a record whose other
+	 * fields the editor edits otherwise, such as the architecture's nodes and links.
+	 * @param record the record
+	 * @return the descriptors
+	 */
+	static ArrayNode ofHinted(Class<? extends Record> record) {
+		ObjectNode defaults = defaults(record);
+		ArrayNode fields = NODES.arrayNode();
+		for (RecordComponent component : record.getRecordComponents()) {
+			if (component.isAnnotationPresent(Ui.class)) {
+				fields.add(describe(component, defaults));
+			}
 		}
 		return fields;
 	}

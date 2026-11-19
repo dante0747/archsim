@@ -9,8 +9,10 @@ import org.jspecify.annotations.Nullable;
 import io.archsim.engine.pricing.Busy;
 import io.archsim.engine.pricing.Machine;
 import io.archsim.engine.pricing.MachineSize;
+import io.archsim.engine.pricing.OnPairs;
 import io.archsim.engine.pricing.PricingChoice;
 import io.archsim.engine.settings.LenientSettings;
+import io.archsim.model.component.Resources;
 import io.archsim.model.pricing.Sku;
 
 /**
@@ -31,7 +33,9 @@ final class InstanceSnap {
 	}
 
 	/**
-	 * A part's size snapped to an instance type.
+	 * A part's size snapped to an instance type. Where its vCPUs may be hyperthread pairs
+	 * (ADR-0091) the type covers the need of the kind its vCPUs are on it, and the size
+	 * is explained by that kind.
 	 * @param size the auto size
 	 * @param nodeType the part's component type
 	 * @param settings the part's settings
@@ -44,8 +48,9 @@ final class InstanceSnap {
 			return size;
 		}
 		Busy busy = size.busy().orElse(null);
-		Optional<Machine> machine = pricing.instanceTypes()
-			.choose(nodeType, settings, new MachineSize(set.cpuOr(size), set.memoryOr(size), busy));
+		CpuKinds kinds = size.kinds();
+		OnPairs pairs = (kinds != null) ? kinds.need(pricing.snapshot().provider()) : null;
+		Optional<Machine> machine = pricing.instanceTypes().choose(nodeType, settings, need(size, set, busy, pairs));
 		if (machine.isEmpty()) {
 			return size;
 		}
@@ -53,9 +58,9 @@ final class InstanceSnap {
 		if (sku == null) {
 			return uncovered(size, machine.get(), set, pricing);
 		}
-		String how = how(machine.get(), settings, busy, pricing);
-		PartSize snapped = size;
-		if (needsLessThanSmallest(size, machine.get(), sku, pricing)) {
+		PartSize snapped = ofKind(size, sku, pairs);
+		String how = how(machine.get(), settings, busy, pricing) + kindOf(sku, pairs);
+		if (needsLessThanSmallest(snapped, machine.get(), sku, pricing)) {
 			snapped = snapped.withSmallest(true);
 			how += " (it needs less CPU than the smallest " + machine.get().category().json() + " type has)";
 		}
@@ -66,6 +71,58 @@ final class InstanceSnap {
 			snapped = snapped.with(Spec.MEMORY_GIB, sku.memoryGib(), "; snapped to " + how);
 		}
 		return snapped.onInstanceType(sku.sku());
+	}
+
+	/**
+	 * What an instance type must cover: the CPU set on the part counts as the need on any
+	 * kind of vCPU; else its size on whole cores, and on pairs where its vCPUs may be
+	 * pairs.
+	 * @param size the auto size
+	 * @param set the specs set on the part
+	 * @param busy the cores one instance keeps busy, or {@code null} when unknown
+	 * @param pairs what it needs of a type it runs as pairs; {@code null} on whole cores
+	 * @return the size to cover
+	 */
+	private static MachineSize need(PartSize size, SetSpecs set, @Nullable Busy busy, @Nullable OnPairs pairs) {
+		CpuKinds kinds = size.kinds();
+		if (set.cpu() != null || kinds == null || pairs == null) {
+			return new MachineSize(set.cpuOr(size), set.memoryOr(size), busy);
+		}
+		return new MachineSize(kinds.onWholeCores().vcpu(), set.memoryOr(size), busy, pairs);
+	}
+
+	/**
+	 * A size explained by the kind of vCPU an instance type gives it.
+	 * @param size the auto size
+	 * @param sku the type
+	 * @param pairs what the part needs of a type it runs as pairs; {@code null} on whole
+	 * cores
+	 * @return the size on pairs or on whole cores; as it is on whole cores
+	 */
+	private static PartSize ofKind(PartSize size, Sku sku, @Nullable OnPairs pairs) {
+		CpuKinds kinds = size.kinds();
+		if (kinds == null || pairs == null) {
+			return size;
+		}
+		return size.withCpu(pairs.runsAsPairs(sku) ? kinds.onPairs() : kinds.onWholeCores());
+	}
+
+	/**
+	 * What a type's vCPUs are to a part whose vCPUs may be pairs.
+	 * @param sku the type
+	 * @param pairs what the part needs of a type it runs as pairs; {@code null} on whole
+	 * cores
+	 * @return the words, after a comma; empty on whole cores
+	 */
+	private static String kindOf(Sku sku, @Nullable OnPairs pairs) {
+		if (pairs == null) {
+			return "";
+		}
+		if (pairs.runsAsPairs(sku)) {
+			return ", whose vCPUs it counts as hyperthread pairs";
+		}
+		return (sku.vcpu() < Resources.FEWEST_PAIRED_VCPU) ? ", whose one vCPU has no sibling"
+				: ", whose vCPUs are whole cores";
 	}
 
 	/**

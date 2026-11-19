@@ -14,9 +14,6 @@ final class NeedText {
 	/** The most memory counts as more than the typical when it is this much above it. */
 	private static final double MEMORY_MARGIN = 0.005;
 
-	/** Two figures this close, as a share of one of them, differ by rounding alone. */
-	private static final double TOLERANCE = 1e-9;
-
 	private NeedText() {
 	}
 
@@ -25,13 +22,17 @@ final class NeedText {
 	 * @param need what it needs, by JSON name
 	 * @param specs the specs it is simulated with
 	 * @param holder what holds its resources: its instance type, or a pod, a replica, ...
+	 * @param siblingSpeed the share of a core each vCPU counts for in its CPU need, as a
+	 * hyperthread; {@code null} on whole cores
 	 * @return a line per spec it has a need for; {@code null} when there is none
 	 */
-	static @Nullable Map<String, String> of(Map<String, Double> need, Map<String, SpecValue> specs, String holder) {
+	static @Nullable Map<String, String> of(Map<String, Double> need, Map<String, SpecValue> specs, String holder,
+			@Nullable Double siblingSpeed) {
 		Map<String, String> texts = new LinkedHashMap<>();
 		for (Spec spec : Spec.values()) {
 			SpecValue value = specs.get(spec.json());
-			String text = (value != null) ? line(spec, need, value, holder) : null;
+			String has = (value != null) ? has(spec, value, holder) : null;
+			String text = (has != null) ? line(spec, need, has, siblingSpeed) : null;
 			if (text != null) {
 				texts.put(spec.json(), text);
 			}
@@ -43,14 +44,15 @@ final class NeedText {
 	 * One spec's line.
 	 * @param spec the spec
 	 * @param need what the part needs
-	 * @param value the spec it is simulated with
-	 * @param holder what holds its resources
+	 * @param has what its instance has, after a middle dot
+	 * @param siblingSpeed the share of a core each vCPU counts for, as a hyperthread;
+	 * {@code null} on whole cores
 	 * @return the line; {@code null} when the part has no need for the spec
 	 */
-	private static @Nullable String line(Spec spec, Map<String, Double> need, SpecValue value, String holder) {
-		String has = has(spec, value, holder);
+	private static @Nullable String line(Spec spec, Map<String, Double> need, String has,
+			@Nullable Double siblingSpeed) {
 		return switch (spec) {
-			case CPU_CORES -> cpu(need, has);
+			case CPU_CORES -> cpu(need, has, siblingSpeed);
 			case MEMORY_GIB -> memory(need, has);
 			case STORAGE_GIB -> {
 				Double storage = need.get(Need.STORAGE_GIB.json());
@@ -59,34 +61,29 @@ final class NeedText {
 		};
 	}
 
-	private static @Nullable String cpu(Map<String, Double> need, String has) {
+	private static @Nullable String cpu(Map<String, Double> need, String has, @Nullable Double siblingSpeed) {
 		Double cpu = need.get(Need.CPU_CORES.json());
 		if (cpu == null) {
 			return null;
 		}
 		Double busy = need.get(Need.BUSY_CORES.json());
-		String why = (busy != null) ? " (" + SizingText.brief(busy) + " busy at the peak, " + target(cpu, busy) + ")"
+		String why = (busy != null) ? " (" + SizingText.brief(busy) + " busy at the peak, " + target(siblingSpeed) + ")"
 				: "";
 		return "needs " + SizingText.brief(cpu) + " vCPU" + why + has;
 	}
 
 	/**
 	 * The target a CPU need was worked out for: of what its vCPUs can do, with what each
-	 * counts for when they are hyperthreads. That is read off the need: the busy cores
-	 * over the vCPUs they take at the target are a core each on whole cores, and less on
-	 * hyperthreads. It holds while hyperthreads are the only reason a need is above the
-	 * busy cores over the target, and for needs as they were worked out: rounded to four
-	 * places, as a summary shows them, a need on whole cores can come out above too.
-	 * @param cpu the vCPU needed, not rounded
-	 * @param busy the cores busy at the peak, not rounded
+	 * counts for when they are hyperthreads, as its size says.
+	 * @param siblingSpeed the share of a core each vCPU counts for, as a hyperthread;
+	 * {@code null} on whole cores
 	 * @return such as "at a 60% target of what its hyperthreads can do, 0.6 of a core
 	 * each"
 	 */
-	private static String target(double cpu, double busy) {
+	private static String target(@Nullable Double siblingSpeed) {
 		String target = "at a " + SizingText.percent(Sizing.TARGET_CPU) + " target";
-		double perVcpu = busy / (cpu * Sizing.TARGET_CPU);
-		if (perVcpu < 1.0 - TOLERANCE) {
-			return target + " of what its hyperthreads can do, " + SizingText.brief(perVcpu) + " of a core each";
+		if (siblingSpeed != null) {
+			return target + " of what its hyperthreads can do, " + SizingText.brief(siblingSpeed) + " of a core each";
 		}
 		return target;
 	}

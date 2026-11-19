@@ -4,7 +4,7 @@ import java.util.Map;
 
 import io.archsim.engine.load.NodeLoad;
 import io.archsim.engine.sizing.Placement.Work;
-import io.archsim.engine.sizing.Vcpus.CpuSize;
+import io.archsim.engine.sizing.Vcpus.SizedVcpus;
 import io.archsim.model.component.database.DatabaseConfig;
 import io.archsim.model.document.Workload;
 import io.archsim.model.text.PythonFormat;
@@ -42,11 +42,12 @@ final class DatabaseSizer {
 		Work atSpeed = placement.atSpeed(work.busy(), work.intro());
 		int connections = Math.max(1, config.maxConnections());
 		int usable = Math.max(1, (int) Math.ceil(connections * config.cpuShare() - TOLERANCE));
-		CpuSize cpu = placement.vcpus()
+		SizedVcpus sized = placement.vcpus()
 			.forWork(atSpeed, usable,
 					"%d connection%s × %s CPU keep at most %d core%s busy (add connections, read replicas or shards)"
 						.formatted(connections, SizingText.plural(connections), SizingText.percent(config.cpuShare()),
 								usable, SizingText.plural(usable)));
+		CpuSize cpu = sized.chosen();
 		Data data = Data.of(config, workload);
 		Memory memory = Memory.of(config, data, connections);
 		Map<Need, Double> need = Map.of(Need.BUSY_CORES, atSpeed.busy(), Need.CPU_CORES, cpu.needed(), Need.MEMORY_GIB,
@@ -54,7 +55,7 @@ final class DatabaseSizer {
 		return new PartSize(cpu.vcpu(), Steps.memory(memory.needGib(), Sizing.DB_MIN_MEMORY_GIB),
 				Steps.disk(data.perInstanceGib() / Sizing.STORAGE_FILL), 0.0,
 				Map.of(Spec.CPU_CORES, cpu.why(), Spec.MEMORY_GIB, memory.why(), Spec.STORAGE_GIB, data.why()), null,
-				null, need, null, false);
+				null, need, null, false, cpu.siblingSpeed(), sized.kinds());
 	}
 
 	/**

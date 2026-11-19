@@ -13,13 +13,16 @@ import tools.jackson.databind.JsonNode;
 import io.archsim.model.catalog.ComponentCatalog;
 import io.archsim.model.component.ComponentRegistry;
 import io.archsim.model.component.Tier;
+import io.archsim.model.pricing.WholeCoreFamilies;
+import io.archsim.model.pricing.WholeCoreGroup;
 
 /**
  * {@code docs/assumptions.md}: every number ArchSim uses without the user typing it, and
  * where each comes from. It reads the values from the code that uses them: the technology
  * profiles, presets and part defaults of the component types (through the catalog the
- * editor reads), and the engine-wide constants ({@link EngineConstants}). Each value is
- * marked documented (with the link that states it) or illustrative.
+ * editor reads), the engine-wide constants ({@link EngineConstants}) and the instance
+ * families whose vCPUs are whole cores ({@link WholeCoreFamilies}). Each value is marked
+ * documented (with the link that states it) or illustrative.
  */
 public final class AssumptionsPage {
 
@@ -49,6 +52,7 @@ public final class AssumptionsPage {
 		lines.addAll(presets(parts, edgeFields));
 		lines.addAll(partDefaults(parts, edgeFields, PageText.byKey(catalog.path("workloadFields"))));
 		lines.addAll(constants());
+		lines.addAll(wholeCoreFamilies());
 		return String.join("\n", lines).replaceFirst("\n+$", "") + "\n";
 	}
 
@@ -221,6 +225,29 @@ public final class AssumptionsPage {
 						+ "CPU at the peak) are rules of thumb stated with each finding, not inputs to the simulation.",
 				""));
 		lines.addAll(PageText.table(List.of("Area", "Constant", VALUE, BASIS, "Code"), rows));
+		lines.add("");
+		return lines;
+	}
+
+	/**
+	 * The instance families whose vCPUs count as whole cores where a part goes by the
+	 * default (ADR-0091), each group with the page that says so.
+	 * @return the section's lines
+	 */
+	private static List<String> wholeCoreFamilies() {
+		List<List<String>> rows = new ArrayList<>();
+		for (Map.Entry<String, List<WholeCoreGroup>> provider : WholeCoreFamilies.byProvider().entrySet()) {
+			for (WholeCoreGroup group : provider.getValue()) {
+				rows.add(List.of(provider.getKey(), String.join(", ", group.families()), group.reason(),
+						PageText.basis(group.source())));
+			}
+		}
+		List<String> lines = new ArrayList<>(List.of("## Instance families whose vCPUs are whole cores", "",
+				"A service, database or cache with 2 or more vCPU counts them as hyperthread pairs at the sibling "
+						+ "speed above unless it, or its design, sets one; on these families, on a serverless platform "
+						+ "and as pods on Kubernetes it counts each vCPU as a whole core.",
+				""));
+		lines.addAll(PageText.table(List.of("Provider", "Families", "Why", BASIS), rows));
 		lines.add("");
 		return lines;
 	}

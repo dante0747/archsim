@@ -36,12 +36,26 @@ class AutoSizerTests {
 	}
 
 	@Test
-	void sizes_aServiceNeedingMoreMemoryThanOneVcpuComesWith_getsTheVcpuOfTheShape() {
+	void sizes_aServiceNeedingMoreMemoryThanOneVcpuComesWith_getsAShapeThatCoversItsNeedOnPairs() {
+		// a shape of 2 vCPU gives the part a pair of hyperthreads (ADR-0091),
+		// which do the work 1 vCPU of whole cores does at the target with 2
 		PartSize api = SizingDesigns.size("api",
 				SizingDesigns.ofService("{\"memoryBaselineMb\": 7000}", "generic", 100));
 
 		assertThat(api.cpuCores()).isEqualTo(2.0);
 		assertThat(api.memoryGib()).isEqualTo(16.0);
+		assertThat(api.why().get(Spec.CPU_CORES)).isEqualTo("50 req/s per replica at peak (100 over 2) × 10 ms of "
+				+ "CPU each = 0.5 cores busy, which is what 0.83 vCPU can do as hyperthreads, each counting as 0.6 of "
+				+ "a core (the sibling speed); at a 60% target that is 1.39 → 2 vCPU");
+	}
+
+	@Test
+	void sizes_aServiceNeedingMoreMemoryThanOneVcpuComesWithOnWholeCores_getsTheVcpuOfTheShape() {
+		ObjectNode design = SizingDesigns.ofService("{\"memoryBaselineMb\": 7000}", "generic", 100);
+		((ObjectNode) design.get("architecture")).put("siblingSpeed", 1);
+
+		PartSize api = SizingDesigns.size("api", design);
+
 		assertThat(api.why().get(Spec.CPU_CORES))
 			.isEqualTo(AT_THE_PEAK + "; rounded up to a standard shape, 2 vCPU and 16 GiB (8 GiB per vCPU)");
 	}
@@ -107,7 +121,8 @@ class AutoSizerTests {
 
 		assertThat(api.sku()).isEqualTo("c6g.2xlarge");
 		assertThat(api.why().get(Spec.CPU_CORES))
-			.isEqualTo(AT_THE_PEAK + "; snapped to c6g.2xlarge (8 vCPU, 16 GiB), the instance type set on the part");
+			.isEqualTo(AT_THE_PEAK + "; snapped to c6g.2xlarge (8 vCPU, 16 GiB), the instance type set on the part, "
+					+ "whose vCPUs are whole cores");
 	}
 
 	@Test
@@ -118,7 +133,7 @@ class AutoSizerTests {
 		assertThat(api.sku()).isEqualTo("c6g.xlarge");
 		assertThat(api.why().get(Spec.MEMORY_GIB)).isEqualTo(REPLICA_MEMORY + "; snapped to c6g.xlarge (4 vCPU, "
 				+ "8 GiB), the cheapest type in aws us-east-1 (2026-10-28) that covers it (c6g.medium, the type set on "
-				+ "the part, is not in it or is too small)");
+				+ "the part, is not in it or is too small), whose vCPUs are whole cores");
 	}
 
 	@Test
@@ -228,6 +243,18 @@ class AutoSizerTests {
 		this.sizer.applyTo(design);
 
 		assertThat(design.at("/architecture/nodes/1/config").has("cpuCores")).isFalse();
+	}
+
+	@Test
+	void applyTo_aNamedTypeTooSmallOnWholeCores_keepsTheNamedType() {
+		// a design pinned to whole cores: the cost, which finds the named type too small
+		// for the size, chooses again
+		ObjectNode design = SizingDesigns.ofService("{\"instanceType\": \"c6g.medium\"}", "aws", 1000);
+		((ObjectNode) design.get("architecture")).put("siblingSpeed", 1);
+
+		SizedDocument sized = this.sizer.applyTo(design);
+
+		assertThat(sized.document().at("/architecture/nodes/1/config/instanceType").asString()).isEqualTo("c6g.medium");
 	}
 
 	@Test

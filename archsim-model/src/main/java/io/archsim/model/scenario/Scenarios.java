@@ -4,6 +4,7 @@ import java.io.Serial;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -134,7 +135,8 @@ public final class Scenarios {
 	/**
 	 * Leaves out the instance type auto-sizing chose for a part a scenario resizes (its
 	 * CPU or memory), so the part gets the type that fits its new size. An instance type
-	 * the part names itself, or that the scenario sets, is kept.
+	 * the part names itself is put back where auto-sizing chose another, and one the
+	 * scenario sets is kept.
 	 * @param resolved the resolved document's JSON, changed in place
 	 * @param document the design as written, before auto-sizing chose any instance type
 	 * @param scenario the scenario whose overrides were applied to {@code resolved}
@@ -144,9 +146,10 @@ public final class Scenarios {
 		Set<String> named = nodesOverriding(scenario, Set.of(INSTANCE_TYPE));
 		for (JsonNode node : resolved.path("architecture").path("nodes")) {
 			String id = node.path("id").asString("");
-			boolean stale = resized.contains(id) && !named.contains(id) && !namesOwnInstanceType(document, id);
+			boolean stale = resized.contains(id) && !named.contains(id);
 			if (stale && node.get("config") instanceof ObjectNode config) {
-				config.remove(INSTANCE_TYPE);
+				ownInstanceType(document, id).ifPresentOrElse((own) -> config.put(INSTANCE_TYPE, own),
+						() -> config.remove(INSTANCE_TYPE));
 			}
 		}
 	}
@@ -169,15 +172,16 @@ public final class Scenarios {
 	}
 
 	/**
-	 * Whether the design itself names an instance type for a node.
+	 * The instance type the design itself names for a node.
 	 * @param document the design as written
 	 * @param id the node's id
-	 * @return {@code true} when the node's own config sets one
+	 * @return the type its own config sets, if any
 	 */
-	private static boolean namesOwnInstanceType(ArchitectureDocument document, String id) {
+	private static Optional<String> ownInstanceType(ArchitectureDocument document, String id) {
 		return document.node(id)
-			.map((declared) -> PythonText.truthy(declared.config().path(INSTANCE_TYPE)))
-			.orElse(false);
+			.map((declared) -> declared.config().path(INSTANCE_TYPE))
+			.filter(PythonText::truthy)
+			.map(JsonNode::asString);
 	}
 
 	/**

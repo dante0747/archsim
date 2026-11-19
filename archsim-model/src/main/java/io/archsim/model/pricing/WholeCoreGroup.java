@@ -16,7 +16,7 @@ import io.archsim.model.codec.MinLength;
  * @param source the provider's page that says so, or that says which processor the
  * families run on
  */
-record WholeCoreGroup(@MinItems(1) List<@MinLength(1) String> families, @MinLength(1) String reason,
+public record WholeCoreGroup(@MinItems(1) List<@MinLength(1) String> families, @MinLength(1) String reason,
 		@Matches(HTTPS) String source) {
 
 	/** A page anyone can open: an {@code https} address. */
@@ -25,7 +25,7 @@ record WholeCoreGroup(@MinItems(1) List<@MinLength(1) String> families, @MinLeng
 	/**
 	 * Copies the families, so the group does not change.
 	 */
-	WholeCoreGroup {
+	public WholeCoreGroup {
 		families = List.copyOf(families);
 	}
 

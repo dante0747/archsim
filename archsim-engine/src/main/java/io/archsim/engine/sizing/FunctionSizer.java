@@ -56,7 +56,7 @@ final class FunctionSizer {
 		Map<Need, Double> need = Map.of(Need.CPU_CORES, 1.0, Need.MEMORY_GIB, mb / MIB_PER_GIB, Need.MEMORY_GIB_MAX,
 				mb / MIB_PER_GIB);
 		return new PartSize(cpu, Math.max(own, coupled), null, 0.0,
-				Map.of(Spec.CPU_CORES, cpuWhy, Spec.MEMORY_GIB, memoryWhy), null, null, need, null, false);
+				Map.of(Spec.CPU_CORES, cpuWhy, Spec.MEMORY_GIB, memoryWhy), null, null, need, null, false, null, null);
 	}
 
 	private static String memoryCpu(double memoryGib, double cpu) {

@@ -13,14 +13,15 @@ import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.model.codec.RecordCodec;
 import io.archsim.model.component.ComponentRegistry;
+import io.archsim.model.document.Architecture;
 import io.archsim.model.document.EdgeConfig;
 import io.archsim.model.document.Workload;
 
 /**
  * Everything the editor renders its palette and inspector from: each component type with
- * its ports, settings, defaults, presets and technologies, then the link and workload
- * settings and the text of the "experimental" badge. Adding a component type needs no
- * change to the editor.
+ * its ports, settings, defaults, presets and technologies, then the link, workload and
+ * design-wide architecture settings and the text of the "experimental" badge. Adding a
+ * component type needs no change to the editor.
  */
 public final class ComponentCatalog {
 
@@ -43,6 +44,7 @@ public final class ComponentCatalog {
 		registry.specs().forEach((spec) -> components.add(ComponentEntry.of(spec, Presentation.of(spec.type()))));
 		catalog.set("edgeFields", FieldDescriptors.of(EdgeConfig.class));
 		catalog.set("workloadFields", FieldDescriptors.of(Workload.class));
+		catalog.set("architectureFields", FieldDescriptors.ofHinted(Architecture.class));
 		catalog.put("tierNote", TIER_NOTE);
 		return catalog;
 	}

@@ -9,7 +9,7 @@ It is stage 1 of the [Java port](../docs/proposals/java-25-port.md#stage-1--desi
 ```java
 ArchitectureDocument design = DesignDocuments.load(json);          // any schema from 1.0 on
 ValidationResult result = DocumentValidator.standard().validate(design);
-ObjectNode written = DesignDocuments.toJson(design);               // schema 1.10, defaults filled in
+ObjectNode written = DesignDocuments.toJson(design);               // schema 1.11, defaults filled in
 ObjectNode schema = DesignDocuments.jsonSchema();                  // what GET /schema/architecture serves
 ```
 
@@ -85,15 +85,20 @@ seven families and `u-6tb1`.
   left out of a document while it is 0, so a document differs from Python's by its version
   alone; 1.9 lets a third-party API's `costPerMillionRequests` be left unset
   ([ADR-0081](../docs/adr/0081-price-an-unset-api-at-its-preset-or-leave-it-out-of-the-month.md)),
-  where 1.7's defaulted to 0. Every golden comparison (`Parity`, and the tests that compare with
-  `JsonDiff` themselves) goes through `SchemaDepartures`. It gives a recorded document (a
-  parameter named `doc`, `document` or `resolved`, or a report's design) to the Java at 1.10 as
-  it was written, and a document Python's fixtures wrote at 1.10, their example of a newer schema,
-  at 1.11. It reads the Java's output as Python would have written it at 1.7: a document's
-  `schemaVersion` and the schema's own version as 1.7, no note for the upgrades from 1.7 to 1.10,
-  a message naming the supported schema with 1.7 (and the newer one with 1.10), the JSON Schema
-  without `peakHoursPerMonth` and `messageAgeP95Ms`, and the catalog's workload settings without
-  `peakHoursPerMonth`. Guided by Python's output, `ApiPriceDepartures` reads an
+  where 1.7's defaulted to 0; 1.11 counts a vCPU as a hyperthread by default and adds
+  `architecture.siblingSpeed` (ADR-0091). Every golden comparison (`Parity`, and
+  the tests that compare with `JsonDiff` themselves) goes through `SchemaDepartures`. It gives a
+  recorded document (a parameter named `doc`, `document` or `resolved`, or a report's design) to
+  the Java at 1.11 as it was written, pinned to whole cores as the upgrade to 1.11 pins a saved
+  design (`architecture.siblingSpeed: 1`, `SiblingSpeedDepartures`), and a document Python's
+  fixtures wrote at 1.10, their example of a newer schema, at 1.12. It reads the Java's output as
+  Python would have written it at 1.7: a document's `schemaVersion` and the schema's own version
+  as 1.7, no note for the upgrades from 1.7 to 1.11, a message naming the supported schema with
+  1.7 (and the newer one with 1.10), the JSON Schema without `peakHoursPerMonth`,
+  `messageAgeP95Ms` and the architecture's `siblingSpeed`, the catalog's workload settings
+  without `peakHoursPerMonth` and without its list of design-wide settings
+  (`architectureFields`), a document's architecture without its `siblingSpeed`, a sized part's
+  summary without `vcpus`, and a part's `siblingSpeed` described as Python described it. Guided by Python's output, `ApiPriceDepartures` reads an
   API's price as Python's where Python's records it as 0: the setting where the Java leaves it
   empty, an input's value and provenance, and the catalog field's default, description and
   whether it may be empty. The rest is compared exactly.

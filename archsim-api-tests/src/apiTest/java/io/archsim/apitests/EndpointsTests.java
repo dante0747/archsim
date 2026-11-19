@@ -22,7 +22,7 @@ class EndpointsTests {
 		assertThat(client.get("/health").json()).isEqualTo(Json.object("status", "ok", "database", "ok"));
 		JsonNode meta = client.get("/meta").json();
 		assertThat(meta.path("engineVersion").asString()).isNotEmpty();
-		assertThat(meta.path("schemaVersion").asString()).isEqualTo("1.10");
+		assertThat(meta.path("schemaVersion").asString()).isEqualTo("1.11");
 		assertThat(meta.path("database").asString()).isIn("sqlite", "postgresql");
 		JsonNode catalog = client.get("/components").json();
 		assertThat(Json.strings(catalog.path("components"), "type")).contains("traffic_source", "load_balancer",
@@ -287,7 +287,7 @@ class EndpointsTests {
 		assertThat(again.path("inputDigest")).isEqualTo(done.path("inputDigest"));
 
 		assertThat(Json.strings(client.get(url).json(), "id")).containsExactlyInAnyOrder(doneId, Json.id(again));
-		assertThat(client.get("/runs/" + doneId + "/input").json().path("schemaVersion").asString()).isEqualTo("1.10");
+		assertThat(client.get("/runs/" + doneId + "/input").json().path("schemaVersion").asString()).isEqualTo("1.11");
 	}
 
 	@Test

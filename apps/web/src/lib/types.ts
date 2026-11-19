@@ -282,12 +282,14 @@ export interface HostSpec {
 }
 
 export interface ArchitectureDocument {
-  schemaVersion: "1.0" | "1.1" | "1.2" | "1.3" | "1.4" | "1.5" | "1.6" | "1.7" | "1.8" | "1.9" | "1.10";
+  schemaVersion: "1.0" | "1.1" | "1.2" | "1.3" | "1.4" | "1.5" | "1.6" | "1.7" | "1.8" | "1.9" | "1.10" | "1.11";
   kind: "archsim.architecture";
   metadata: DocMetadata;
   /** false: empty CPU/memory/storage specs are not modelled (default: auto-sized by the engine).
-   * host (1.7): the one machine every part with a CPU size runs on. */
-  architecture: { nodes: NodeSpec[]; edges: EdgeSpec[]; autoSize?: boolean; host?: HostSpec };
+   * host (1.7): the one machine every part with a CPU size runs on.
+   * siblingSpeed (1.11): the sibling speed of the vCPUs of every service, database and cache that sets
+   * none, above 0 and at most 1 (1: whole cores); empty: each part's instance family decides (ADR-0091). */
+  architecture: { nodes: NodeSpec[]; edges: EdgeSpec[]; autoSize?: boolean; host?: HostSpec; siblingSpeed?: number };
   workload: Workload;
   scenarios: Scenario[];
   objectives?: Objectives;
@@ -466,6 +468,9 @@ export interface Catalog {
   components: ComponentType[];
   edgeFields: FieldDescriptor[];
   workloadFields: FieldDescriptor[];
+  /** The design-wide settings the editor shows, keyed as in `architecture` (schema 1.11: the vCPU sibling
+   * speed); an older server sends none. */
+  architectureFields?: FieldDescriptor[];
   /** What the "experimental" badge says. */
   tierNote?: string;
 }
@@ -852,6 +857,21 @@ export interface SizingEntry {
   needText?: Partial<Record<SpecKey, string>>;
   /** Its CPU need is below the smallest size it can get (1 vCPU, or the smallest type of its kind). */
   smallest?: boolean;
+  /** How its vCPUs count (schema 1.11; services, databases and caches with 2 or more vCPU in a design
+   * without a host): the sibling speed used and what decided it. */
+  vcpus?: VcpuCount;
+}
+
+/** What decided a part's sibling speed: its own setting, the design's, its instance family (whole
+ * cores), its platform (serverless, pods: whole cores), or the default for hyperthreads. */
+export type VcpuBasis = "part" | "design" | "wholeCoreFamily" | "serverless" | "pod" | "default";
+
+export interface VcpuCount {
+  /** The speed of a vCPU whose hyperthread sibling is busy too (1: whole cores). */
+  siblingSpeed: number;
+  basis: VcpuBasis;
+  /** "hyperthread pairs at a sibling speed of 0.6, a busy pair doing 1.2 cores' work: the default, as on most x86 instances". */
+  text: string;
 }
 
 export interface Sizing {

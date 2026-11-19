@@ -510,8 +510,30 @@ N busy vCPUs do less than N times one's work. Two optional settings model it (ar
   generator on the same machine). The parts' CPU work, the background and the clients' load all
   count as busy threads of that machine.
 - **`siblingSpeed`** on a service, database or cache with 2 or more `cpuCores`: its own vCPUs
-  are hyperthreads, two per core (a cloud instance; leave it empty on Graviton and other cores
-  without them). Ignored on a design with a host.
+  are hyperthreads, two per core, as on most x86 cloud instances; 1 makes them whole cores.
+  Ignored on a design with a host.
+
+**The default (schema 1.11, ADR-0091).** A part with 2 or more vCPU, on a design without a
+host, that sets no `siblingSpeed` runs on hyperthread pairs at the first sibling speed that
+applies: the design's `architecture.siblingSpeed`; 1 (whole cores) when the instance type the
+cost prices for it is of a whole-core family (Graviton and other Arm families, AWS T2 and its
+AMD families from M7a; the list, each family with the page that says so, is on
+[assumptions.md](assumptions.md)), when the service runs serverless, or when it runs as pods on
+Kubernetes; else 0.6, the middle of what published measurements of request-serving work give
+(0.55 to 0.70), from vendors' documentation and others' benchmarks, not a measurement of
+ArchSim's. Pods share their node's cores with other pods, so their own pairs would be the wrong
+shape; counting them as whole cores is optimistic on an x86 node pool, and making the node the
+machine is a decision of its own. One resolver (`SiblingSpeeds`) applies the rule when a run's
+document is resolved, after the scenario and auto-sizing, and writes into each part that sets
+no speed the one it counts at (inferred, or the design's below 1), as auto-sizing records the
+instance type it chose: the simulation, the instant estimate, the design review, `explain`, the cost, sweeps and checks all read it there, and the
+run's `input` says what ran. The sizing section gives each part's `vcpus` (`siblingSpeed`,
+`basis`: `part`, `design`, `wholeCoreFamily`, `serverless`, `pod` or `default`, and `text`), and
+the report's model notes name the parts on the default and the pods. A design saved before 1.11
+is pinned to whole cores by `architecture.siblingSpeed: 1`, which the upgrade writes, so it keeps
+its results; clearing it puts the design on the default. The accuracy benchmarks' designs are
+written at schemas 1.0 and 1.7, so they stay on whole cores, which is also what is known of the
+laptop they run on.
 
 With `busy` threads wanting the CPU on `P` physical cores of `T` threads, a thread runs at
 `clock x sharing x turns` of its speed alone on an idle machine:
@@ -538,7 +560,7 @@ part's load and the clients' grow in proportion to the window's (own hyperthread
 busy); the event-loop formula in `explain` says the speed it assumed; the instant estimate, the
 design review and auto-sizing take the speed at the estimated peak, `busy = base / speed(busy) +
 other`, where `base` is the threads the parts' CPU work needs at full speed. Sizing on a host
-counts the parts it is about to size. A part with its own `siblingSpeed` is sized another way,
+counts the parts it is about to size. A part on its own hyperthreads is sized another way,
 since the speed of its vCPUs depends on how many it gets: see the auto-sizing rules below.
 
 The accuracy benchmarks can set the host from a contention check of the machine (the harness's
@@ -593,8 +615,9 @@ Peak load comes from the static estimate below, with each TTL cache's hit ratio 
 its TTL and the key popularity (`TtlMissShares`; a cache whose memory holds fewer keys
 than the keyspace keeps the most popular ones).
 
-A service, database or cache that sets `siblingSpeed`, on a design without a host, is sized for
-its hyperthreads. Each of its vCPUs counts as its sibling speed of a core, what each does with
+A service, database or cache whose vCPUs are hyperthreads (its own `siblingSpeed`, the design's,
+or the default), on a design without a host, is sized for them. Each of its vCPUs counts as its
+sibling speed of a core, what each does with
 all of them busy by the formula above, which a load that fills them reaches and which its CPU
 capacity counts on (`cpuCapacityRps`). The target is the same 60%, of what its vCPUs can do, so
 a part on pairs needs its whole-core size divided by the sibling speed: its busy cores / the
@@ -607,13 +630,19 @@ a sibling speed of 0.6, 4 workers on 4 vCPU would share 2 cores and do 2.4 cores
 and on 8 each has a core to itself. A part with one handler, which never has two vCPUs busy, and
 a part that gets one vCPU on whole cores, which has no sibling, are sized as on whole cores. At a
 sibling speed of a half or less a part so goes from 1 vCPU straight to 4, since 2 vCPU with both
-busy do no more than one core's work. The instance type or standard shape then covers that many
-vCPU, whatever its family. One limit: a part that keeps one vCPU can land on a shape or type of
-two, for its memory or because none smaller is sold, and runs them as hyperthreads; with both
-busy they do twice the sibling speed of a core's work, so below a sibling speed of about a third
-less than the work 1 vCPU takes (up to 0.65 of a core), and such a part is short of CPU. It is
-not sized again for the vCPU it lands on. On a design with a host the parts are sized at the
-host's speed instead.
+busy do no more than one core's work. A part that sets its sibling speed, or whose design does,
+has one need on every instance type or standard shape of 2 or more vCPU, whatever its family. A
+part on the default has two needs from the same work, on whole cores and on pairs at 0.6: with a
+price snapshot, each type covers the need of the kind its vCPUs are (whole cores on a whole-core
+family's types and on a type of 1 vCPU, pairs elsewhere), so the part gets, in one scan, the
+cheapest type that covers its own family's need, and its own `instanceType` while that covers its
+need; a standard shape has no family, so at generic prices the part is sized on pairs. The size's
+explanation, `need` and `needText` then follow the kind it got, and the run counts its vCPUs the
+same way. A part that keeps one vCPU and lands, for its memory or because none smaller is sold,
+on a shape or type of two or more, which runs them as pairs, needs that shape or type to cover its
+need on pairs: at a sibling speed of 0.3 a service doing 0.65 cores' work gets 4 vCPU, not the 2
+whose pair would do 0.6 of a core's work with both busy. On a design with a host the parts are
+sized at the host's speed instead.
 
 In a run, work that starts while more vCPUs are busy runs slower, but the share of them busy
 stays below the share the work is of what they can do: at the edge of a size, where that is 65%,

@@ -25,6 +25,16 @@ final class Descriptions {
 
 	static final String WORKLOAD_TRAFFIC_GROUP = "Traffic";
 
+	static final String ARCHITECTURE_MACHINES_GROUP = "Machines";
+
+	static final String ARCHITECTURE_SIBLING_SPEED = "The sibling speed of every service, database and cache that "
+			+ "sets none of its own (schema 1.11): with 2 or more vCPU, its vCPUs are hyperthreads, two per physical "
+			+ "core, and a vCPU whose core's other vCPU is busy too runs at this speed. 1: every vCPU is a whole core. "
+			+ "Empty: 1 on an instance family whose vCPUs are whole cores, for a serverless service and for a pod on "
+			+ "Kubernetes, else 0.6 (most x86 instances). A design saved before schema 1.11 has 1, so it keeps its "
+			+ "results; clear it to count its vCPUs as the default does. Ignored when the design sets a host machine "
+			+ "(host), whose sibling speed applies instead.";
+
 	static final String ARCHITECTURE_AUTO_SIZE = "Give parts with an empty CPU, memory or storage spec the size they "
 			+ "need for the design's peak load (see sizing.py). false: an empty spec is not modelled.";
 

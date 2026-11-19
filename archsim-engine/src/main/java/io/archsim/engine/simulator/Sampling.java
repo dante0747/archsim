@@ -1,9 +1,12 @@
 package io.archsim.engine.simulator;
 
+import java.util.Set;
+
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.engine.host.SiblingSpeeds;
 import io.archsim.engine.run.PreparedRun;
 import io.archsim.engine.simulation.SteadyState;
 import io.archsim.model.DesignDocuments;
@@ -25,14 +28,19 @@ final class Sampling {
 
 	/**
 	 * A resolved design (which has no scenarios of its own) shortened to its warm-up and
-	 * sample.
+	 * sample. A sibling speed the run's resolution wrote into a part is left out, for the
+	 * sample's own resolution to write again: it is the same, and the sample's report
+	 * then says why the part's vCPUs counted as they did rather than that the part sets
+	 * it.
 	 * @param resolved the design as resolved: the scenario applied, the seed replaced
 	 * @param simulatedS the warm-up and the sample, in seconds
+	 * @param partsWithWrittenSpeeds the parts whose sibling speed the resolution wrote
 	 * @return the shortened design
 	 */
-	static ObjectNode shortened(ArchitectureDocument resolved, double simulatedS) {
+	static ObjectNode shortened(ArchitectureDocument resolved, double simulatedS, Set<String> partsWithWrittenSpeeds) {
 		ObjectNode design = DesignDocuments.toJson(resolved);
 		((ObjectNode) design.get("workload")).put("durationS", simulatedS);
+		SiblingSpeeds.leaveOut(design, partsWithWrittenSpeeds);
 		return design;
 	}
 

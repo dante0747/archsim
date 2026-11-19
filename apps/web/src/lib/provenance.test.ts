@@ -27,7 +27,7 @@ describe("documents keep what the editor does not edit", () => {
     const doc = calibrated();
     doc.architecture.host = { physicalCores: 4, siblingSpeed: 0.55, clientCpuMs: 0.2 };
     const back = toDocument(fromDocument(doc));
-    expect(back.schemaVersion).toBe("1.10");
+    expect(back.schemaVersion).toBe("1.11");
     expect(back.architecture.host).toEqual(doc.architecture.host);
     expect(back.provenance).toEqual(doc.provenance);
     expect(back.pricing).toEqual(doc.pricing);

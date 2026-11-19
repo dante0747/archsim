@@ -11,6 +11,7 @@ import io.archsim.engine.load.LoadEstimate;
 import io.archsim.engine.load.NodeLoad;
 import io.archsim.engine.numeric.FloatSum;
 import io.archsim.engine.settings.LenientSettings;
+import io.archsim.model.component.Resources;
 import io.archsim.model.document.Architecture;
 import io.archsim.model.document.HostSpec;
 import io.archsim.model.document.NodeSpec;
@@ -76,7 +77,7 @@ public final class HostSpeeds {
 	 * @return {@code true} for 2 vCPU or more with a sibling speed below 1
 	 */
 	public static boolean runsOnOwnHyperthreads(double cores, @Nullable Double siblingSpeed) {
-		return siblingSpeed != null && cores >= 2 && siblingSpeed < 1.0;
+		return siblingSpeed != null && cores >= Resources.FEWEST_PAIRED_VCPU && siblingSpeed < 1.0;
 	}
 
 	/**

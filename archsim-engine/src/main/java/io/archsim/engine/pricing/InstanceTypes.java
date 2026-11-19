@@ -48,7 +48,10 @@ public final class InstanceTypes {
 	 * families (naming compute families leaves the database list alone); a burstable
 	 * family named there is allowed wherever it fits, and restricts nothing. A t4g type
 	 * also, with burstable on auto, no named family restricting the list, and the part
-	 * passing the credit check. Ties go to the smaller machine, then the name.
+	 * passing the credit check. Ties go to the smaller machine, then the name. A type
+	 * covers the need of the kind of vCPU it gives the part: where they are hyperthread
+	 * pairs, the need on pairs, so a part on the default gets, in one scan, the cheapest
+	 * type that covers its own family's need.
 	 * @param kind the price list and engine
 	 * @param size the size to cover
 	 * @return the type; empty when none fits
@@ -60,7 +63,7 @@ public final class InstanceTypes {
 		Set<String> namedBursts = namedFamilies(items, named, Sku::burstable);
 		String option = this.purchase.option();
 		return items.stream()
-			.filter((sku) -> size.fitsIn(sku.vcpu(), sku.memoryGib()) && sku.price(option).isPresent())
+			.filter((sku) -> size.fitsIn(sku) && sku.price(option).isPresent())
 			.filter((sku) -> allowed(sku, restricting, namedBursts, size.busy()))
 			.filter((sku) -> sku.runs(kind.engine()))
 			.min(Comparator.<Sku>comparingDouble((sku) -> sku.price(option).orElseThrow())
@@ -71,9 +74,9 @@ public final class InstanceTypes {
 
 	/**
 	 * The instance type a part of a size runs on: its own {@code instanceType} while the
-	 * snapshot has it and it covers the size, else the cheapest that does. A database,
-	 * cache or stream engine the snapshot has no managed type for runs on compute
-	 * instances (self-managed).
+	 * snapshot has it and it covers the size (on hyperthread pairs, the need on pairs),
+	 * else the cheapest that does. A database, cache or stream engine the snapshot has no
+	 * managed type for runs on compute instances (self-managed).
 	 * @param nodeType the part's component type
 	 * @param settings the part's settings
 	 * @param size the size to cover
@@ -98,8 +101,7 @@ public final class InstanceTypes {
 	private Optional<Machine> named(MachineKind kind, String name, MachineSize size) {
 		Optional<Sku> own = find(kind.category(), name, kind.engine());
 		Optional<Sku> sku = (own.isEmpty() && !kind.isCompute()) ? find(SkuCategory.COMPUTE, name, null) : own;
-		if (sku.isEmpty() || !size.fitsIn(sku.get().vcpu(), sku.get().memoryGib())
-				|| sku.get().price(this.purchase.option()).isEmpty()) {
+		if (sku.isEmpty() || !size.fitsIn(sku.get()) || sku.get().price(this.purchase.option()).isEmpty()) {
 			return Optional.empty();
 		}
 		if (own.isPresent()) {

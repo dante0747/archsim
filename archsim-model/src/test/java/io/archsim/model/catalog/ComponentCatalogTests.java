@@ -107,6 +107,22 @@ class ComponentCatalogTests {
 	}
 
 	@Test
+	void of_designWideSettings_areTheSiblingSpeedAlone() {
+		assertThat(CATALOG.path("architectureFields").valueStream().map((field) -> field.path("key").stringValue("")))
+			.containsExactly("siblingSpeed");
+	}
+
+	@Test
+	void of_theDesignsSiblingSpeed_mayBeLeftEmptyAndIsAboveZeroAndAtMostOne() {
+		JsonNode speed = CATALOG.path("architectureFields").path(0);
+
+		assertThat(List.of(speed.path("nullable").booleanValue(), speed.path("default").isNull(),
+				speed.path("min").doubleValue(), speed.path("exclusiveMin").booleanValue(),
+				speed.path("max").doubleValue(), speed.path("group").stringValue("")))
+			.containsExactly(true, true, 0.0, true, 1.0, "Machines");
+	}
+
+	@Test
 	void of_experimentalBadge_saysWhatThePythonEngineSays() {
 		assertThat(CATALOG.path("tierNote")).isEqualTo(GOLDEN.path("tierNote"));
 	}

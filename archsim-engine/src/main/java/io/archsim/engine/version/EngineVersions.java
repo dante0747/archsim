@@ -17,17 +17,22 @@ package io.archsim.engine.version;
  * the log flush a database's write waits for as a wait in the instant estimate every
  * report records, not as work on its cores (ADR-0089); 1.5.2 spreads a cache's commands
  * over every shard's cores in that estimate, and counts a read-through cache's fill of a
- * key it missed in its slots and CPU (ADR-0092). The report's version is the Java
- * simulator's own too (ADR-0050). The design schema's is the model's
- * ({@code ArchitectureDocument.SCHEMA_VERSION}).
+ * key it missed in its slots and CPU (ADR-0092); 1.6.0 counts the vCPUs of a service,
+ * database or cache with 2 or more vCPU as hyperthread pairs at a sibling speed of 0.6 by
+ * default from schema 1.11, as whole cores on a whole-core instance family, a serverless
+ * platform or a pod, and sizes a part for the kind its instance type gives it (ADR-0091).
+ * The report's version is the Java simulator's own too (ADR-0050). The design schema's is
+ * the model's ({@code ArchitectureDocument.SCHEMA_VERSION}).
  */
 public final class EngineVersions {
 
 	/** The engine every run records. Bump it when what a simulation means changes. */
-	public static final String ENGINE = "1.5.2";
+	public static final String ENGINE = "1.6.0";
 
 	/**
-	 * The version of the report format the Java simulator writes: 1.20 adds a queue's
+	 * The version of the report format the Java simulator writes: 1.21 adds a sized
+	 * part's {@code vcpus}, how its vCPUs counted, and the model notes that name the
+	 * parts on the default sibling speed and the pods (ADR-0091); 1.20 adds a queue's
 	 * {@code idleConsumers} (ADR-0085); 1.19 adds, for a design with a queue, the
 	 * summary's {@code messageAgeP95Ms}, {@code lostMessages} and {@code availability}
 	 * (ADR-0084); 1.18 adds a database's busiest instance's share of its cores busy
@@ -38,7 +43,7 @@ public final class EngineVersions {
 	 * runtime in the provenance ({@code java}) where 1.14, the Python engine's, named
 	 * {@code python} and {@code simpy}.
 	 */
-	public static final String REPORT = "1.20";
+	public static final String REPORT = "1.21";
 
 	private EngineVersions() {
 	}

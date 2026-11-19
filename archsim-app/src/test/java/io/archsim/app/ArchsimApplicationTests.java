@@ -56,7 +56,7 @@ class ArchsimApplicationTests {
 	void meta_always_namesTheDatabaseAndTheSchemaVersion() {
 		assertThat(this.mvc.get().uri("/api/v1/meta")).hasStatusOk()
 			.bodyJson()
-			.isLenientlyEqualTo("{\"schemaVersion\": \"1.10\", \"database\": \"postgresql\"}");
+			.isLenientlyEqualTo("{\"schemaVersion\": \"1.11\", \"database\": \"postgresql\"}");
 	}
 
 	@Test

@@ -145,7 +145,14 @@ function useLiveValidation() {
     };
     schedule();
     const unsub = useEditor.subscribe((s, prev) => {
-      if (s.nodes !== prev.nodes || s.edges !== prev.edges || s.workload !== prev.workload || s.scenarios !== prev.scenarios || s.extras?.pricing !== prev.extras?.pricing) {
+      if (
+        s.nodes !== prev.nodes ||
+        s.edges !== prev.edges ||
+        s.workload !== prev.workload ||
+        s.scenarios !== prev.scenarios ||
+        s.extras?.pricing !== prev.extras?.pricing ||
+        s.extras?.siblingSpeed !== prev.extras?.siblingSpeed
+      ) {
         schedule();
       }
     });

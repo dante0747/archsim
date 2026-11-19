@@ -84,7 +84,7 @@ final class PartSizer {
 		}
 		boolean onVm = MachineKind.of(node.type(), settings).map(MachineKind::isCompute).orElse(false);
 		Placement peak = new Placement(onVm, this.loads.peakSpeeds().getOrDefault(node.id(), 1.0),
-				Vcpus.of(this.design.architecture().host(), settings));
+				Vcpus.of(this.design.architecture(), node.type(), settings));
 		return ofType(config, load.get(), peak).map((size) -> withBaseBusy(size, node, config, peak))
 			.map((size) -> onMachine(size, node.type(), settings))
 			.map((size) -> size.forSpecs(specs, total));

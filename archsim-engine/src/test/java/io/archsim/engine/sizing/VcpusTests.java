@@ -1,5 +1,8 @@
 package io.archsim.engine.sizing;
 
+import java.util.List;
+
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -8,8 +11,10 @@ import tools.jackson.databind.json.JsonMapper;
 import io.archsim.engine.host.HostMachine;
 import io.archsim.engine.settings.LenientSettings;
 import io.archsim.engine.sizing.Placement.Work;
-import io.archsim.engine.sizing.Vcpus.CpuSize;
+import io.archsim.engine.sizing.Vcpus.ByFamily;
 import io.archsim.engine.sizing.Vcpus.Hyperthreads;
+import io.archsim.engine.sizing.Vcpus.SizedVcpus;
+import io.archsim.model.document.Architecture;
 import io.archsim.model.document.HostSpec;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,23 +40,47 @@ class VcpusTests {
 
 	@Test
 	void of_aPartThatSetsItsSiblingSpeed_hasHyperthreads() {
-		assertThat(Vcpus.of(null, settings("{\"siblingSpeed\": 0.6}"))).isEqualTo(HYPERTHREADS);
+		assertThat(Vcpus.of(design(null, null), "service", settings("{\"siblingSpeed\": 0.6}")))
+			.isEqualTo(HYPERTHREADS);
 	}
 
 	@Test
-	void of_aPartWithoutASiblingSpeed_hasWholeCores() {
-		assertThat(Vcpus.of(null, settings("{}"))).isEqualTo(Vcpus.WHOLE_CORES);
+	void of_aPartWithoutASiblingSpeed_goesByItsFamilyAtTheDefaultSpeed() {
+		assertThat(Vcpus.of(design(null, null), "service", settings("{}"))).isEqualTo(new ByFamily(HYPERTHREADS));
 	}
 
 	@Test
 	void of_aSiblingSpeedOfOne_hasWholeCores() {
-		assertThat(Vcpus.of(null, settings("{\"siblingSpeed\": 1.0}"))).isEqualTo(Vcpus.WHOLE_CORES);
+		assertThat(Vcpus.of(design(null, null), "service", settings("{\"siblingSpeed\": 1.0}")))
+			.isEqualTo(Vcpus.WHOLE_CORES);
+	}
+
+	@Test
+	void of_aDesignThatSetsASiblingSpeed_hasHyperthreadsAtItsSpeed() {
+		assertThat(Vcpus.of(design(null, 0.5), "database", settings("{}"))).isEqualTo(new Hyperthreads(0.5));
+	}
+
+	@Test
+	void of_aDesignPinnedToWholeCores_hasWholeCores() {
+		assertThat(Vcpus.of(design(null, 1.0), "cache", settings("{}"))).isEqualTo(Vcpus.WHOLE_CORES);
+	}
+
+	@Test
+	void of_aServiceOnKubernetes_hasWholeCores() {
+		assertThat(Vcpus.of(design(null, null), "service", settings("{\"platform\": \"kubernetes\"}")))
+			.isEqualTo(Vcpus.WHOLE_CORES);
+	}
+
+	@Test
+	void of_aQueue_hasWholeCores() {
+		assertThat(Vcpus.of(design(null, null), "message_queue", settings("{}"))).isEqualTo(Vcpus.WHOLE_CORES);
 	}
 
 	@Test
 	void of_aPartOnADesignWithAHost_hasWholeCoresWhateverItsSiblingSpeed() {
 		// the host's threads slow its work instead, through its placement's speed
-		assertThat(Vcpus.of(HOST, settings("{\"siblingSpeed\": 0.6}"))).isEqualTo(Vcpus.WHOLE_CORES);
+		assertThat(Vcpus.of(design(HOST, null), "service", settings("{\"siblingSpeed\": 0.6}")))
+			.isEqualTo(Vcpus.WHOLE_CORES);
 	}
 
 	@ParameterizedTest
@@ -78,17 +107,23 @@ class VcpusTests {
 
 	@Test
 	void forWork_onWholeCores_isSizedAtTheTargetAndCappedAtTheHandlers() {
-		CpuSize cpu = Vcpus.WHOLE_CORES.forWork(new Work(2.4, "intro"), 3, REASON);
+		CpuSize cpu = Vcpus.WHOLE_CORES.forWork(new Work(2.4, "intro"), 3, REASON).chosen();
 
-		assertThat(cpu.vcpu()).isEqualTo(3.0);
-		assertThat(cpu.why()).isEqualTo("intro = 2.4 cores busy; at a 60% target that is 4 → 4 vCPU; capped at 3 "
-				+ "because its workers cannot use more cores");
-		assertThat(cpu.needed()).isEqualTo(2.4 / Sizing.TARGET_CPU);
+		assertThat(cpu).isEqualTo(
+				new CpuSize(3.0,
+						"intro = 2.4 cores busy; at a 60% target that is 4 → 4 vCPU; "
+								+ "capped at 3 because its workers cannot use more cores",
+						2.4 / Sizing.TARGET_CPU, null));
+	}
+
+	@Test
+	void forWork_onWholeCores_hasOneKind() {
+		assertThat(Vcpus.WHOLE_CORES.forWork(new Work(2.4, "intro"), 3, REASON).kinds()).isNull();
 	}
 
 	@Test
 	void forWork_onHyperthreads_isSizedForTheTargetShareOfWhatTheyCanDo() {
-		CpuSize cpu = HYPERTHREADS.forWork(new Work(2.4, "240 req/s"), MANY_HANDLERS, REASON);
+		CpuSize cpu = HYPERTHREADS.forWork(new Work(2.4, "240 req/s"), MANY_HANDLERS, REASON).chosen();
 
 		assertThat(cpu.vcpu()).isEqualTo(8.0);
 		assertThat(cpu.why()).isEqualTo("240 req/s = 2.4 cores busy, which is what 4 vCPU can do as hyperthreads, "
@@ -97,15 +132,22 @@ class VcpusTests {
 
 	@Test
 	void forWork_onHyperthreads_needsItsWholeCoreNeedOverWhatAVcpuCanDo() {
-		CpuSize cpu = HYPERTHREADS.forWork(new Work(2.4, "intro"), MANY_HANDLERS, REASON);
+		CpuSize cpu = HYPERTHREADS.forWork(new Work(2.4, "intro"), MANY_HANDLERS, REASON).chosen();
 
 		assertThat(cpu.needed()).isCloseTo(2.4 / Sizing.TARGET_CPU / 0.6, within(TOLERANCE));
 	}
 
 	@Test
+	void forWork_onHyperthreads_saysWhatEachVcpuCountsFor() {
+		CpuSize cpu = HYPERTHREADS.forWork(new Work(2.4, "intro"), MANY_HANDLERS, REASON).chosen();
+
+		assertThat(cpu.siblingSpeed()).isCloseTo(0.6, within(TOLERANCE));
+	}
+
+	@Test
 	void forWork_onHyperthreadsWithAFasterSibling_needsFewerVcpu() {
 		// 1.9 cores' work: 3.96 vCPU at a sibling speed of 0.8, 5.28 at 0.6
-		CpuSize cpu = new Hyperthreads(0.8).forWork(new Work(1.9, "intro"), MANY_HANDLERS, REASON);
+		CpuSize cpu = new Hyperthreads(0.8).forWork(new Work(1.9, "intro"), MANY_HANDLERS, REASON).chosen();
 
 		assertThat(cpu.vcpu()).isEqualTo(4.0);
 		assertThat(cpu.needed()).isCloseTo(1.9 / Sizing.TARGET_CPU / 0.8, within(TOLERANCE));
@@ -115,7 +157,7 @@ class VcpusTests {
 	void forWork_onHyperthreadsSlowerThanHalf_countsAVcpuAsItsSiblingSpeed() {
 		// one busy vCPU on each core would do more, but a run under load has all of them
 		// busy, each at the sibling speed
-		CpuSize cpu = new Hyperthreads(0.3).forWork(new Work(1.9, "intro"), MANY_HANDLERS, REASON);
+		CpuSize cpu = new Hyperthreads(0.3).forWork(new Work(1.9, "intro"), MANY_HANDLERS, REASON).chosen();
 
 		assertThat(cpu.vcpu()).isEqualTo(16.0);
 		assertThat(cpu.needed()).isCloseTo(1.9 / Sizing.TARGET_CPU / 0.3, within(TOLERANCE));
@@ -124,14 +166,14 @@ class VcpusTests {
 	@Test
 	void forWork_onHyperthreadsAtASiblingSpeedOfAHalf_goesFromOneVcpuToFour() {
 		// two such vCPUs with both busy do no more than the one vCPU of whole cores
-		CpuSize cpu = new Hyperthreads(0.5).forWork(new Work(0.66, "intro"), MANY_HANDLERS, REASON);
+		CpuSize cpu = new Hyperthreads(0.5).forWork(new Work(0.66, "intro"), MANY_HANDLERS, REASON).chosen();
 
 		assertThat(cpu.vcpu()).isEqualTo(4.0);
 	}
 
 	@Test
 	void forWork_onHyperthreadsFasterThanHalf_canGetTwoVcpu() {
-		CpuSize cpu = HYPERTHREADS.forWork(new Work(0.7, "intro"), MANY_HANDLERS, REASON);
+		CpuSize cpu = HYPERTHREADS.forWork(new Work(0.7, "intro"), MANY_HANDLERS, REASON).chosen();
 
 		assertThat(cpu.vcpu()).isEqualTo(2.0);
 	}
@@ -140,7 +182,7 @@ class VcpusTests {
 	void forWork_onHyperthreadsAFewPointsOverTheTargetOfTheSizeBelow_keepsTheSizeBelow() {
 		// 1.5 cores' work is 62.5% of what four hyperthreads can do: the slack of whole
 		// cores
-		CpuSize cpu = HYPERTHREADS.forWork(new Work(1.5, "intro"), MANY_HANDLERS, REASON);
+		CpuSize cpu = HYPERTHREADS.forWork(new Work(1.5, "intro"), MANY_HANDLERS, REASON).chosen();
 
 		assertThat(cpu.vcpu()).isEqualTo(4.0);
 		assertThat(cpu.why()).endsWith("; 4 vCPU instead, since it runs the peak at 63% of what they can do "
@@ -152,9 +194,21 @@ class VcpusTests {
 		// one vCPU has no sibling
 		Work light = new Work(0.65, "intro");
 
-		assertThat(HYPERTHREADS.forWork(light, 4, REASON)).isEqualTo(Vcpus.WHOLE_CORES.forWork(light, 4, REASON))
+		assertThat(HYPERTHREADS.forWork(light, 4, REASON).chosen())
+			.isEqualTo(Vcpus.WHOLE_CORES.forWork(light, 4, REASON).chosen())
 			.extracting(CpuSize::vcpu)
 			.isEqualTo(1.0);
+	}
+
+	@Test
+	void forWork_onHyperthreadsWorkThatNeedsNoMoreThanOneVcpu_needsThePairsSizeOnAMachineOfTwoOrMore() {
+		// 0.65 cores' work at a sibling speed of 0.3 is what 2.17 such vCPUs do: on a
+		// machine of 2 vCPU, which runs them as pairs, it needs 4
+		Work light = new Work(0.65, "intro");
+
+		SizedVcpus sized = new Hyperthreads(0.3).forWork(light, MANY_HANDLERS, REASON);
+
+		assertThat(sized.kinds()).extracting((kinds) -> kinds.onPairs().vcpu()).isEqualTo(4.0);
 	}
 
 	@Test
@@ -162,14 +216,22 @@ class VcpusTests {
 		// one handler never has two vCPUs busy: a single-threaded cache, one event loop
 		Work heavy = new Work(0.9, "intro");
 
-		assertThat(HYPERTHREADS.forWork(heavy, 1, REASON)).isEqualTo(Vcpus.WHOLE_CORES.forWork(heavy, 1, REASON))
+		assertThat(HYPERTHREADS.forWork(heavy, 1, REASON).chosen())
+			.isEqualTo(Vcpus.WHOLE_CORES.forWork(heavy, 1, REASON).chosen())
 			.extracting(CpuSize::vcpu)
 			.isEqualTo(1.0);
 	}
 
 	@Test
+	void forWork_onHyperthreadsWithOneHandler_needsNoMoreOnPairs() {
+		SizedVcpus sized = HYPERTHREADS.forWork(new Work(0.9, "intro"), 1, REASON);
+
+		assertThat(sized.kinds()).extracting(CpuKinds::onPairs).isEqualTo(sized.chosen());
+	}
+
+	@Test
 	void forWork_onHyperthreadsWithFewHandlers_isCappedAtTwoVcpuForEach() {
-		CpuSize cpu = HYPERTHREADS.forWork(new Work(2.4, "intro"), 3, REASON);
+		CpuSize cpu = HYPERTHREADS.forWork(new Work(2.4, "intro"), 3, REASON).chosen();
 
 		assertThat(cpu.vcpu()).isEqualTo(6.0);
 		assertThat(cpu.why()).endsWith("; capped at 6, the hyperthreads of 3 cores, because " + REASON);
@@ -177,7 +239,40 @@ class VcpusTests {
 
 	@Test
 	void forWork_onHyperthreadsMoreWorkThanTheLargestSizeDoes_isTheLargestSize() {
-		assertThat(HYPERTHREADS.forWork(new Work(400, "intro"), 4096, REASON).vcpu()).isEqualTo(Sizing.MAX_CPU);
+		assertThat(HYPERTHREADS.forWork(new Work(400, "intro"), 4096, REASON).chosen().vcpu())
+			.isEqualTo(Sizing.MAX_CPU);
+	}
+
+	@Test
+	void forWork_onTheDefault_isSizedOnPairsWhereNothingMoreIsKnownOfItsMachine() {
+		CpuSize cpu = new ByFamily(HYPERTHREADS).forWork(new Work(2.4, "intro"), MANY_HANDLERS, REASON).chosen();
+
+		assertThat(cpu).isEqualTo(HYPERTHREADS.forWork(new Work(2.4, "intro"), MANY_HANDLERS, REASON).chosen());
+	}
+
+	@Test
+	void forWork_onTheDefault_isSizedOnWholeCoresToo() {
+		SizedVcpus sized = new ByFamily(HYPERTHREADS).forWork(new Work(2.4, "intro"), MANY_HANDLERS, REASON);
+
+		assertThat(sized.kinds()).extracting((kinds) -> kinds.onWholeCores().vcpu()).isEqualTo(4.0);
+	}
+
+	@Test
+	void forWork_onTheDefault_letsAWholeCoreFamilyGiveWholeCores() {
+		SizedVcpus sized = new ByFamily(HYPERTHREADS).forWork(new Work(2.4, "intro"), MANY_HANDLERS, REASON);
+
+		assertThat(sized.kinds()).extracting(CpuKinds::byFamily).isEqualTo(true);
+	}
+
+	@Test
+	void forWork_onTheirOwnSiblingSpeed_isPairsOnEveryFamily() {
+		SizedVcpus sized = HYPERTHREADS.forWork(new Work(2.4, "intro"), MANY_HANDLERS, REASON);
+
+		assertThat(sized.kinds()).extracting(CpuKinds::byFamily).isEqualTo(false);
+	}
+
+	private static Architecture design(@Nullable HostSpec host, @Nullable Double siblingSpeed) {
+		return new Architecture(List.of(), List.of(), true, host, siblingSpeed);
 	}
 
 	private static LenientSettings settings(String config) {

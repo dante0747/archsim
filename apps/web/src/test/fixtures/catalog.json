@@ -1173,7 +1173,7 @@
           "label": "Hyperthread sibling speed",
           "kind": "number",
           "nullable": true,
-          "description": "With 2 or more vCPU: the vCPUs are hyperthreads, two per physical core (as on most cloud instances), and a vCPU whose core's other vCPU is busy too runs at this speed, so a busy pair does twice this much work (about 0.6 on Intel and AMD cores: 1.2 cores' work). Empty: every vCPU is a full core (as before; right for Graviton and other cores without hyperthreads). Ignored when the design sets a host machine (architecture.host), whose sibling speed applies instead.",
+          "description": "With 2 or more vCPU: the vCPUs are hyperthreads, two per physical core (as on most x86 cloud instances), and a vCPU whose core's other vCPU is busy too runs at this speed, so a busy pair does twice this much work. 1: every vCPU is a whole core. Empty (schema 1.11): the design's architecture.siblingSpeed; else 1 on an instance family whose vCPUs are whole cores (Graviton and other Arm families, AWS T2 and its AMD families from M7a), for a serverless service and for a pod on Kubernetes; else 0.6, a busy pair doing 1.2 cores' work. Ignored when the design sets a host machine (architecture.host), whose sibling speed applies instead.",
           "default": null,
           "assumption": false,
           "headline": false,
@@ -2275,7 +2275,7 @@
           "label": "Hyperthread sibling speed",
           "kind": "number",
           "nullable": true,
-          "description": "With 2 or more vCPU: the vCPUs are hyperthreads, two per physical core (as on most cloud instances), and a vCPU whose core's other vCPU is busy too runs at this speed, so a busy pair does twice this much work (about 0.6 on Intel and AMD cores: 1.2 cores' work). Empty: every vCPU is a full core (as before; right for Graviton and other cores without hyperthreads). Ignored when the design sets a host machine (architecture.host), whose sibling speed applies instead.",
+          "description": "With 2 or more vCPU: the vCPUs are hyperthreads, two per physical core (as on most x86 cloud instances), and a vCPU whose core's other vCPU is busy too runs at this speed, so a busy pair does twice this much work. 1: every vCPU is a whole core. Empty (schema 1.11): the design's architecture.siblingSpeed; else 1 on an instance family whose vCPUs are whole cores (Graviton and other Arm families, AWS T2 and its AMD families from M7a), for a serverless service and for a pod on Kubernetes; else 0.6, a busy pair doing 1.2 cores' work. Ignored when the design sets a host machine (architecture.host), whose sibling speed applies instead.",
           "default": null,
           "assumption": false,
           "headline": false,
@@ -3147,7 +3147,7 @@
           "label": "Hyperthread sibling speed",
           "kind": "number",
           "nullable": true,
-          "description": "With 2 or more vCPU: the vCPUs are hyperthreads, two per physical core (as on most cloud instances), and a vCPU whose core's other vCPU is busy too runs at this speed, so a busy pair does twice this much work (about 0.6 on Intel and AMD cores: 1.2 cores' work). Empty: every vCPU is a full core (as before; right for Graviton and other cores without hyperthreads). Ignored when the design sets a host machine (architecture.host), whose sibling speed applies instead.",
+          "description": "With 2 or more vCPU: the vCPUs are hyperthreads, two per physical core (as on most x86 cloud instances), and a vCPU whose core's other vCPU is busy too runs at this speed, so a busy pair does twice this much work. 1: every vCPU is a whole core. Empty (schema 1.11): the design's architecture.siblingSpeed; else 1 on an instance family whose vCPUs are whole cores (Graviton and other Arm families, AWS T2 and its AMD families from M7a), for a serverless service and for a pod on Kubernetes; else 0.6, a busy pair doing 1.2 cores' work. Ignored when the design sets a host machine (architecture.host), whose sibling speed applies instead.",
           "default": null,
           "assumption": false,
           "headline": false,
@@ -6100,6 +6100,23 @@
       "max": 730,
       "unit": "h",
       "group": "Traffic"
+    }
+  ],
+  "architectureFields": [
+    {
+      "key": "siblingSpeed",
+      "label": "vCPU sibling speed",
+      "kind": "number",
+      "nullable": true,
+      "description": "The sibling speed of every service, database and cache that sets none of its own (schema 1.11): with 2 or more vCPU, its vCPUs are hyperthreads, two per physical core, and a vCPU whose core's other vCPU is busy too runs at this speed. 1: every vCPU is a whole core. Empty: 1 on an instance family whose vCPUs are whole cores, for a serverless service and for a pod on Kubernetes, else 0.6 (most x86 instances). A design saved before schema 1.11 has 1, so it keeps its results; clear it to count its vCPUs as the default does. Ignored when the design sets a host machine (host), whose sibling speed applies instead.",
+      "default": null,
+      "assumption": false,
+      "headline": false,
+      "min": 0,
+      "exclusiveMin": true,
+      "max": 1,
+      "group": "Machines",
+      "step": 0.05
     }
   ],
   "tierNote": "Behaviour based on documentation and illustrative numbers; not yet validated against measurements."

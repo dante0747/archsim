@@ -54,13 +54,28 @@ public final class Resources {
 			+ "Auto-sizing records the type it chose in a run's input, so running that input again gives the same "
 			+ "types and cost.";
 
+	/**
+	 * The sibling speed of a part's vCPUs when nothing says they are whole cores (schema
+	 * 1.11, ADR-0091): two hyperthreads of a core, both busy, do 1.2 cores' work. It is
+	 * the middle of what published measurements of request-serving work give (0.55 to
+	 * 0.70), and a host machine's default sibling speed too.
+	 */
+	public static final double DEFAULT_SIBLING_SPEED = 0.6;
+
+	/**
+	 * The fewest vCPU that can be hyperthread pairs: one vCPU has no sibling, whatever
+	 * the sibling speed.
+	 */
+	public static final double FEWEST_PAIRED_VCPU = 2;
+
 	/** The description of a part's hyperthread sibling speed. */
 	public static final String SIBLING_SPEED = "With 2 or more vCPU: the vCPUs are hyperthreads, two per physical "
-			+ "core (as on most cloud instances), and a vCPU whose core's other vCPU is busy too runs at this "
-			+ "speed, so a busy pair does twice this much work (about 0.6 on Intel and AMD cores: 1.2 cores' work). "
-			+ "Empty: every vCPU is a full core (as before; right for Graviton and other cores without "
-			+ "hyperthreads). Ignored when the design sets a host machine (architecture.host), whose sibling speed "
-			+ "applies instead.";
+			+ "core (as on most x86 cloud instances), and a vCPU whose core's other vCPU is busy too runs at this "
+			+ "speed, so a busy pair does twice this much work. 1: every vCPU is a whole core. Empty (schema 1.11): "
+			+ "the design's architecture.siblingSpeed; else 1 on an instance family whose vCPUs are whole cores "
+			+ "(Graviton and other Arm families, AWS T2 and its AMD families from M7a), for a serverless service "
+			+ "and for a pod on Kubernetes; else 0.6, a busy pair doing 1.2 cores' work. Ignored when the design "
+			+ "sets a host machine (architecture.host), whose sibling speed applies instead.";
 
 	private Resources() {
 	}

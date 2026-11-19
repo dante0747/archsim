@@ -1,5 +1,8 @@
 package io.archsim.engine.sizing;
 
+import java.util.List;
+import java.util.Objects;
+
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,11 +46,12 @@ class AutoSizerHyperthreadTests {
 
 	@Test
 	void sizes_aServiceOnHyperthreadsThatNeedsNoMoreThanOneVcpu_isSizedAsOnWholeCores() {
-		PartSize onWholeCores = SizingDesigns.size("api", SizingDesigns.ofService("{}", "generic", 100));
+		PartSize onWholeCores = SizingDesigns.size("api",
+				SizingDesigns.ofService("{\"siblingSpeed\": 1}", "generic", 100));
 
 		PartSize api = SizingDesigns.size("api", SizingDesigns.ofService("{\"siblingSpeed\": 0.6}", "generic", 100));
 
-		assertThat(api).isEqualTo(onWholeCores).extracting(PartSize::cpuCores).isEqualTo(1.0);
+		assertThat(cpuOf(api)).isEqualTo(cpuOf(onWholeCores)).first().isEqualTo(1.0);
 	}
 
 	@Test
@@ -92,14 +96,20 @@ class AutoSizerHyperthreadTests {
 		// one command at a time never has two vCPUs busy
 		String cache = "{\"id\": \"cache\", \"type\": \"cache\", \"config\": {%s\"serviceTimeMs\": "
 				+ SizingDesigns.TEN_MS + "}}";
-		PartSize onWholeCores = SizingDesigns.size("cache", SizingDesigns
-			.design(SizingDesigns.service("{}") + ", " + cache.formatted(""), "generic", 90, "api-cache"));
+		PartSize onWholeCores = SizingDesigns.size("cache",
+				SizingDesigns.design(SizingDesigns.service("{}") + ", " + cache.formatted("\"siblingSpeed\": 1, "),
+						"generic", 90, "api-cache"));
 
 		PartSize node = SizingDesigns.size("cache",
 				SizingDesigns.design(SizingDesigns.service("{}") + ", " + cache.formatted("\"siblingSpeed\": 0.6, "),
 						"generic", 90, "api-cache"));
 
-		assertThat(node).isEqualTo(onWholeCores).extracting(PartSize::cpuCores).isEqualTo(1.0);
+		assertThat(cpuOf(node)).isEqualTo(cpuOf(onWholeCores)).first().isEqualTo(1.0);
+	}
+
+	// a size's vCPU, how they were worked out and what it needs
+	private static List<Object> cpuOf(PartSize size) {
+		return List.of(Objects.requireNonNull(size.cpuCores()), size.why(), size.need());
 	}
 
 	@Test

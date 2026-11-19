@@ -33,11 +33,14 @@ export interface AutoHint {
   source: string;
   /** The documentation that states the value; without one the value is illustrative. */
   link?: string | null;
+  /** The placeholder in full, for a value that is not a technology's default, e.g. what the last
+   * analysis counted: "0.6 (hyperthread pairs, the default)". */
+  text?: string;
 }
 
 /** "250 ms (PostgreSQL, documented)" for an empty setting's placeholder. */
 function autoText(field: Pick<FieldDescriptor, "unit">, auto: AutoHint): string {
-  return `${describeAuto(field, auto.value)} (${auto.source}, ${auto.link ? "documented" : "illustrative"})`;
+  return auto.text ?? `${describeAuto(field, auto.value)} (${auto.source}, ${auto.link ? "documented" : "illustrative"})`;
 }
 
 export function describeAuto(field: Pick<FieldDescriptor, "unit">, value: unknown): string {

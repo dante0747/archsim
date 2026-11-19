@@ -170,7 +170,8 @@ predicted where each would break, and only then was the breaking point measured 
 
 These are three to six runs per experiment on one laptop (engine 0.16.0, whose results the Java
 engine 1.0.0 reproduces exactly; 1.1.0 to 1.5.2 change the cost and how a run is reported, not a
-knee). No technology counts as validated yet: that needs a second
+knee, and 1.6.0 counts a vCPU as a hyperthread by default from schema 1.11, which the benchmark
+designs, written at older schemas, keep off). No technology counts as validated yet: that needs a second
 machine. [docs/validation.md](docs/validation.md) shows every run, where the model is wrong and why,
 and [how to rerun the benchmarks](docs/validation.md#reproduce) on your own machine.
 

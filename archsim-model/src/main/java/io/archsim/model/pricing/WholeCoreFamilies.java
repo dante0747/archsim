@@ -46,10 +46,11 @@ public final class WholeCoreFamilies {
 	}
 
 	/**
-	 * Every listed family, in the groups that share a reason and a source.
+	 * Every listed family, in the groups that share a reason and a source, as the page of
+	 * ArchSim's assumptions lists them.
 	 * @return each provider's groups, in the file's order
 	 */
-	static Map<String, List<WholeCoreGroup>> byProvider() {
+	public static Map<String, List<WholeCoreGroup>> byProvider() {
 		return Listed.GROUPS;
 	}
 

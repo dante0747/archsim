@@ -21,17 +21,22 @@ import io.archsim.model.document.ArchitectureDocument;
  * (ADR-0081), where 1.7's defaulted to 0: compared with the frozen engine's output, the
  * Java's reads as it where that output records the price as 0
  * ({@link ApiPriceDepartures}). Schema 1.10 adds {@code objectives.messageAgeP95Ms}
- * (ADR-0084), left out of a document while it is unset.
+ * (ADR-0084), left out of a document while it is unset. Schema 1.11 counts a vCPU as a
+ * hyperthread by default and adds {@code architecture.siblingSpeed} (ADR-0091): a 1.7
+ * document is given to the Java pinned to whole cores, as the upgrade pins a saved design
+ * ({@link SiblingSpeedDepartures}).
  * <ul>
  * <li>A document the frozen engine was given (a parameter named {@code doc},
  * {@code document} or {@code resolved}, or a report's design) is given to the Java at the
  * current schema as it was written: a 1.7 document is a current one that leaves the hours
  * and the message age out, and its API prices of 0 stay prices of 0, as the frozen engine
  * read them (the upgrade to 1.9 leaves them unset, for a saved design wrote the old
- * default out; the golden files' documents were written as they stand).</li>
+ * default out; the golden files' documents were written as they stand); its vCPUs are
+ * pinned to whole cores.</li>
  * <li>A document's {@code schemaVersion} at the current schema reads 1.7, and so does the
  * schema's own version.</li>
- * <li>The upgrades from 1.7 to 1.8, 1.8 to 1.9 and 1.9 to 1.10 leave no note.</li>
+ * <li>The upgrades from 1.7 to 1.8, 1.8 to 1.9, 1.9 to 1.10 and 1.10 to 1.11 leave no
+ * note.</li>
  * <li>A message that names the supported schema names 1.7.</li>
  * <li>The JSON Schema leaves {@code peakHoursPerMonth} and {@code messageAgeP95Ms} out
  * and names 1.7, and the catalog's list of workload settings leaves the hours out.</li>
@@ -59,7 +64,7 @@ public final class SchemaDepartures {
 
 	/** The notes of the upgrades from the recorded schema to the current one. */
 	private static final Set<String> UPGRADE_NOTES = Set.of("migrated schema 1.7 -> 1.8", "migrated schema 1.8 -> 1.9",
-			"migrated schema 1.9 -> " + CURRENT);
+			"migrated schema 1.9 -> 1.10", "migrated schema 1.10 -> " + CURRENT);
 
 	/** The frozen engine's example of a schema newer than its own. */
 	private static final String NEWER_THAN_RECORDED = "1.10";
@@ -116,6 +121,7 @@ public final class SchemaDepartures {
 		ObjectNode copy = (ObjectNode) node.deepCopy();
 		if (RECORDED.equals(copy.path(SCHEMA_VERSION).stringValue(""))) {
 			copy.put(SCHEMA_VERSION, CURRENT);
+			SiblingSpeedDepartures.pin(copy);
 		}
 		if (copy.path("input").isObject()) {
 			copy.set("input", asCurrent(copy.path("input")));
@@ -154,7 +160,8 @@ public final class SchemaDepartures {
 	 * @return the text, its schema's departures put back
 	 */
 	public static String asRecordedText(String java) {
-		String named = NAMES_THE_NEWER.matcher(java).replaceAll("$1" + NEWER_THAN_RECORDED);
+		String named = NAMES_THE_NEWER.matcher(SiblingSpeedDepartures.asRecordedText(java))
+			.replaceAll("$1" + NEWER_THAN_RECORDED);
 		return NAMES_THE_SCHEMA.matcher(named).replaceAll("$1" + RECORDED);
 	}
 
@@ -188,6 +195,7 @@ public final class SchemaDepartures {
 		if (CURRENT.equals(copy.path(SCHEMA_VERSION).stringValue(""))) {
 			copy.put(SCHEMA_VERSION, RECORDED);
 		}
+		SiblingSpeedDepartures.leaveOut(copy, key);
 		if (SCHEMA_VERSION.equals(key)) {
 			// the JSON Schema's property: its fixed and default version
 			putRecorded(copy, "const");

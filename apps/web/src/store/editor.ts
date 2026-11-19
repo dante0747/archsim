@@ -89,6 +89,8 @@ export interface EditorState extends GraphState {
   setObjectives: (patch: Partial<Objectives>, key?: string) => void;
   /** Where prices come from (null: generic illustrative rates). */
   setPricing: (pricing: Pricing | null) => void;
+  /** The design's vCPU sibling speed, architecture.siblingSpeed (null: each part's instance family decides). */
+  setSiblingSpeed: (siblingSpeed: number | null) => void;
   setMetadata: (patch: Partial<DocMetadata>, key?: string) => void;
   select: (sel: { nodeId?: string | null; edgeId?: string | null }) => void;
   autoLayout: () => Promise<void>;
@@ -425,6 +427,14 @@ export const useEditor = create<EditorState>()((set, get) => ({
     }));
   },
 
+  setSiblingSpeed: (siblingSpeed) => {
+    get().pushHistory("architecture:siblingSpeed");
+    set((st) => ({
+      extras: { provenance: {}, calibration: null, ...st.extras, siblingSpeed },
+      dirty: true,
+    }));
+  },
+
   setWorkload: (patch, key) => {
     get().pushHistory(key ? `workload:${key}` : undefined);
     set((st) => ({
@@ -492,5 +502,6 @@ export function contentKey(s: Pick<EditorState, "nodes" | "edges" | "workload" |
     w: s.workload,
     s: s.scenarios,
     p: s.extras?.pricing ?? null,
+    ss: s.extras?.siblingSpeed ?? null,
   });
 }

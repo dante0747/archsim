@@ -33,6 +33,25 @@ class UpgradesTests {
 		return (ObjectNode) JSON.readTree("{\"schemaVersion\": \"%s\", \"workload\": {\"rps\": 5}}".formatted(version));
 	}
 
+	/**
+	 * A design with a service of 4 vCPU.
+	 * @param version its schema version
+	 * @param architecture more of its architecture's settings, each followed by a comma
+	 */
+	private static ObjectNode design(String version, String architecture) {
+		return (ObjectNode) JSON.readTree("""
+				{"schemaVersion": "%s", "architecture": {%s"nodes": [
+				{"id": "api", "type": "service", "config": {"cpuCores": 4}}], "edges": []}}""".formatted(version,
+				architecture));
+	}
+
+	// the API at the current schema, its vCPUs pinned to whole cores by the upgrade
+	private static JsonNode pinnedApi(String config) {
+		ObjectNode api = (ObjectNode) JSON.readTree(api(ArchitectureDocument.SCHEMA_VERSION, config));
+		((ObjectNode) api.get("architecture")).put("siblingSpeed", 1);
+		return api;
+	}
+
 	@Test
 	void chain_fromOnePointZero_reachesTheCurrentVersionWithoutGaps() {
 		List<Upgrade> chain = Upgrades.CHAIN;
@@ -47,31 +66,75 @@ class UpgradesTests {
 	void toCurrent_olderDocument_upgradesOneStepAtATimeWithANoteForEach() {
 		Upgraded upgraded = Upgrades.toCurrent(document("1.5"));
 		assertThat(upgraded.notes()).containsExactly("migrated schema 1.5 -> 1.6", "migrated schema 1.6 -> 1.7",
-				"migrated schema 1.7 -> 1.8", "migrated schema 1.8 -> 1.9", "migrated schema 1.9 -> 1.10");
-		assertThat(upgraded.document().get("schemaVersion").stringValue()).isEqualTo("1.10");
+				"migrated schema 1.7 -> 1.8", "migrated schema 1.8 -> 1.9", "migrated schema 1.9 -> 1.10",
+				"migrated schema 1.10 -> 1.11");
+		assertThat(upgraded.document().get("schemaVersion").stringValue()).isEqualTo("1.11");
 		assertThat(upgraded.document().get("workload")).isEqualTo(JSON.readTree("{\"rps\": 5}"));
 	}
 
 	@Test
 	void toCurrent_currentDocument_isLeftAsItIs() {
-		Upgraded upgraded = Upgrades.toCurrent(document("1.10"));
+		Upgraded upgraded = Upgrades.toCurrent(document("1.11"));
 		assertThat(upgraded.notes()).isEmpty();
-		assertThat(upgraded.document()).isEqualTo(document("1.10"));
+		assertThat(upgraded.document()).isEqualTo(document("1.11"));
 	}
 
 	@Test
-	void toCurrent_aSchemaOnePointSevenDocument_changesOnlyItsVersion() {
+	void toCurrent_aSchemaOnePointSevenDocumentWithoutAnArchitecture_changesOnlyItsVersion() {
 		Upgraded upgraded = Upgrades.toCurrent(document("1.7"));
 
-		assertThat(upgraded.document()).isEqualTo(document("1.10"));
+		assertThat(upgraded.document()).isEqualTo(document("1.11"));
 	}
 
 	@Test
-	void toCurrent_aSchemaOnePointNineDocument_changesOnlyItsVersion() {
+	void toCurrent_aSchemaOnePointNineDocumentWithoutAnArchitecture_changesOnlyItsVersion() {
 		Upgraded upgraded = Upgrades.toCurrent(document("1.9"));
 
-		assertThat(upgraded.notes()).containsExactly("migrated schema 1.9 -> 1.10");
-		assertThat(upgraded.document()).isEqualTo(document("1.10"));
+		assertThat(upgraded.notes()).containsExactly("migrated schema 1.9 -> 1.10", "migrated schema 1.10 -> 1.11");
+		assertThat(upgraded.document()).isEqualTo(document("1.11"));
+	}
+
+	@Test
+	void toCurrent_aDesignBeforeOnePointEleven_pinsItsVcpusToWholeCores() {
+		Upgraded upgraded = Upgrades.toCurrent(design("1.10", ""));
+
+		assertThat(upgraded.document()).isEqualTo(design("1.11", "\"siblingSpeed\": 1, "));
+	}
+
+	@Test
+	void toCurrent_aSchemaOnePointSevenDesign_pinsItsVcpusToWholeCores() {
+		Upgraded upgraded = Upgrades.toCurrent(design("1.7", ""));
+
+		assertThat(upgraded.document().at("/architecture/siblingSpeed").intValue()).isEqualTo(1);
+	}
+
+	@Test
+	void toCurrent_aDesignBeforeOnePointElevenWithAHost_pinsItsVcpusToWholeCoresToo() {
+		Upgraded upgraded = Upgrades.toCurrent(design("1.10", "\"host\": {\"physicalCores\": 8}, "));
+
+		assertThat(upgraded.document().at("/architecture/siblingSpeed").intValue()).isEqualTo(1);
+	}
+
+	@Test
+	void toCurrent_aDesignBeforeOnePointElevenWithASiblingSpeedOfItsOwn_keepsIt() {
+		Upgraded upgraded = Upgrades.toCurrent(design("1.10", "\"siblingSpeed\": 0.5, "));
+
+		assertThat(upgraded.document().at("/architecture/siblingSpeed").doubleValue()).isEqualTo(0.5);
+	}
+
+	@Test
+	void toCurrent_aDesignBeforeOnePointEleven_leavesItsPartsAsTheyAre() {
+		Upgraded upgraded = Upgrades.toCurrent(design("1.10", ""));
+
+		assertThat(upgraded.document().at("/architecture/nodes"))
+			.isEqualTo(design("1.10", "").at("/architecture/nodes"));
+	}
+
+	@Test
+	void toCurrent_aCurrentDesign_isNotPinned() {
+		Upgraded upgraded = Upgrades.toCurrent(design("1.11", ""));
+
+		assertThat(upgraded.document()).isEqualTo(design("1.11", ""));
 	}
 
 	@Test
@@ -80,7 +143,7 @@ class UpgradesTests {
 
 		Upgraded upgraded = Upgrades.toCurrent(input);
 
-		assertThat(upgraded.document()).isEqualTo(JSON.readTree(api("1.10", "\"errorRate\": 0.01")));
+		assertThat(upgraded.document()).isEqualTo(pinnedApi("\"errorRate\": 0.01"));
 	}
 
 	@Test
@@ -109,7 +172,7 @@ class UpgradesTests {
 
 		Upgraded upgraded = Upgrades.toCurrent(input);
 
-		assertThat(upgraded.document()).isEqualTo(JSON.readTree(api("1.10", "\"costPerMillionRequests\": 100")));
+		assertThat(upgraded.document()).isEqualTo(pinnedApi("\"costPerMillionRequests\": 100"));
 	}
 
 	@Test
@@ -124,7 +187,7 @@ class UpgradesTests {
 
 	@Test
 	void toCurrent_anApiPricedAtZeroInTheCurrentSchema_keepsItsPrice() {
-		JsonNode input = JSON.readTree(api("1.10", "\"costPerMillionRequests\": 0"));
+		JsonNode input = JSON.readTree(api("1.11", "\"costPerMillionRequests\": 0"));
 
 		Upgraded upgraded = Upgrades.toCurrent(input);
 
@@ -142,7 +205,8 @@ class UpgradesTests {
 	void toCurrent_versionWrittenAsNumber_isReadAsPythonWritesIt() {
 		JsonNode input = JSON.readTree("{\"schemaVersion\": 1.6}");
 		assertThat(Upgrades.toCurrent(input).notes()).containsExactly("migrated schema 1.6 -> 1.7",
-				"migrated schema 1.7 -> 1.8", "migrated schema 1.8 -> 1.9", "migrated schema 1.9 -> 1.10");
+				"migrated schema 1.7 -> 1.8", "migrated schema 1.8 -> 1.9", "migrated schema 1.9 -> 1.10",
+				"migrated schema 1.10 -> 1.11");
 	}
 
 	@Test
@@ -163,8 +227,8 @@ class UpgradesTests {
 			{"schemaVersion": "one"}   | 'one' is not a valid schemaVersion
 			{"schemaVersion": ""}      | '' is not a valid schemaVersion
 			{"schemaVersion": true}    | 'True' is not a valid schemaVersion
-			{"schemaVersion": "0.9"}   | no migration path from schema 0.9 to 1.10
-			{"schemaVersion": "1.3.0"} | no migration path from schema 1.3.0 to 1.10
+			{"schemaVersion": "0.9"}   | no migration path from schema 0.9 to 1.11
+			{"schemaVersion": "1.3.0"} | no migration path from schema 1.3.0 to 1.11
 			""")
 	void toCurrent_documentItCannotUpgrade_isRefusedSayingWhy(String input, String message) {
 		assertThatThrownBy(() -> Upgrades.toCurrent(JSON.readTree(input))).isInstanceOf(UpgradeException.class)
@@ -172,11 +236,11 @@ class UpgradesTests {
 	}
 
 	@ParameterizedTest(name = "schema {0}")
-	@ValueSource(strings = { "1.11", "1.10.0" })
+	@ValueSource(strings = { "1.12", "1.11.0" })
 	void toCurrent_newerSchema_isRefusedAskingForANewerArchSim(String version) {
 		JsonNode input = JSON.readTree("{\"schemaVersion\": \"%s\"}".formatted(version));
 		assertThatThrownBy(() -> Upgrades.toCurrent(input)).isInstanceOf(UpgradeException.class)
-			.hasMessage("this document uses schema %s, newer than the supported 1.10. Upgrade ArchSim to open it."
+			.hasMessage("this document uses schema %s, newer than the supported 1.11. Upgrade ArchSim to open it."
 				.formatted(version));
 	}
 

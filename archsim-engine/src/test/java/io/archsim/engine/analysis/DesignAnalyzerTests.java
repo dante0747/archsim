@@ -21,6 +21,7 @@ import io.archsim.model.issue.DocumentInvalidException;
 import io.archsim.model.issue.Issue;
 import io.archsim.model.pricing.PriceSnapshots;
 import io.archsim.parity.JsonDiff;
+import io.archsim.parity.SchemaDepartures;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
@@ -34,7 +35,8 @@ import static org.assertj.core.api.Assertions.catchThrowableOfType;
  * deleted) has the analysis the Python engine 0.16.0 gives, or the error it raises; its
  * cost is compared as {@link CostDepartures} compares one (ADR-0074), and its estimate of
  * a database that flushes its commits or of a cache, with the confidence weighed by it,
- * as {@link EstimateDepartures} reads them (ADR-0089, ADR-0092).
+ * as {@link EstimateDepartures} reads them (ADR-0089, ADR-0092); its sizing leaves out
+ * how each part's vCPUs counted, as {@link SchemaDepartures} reads it (ADR-0091).
  */
 class DesignAnalyzerTests {
 
@@ -75,7 +77,8 @@ class DesignAnalyzerTests {
 		DesignAnalysis analysis = this.analyzer.analyze(entry.path("design"), scenario(entry));
 
 		JsonNode expected = entry.path("analysis").path("output");
-		ObjectNode actual = (ObjectNode) EstimateDepartures.asRecorded(analysis.toJson(), expected);
+		ObjectNode actual = (ObjectNode) EstimateDepartures.asRecorded(SchemaDepartures.asRecorded(analysis.toJson()),
+				expected);
 		actual.set("cost",
 				CostDepartures.comparable(expected.path("cost"), actual.path("cost"), CostDepartures.Departing.NONE));
 

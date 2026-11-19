@@ -8,6 +8,45 @@ for when that version changes.
 
 ## [Unreleased]
 
+### Changed
+
+- **A vCPU counts as a hyperthread unless the design or its instance family says otherwise (schema
+  1.11, engine 1.6.0, ADR-0091).** A service, database or cache with 2 or more vCPU, on a design
+  without a `host`, runs on hyperthread pairs at the first sibling speed that applies: its own
+  `siblingSpeed` (1 means whole cores); the design's new `architecture.siblingSpeed`; 1 when the
+  instance type the cost prices for it is of a family whose vCPUs are whole cores (Graviton and
+  other Arm families, AWS T2 and its AMD families from M7a, listed with their sources on
+  [assumptions.md](docs/assumptions.md)), when the service runs serverless, or when it runs as
+  pods on Kubernetes; else 0.6, the middle of what published measurements of request-serving work
+  give, from vendors' documentation and others' benchmarks rather than a measurement of ArchSim's.
+  Before, every such vCPU was a whole core, so a part bound by its CPU on most x86 instances was
+  predicted up to 1.67 times the capacity it has. One resolver applies the rule when a run's
+  document is resolved and writes into each part that sets no speed the one it counts at
+  (inferred, or the design's below 1), so the simulation, the instant estimate, the review, the
+  cost, sweeps and checks read the same speed, and the run's `input` says what ran. Auto-sizing
+  sizes a part on the default for both kinds from the same work and gives it the cheapest type
+  that covers its own family's need, a type set on the part while it covers its need (one too
+  small gives way to the type the part gets, which the run's input then records, so the cost
+  prices that one and the run counts its vCPUs); at generic prices, where a shape has no family,
+  it sizes it on pairs. A part that keeps one vCPU but lands on a shape or type of two or more,
+  for its memory or because none smaller is sold, now needs that machine to cover its need on
+  pairs (at a sibling speed of 0.3 it got 2 vCPU and refused requests; it gets 4). Each sized
+  part's summary says how its vCPUs counted (`vcpus`: the speed, why and the words, outside the
+  result digest), the report's model notes name the parts on the default and the pods (counted as
+  whole cores, which is optimistic on an x86 node pool), and the editor's design overview shows
+  the design's sibling speed and clears it in one click. **A saved design keeps its results:** the
+  upgrade to 1.11 writes `architecture.siblingSpeed: 1` once and leaves its parts as they are, so
+  its runs and their result digests are what they were; clearing the setting puts it on the
+  default. The accuracy benchmarks' designs are written at schemas 1.0 and 1.7, so no simulated
+  knee moves. An API of 2 replicas (10 ms of CPU a request) and a PostgreSQL at 480 req/s,
+  auto-sized at schema 1.11: at generic prices each gets 8 vCPU where it got 4, the month costs
+  $747 where it cost $374, and the API's CPU ceiling is 960 req/s where it was 800, its vCPUs 31%
+  busy at the peak where they were 60%; with the price list limited to x86 families (c6i, m6i,
+  r6i) they get c6i.2xlarge and db.m6i.2xlarge where they got the xlarge, $1,017 a month where it
+  was $509; on AWS unrestricted they keep c6g.xlarge and db.m6g.xlarge, whose vCPUs are whole
+  cores, at $432. Sized by hand at 4 vCPU on c6i and db.m6i, the same design's API fills at 480
+  req/s where it filled at 800, and its p95 at 480 req/s is 244 ms where it was 39 ms.
+
 ### Fixed
 
 - **The instant estimate counts a cache's commands as a run does (engine 1.5.2,

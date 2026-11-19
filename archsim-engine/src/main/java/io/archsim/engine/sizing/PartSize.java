@@ -25,10 +25,14 @@ import io.archsim.engine.pricing.Busy;
  * @param need what it needs, before rounding to an instance
  * @param memoryModel a service's memory model, for its typical memory
  * @param smallest its CPU need is below the smallest size it can get
+ * @param siblingSpeed the share of a core each of its vCPUs counts for in its CPU size,
+ * as hyperthread pairs; {@code null} on whole cores
+ * @param kinds its CPU size on each kind of vCPU, where the machine it lands on decides
+ * which its vCPUs are; {@code null} when they are whole cores on any
  */
 public record PartSize(@Nullable Double cpuCores, @Nullable Double memoryGib, @Nullable Double storageGib,
 		double peakRps, Map<Spec, String> why, @Nullable String skipped, @Nullable String sku, Map<Need, Double> need,
-		@Nullable MemoryModel memoryModel, boolean smallest) {
+		@Nullable MemoryModel memoryModel, boolean smallest, @Nullable Double siblingSpeed, @Nullable CpuKinds kinds) {
 
 	/**
 	 * Copies the explanations and needs, so the record does not change.
@@ -45,7 +49,7 @@ public record PartSize(@Nullable Double cpuCores, @Nullable Double memoryGib, @N
 	 * @return its size: no specs
 	 */
 	static PartSize skipped(double peakRps, String reason) {
-		return new PartSize(null, null, null, peakRps, Map.of(), reason, null, Map.of(), null, false);
+		return new PartSize(null, null, null, peakRps, Map.of(), reason, null, Map.of(), null, false, null, null);
 	}
 
 	/**
@@ -92,7 +96,7 @@ public record PartSize(@Nullable Double cpuCores, @Nullable Double memoryGib, @N
 		Map<Spec, String> explained = copy(Spec.class, this.why);
 		explained.merge(spec, because, String::concat);
 		return new PartSize(this.cpuCores, this.memoryGib, this.storageGib, this.peakRps, explained, this.skipped,
-				this.sku, this.need, this.memoryModel, this.smallest);
+				this.sku, this.need, this.memoryModel, this.smallest, this.siblingSpeed, this.kinds);
 	}
 
 	/**
@@ -105,7 +109,26 @@ public record PartSize(@Nullable Double cpuCores, @Nullable Double memoryGib, @N
 		Map<Need, Double> needs = copy(Need.class, this.need);
 		needs.put(key, value);
 		return new PartSize(this.cpuCores, this.memoryGib, this.storageGib, this.peakRps, this.why, this.skipped,
-				this.sku, needs, this.memoryModel, this.smallest);
+				this.sku, needs, this.memoryModel, this.smallest, this.siblingSpeed, this.kinds);
+	}
+
+	/**
+	 * This size with the CPU size of another kind of vCPU, the one its machine gives it:
+	 * its vCPU, how they were worked out, its need and the share of a core each counts
+	 * for.
+	 * @param cpu the CPU size
+	 * @return the changed size; as it is without a CPU size
+	 */
+	PartSize withCpu(CpuSize cpu) {
+		if (this.cpuCores == null) {
+			return this;
+		}
+		Map<Spec, String> explained = copy(Spec.class, this.why);
+		explained.put(Spec.CPU_CORES, cpu.why());
+		Map<Need, Double> needs = copy(Need.class, this.need);
+		needs.put(Need.CPU_CORES, cpu.needed());
+		return new PartSize(cpu.vcpu(), this.memoryGib, this.storageGib, this.peakRps, explained, this.skipped,
+				this.sku, needs, this.memoryModel, this.smallest, cpu.siblingSpeed(), this.kinds);
 	}
 
 	/**
@@ -115,7 +138,7 @@ public record PartSize(@Nullable Double cpuCores, @Nullable Double memoryGib, @N
 	 */
 	PartSize onInstanceType(String type) {
 		return new PartSize(this.cpuCores, this.memoryGib, this.storageGib, this.peakRps, this.why, this.skipped, type,
-				this.need, this.memoryModel, this.smallest);
+				this.need, this.memoryModel, this.smallest, this.siblingSpeed, this.kinds);
 	}
 
 	/**
@@ -125,7 +148,7 @@ public record PartSize(@Nullable Double cpuCores, @Nullable Double memoryGib, @N
 	 */
 	PartSize withSmallest(boolean smallest) {
 		return new PartSize(this.cpuCores, this.memoryGib, this.storageGib, this.peakRps, this.why, this.skipped,
-				this.sku, this.need, this.memoryModel, smallest);
+				this.sku, this.need, this.memoryModel, smallest, this.siblingSpeed, this.kinds);
 	}
 
 	/**
@@ -139,9 +162,11 @@ public record PartSize(@Nullable Double cpuCores, @Nullable Double memoryGib, @N
 		explained.keySet().retainAll(specs);
 		Map<Need, Double> needs = copy(Need.class, this.need);
 		needs.keySet().removeIf((key) -> !specs.contains(key.spec()));
+		boolean cpu = specs.contains(Spec.CPU_CORES);
 		return new PartSize(only(specs, Spec.CPU_CORES, this.cpuCores), only(specs, Spec.MEMORY_GIB, this.memoryGib),
 				only(specs, Spec.STORAGE_GIB, this.storageGib), rps, explained, null, this.sku, needs,
-				specs.contains(Spec.MEMORY_GIB) ? this.memoryModel : null, this.smallest);
+				specs.contains(Spec.MEMORY_GIB) ? this.memoryModel : null, this.smallest,
+				cpu ? this.siblingSpeed : null, cpu ? this.kinds : null);
 	}
 
 	private PartSize withValue(Spec spec, double value) {
@@ -149,7 +174,7 @@ public record PartSize(@Nullable Double cpuCores, @Nullable Double memoryGib, @N
 		return new PartSize((spec == Spec.CPU_CORES) ? changed : this.cpuCores,
 				(spec == Spec.MEMORY_GIB) ? changed : this.memoryGib,
 				(spec == Spec.STORAGE_GIB) ? changed : this.storageGib, this.peakRps, this.why, this.skipped, this.sku,
-				this.need, this.memoryModel, this.smallest);
+				this.need, this.memoryModel, this.smallest, this.siblingSpeed, this.kinds);
 	}
 
 	private static @Nullable Double only(Set<Spec> specs, Spec spec, @Nullable Double value) {

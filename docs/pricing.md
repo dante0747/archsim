@@ -20,14 +20,25 @@ made before this) keeps its illustrative rates and its results; choose a snapsho
   machine shapes, so auto-sizing rounds each part's CPU and memory up together to the cheapest
   standard shape of 2, 4 or 8 GiB per vCPU (the compute, general-purpose and memory-optimised
   ratios every large cloud sells): a part that needs 4 vCPU and 0.5 GiB gets 4 vCPU and 8 GiB.
+  A shape has no family, so from schema 1.11 a service, database or cache with 2 or more vCPU
+  counts them as hyperthread pairs at 0.6 there (ADR-0091) and is sized for them: about two
+  thirds more vCPU, and as much more cost, than on whole cores.
   Cost lines say "from size", and every dollar figure says "illustrative rates".
-- **Any other provider** names a **price snapshot**: on-demand list prices of real instance
-  types on a date, for a region. Auto-sizing then snaps each part to the cheapest instance type
-  that covers the CPU and memory it needs (a value you set counts as the need; a part that sets
-  `siblingSpeed` needs more vCPU for the same work, since its vCPUs are hyperthreads), so parts
-  run on shapes that exist; the inspector, the analysis and the report show the SKU, every cost
-  line cites its SKU and the snapshot date, and every dollar figure names the snapshot ("AWS
-  us-east-1 · Oct 2026").
+- **Any other provider** names a **price snapshot**: on-demand list prices of real instance types
+  on a date, for a region. Auto-sizing then snaps each part to the cheapest instance type that
+  covers the CPU and memory it needs (a value you set counts as the need; a part whose vCPUs are
+  hyperthreads needs more vCPU for the same work), so parts run on shapes that exist. From schema
+  1.11 (ADR-0091) a part that sets no `siblingSpeed`, in a design that sets none, has two CPU
+  needs: on whole cores, for the types of a family whose vCPUs are whole cores (Graviton, AWS T2
+  and the AMD families from M7a), and on hyperthread pairs at 0.6, for the others; each type
+  covers its own family's need, and the part gets the cheapest. On the shipped AWS snapshot that
+  is a Graviton type for every engine, so a priced, auto-sized design changes little; the default
+  bites with `families` limited to x86 families and on an x86 type set by hand, whose vCPUs the
+  run then counts as pairs; one too small for the part's need on pairs gives way to the type the
+  part gets, which the run's input records in its place, so the cost prices it and the run counts
+  its vCPUs (a scenario that resizes the part puts the type set by hand back). The inspector, the
+  analysis and the report show the SKU, every cost line cites its SKU and the snapshot date, and
+  every dollar figure names the snapshot ("AWS us-east-1 · Oct 2026").
 
 **Burstable types** (AWS's t families: t3, t4g, db.t4g, cache.t4g, kafka.t3) run on CPU
 credits: each vCPU can use its baseline (a t4g.micro 10%, a t4g.large 30%) all the time, earns

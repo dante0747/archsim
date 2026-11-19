@@ -10,6 +10,8 @@ import tools.jackson.databind.JsonNode;
 import io.archsim.engine.cost.SizePricing;
 import io.archsim.engine.estimate.InstantEstimate;
 import io.archsim.engine.estimate.PartEstimate;
+import io.archsim.engine.host.SiblingSpeed;
+import io.archsim.engine.host.SiblingSpeeds;
 import io.archsim.engine.numeric.PythonRound;
 import io.archsim.engine.pricing.MachineKind;
 import io.archsim.model.component.ComponentRegistry;
@@ -24,8 +26,8 @@ import io.archsim.model.pricing.PriceSnapshots;
 /**
  * Each part's sizing summary: the CPU, memory and storage it is simulated with and where
  * each came from (set on the part, auto-sized, or a scenario's override), its auto sizes
- * with how they were worked out, what it needs against what its instance has, and the
- * price of the size used.
+ * with how they were worked out, what it needs against what its instance has, the price
+ * of the size used, and how its vCPUs counted.
  */
 public final class SizingSummaries {
 
@@ -34,6 +36,8 @@ public final class SizingSummaries {
 
 	private final SizePricing pricing;
 
+	private final SiblingSpeeds siblingSpeeds;
+
 	/**
 	 * Summarizes the sizes of designs made of a registry's types.
 	 * @param registry the component types
@@ -41,6 +45,7 @@ public final class SizingSummaries {
 	 */
 	public SizingSummaries(ComponentRegistry registry, PriceSnapshots prices) {
 		this.pricing = new SizePricing(registry, prices);
+		this.siblingSpeeds = new SiblingSpeeds(prices);
 	}
 
 	/**
@@ -58,11 +63,13 @@ public final class SizingSummaries {
 		Map<String, PartEstimate> rows = new HashMap<>();
 		estimate.parts().forEach((part) -> rows.put(part.id(), part));
 		SizePricing.Prices prices = this.pricing.of(resolved);
+		Map<String, SiblingSpeed> speeds = this.siblingSpeeds.asRun(design, resolved);
 		Map<String, PartSummary> nodes = new LinkedHashMap<>();
 		for (NodeSpec node : resolved.architecture().nodes()) {
 			PartSize size = sizes.get(node.id());
 			if (size != null) {
-				nodes.put(node.id(), part(node, size, drawn.get(node.id()), new Inputs(prices, rows.get(node.id()))));
+				nodes.put(node.id(), part(node, size, drawn.get(node.id()),
+						new Inputs(prices, rows.get(node.id()), speeds.get(node.id()))));
 			}
 		}
 		return new SizingSummary(resolved.architecture().autoSize(), Sizing.TARGET_CPU, nodes);
@@ -85,11 +92,12 @@ public final class SizingSummaries {
 		if (!need.isEmpty()) {
 			rounded = PartNeeds.rounded(need);
 			String holder = (price.sku() != null && !price.sku().isEmpty()) ? price.sku() : holder(node);
-			texts = NeedText.of(need, specs, holder);
+			texts = NeedText.of(need, specs, holder, size.siblingSpeed());
 		}
+		SiblingSpeed speed = inputs.speed();
 		return new PartSummary(specs, auto(size), PythonRound.round(size.peakRps(), RATE_DIGITS), why(size),
 				perUse(node) ? null : price.pricePerHour(), price.sku(), rounded, texts, size.smallest(),
-				size.skipped());
+				size.skipped(), (speed != null) ? VcpuSummary.of(speed) : null);
 	}
 
 	/**
@@ -176,8 +184,9 @@ public final class SizingSummaries {
 	 *
 	 * @param prices the design's size prices
 	 * @param estimate the part's estimate; {@code null} when the estimate has none
+	 * @param speed how its vCPUs counted; {@code null} when the rule does not count them
 	 */
-	private record Inputs(SizePricing.Prices prices, @Nullable PartEstimate estimate) {
+	private record Inputs(SizePricing.Prices prices, @Nullable PartEstimate estimate, @Nullable SiblingSpeed speed) {
 	}
 
 }

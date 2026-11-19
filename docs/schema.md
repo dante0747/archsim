@@ -1,4 +1,4 @@
-# Architecture document format (schema 1.10)
+# Architecture document format (schema 1.11)
 
 An ArchSim project is one human-readable JSON document. It is what the editor saves, what
 `GET /api/v1/projects/{id}/export` downloads and what `POST /api/v1/projects/import` accepts.
@@ -18,7 +18,7 @@ are here for explanation only):
 
 ```jsonc
 {
-  "schemaVersion": "1.10",                // required; drives migrations
+  "schemaVersion": "1.11",                // required; drives migrations
   "kind": "archsim.architecture",
   "metadata": { "name": "Cache-aside web API", "description": "...", "tags": ["starter"] },
 
@@ -68,10 +68,10 @@ materialised and the fully resolved document is stored in the report's `input`.
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `schemaVersion` | `"1.10"` | Required. Older versions are migrated; newer versions are rejected. |
+| `schemaVersion` | `"1.11"` | Required. Older versions are migrated; newer versions are rejected. |
 | `kind` | `"archsim.architecture"` | |
 | `metadata` | object | `name` (1-120 chars), `description`, `tags` (max 20). |
-| `architecture` | object | `nodes` (max 200), `edges` (max 1,000), `autoSize` (default true) and, 1.7, an optional `host`: the one machine every part with a CPU size runs on (see [Versioning and migrations](#versioning-and-migrations)). |
+| `architecture` | object | `nodes` (max 200), `edges` (max 1,000), `autoSize` (default true), 1.7, an optional `host`: the one machine every part with a CPU size runs on, and, 1.11, an optional `siblingSpeed`: how the vCPUs of every part that sets none count (see [Versioning and migrations](#versioning-and-migrations)). |
 | `workload` | object | See below. Every field has a default. |
 | `scenarios` | array | Max 50. |
 | `objectives` | object | Service-level objectives (see below). Optional; defaults apply. |
@@ -189,7 +189,7 @@ overrides in `provenance`.
 ## Versioning and migrations
 
 - `schemaVersion` follows `MAJOR.MINOR`. The engine supports documents up to its
-  `SCHEMA_VERSION` (currently `1.10`). 1.0 to 1.1 only adds optional fields (`provenance`,
+  `SCHEMA_VERSION` (currently `1.11`). 1.0 to 1.1 only adds optional fields (`provenance`,
   `calibration`, the `empirical` distribution and the `trace` pattern), 1.1 to 1.2 adds
   `pricing`, 1.2 to 1.3 the cache-aside link settings, 1.3 to 1.4 a part's optional
   `instanceType`, 1.4 to 1.5 the service settings `cpuShare` and `memoryPerRpsMb`, 1.5 to
@@ -198,7 +198,15 @@ overrides in `provenance`.
   setting `siblingSpeed`, 1.7 to 1.8 `workload.peakHoursPerMonth`, and 1.9 to 1.10
   `objectives.messageAgeP95Ms`, so those steps load older documents unchanged. 1.8 to 1.9 changes
   one setting: a third-party API's `costPerMillionRequests` of 0 is left unset (below), unless the
-  design's provenance records it as `measured` or `assumed`.
+  design's provenance records it as `measured` or `assumed`. 1.10 to 1.11 counts a vCPU as a
+  hyperthread by default (below, ADR-0091) and writes `architecture.siblingSpeed: 1` once, so a
+  saved design keeps its results; its parts are left as they are, and so is the digest of a
+  run's result.
+- `architecture.siblingSpeed` (1.11; above 0, at most 1; empty by default, left out of the JSON):
+  the sibling speed of every service, database and cache that sets none of its own. 1 counts
+  every vCPU as a whole core. Empty, each part goes by the default below. A design saved before
+  1.11 has 1, written by the upgrade; clear it (the editor's design overview, "Use the default")
+  to count its vCPUs as a new design does. Ignored on a design with a `host`.
 - `costPerMillionRequests` (1.9; third-party APIs; empty by default, left out of the JSON): the
   price of a million calls. Left empty, the API costs its technology preset's price, with a note
   naming the preset, or is not priced, and the cost lists it in `unpriced`
@@ -216,14 +224,23 @@ overrides in `provenance`.
   design's parts, e.g. a load generator on it). Every part's CPU work then runs at the speed of
   a thread on that machine as it fills; see
   [simulation-model.md](simulation-model.md#cpu-threads-that-slow-each-other-down-schema-17).
-- `siblingSpeed` (1.7; services, databases, caches; empty by default, left out of the JSON: every
-  vCPU a full core, as before): with 2 or more `cpuCores`, the part's vCPUs are hyperthreads, two
-  per physical core, and a vCPU whose core's other vCPU is busy too runs at this speed (above 0,
-  at most 1; about 0.6 on Intel and AMD cores, so 2 vCPU do about 1.2 cores' work when both are
-  busy). Ignored on a design with a `host`, whose sibling speed applies to every part.
-  Auto-sizing gives a part that sets it enough vCPU for its work at the peak to be 60% of what
-  they can do as hyperthreads, each counting as this share of a core: its whole-core size
-  divided by the sibling speed
+- `siblingSpeed` (1.7; services, databases, caches; empty by default, left out of the JSON): with
+  2 or more `cpuCores`, the part's vCPUs are hyperthreads, two per physical core, and a vCPU whose
+  core's other vCPU is busy too runs at this speed (above 0, at most 1; 1: whole cores). Ignored on
+  a design with a `host`, whose sibling speed applies to every part. Left empty, from 1.11
+  (ADR-0091), the first that applies: the design's `architecture.siblingSpeed`; 1 when the
+  instance type the cost prices for the part is of a family whose vCPUs are whole cores (Graviton
+  and other Arm families, AWS T2 and its AMD families from M7a: the list, with the page that says
+  so for each, is on [assumptions.md](assumptions.md)), when the service runs serverless, or when it
+  runs as pods on Kubernetes (optimistic on an x86 node pool; the node as the machine is a later
+  decision); else 0.6, so 2 vCPU do 1.2 cores' work when both are busy. A run writes into each
+  part that sets no speed the one it counts at (inferred, or the design's below 1) in its
+  `input`, and its sizing summary says how each part's vCPUs counted (`vcpus`: `siblingSpeed`,
+  `basis` and `text`). Before 1.11 an empty `siblingSpeed` was a whole
+  core. Auto-sizing gives a part on hyperthreads enough vCPU for its work at the peak to be 60% of
+  what they can do as hyperthreads, each counting as this share of a core: its whole-core size
+  divided by the sibling speed; a part on the default is sized for both kinds and gets the
+  cheapest type that covers its own family's need
   ([simulation-model.md](simulation-model.md#resource-specs-cpu-memory-storage)).
 - `serviceTimeByLoad` (1.6; services): a list of `{"rps": ..., "factor": ...}` points (rate above
   0 per replica, factor above 0 and at most 100). At that many requests per second on a replica

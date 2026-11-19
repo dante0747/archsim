@@ -31,7 +31,9 @@ final class StandardShapes {
 
 	/**
 	 * A part's size rounded up to a standard shape; a spec set on the part counts as the
-	 * need for that spec and is kept.
+	 * need for that spec and is kept. A shape has no family, so where a part's vCPUs may
+	 * be hyperthread pairs (ADR-0091) a shape of 2 or more vCPU gives it pairs: it covers
+	 * the need on pairs, and the size is explained on pairs.
 	 * @param size the auto size
 	 * @param nodeType the part's component type
 	 * @param settings the part's settings
@@ -42,16 +44,33 @@ final class StandardShapes {
 			return size;
 		}
 		SetSpecs set = SetSpecs.of(settings);
-		Double cpu = set.cpuOr(size);
-		Double memory = set.memoryOr(size);
+		PartSize sized = (set.cpu() != null) ? ofKind(size, set.cpu()) : size;
+		Double cpu = set.cpuOr(sized);
+		Double memory = set.memoryOr(sized);
 		if (cpu == null || memory == null || set.both()) {
-			return size;
+			return sized;
 		}
-		Optional<Shape> shape = cheapest(cpu, memory, set);
-		if (shape.isEmpty() || shape.get().equals(new Shape(cpu, memory))) {
-			return size;
+		Optional<Shape> shape = cheapest(cpu, memory, set, (set.cpu() != null) ? null : size.kinds());
+		if (shape.isEmpty()) {
+			return sized;
 		}
-		return roundedUp(size, shape.get(), set);
+		PartSize ofShape = ofKind(sized, shape.get().vcpu());
+		if (shape.get().equals(new Shape(Objects.requireNonNull(set.cpuOr(ofShape)), memory))) {
+			return ofShape;
+		}
+		return roundedUp(ofShape, shape.get(), set);
+	}
+
+	/**
+	 * A size explained by the kind of vCPU a shape gives it: pairs from 2 vCPU on, where
+	 * its vCPUs may be pairs.
+	 * @param size the auto size
+	 * @param vcpu the shape's vCPU
+	 * @return the size of that kind; as it is on whole cores
+	 */
+	private static PartSize ofKind(PartSize size, double vcpu) {
+		CpuKinds kinds = size.kinds();
+		return (kinds != null) ? size.withCpu(kinds.onShapeOf(vcpu)) : size;
 	}
 
 	private static PartSize roundedUp(PartSize size, Shape shape, SetSpecs set) {
@@ -70,16 +89,20 @@ final class StandardShapes {
 
 	/**
 	 * The cheapest standard shape with at least {@code cpu} vCPU and {@code memoryGib}
-	 * GiB: a common vCPU count with 2, 4 or 8 GiB per vCPU.
+	 * GiB: a common vCPU count with 2, 4 or 8 GiB per vCPU. Where a part's vCPUs may be
+	 * hyperthread pairs, a shape covers the need of the kind its vCPUs are: pairs from 2
+	 * vCPU on, whole cores below.
 	 * @param cpu the vCPU needed
 	 * @param memoryGib the memory needed
 	 * @param set the specs set on the part, which the shape keeps as they are
+	 * @param kinds the part's CPU size on each kind of vCPU; {@code null} to cover
+	 * {@code cpu} on every shape
 	 * @return the shape; empty when none fits
 	 */
-	static Optional<Shape> cheapest(double cpu, double memoryGib, SetSpecs set) {
+	static Optional<Shape> cheapest(double cpu, double memoryGib, SetSpecs set, @Nullable CpuKinds kinds) {
 		List<Double> counts = (set.cpu() != null) ? List.of(set.cpu()) : Sizing.CPU_STEPS;
 		return counts.stream()
-			.filter((vcpu) -> vcpu >= cpu - TOLERANCE)
+			.filter((vcpu) -> vcpu >= ((kinds != null) ? kinds.onShapeOf(vcpu).vcpu() : cpu) - TOLERANCE)
 			.flatMap((vcpu) -> Sizing.GIB_PER_VCPU.stream().map((ratio) -> new Shape(vcpu, vcpu * ratio)))
 			.filter((shape) -> shape.gib() >= memoryGib - TOLERANCE && keeps(shape, set.memoryGib()))
 			.min(Comparator.comparingDouble(Shape::price)

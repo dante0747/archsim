@@ -70,6 +70,21 @@ final class AssumptionFunctions {
 	private static final String KAFKA_CODE_ON_THE_PAGE = "`" + KAFKA_CODE;
 
 	/**
+	 * The code of the default sibling speed of a part's vCPUs, which the frozen engine
+	 * did not have (ADR-0091): its constant and its row are left out.
+	 */
+	private static final String VCPU_CODE = "vcpus.";
+
+	/** That constant's code on the page, in code font. */
+	private static final String VCPU_CODE_ON_THE_PAGE = "`" + VCPU_CODE;
+
+	/**
+	 * The page's section on the instance families whose vCPUs are whole cores, its last,
+	 * which the frozen engine's page did not have (ADR-0091).
+	 */
+	private static final String WHOLE_CORE_FAMILIES = "## Instance families whose vCPUs are whole cores";
+
+	/**
 	 * The legend's line on a measured basis, which the frozen engine's page did not have.
 	 */
 	private static final String MEASURED_BASIS = "- **measured**:";
@@ -101,7 +116,14 @@ final class AssumptionFunctions {
 			lines.set(line, python);
 		});
 		UNPRICED_PRESETS.forEach((preset, last) -> lines.add(lastSetting(lines, preset, last) + 1, PRESET_PRICE));
-		lines.removeIf((line) -> line.contains(KAFKA_CODE_ON_THE_PAGE) || line.startsWith(MEASURED_BASIS));
+		lines.removeIf((line) -> line.contains(KAFKA_CODE_ON_THE_PAGE) || line.contains(VCPU_CODE_ON_THE_PAGE)
+				|| line.startsWith(MEASURED_BASIS));
+		int families = lines.indexOf(WHOLE_CORE_FAMILIES);
+		if (families < 0) {
+			throw new IllegalStateException("the page no longer has the section: " + WHOLE_CORE_FAMILIES);
+		}
+		// the page's last section, and the blank line before it
+		lines.subList(families - 1, lines.size()).clear();
 		return String.join("\n", lines) + "\n";
 	}
 
@@ -135,7 +157,7 @@ final class AssumptionFunctions {
 	private static ArrayNode constants() {
 		ArrayNode out = GoldenJson.NODES.arrayNode();
 		for (EngineConstant constant : EngineConstants.all()) {
-			if (constant.code().startsWith(KAFKA_CODE)) {
+			if (constant.code().startsWith(KAFKA_CODE) || constant.code().startsWith(VCPU_CODE)) {
 				continue;
 			}
 			out.addObject()

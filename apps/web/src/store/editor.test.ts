@@ -104,11 +104,23 @@ describe("editor store", () => {
     expect(contentKey(useEditor.getState())).not.toBe(k1);
   });
 
+  it("sets the design's sibling speed as an edit: changed, undoable and in the content key", () => {
+    const before = contentKey(useEditor.getState());
+
+    useEditor.getState().setSiblingSpeed(null);
+
+    expect(useEditor.getState().dirty).toBe(true);
+    expect(contentKey(useEditor.getState())).not.toBe(before);
+    expect(useEditor.getState().toDocument().architecture).not.toHaveProperty("siblingSpeed");
+    useEditor.getState().undo();
+    expect(useEditor.getState().toDocument().architecture.siblingSpeed).toBe(1);
+  });
+
   it("exports a document that keeps the project name", () => {
     useEditor.getState().setMetadata({ name: "Renamed" });
     const doc = useEditor.getState().toDocument();
     expect(doc.metadata.name).toBe("Renamed");
-    expect(doc.schemaVersion).toBe("1.10");
+    expect(doc.schemaVersion).toBe("1.11");
   });
 });
 
@@ -136,5 +148,19 @@ describe("opening a project saved before schema 1.9", () => {
     const mail = useEditor.getState().nodes.find((n) => n.id === "mail")!;
 
     expect(mail.data.config).not.toHaveProperty("costPerMillionRequests");
+  });
+});
+
+describe("opening a project saved before schema 1.11", () => {
+  it("keeps its vCPUs whole cores, as the API's upgrade does (ADR-0091), and opens unchanged", () => {
+    const saved = structuredClone(starterJson) as unknown as ArchitectureDocument;
+    saved.schemaVersion = "1.10";
+    useEditor.getState().load({ ...structuredClone(project), document: saved }, catalog);
+
+    const s = useEditor.getState();
+
+    expect(s.extras?.siblingSpeed).toBe(1);
+    expect(s.dirty).toBe(false);
+    expect(s.toDocument().architecture.siblingSpeed).toBe(1);
   });
 });

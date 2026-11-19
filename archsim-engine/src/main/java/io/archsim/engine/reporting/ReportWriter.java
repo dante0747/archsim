@@ -46,7 +46,7 @@ public final class ReportWriter {
 	public ReportWriter(ComponentRegistry registry, PriceSnapshots prices) {
 		this.parts = new PartsWriter(registry);
 		this.provenances = new InputProvenances(registry);
-		this.assumptions = new Assumptions(registry);
+		this.assumptions = new Assumptions(registry, prices);
 		this.analyses = new RunAnalyses(registry, prices);
 	}
 

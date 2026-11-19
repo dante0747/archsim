@@ -26,8 +26,8 @@ import static org.assertj.core.api.Assertions.within;
  * share of the part's vCPUs that are busy, and its work as a share of the CPU capacity
  * its report gives it, every vCPU busy at the sibling speed. The sizing keeps the second
  * at 60%, and at up to 65% at the edge of a size; the first then stays below it at every
- * sibling speed from 0.3 to 0.8. A limit is pinned beside them: a part that keeps the one
- * vCPU of whole cores on a shape of two.
+ * sibling speed from 0.3 to 0.8. A part that keeps the one vCPU of whole cores, whose
+ * memory needs a larger shape, gets a shape that covers its need on pairs.
  */
 @TestInstance(Lifecycle.PER_CLASS)
 class HyperthreadSizingTests {
@@ -58,8 +58,8 @@ class HyperthreadSizingTests {
 
 	/**
 	 * 0.65 cores' work at a sibling speed of 0.3, which 1 vCPU does on whole cores, with
-	 * memory enough for the cheapest shape that holds it to have 2 vCPU: the part runs
-	 * them as hyperthreads, which with both busy do 0.6 of a core's work.
+	 * memory enough for the cheapest shape that holds it to have 2 vCPU: the part would
+	 * run them as hyperthreads, which with both busy do 0.6 of a core's work.
 	 */
 	private final JsonNode onALargerShape = report(0.3, 65, "\"memoryBaselineMb\": 7000, ");
 
@@ -94,20 +94,21 @@ class HyperthreadSizingTests {
 	}
 
 	@Test
-	void run_aServiceOfOneVcpuOnAShapeOfTwoOnSiblingsAtThreeTenthsOfTheirSpeed_getsTheShapesTwo() {
-		assertThat(cpuCores(this.onALargerShape)).isEqualTo(2.0);
+	void run_aServiceOfOneVcpuWhoseMemoryNeedsALargerShapeOnSiblingsAtThreeTenthsOfTheirSpeed_getsThePairsNeed() {
+		// a shape of 2 vCPU holds its memory, but its two vCPUs are pairs, which
+		// with both busy do less than the one core: the shape must cover the need
+		// on pairs, 4
+		assertThat(cpuCores(this.onALargerShape)).isEqualTo(4.0);
 	}
 
 	@Test
-	void run_aServiceOfOneVcpuOnAShapeOfTwoOnSiblingsAtThreeTenthsOfTheirSpeed_refusesRequests() {
-		// a limit: the part keeps the one vCPU of whole cores and is not sized again for
-		// the two of its shape, which do less than that one core once both are busy
-		assertThat(refused(this.onALargerShape)).isPositive();
+	void run_aServiceOfOneVcpuWhoseMemoryNeedsALargerShapeOnSiblingsAtThreeTenthsOfTheirSpeed_refusesNoRequest() {
+		assertThat(refused(this.onALargerShape)).isZero();
 	}
 
 	@Test
-	void run_aServiceOfOneVcpuOnAShapeOfTwoOnSiblingsAtThreeTenthsOfTheirSpeed_isShortOfCpuInItsReview() {
-		assertThat(cpuFindings(this.onALargerShape)).containsExactly("api needs more CPU at peak");
+	void run_aServiceOfOneVcpuWhoseMemoryNeedsALargerShapeOnSiblingsAtThreeTenthsOfTheirSpeed_isNotShortOfCpu() {
+		assertThat(cpuFindings(this.onALargerShape)).isEmpty();
 	}
 
 	@ParameterizedTest

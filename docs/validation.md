@@ -236,7 +236,7 @@ Read it as plainly as the headline (figures as of 19 Nov 2026):
 ## The Java engine
 
 <!-- BEGIN GENERATED: java-engine -->
-Re-simulated, in-sample: engine 1.5.2 (Java) re-simulates every kept calibration with exactly 0.16.0's knees (65 of 65); the latest predictions shown are 0.16.0's, which 1.5.2 reproduces ([java-parity.md](validation/java-parity.md)).
+Re-simulated, in-sample: engine 1.6.0 (Java) re-simulates every kept calibration with exactly 0.16.0's knees (65 of 65); the latest predictions shown are 0.16.0's, which 1.6.0 reproduces ([java-parity.md](validation/java-parity.md)).
 <!-- END GENERATED: java-engine -->
 
 ## Reproduce

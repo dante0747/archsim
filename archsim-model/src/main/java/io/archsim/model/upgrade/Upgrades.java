@@ -15,7 +15,8 @@ import io.archsim.model.text.PythonText;
  * The upgrade chain from schema 1.0 to the current one (ADR-0023): one {@link Upgrade}
  * per version, applied in turn, as the Python engine's {@code migrate_document} does.
  * Every step up to 1.8 only adds optional fields, so older documents read unchanged; the
- * step to 1.9 leaves a third-party API's price of 0 unset ({@link UnsetApiPrices}).
+ * step to 1.9 leaves a third-party API's price of 0 unset ({@link UnsetApiPrices}), and
+ * the step to 1.11 pins a design's vCPUs to whole cores ({@link PinWholeCores}).
  *
  * <p>
  * A document newer than the current schema, or with no path to it, is refused with a
@@ -58,7 +59,15 @@ public final class Upgrades {
 					new UnsetApiPrices()),
 			Upgrade.additive("1.9", "1.10",
 					"1.10 adds objectives.messageAgeP95Ms (empty by default: no objective judges how old a"
-							+ " message is when processed, as before)"));
+							+ " message is when processed, as before)"),
+			new Upgrade("1.10", "1.11",
+					"1.11 counts the vCPUs of a service, database or cache with 2 or more vCPU as hyperthread"
+							+ " pairs at a sibling speed of 0.6 unless the part, the design's new"
+							+ " architecture.siblingSpeed, its instance family, a serverless platform or a"
+							+ " Kubernetes pod says they are whole cores; a saved design is pinned to whole cores,"
+							+ " as before, with architecture.siblingSpeed: 1 (clear it to put the design on the"
+							+ " default)",
+					new PinWholeCores()));
 
 	private static final String CURRENT = ArchitectureDocument.SCHEMA_VERSION;
 

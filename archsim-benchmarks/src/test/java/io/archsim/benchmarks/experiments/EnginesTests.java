@@ -106,18 +106,35 @@ class EnginesTests {
 		assertThat(sample).isEqualTo("tuned-on");
 	}
 
-	// every engine was tuned on the four original experiments, and none on a held-out one
 	@Test
-	void entries_theCommittedEngines_wereEachTunedOnTheOriginalFour() {
+	void entries_theCommittedEngines_areTheTwoPythonOnesThenTheJavaOnes() {
 		List<JsonNode> engines = COMMITTED.entries();
 
 		assertThat(engines).extracting((engine) -> engine.get("version").stringValue())
-			.containsExactly("0.14.0", "0.16.0", EngineVersions.ENGINE);
-		assertThat(engines).allSatisfy((engine) -> {
-			assertThat(engine.propertyNames()).contains("version", "engineTree", "frozenAt", "tag", "tunedOn");
-			assertThat(engine.get("tunedOn").valueStream().map(JsonNode::stringValue)).containsExactly("pg-mixed",
-					"pg-hot-row", "cache-aside", "kafka");
-		});
+			.containsExactly("0.14.0", "0.16.0", "1.5.2", EngineVersions.ENGINE);
+		assertThat(engines).allSatisfy((engine) -> assertThat(engine.propertyNames()).contains("version", "engineTree",
+				"frozenAt", "tag", "tunedOn"));
+	}
+
+	// the engines up to 1.5.2 were tuned on the four original experiments, and none on a
+	// held-out one
+	@Test
+	void entries_theCommittedEnginesUpTo152_wereEachTunedOnTheOriginalFour() {
+		List<JsonNode> engines = COMMITTED.entries().subList(0, 3);
+
+		assertThat(engines)
+			.allSatisfy((engine) -> assertThat(engine.get("tunedOn").valueStream().map(JsonNode::stringValue))
+				.containsExactly("pg-mixed", "pg-hot-row", "cache-aside", "kafka"));
+	}
+
+	// ADR-0091: 1.6.0 was made with the first held-out set's results in view; the second
+	// set, registered before it (ADR-0090), stays held out
+	@Test
+	void entries_theCommittedEngine160_wasTunedOnTheNineExperimentsMeasured() {
+		JsonNode engine = COMMITTED.entries().getLast();
+
+		assertThat(engine.get("tunedOn").valueStream().map(JsonNode::stringValue)).containsExactly("pg-mixed",
+				"pg-hot-row", "cache-aside", "kafka", "java-mixed", "go-mixed", "python-mixed", "chain", "cache-ttl");
 	}
 
 	// ADR-0017: frozen for the held-out campaign and as the port's parity reference

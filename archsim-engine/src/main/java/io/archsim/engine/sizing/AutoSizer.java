@@ -61,7 +61,9 @@ public final class AutoSizer {
 
 	/**
 	 * A design with every empty spec filled with its auto size, and the instance type
-	 * chosen recorded, so cost and a re-run of the run's input use the same one.
+	 * chosen recorded, so cost and a re-run of the run's input use the same one: where
+	 * the part names none, and where its vCPUs may be hyperthread pairs, over a type it
+	 * names that sizing did not keep (ADR-0091).
 	 * @param normalized the design as JSON, normalized and its prices pinned; not changed
 	 * @return the filled copy and the sizes; no sizes when the design turns auto-sizing
 	 * off
@@ -90,9 +92,22 @@ public final class AutoSizer {
 				size.spec(spec).ifPresent((value) -> config.put(spec.json(), value));
 			}
 		}
-		if (size.sku() != null && !PythonText.truthy(config.path(INSTANCE_TYPE))) {
+		if (size.sku() != null && recordsChosenType(config, size)) {
 			config.put(INSTANCE_TYPE, size.sku());
 		}
+	}
+
+	/**
+	 * Whether a part's config records the instance type sizing chose: where the part
+	 * names none, and where its vCPUs may be hyperthread pairs. A named type can cover
+	 * such a part's vCPU but not its need on pairs, and the cost and the vCPUs' count,
+	 * which see only the vCPU, would choose it again.
+	 * @param config the part's config
+	 * @param size its auto size
+	 * @return whether the chosen type goes into the config
+	 */
+	private static boolean recordsChosenType(ObjectNode config, PartSize size) {
+		return !PythonText.truthy(config.path(INSTANCE_TYPE)) || size.kinds() != null;
 	}
 
 	private static ObjectNode configOf(ObjectNode node) {

@@ -63,6 +63,17 @@ describe("FieldControl", () => {
     expect(describeValue(f, value)).toBe("×3.6 at 50 req/s to ×1 at 1,674 req/s");
   });
 
+  it("shows an empty setting as what the hint says in full, and starts an edit from its value", () => {
+    const onChange = vi.fn();
+    const auto = { value: 0.6, source: "the last analysis", text: "0.6 (hyperthread pairs, the default)" };
+    wrap(<FieldControl field={field(serviceFields, "siblingSpeed")} value={null} onChange={onChange} idPrefix="t" auto={auto} />);
+
+    fireEvent.click(screen.getByLabelText("Hyperthread sibling speed: Auto"));
+
+    expect(screen.getByText("0.6 (hyperthread pairs, the default)")).toBeInTheDocument();
+    expect(onChange).toHaveBeenCalledWith(0.6);
+  });
+
   it("marks assumptions", () => {
     wrap(<FieldControl field={field(serviceFields, "serviceTimeMs")} value={{ kind: "lognormal", median: 8, p95: 25 }} onChange={() => {}} idPrefix="t" />);
     expect(screen.getByLabelText("assumption")).toBeInTheDocument();

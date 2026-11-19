@@ -69,17 +69,19 @@ export interface GraphState {
   extras?: DocExtras;
 }
 
-/** Kept through edits and saves: auto-sizing off, the host machine, where inputs came from, the
- * last calibration, where prices come from. */
+/** Kept through edits and saves: auto-sizing off, the host machine, the design's vCPU sibling speed,
+ * where inputs came from, the last calibration, where prices come from. */
 export interface DocExtras {
   autoSize?: boolean;
   host?: HostSpec | null;
+  /** architecture.siblingSpeed (schema 1.11); null: each part's instance family decides. */
+  siblingSpeed?: number | null;
   provenance: Record<string, InputProvenance>;
   calibration: CalibrationRecord | null;
   pricing?: Pricing | null;
 }
 
-export const SCHEMA_VERSION = "1.10";
+export const SCHEMA_VERSION = "1.11";
 
 /** Whether a schema version is older than another: as tuples of integers, so 1.10 is newer than 1.9. */
 export function schemaBefore(version: string, than: string): boolean {
@@ -109,6 +111,19 @@ export function withUnsetApiPrices(doc: ArchitectureDocument): ArchitectureDocum
     return { ...n, config };
   });
   return { ...doc, architecture: { ...doc.architecture, nodes } };
+}
+
+/**
+ * A design from before schema 1.11 as 1.11 reads it: its vCPUs stay whole cores, for before 1.11 a vCPU
+ * that set no sibling speed was one (the model's upgrade step `PinWholeCores`, ADR-0091). The design's
+ * architecture gets a sibling speed of 1 unless it sets one; its parts are left as they are. A design of 1.11
+ * or later, and a document without an architecture, is kept as it is.
+ */
+export function withWholeCores(doc: ArchitectureDocument): ArchitectureDocument {
+  const architecture: unknown = doc.architecture;
+  if (!schemaBefore(doc.schemaVersion, "1.11")) return doc;
+  if (!architecture || typeof architecture !== "object" || Array.isArray(architecture) || "siblingSpeed" in architecture) return doc;
+  return { ...doc, architecture: { ...doc.architecture, siblingSpeed: 1 } };
 }
 
 /** The provenance of an input, or undefined (then it is assumed or illustrative). */
@@ -219,7 +234,7 @@ export function isValidId(id: string): boolean {
 }
 
 export function fromDocument(design: ArchitectureDocument): GraphState & { viewport: Viewport | null } {
-  const doc = withUnsetApiPrices(design);
+  const doc = withWholeCores(withUnsetApiPrices(design));
   const positions = doc.layout?.nodes ?? {};
   const nodes: ArchNode[] = doc.architecture.nodes.map((n, i) => ({
     id: n.id,
@@ -252,6 +267,7 @@ export function fromDocument(design: ArchitectureDocument): GraphState & { viewp
     extras: {
       autoSize: doc.architecture.autoSize,
       host: doc.architecture.host ?? null,
+      siblingSpeed: doc.architecture.siblingSpeed ?? null,
       provenance: doc.provenance ?? {},
       calibration: doc.calibration ?? null,
       pricing: doc.pricing ?? null,
@@ -285,6 +301,7 @@ export function toDocument(state: GraphState, viewport?: Viewport | null): Archi
       })),
       ...(state.extras?.autoSize === false ? { autoSize: false } : {}),
       ...(state.extras?.host ? { host: state.extras.host } : {}),
+      ...(typeof state.extras?.siblingSpeed === "number" ? { siblingSpeed: state.extras.siblingSpeed } : {}),
     },
     workload: state.workload,
     scenarios: state.scenarios,

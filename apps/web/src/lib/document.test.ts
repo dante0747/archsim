@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import catalogJson from "@/test/fixtures/catalog.json";
 import starterJson from "@/test/fixtures/starter.json";
-import { defaultEdgeConfig, edgeSourcePort, fromDocument, getPath, setPath, sideHandle, sideOf, slugify, toDocument, uniqueId, withUnsetApiPrices } from "./document";
+import { defaultEdgeConfig, edgeSourcePort, fromDocument, getPath, setPath, sideHandle, sideOf, slugify, toDocument, uniqueId, withUnsetApiPrices, withWholeCores } from "./document";
 import { convertDistribution, describeDistribution, isDistribution, meanOf, validateDistribution } from "./distributions";
 import type { ArchitectureDocument, Catalog } from "./types";
 
@@ -43,6 +43,8 @@ describe("document conversion", () => {
     expect(doc.architecture).toEqual({
       nodes: starter.architecture.nodes.map((n) => ({ ...n, description: n.description ?? null })),
       edges: starter.architecture.edges.map((e) => ({ ...e, label: e.label ?? null })),
+      // the starter is a 1.3 design: the upgrade to 1.11 keeps its vCPUs whole cores
+      siblingSpeed: 1,
     });
     expect(doc.scenarios).toEqual(starter.scenarios);
     expect(doc.workload).toMatchObject(starter.workload);
@@ -135,5 +137,64 @@ describe("withUnsetApiPrices", () => {
     expect(withUnsetApiPrices(design("1.8", 100)).architecture.nodes[0].config).toEqual({ costPerMillionRequests: 100 });
     expect(withUnsetApiPrices(design("1.9", 0)).architecture.nodes[0].config).toEqual({ costPerMillionRequests: 0 });
     expect(withUnsetApiPrices(design("1.10", 0)).architecture.nodes[0].config).toEqual({ costPerMillionRequests: 0 });
+  });
+});
+
+describe("withWholeCores", () => {
+  const design = (schemaVersion: string, architecture: Record<string, unknown> = {}) =>
+    ({
+      schemaVersion,
+      kind: "archsim.architecture",
+      metadata: { name: "d" },
+      architecture: { nodes: [], edges: [], ...architecture },
+      workload: {},
+    }) as unknown as ArchitectureDocument;
+
+  it("pins an older design's vCPUs to whole cores, as the model's upgrade to 1.11 does", () => {
+    expect(withWholeCores(design("1.10")).architecture.siblingSpeed).toBe(1);
+    expect(withWholeCores(design("1.7")).architecture.siblingSpeed).toBe(1);
+  });
+
+  it("keeps a sibling speed an older design sets", () => {
+    expect(withWholeCores(design("1.10", { siblingSpeed: 0.7 })).architecture.siblingSpeed).toBe(0.7);
+  });
+
+  it("leaves a 1.11 design on the default", () => {
+    expect(withWholeCores(design("1.11")).architecture).not.toHaveProperty("siblingSpeed");
+  });
+
+  it("gives a document without an architecture none", () => {
+    const doc = { ...design("1.10"), architecture: undefined } as unknown as ArchitectureDocument;
+
+    expect(withWholeCores(doc)).toEqual(doc);
+  });
+
+  it("returns a new document and leaves the one it reads as it was", () => {
+    const doc = design("1.10");
+
+    withWholeCores(doc);
+
+    expect(doc.architecture).not.toHaveProperty("siblingSpeed");
+  });
+
+  it("keeps the design's sibling speed through edits and saves", () => {
+    const saved = toDocument(fromDocument(design("1.11", { siblingSpeed: 0.7 })));
+
+    expect(saved.architecture.siblingSpeed).toBe(0.7);
+  });
+
+  it("saves an older design pinned to whole cores, at the current schema", () => {
+    const saved = toDocument(fromDocument(design("1.10")));
+
+    expect(saved.schemaVersion).toBe("1.11");
+    expect(saved.architecture.siblingSpeed).toBe(1);
+  });
+
+  it("leaves a cleared sibling speed out of the saved document", () => {
+    const g = fromDocument(design("1.10"));
+
+    const saved = toDocument({ ...g, extras: { ...g.extras!, siblingSpeed: null } });
+
+    expect(saved.architecture).not.toHaveProperty("siblingSpeed");
   });
 });

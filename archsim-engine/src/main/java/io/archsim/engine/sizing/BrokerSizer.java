@@ -49,7 +49,7 @@ final class BrokerSizer {
 		Map<Need, Double> need = Map.of(Need.BUSY_CORES, needCpu * Sizing.TARGET_CPU, Need.CPU_CORES, needCpu,
 				Need.MEMORY_GIB, needMemory);
 		double memory = Steps.memory(Math.max(Sizing.PROXY_GIB_PER_VCPU * cpu, needMemory), MIN_BALANCER_MEMORY_GIB);
-		return new PartSize(cpu, memory, null, 0.0, why, null, null, need, null, false);
+		return new PartSize(cpu, memory, null, 0.0, why, null, null, need, null, false, null, null);
 	}
 
 	/**
@@ -77,7 +77,7 @@ final class BrokerSizer {
 		double memory = Steps.memory(Math.max(Sizing.BROKER_GIB_PER_VCPU * cpu, load.memoryGib()),
 				MIN_BROKER_MEMORY_GIB);
 		return new PartSize(cpu, memory, Steps.disk(stored.gib() / Sizing.STORAGE_FILL), 0.0, why, null, null, need,
-				null, false);
+				null, false, null, null);
 	}
 
 	/**

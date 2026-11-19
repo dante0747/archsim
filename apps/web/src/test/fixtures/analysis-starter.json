@@ -73,6 +73,11 @@
         "needText": {
           "cpuCores": "needs 3.39 vCPU (2.03 busy at the peak, at a 60% target) \u00b7 c6g.xlarge has 4 vCPU",
           "memoryGib": "needs 520 MiB (up to 622 MiB when queues are full) \u00b7 c6g.xlarge has 8 GiB"
+        },
+        "vcpus": {
+          "siblingSpeed": 1.0,
+          "basis": "design",
+          "text": "whole cores: set on the design (architecture.siblingSpeed)"
         }
       },
       "cache": {
@@ -108,7 +113,12 @@
           "cpuCores": "needs 0.04 vCPU (0.02 busy at the peak, at a 60% target) \u00b7 cache.t4g.micro has 2 vCPU",
           "memoryGib": "needs 122 MiB \u00b7 cache.t4g.micro has 512 MiB"
         },
-        "smallest": true
+        "smallest": true,
+        "vcpus": {
+          "siblingSpeed": 1.0,
+          "basis": "design",
+          "text": "whole cores: set on the design (architecture.siblingSpeed)"
+        }
       },
       "db": {
         "specs": {
@@ -150,7 +160,12 @@
           "memoryGib": "needs 182 MiB \u00b7 db.m6g.large has 8 GiB",
           "storageGib": "stores 95 MiB \u00b7 db.m6g.large has 10 GiB"
         },
-        "smallest": true
+        "smallest": true,
+        "vcpus": {
+          "siblingSpeed": 1.0,
+          "basis": "design",
+          "text": "whole cores: set on the design (architecture.siblingSpeed)"
+        }
       }
     }
   },

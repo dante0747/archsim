@@ -273,7 +273,7 @@ class MonthlyCostTests {
 	 */
 	private static String autoscaled(String pattern, int peakHours) {
 		return """
-				{"schemaVersion": "1.10", "kind": "archsim.architecture", "metadata": {"name": "month"},
+				{"schemaVersion": "1.11", "kind": "archsim.architecture", "metadata": {"name": "month"},
 				 "architecture": {"nodes": [{"id": "clients", "type": "traffic_source"},
 				    {"id": "api", "type": "service", "config": {"replicas": 5, "autoscaling": true,
 				     "minReplicas": 2, "maxReplicas": 20, "targetUtilization": 0.6, "workersPerReplica": 10,
@@ -291,7 +291,7 @@ class MonthlyCostTests {
 	 */
 	private static String autoscaledBesideFixed(int peakHours) {
 		return """
-				{"schemaVersion": "1.10", "kind": "archsim.architecture", "metadata": {"name": "month"},
+				{"schemaVersion": "1.11", "kind": "archsim.architecture", "metadata": {"name": "month"},
 				 "architecture": {"nodes": [{"id": "clients", "type": "traffic_source"},
 				    {"id": "api", "type": "service", "config": {"replicas": 5, "autoscaling": true,
 				     "minReplicas": 2, "maxReplicas": 20, "targetUtilization": 0.6, "workersPerReplica": 10,
@@ -312,7 +312,7 @@ class MonthlyCostTests {
 	 */
 	private static String calling(int peakHours) {
 		return """
-				{"schemaVersion": "1.10", "kind": "archsim.architecture", "metadata": {"name": "calls"},
+				{"schemaVersion": "1.11", "kind": "archsim.architecture", "metadata": {"name": "calls"},
 				 "architecture": {"nodes": [{"id": "clients", "type": "traffic_source"},
 				    {"id": "api", "type": "service", "config": {"replicas": 2, "costPerHour": 0.5}},
 				    {"id": "payments", "type": "external_api", "config": {"costPerMillionRequests": 2}}],

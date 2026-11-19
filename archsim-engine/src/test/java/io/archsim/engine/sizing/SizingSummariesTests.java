@@ -57,7 +57,8 @@ class SizingSummariesTests {
 
 		SizingSummary summary = this.summaries.of(design, resolved, sizes, this.estimator.estimate(resolved));
 
-		assertThat(JsonDiff.differences(entry.path("summary"), RecordCodec.write(summary))).isEmpty();
+		assertThat(JsonDiff.differences(entry.path("summary"), SchemaDepartures.asRecorded(RecordCodec.write(summary))))
+			.isEmpty();
 	}
 
 	private static JsonNode cases() throws IOException {
