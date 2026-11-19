@@ -105,6 +105,23 @@ public final class Simulations {
 	}
 
 	/**
+	 * The knee at a seed of its own, searched as {@link #knee} searches it from a knee
+	 * already found (25% steps from it, then bisection to 1%), each load simulated for a
+	 * measured step's window: how far the knee moves when the simulation draws its
+	 * arrivals, keys and service times anew.
+	 * @param experiment the experiment
+	 * @param inputs its model inputs
+	 * @param near the knee found at the designs' own seed
+	 * @param seed the seed
+	 * @return {@code kneeRps} at that seed and the loads {@code tried}
+	 */
+	public ObjectNode kneeAtSeed(Experiment experiment, JsonNode inputs, JsonNode near, int seed) {
+		return KneeSearch.knee(
+				(rps) -> simulate(Designs.seeded(Designs.design(experiment, inputs, rps, Designs.Window.STEP), seed)),
+				near);
+	}
+
+	/**
 	 * A cache's hit ratio as the benchmark measures it at the service: hits over the
 	 * lookups the cache answered. The report's counts the lookups it refused too
 	 * (ADR-0082), which the service's counters leave out.

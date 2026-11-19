@@ -1,6 +1,7 @@
 package io.archsim.benchmarks.campaign;
 
 import java.nio.file.Path;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,7 @@ class PredictionTests {
 			.orElseThrow();
 		predictions = new Prediction(Simulations.onTheEngine(), folder.resolve("no-fit.json"),
 				() -> JsonText.read("{\"commit\": \"abc\"}"), new Logs().log())
+			.searchingAgainAt(List.of())
 			.of(Experiments.standard().get("pg-mixed"), calibration);
 	}
 
@@ -40,6 +42,13 @@ class PredictionTests {
 	void of_aCalibration_namesTheEnginesVersions() {
 		assertThat(predictions.get("engineVersion").stringValue()).isEqualTo(EngineVersions.ENGINE);
 		assertThat(predictions.get("reportVersion").stringValue()).isEqualTo(EngineVersions.REPORT);
+	}
+
+	// SeedKneesTests has the searches at other seeds; here none is asked for
+	@Test
+	void of_aCalibration_keepsTheKneeBySeedTheDesignsOwnFirst() {
+		assertThat(predictions.at("/kneeBySeed/knees/0/seed").intValue()).isEqualTo(42);
+		assertThat(predictions.at("/kneeBySeed/knees/0/kneeRps")).isEqualTo(predictions.at("/knee/kneeRps"));
 	}
 
 	@Test

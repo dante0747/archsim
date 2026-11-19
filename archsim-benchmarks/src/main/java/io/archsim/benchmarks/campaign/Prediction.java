@@ -28,9 +28,11 @@ import io.archsim.model.text.PythonFormat;
 
 /**
  * An experiment's predictions from its calibration, before anything is measured: the knee
- * (the highest load with p95 at most 50 ms and at least 99% success), its range from the
- * committed fit ({@code knee-range.json}), and every step of the load ladder, from a
- * quarter of the knee to one and a half times it.
+ * (the highest load with p95 at most 50 ms and at least 99% success), the knee again at
+ * nine more seeds ({@link SeedKnees}), its range from the committed fit
+ * ({@code knee-range.json}), and every step of the load ladder, from a quarter of the
+ * knee to one and a half times it. The knee, the ladder and the range are the designs'
+ * own seed's.
  */
 public final class Prediction {
 
@@ -50,6 +52,8 @@ public final class Prediction {
 
 	private final HarnessLog log;
 
+	private final List<Integer> moreSeeds;
+
 	/**
 	 * Predictions on the engine.
 	 * @param simulations the engine's simulations
@@ -63,6 +67,27 @@ public final class Prediction {
 		this.rangeFit = rangeFit;
 		this.provenance = provenance;
 		this.log = log;
+		this.moreSeeds = SeedKnees.MORE_SEEDS;
+	}
+
+	private Prediction(Prediction other, List<Integer> moreSeeds) {
+		this.simulations = other.simulations;
+		this.rangeFit = other.rangeFit;
+		this.provenance = other.provenance;
+		this.log = other.log;
+		this.moreSeeds = List.copyOf(moreSeeds);
+	}
+
+	/**
+	 * These predictions with the knee searched again at other seeds than the nine: a
+	 * test's fewer, since each seed is a search of its own. The prediction's tests ask
+	 * for none, so only a real run searches at the nine; {@code SeedKneesTests} covers
+	 * the searches themselves.
+	 * @param seeds the seeds, besides the designs' own
+	 * @return the predictions
+	 */
+	Prediction searchingAgainAt(List<Integer> seeds) {
+		return new Prediction(this, seeds);
 	}
 
 	/**
@@ -77,6 +102,7 @@ public final class Prediction {
 		ObjectNode knee = this.simulations.knee(experiment, inputs, PythonValues.none(), Designs.Window.STEP);
 		JsonNode kneeRps = knee.get("kneeRps");
 		Optional<ObjectNode> range = range(experiment, inputs, kneeRps);
+		Optional<ObjectNode> bySeed = bySeed(experiment, inputs, kneeRps);
 		List<Long> steps = steps(kneeRps.doubleValue());
 		this.log.line("predicted knee " + PythonFormat.format(kneeRps.doubleValue(), "g") + " req/s; steps "
 				+ steps.toString());
@@ -89,6 +115,7 @@ public final class Prediction {
 		predictions.set("provenance", this.provenance.get().deepCopy());
 		predictions.putObject("objective").put("p95Ms", Objective.P95_MS).put("minSuccess", Objective.MIN_SUCCESS);
 		predictions.set("knee", knee);
+		bySeed.ifPresent((seeds) -> predictions.set("kneeBySeed", seeds));
 		range.ifPresent((kneeRange) -> predictions.set("kneeRange", kneeRange));
 		ArrayNode ladder = predictions.putArray("steps");
 		simulated.forEach(ladder::add);
@@ -108,6 +135,21 @@ public final class Prediction {
 		return new ArrayList<>(steps);
 	}
 
+	// the knee at each seed, the designs' own first, and how far apart they lie; none
+	// without a knee
+	private Optional<ObjectNode> bySeed(Experiment experiment, JsonNode inputs, JsonNode kneeRps) {
+		if (!found(kneeRps)) {
+			return Optional.empty();
+		}
+		this.log.line("the knee again at " + this.moreSeeds.size() + " more seeds");
+		return Optional.of(new SeedKnees(this.simulations, this.moreSeeds).of(experiment, inputs, kneeRps));
+	}
+
+	// whether the search found a knee: a load, and not none at all
+	private static boolean found(JsonNode kneeRps) {
+		return !PythonValues.isNone(kneeRps) && kneeRps.doubleValue() != 0;
+	}
+
 	// the knee's range from the committed fit; none without a fit or a knee
 	private Optional<ObjectNode> range(Experiment experiment, JsonNode inputs, JsonNode kneeRps) {
 		Optional<JsonNode> fit = ResultFiles.read(this.rangeFit);
@@ -116,7 +158,7 @@ public final class Prediction {
 					+ "(./gradlew :archsim-benchmarks:run --args=\"range-fit\")");
 			return Optional.empty();
 		}
-		if (!PythonValues.isNone(kneeRps) && kneeRps.doubleValue() != 0) {
+		if (found(kneeRps)) {
 			this.log.line("the knee's sensitivity to " + Sensitivity.inputsVaried(inputs) + " inputs, for its range");
 			return KneeRanges.of(kneeRps, Sensitivity.of(this.simulations, experiment, inputs, kneeRps), fit.get());
 		}

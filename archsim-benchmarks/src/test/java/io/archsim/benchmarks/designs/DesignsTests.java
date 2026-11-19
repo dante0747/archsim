@@ -16,6 +16,24 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class DesignsTests {
 
+	@Test
+	void seeded_aDesign_isACopyAtThatSeed() {
+		ObjectNode design = JsonText.object("{\"workload\": {\"rps\": 100, \"seed\": 42}}");
+
+		ObjectNode seeded = Designs.seeded(design, 7);
+
+		assertThat(seeded.at("/workload/seed").intValue()).isEqualTo(7);
+	}
+
+	@Test
+	void seeded_aDesign_leavesItAtItsOwnSeed() {
+		ObjectNode design = JsonText.object("{\"workload\": {\"rps\": 100, \"seed\": 42}}");
+
+		Designs.seeded(design, 7);
+
+		assertThat(design.at("/workload/seed").intValue()).isEqualTo(42);
+	}
+
 	// chain's gateway and API each take their own memory inputs
 	@Test
 	void design_chain_givesTheGatewayAndTheApiTheirOwnMemory() {

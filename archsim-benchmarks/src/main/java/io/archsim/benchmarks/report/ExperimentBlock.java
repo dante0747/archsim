@@ -146,10 +146,18 @@ final class ExperimentBlock {
 				+ between(comparison.get("measuredKnee")) + ", predicted "
 				+ Figures.knee(comparison.get("predictedKnee")) + " req/s on the same steps ("
 				+ Figures.percent(comparison.get("kneeError")) + "); ArchSim's own search before measuring put it at "
-				+ Figures.rate(comparison.get("predictedKneeFine")) + " req/s." + rangeText
+				+ Figures.rate(comparison.get("predictedKneeFine")) + " req/s"
+				+ bySeed(PythonValues.get(comparison, "predictedKneeBySeed")) + "." + rangeText
 				+ " Data: `benchmarks/results/" + experiment.id()
 				+ "/` (each repeat's numbers as extracted from k6's summary; the summaries themselves "
 				+ "are not kept).");
+	}
+
+	// which seed's knee the prediction is, and how far apart the knees at every seed lay
+	private static String bySeed(JsonNode seeds) {
+		return !PythonText.truthy(seeds) ? ""
+				: " (the first of " + seeds.get("knees").size() + " seeds, whose knees lay from "
+						+ Figures.rate(seeds.get("lowRps")) + " to " + Figures.rate(seeds.get("highRps")) + " req/s)";
 	}
 
 	// the steps either side of a knee found between two: the last that met the objective

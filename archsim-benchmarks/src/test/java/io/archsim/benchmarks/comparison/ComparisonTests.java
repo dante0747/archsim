@@ -158,6 +158,29 @@ class ComparisonTests {
 		assertThat(comparison.at("/belowKnee/steps").intValue()).isEqualTo(4);
 	}
 
+	// the loads each search tried stay in the predictions
+	@Test
+	void compare_predictionsWithTheKneeAtEachSeed_keepsEachSeedsKneeAndTheirSpread() {
+		ObjectNode predictions = predictions();
+		predictions.set("kneeBySeed", JsonText.read("""
+				{"lowRps": 336, "highRps": 340,
+				 "knees": [{"seed": 42, "kneeRps": 340},
+				          {"seed": 1, "kneeRps": 336, "tried": [{"offeredRps": 340}]}]}"""));
+
+		ObjectNode comparison = Comparison.compare(PG_MIXED, predictions, measured(), NONE);
+
+		assertThat(comparison.get("predictedKneeBySeed")).isEqualTo(JsonText.read("""
+				{"lowRps": 336, "highRps": 340,
+				 "knees": [{"seed": 42, "kneeRps": 340}, {"seed": 1, "kneeRps": 336}]}"""));
+	}
+
+	@Test
+	void compare_predictionsAtOneSeed_haveNoKneeBySeed() {
+		ObjectNode comparison = Comparison.compare(PG_MIXED, predictions(), measured(), NONE);
+
+		assertThat(comparison.has("predictedKneeBySeed")).isFalse();
+	}
+
 	@Test
 	void compare_aLadderAlone_hasNoKneeSearchRows() {
 		ObjectNode comparison = Comparison.compare(PG_MIXED, predictions(), measured(), NONE);

@@ -370,8 +370,18 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
 3. **Predict**: the runner builds the ArchSim design (one Node.js event loop on 1 vCPU, a pool of
    10 database connections, PostgreSQL on 2 vCPU, and so on), searches the knee, and simulates
    every step of the ladder: 0.25, 0.5, 0.75, 0.9, 1.0, 1.1, 1.25 and 1.5 times the predicted
-   knee. Since W28 (1 Nov 2026) it also predicts an **80% range** for the knee: the measured knee
-   should fall inside it in about four runs of five. The range is a lognormal around the
+   knee. Since protocol v7 it searches the knee again at nine more seeds (`kneeBySeed` in
+   `predictions.json`): the search judges one simulation of each load, so the knee it finds
+   depends on what that seed drew. The prediction stays the first seed's, as every kept
+   prediction, every development check and the range's fit are, and each experiment's knee
+   sentence gives the seeds' spread. A scratch search of the nine kept calibrations at ten
+   seeds, bisecting to 0.5% (19 Nov 2026, engine 1.5.0, not kept), put the ten knees within
+   0.4% to 1.8% of each other on eight experiments and within 4.6% on cache-ttl (4,906 to
+   5,138 req/s, its prediction of 5,100 near the top), whose hit ratio moves with the keys
+   drawn. So the seed is not where the knee errors come from. A run's own searches resolve
+   each knee to 1%, so a spread it records under about 1% is at their resolution. Since W28
+   (1 Nov 2026) it also predicts an **80% range** for the knee: the measured knee should fall
+   inside it in about four runs of five. The range is a lognormal around the
    predicted knee whose spread adds two parts, both fitted on the four in-sample experiments
    only (`benchmarks/knee-range.json`, written by `range-fit`; the fit and its check:
    [`docs/validation/knee-range.md`](validation/knee-range.md)):

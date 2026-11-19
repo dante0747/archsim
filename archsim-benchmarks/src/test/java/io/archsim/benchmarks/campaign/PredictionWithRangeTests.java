@@ -1,5 +1,7 @@
 package io.archsim.benchmarks.campaign;
 
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
@@ -28,6 +30,7 @@ class PredictionWithRangeTests {
 		JsonNode calibration = ResultFiles.read(layout.results().resolve("pg-mixed/calibration.json")).orElseThrow();
 		predictions = new Prediction(Simulations.onTheEngine(), layout.kneeRange(), () -> JsonText.read("{}"),
 				new Logs().log())
+			.searchingAgainAt(List.of())
 			.of(Experiments.standard().get("pg-mixed"), calibration);
 	}
 

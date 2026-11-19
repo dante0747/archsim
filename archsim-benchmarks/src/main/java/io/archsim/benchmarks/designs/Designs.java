@@ -22,8 +22,8 @@ public final class Designs {
 	/** The Kafka stack's partitions ({@code compose.yaml}). */
 	public static final int KAFKA_PARTITIONS = 6;
 
-	/** The seed of every simulation. */
-	static final int SEED = 42;
+	/** The seed of every simulation but those that search the knee at other seeds. */
+	public static final int SEED = 42;
 
 	private static final JsonNodeFactory NODES = JsonNodeFactory.instance;
 
@@ -110,6 +110,18 @@ public final class Designs {
 			edges.add(Edge.of("e-kafka", "api", "kafka", PythonValues.number(0.0)).json());
 			edges.add(Edge.of("e-db", "kafka", "db", dbLink).json());
 		}
+	}
+
+	/**
+	 * A design at another seed: the same arrivals, keys and service times drawn anew.
+	 * @param design the design
+	 * @param seed the seed
+	 * @return a copy of the design with that seed
+	 */
+	public static ObjectNode seeded(ObjectNode design, int seed) {
+		ObjectNode copy = design.deepCopy();
+		((ObjectNode) copy.get("workload")).put("seed", seed);
+		return copy;
 	}
 
 	private static ObjectNode clients(String label) {

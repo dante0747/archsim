@@ -61,7 +61,7 @@ stage 7 of the [Java port](../docs/proposals/java-25-port.md), whose last slice 
 | `load` | k6 in its container (`K6`, with the traffic it sends and the virtual users it holds ready: `Traffic`), the window it measured (`K6Measured`), k6's own CPU through it, counted from the load's start (`K6Cpu`) | `k6`, `k6_measured`, `target_for`, `K6Cpu` |
 | `probes` | what PostgreSQL did during a calibration pass: its statistics and its processes' CPU before and after (`PostgresProbe`, `PostgresSnapshot`, `PostgresProcesses`, `PostgresWindow`), and Redis's command statistics (`RedisStats`) | `PG_STATS_SQL`, `PG_PROCESSES_SH`, `pg_process_kind`, `pg_processes`, `pg_snapshot`, `pg_begin`, `pg_end`, `pg_window`, `statement_kind`, `redis_cmdstats` |
 | `calibration` | the calibration on a running stack (protocol v7, which calibrates as v6 did): its passes (`DockerPasses`: settling (`Settling`, which the machine's checks share), the rest, one pass of a mix at a rate), the staircase's rule (`Staircase`), a disturbed pass (`Disturbance`), the staircase up, down and at its top with its replicate sets (`Calibration`, `Calibrations`) | `settle`, `idle_pass`, `calibration_pass`, `steady_pass`, `disturbed`, `hops`, `capacity_bound`, `cpu_bound`, `other_bound`, `service_cpus`, `next_rise`, `staircase_rule`, `calibrate` |
-| `campaign` | a stack's smoke test (`Smoke`, `SmokeProblems`); an experiment's predictions (`Prediction`), measurement (`Measurement`), run with its seals (`ExperimentRun`, on `ExperimentSteps`: `DockerSteps` on a stack), where a run measures next to close in on its knee (`KneeBracket`), the held-out experiments' seal (`Seals`), the latest results kept (`Archive`), the machine as `environment.json` records it (`MachineEnvironment`), a campaign over stacks (`Campaign`, `CampaignTools`, `CampaignMachine`) | `smoke`, `smoke_problems`, `predict`, `measure_once`, `drain`, `measure_step`, `run_experiment`, `seal`, `require_unsealed`, `frozen_engines`, `current_tree`, `archive`, `save`, `environment`, `power_mode`, `exp_image`, `runnable`, `main`'s stack loop |
+| `campaign` | a stack's smoke test (`Smoke`, `SmokeProblems`); an experiment's predictions (`Prediction`), measurement (`Measurement`), the knee at other seeds (`SeedKnees`), run with its seals (`ExperimentRun`, on `ExperimentSteps`: `DockerSteps` on a stack), where a run measures next to close in on its knee (`KneeBracket`), the held-out experiments' seal (`Seals`), the latest results kept (`Archive`), the machine as `environment.json` records it (`MachineEnvironment`), a campaign over stacks (`Campaign`, `CampaignTools`, `CampaignMachine`) | `smoke`, `smoke_problems`, `predict`, `measure_once`, `drain`, `measure_step`, `run_experiment`, `seal`, `require_unsealed`, `frozen_engines`, `current_tree`, `archive`, `save`, `environment`, `power_mode`, `exp_image`, `runnable`, `main`'s stack loop |
 | `report` | the validation page's blocks (`ValidationPage`, `SummaryBlocks`, `TiersBlock`, `ResourcesBlock`, `EnvironmentBlock`, `ExperimentBlock`, `LadderTable`), the charts (`Chart`, `ChartPanel`, `ValueAxis`), `accuracy.json` (`AccuracyData`, `AccuracyExperiment`, `AccuracySteps`), the run history and criteria (`RunHistory`, `Tiers`, `Repeatability`, `KneeSpread`), the Java engine's sentence (`JavaEngineCheck`), `dev-checks.md` (`DevChecksPage`), `knee-range.md` (`KneeRangePage`), the page's words (`PageTexts`, `texts.json`) and numbers (`Figures`); the simulator beside the simple estimates (`BaselinesBlock`, its words `BaselineTexts`, `baseline-texts.json`) | all of `report.py`; the baselines' block is new |
 | `history` | commits, folder trees and changes through `git` (`GitRepository`), a rewrite's commit map (`CommitMap`), today's engine trees (`TreeIds`) | `git` |
 | `parity` | stage 4's parity page (`JavaParity`, `JavaParityPage`, `ParityTables`, `ParityNumbers`), both engines' speed (`Speed`, `SpeedRows`) | the rest of `java_parity_report.py` |
@@ -137,14 +137,15 @@ Protocol v7
 ([ADR-0086](../docs/adr/0086-keep-the-load-open-loop-past-the-objective-and-close-in-on-the-measured-knee.md))
 is the first change to how a run measures since the port, so a run from it on records more than
 run.py's did: `calibration.json`'s `protocol` reads `v7`; each measured step has `generator`
-(the virtual users k6 held ready) and `droppedRepeats`, and each repeat `k6Cores`; a step the
-run adds to close in on its knee is marked `refinement` in `predictions.json` and in
-`measured.json` (the mark the comparison reads), sealed in `extensionSeals` and compared in
-`comparison.json`'s `kneeSearchRows`, apart from the ladder's `rows`; a step above the ladder is
-marked `extension` in `measured.json` too, as it was in `predictions.json`; and the validation
-page shows, for every run, the share of each step's requests k6 dropped and names the steps
-either side of the measured knee. Every k6 run holds the virtual users ready, the smoke test's
-and the machine's checks' too.
+(the virtual users k6 held ready) and `droppedRepeats`, and each repeat `k6Cores`;
+`predictions.json` has `kneeBySeed`, the knee searched again at nine more seeds; a step the run
+adds to close in on its knee is marked `refinement` in `predictions.json` and in `measured.json`
+(the mark the comparison reads), sealed in `extensionSeals` and compared in `comparison.json`'s
+`kneeSearchRows`, apart from the ladder's `rows`; a step above the ladder is marked `extension`
+in `measured.json` too, as it was in `predictions.json`; and the validation page shows, for
+every run, the share of each step's requests k6 dropped and names the steps either side of the
+measured knee. Every k6 run holds the virtual users ready, the smoke test's and the machine's
+checks' too.
 
 Two commands reach their containers differently on Windows, with the same results:
 `contention`'s probe gets its script through a variable in base64 (`node -e

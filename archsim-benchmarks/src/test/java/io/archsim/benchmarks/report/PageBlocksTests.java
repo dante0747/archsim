@@ -233,6 +233,23 @@ class PageBlocksTests {
 		assertThat(block).contains("Knee search: a step the run added between two of the ladder's");
 	}
 
+	// a run whose predictions searched the knee at three seeds
+	@Test
+	void experiment_aKneePredictedAtSeveralSeeds_saysWhichIsThePredictionAndHowFarApartTheyLay(@TempDir Path results)
+			throws IOException {
+		ResultCopies.copy(LAYOUT.results().resolve("java-mixed"), results.resolve("java-mixed"));
+		Path file = results.resolve("java-mixed/comparison.json");
+		ObjectNode comparison = (ObjectNode) ResultFiles.read(file).orElseThrow();
+		comparison.set("predictedKneeBySeed", JsonText.read("""
+				{"lowRps": 7876, "highRps": 7904, "knees": [{"seed": 42}, {"seed": 1}, {"seed": 2}]}"""));
+		ResultFiles.write(file, comparison);
+
+		String block = ExperimentBlock.of(Experiments.standard().get("java-mixed"), results);
+
+		assertThat(block).contains("put it at 7,900 req/s (the first of 3 seeds, whose knees lay from 7,876 to 7,904 "
+				+ "req/s). Its predicted 80% range");
+	}
+
 	@Test
 	void experiment_aKneeBetweenTwoSteps_namesThem() {
 		String block = ExperimentBlock.of(Experiments.standard().get("java-mixed"), LAYOUT.results());

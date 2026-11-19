@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.BooleanNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
@@ -21,12 +22,13 @@ import io.archsim.model.text.PythonText;
 /**
  * A run's measurements against its predictions, step by step ({@code comparison.json}):
  * each step's latency, success, throughput and errors, the measured and predicted knees
- * on the same steps, the p95 errors at or below the measured knee, whether the predicted
- * range held the measured knee, and each container's CPU and memory where the model
- * predicted them. The steps a run added to close in on its knee count towards both knees,
- * and are kept apart from the ladder's ({@code kneeSearchRows}): they cluster just under
- * the knee, so the p95 and resource statistics, the criteria and the chart stay the
- * ladder's, as they were before a run added any.
+ * on the same steps, the predicted knee at each seed it was searched at, the p95 errors
+ * at or below the measured knee, whether the predicted range held the measured knee, and
+ * each container's CPU and memory where the model predicted them. The steps a run added
+ * to close in on its knee count towards both knees, and are kept apart from the ladder's
+ * ({@code kneeSearchRows}): they cluster just under the knee, so the p95 and resource
+ * statistics, the criteria and the chart stay the ladder's, as they were before a run
+ * added any.
  */
 public final class Comparison {
 
@@ -37,6 +39,9 @@ public final class Comparison {
 	private static final String RESOURCES = "resources";
 
 	private static final String STEPS = "steps";
+
+	/** The predicted knee at each seed it was searched at, in the predictions. */
+	private static final String BY_SEED = "kneeBySeed";
 
 	/** What marks a measured step the run added to close in on its knee. */
 	private static final String KNEE_SEARCH = "refinement";
@@ -75,6 +80,9 @@ public final class Comparison {
 		comparison.set("measuredKnee", measuredKnee);
 		comparison.set("predictedKnee", predictedKnee);
 		comparison.set("predictedKneeFine", predictions.get("knee").get("kneeRps"));
+		if (predictions.has(BY_SEED)) {
+			comparison.set("predictedKneeBySeed", kneesBySeed(predictions.get(BY_SEED)));
+		}
 		comparison.set("kneeError", RelativeError.of(predictedKnee.get("kneeRps"), measuredKnee.get("kneeRps")));
 		comparison.set("belowKnee", belowKnee(Knees.atOrBelowKnee(rows.ladder(), measuredKnee)));
 		comparison.putArray("rows").addAll(rows.ladder());
@@ -87,6 +95,21 @@ public final class Comparison {
 				.ifPresent((resources) -> comparison.set(RESOURCES, resources));
 		}
 		return comparison;
+	}
+
+	// each seed's knee and how far apart they lie, without the loads each search tried,
+	// which stay in the predictions
+	private static ObjectNode kneesBySeed(JsonNode bySeed) {
+		ObjectNode kept = NODES.objectNode();
+		kept.set("lowRps", bySeed.get("lowRps"));
+		kept.set("highRps", bySeed.get("highRps"));
+		ArrayNode knees = kept.putArray("knees");
+		for (JsonNode knee : bySeed.get("knees")) {
+			ObjectNode seed = knees.addObject();
+			seed.set("seed", knee.get("seed"));
+			seed.set("kneeRps", knee.get("kneeRps"));
+		}
+		return kept;
 	}
 
 	/**

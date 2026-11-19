@@ -23,9 +23,10 @@ knee depended on the harness rather than on the stack:
   apart: java-mixed's were 3,950 and 5,925 req/s, and the interpolation ran towards a step
   whose latency was held down as above.
 
-k6's own CPU was not recorded either, so a run could not show whether the load generator had
-been short of CPU. How should a run load the stack and find its knee, so that the measured knee
-is the stack's?
+The review also noted that the predicted knee comes from one simulation of each load at one
+seed, so nobody knew how much of it was what that seed drew. And k6's own CPU was not recorded,
+so a run could not show whether the load generator had been short of CPU. How should a run load
+the stack and find its knee, so that the measured knee is the stack's?
 
 ## Decision Drivers
 
@@ -116,6 +117,16 @@ Chosen option: (a), protocol v7.
   and is marked `refinement` in the predictions. It stops after eight steps (and logs that it
   did), and does not start on a ladder with a step that met the objective above one that
   missed it (a disturbed run), or whose lowest step answered no request (a stack that is down).
+- **The predicted knee over seeds.** A prediction searches its knee again at nine more seeds,
+  from the first knee (`SeedKnees`; `kneeBySeed` in `predictions.json`, kept in the comparison
+  and shown in the knee's sentence), so that a run shows how far the knee moves with what the
+  simulation drew. The prediction stays the first seed's, because every kept prediction, every
+  development check and the range's fit are that seed's. A scratch search of the nine kept
+  calibrations at ten seeds, bisecting to 0.5% (19 Nov 2026, engine 1.5.0, not kept), put the
+  knees within 0.4% to 1.8% of each other on eight experiments and within 4.6% on cache-ttl,
+  whose prediction of 5,100 req/s sits near the top of 4,906 to 5,138: the seed is not where
+  the knee errors come from. A run's own searches resolve each knee to 1%, so a recorded
+  spread under about 1% is at their resolution.
 - **The comparison.** The steps a run added to close in on its knee count towards both knees
   and are kept apart from the ladder's (`kneeSearchRows` in `comparison.json`, beside `rows`,
   both in load order). `measured.json` marks such a step too (and a step above the ladder as
@@ -171,6 +182,9 @@ Chosen option: (a), protocol v7.
   ladder, a stack that is down, rounding); `ExperimentRunTests` that a run closes in on a knee
   between two steps, above the ladder after a climb and below it, each step sealed before it
   is measured, and that eight steps end the search.
+- `SeedKneesTests` covers the knee at other seeds: each searched from the first knee, two
+  seeds simulating one load differently, and the least and greatest of them; `DesignsTests` a
+  design at another seed.
 - `ComparisonTests` covers the knee-search rows (apart from the ladder's, counted in the knee,
   left out of the p95 and resources summaries) and rows in load order; `DevCheckTests` the
   same split in a development check; `CommittedComparisonsTests` that the 67
