@@ -29,19 +29,26 @@ import io.archsim.model.text.PythonText;
 /**
  * An experiment's run: calibrated, predicted, the predictions saved and sealed before the
  * first step is measured, each step measured, and the comparison written. A ladder still
- * meeting the objective at its top climbs on, each new step predicted, saved and sealed
- * before it is measured: {@code measured.json}'s {@code predictionsSha256} seals the
- * predictions the ladder began with, and each of its {@code extensionSeals} the
- * predictions as they were before that step, so every seal matches the bytes it sealed
- * (run.py saved the extensions into the sealed file after its one seal).
+ * meeting the objective at its top climbs on, and the run then closes in on the measured
+ * knee, wherever the prediction put the ladder ({@link KneeBracket}). Each step it adds
+ * is predicted, saved and sealed before it is measured: {@code measured.json}'s
+ * {@code predictionsSha256} seals the predictions the ladder began with, and each of its
+ * {@code extensionSeals} the predictions as they were before that step, so every seal
+ * matches the bytes it sealed (run.py saved the extensions into the sealed file after its
+ * one seal).
  */
 public final class ExperimentRun {
 
 	/** The most steps a ladder climbs above its predicted top. */
 	static final int MAX_EXTENSIONS = 4;
 
+	/** The most steps a run adds to close in on its measured knee. */
+	static final int MAX_REFINEMENTS = 8;
+
 	/** How far each extension climbs above the step before. */
 	private static final double EXTENSION = 1.3;
+
+	private static final double PERCENT = 100;
 
 	private static final JsonNodeFactory NODES = JsonNodeFactory.instance;
 
@@ -95,7 +102,9 @@ public final class ExperimentRun {
 			measuredSteps.add(this.steps.measure(experiment, step.get("offeredRps").longValue()));
 			save(experiment, "measured", measured);
 		}
-		climb(experiment, new Run(calibration, predictions, measured));
+		Run run = new Run(calibration, predictions, measured);
+		climb(experiment, run);
+		refine(experiment, run);
 		compare(experiment, predictions, measured);
 	}
 
@@ -110,20 +119,43 @@ public final class ExperimentRun {
 				.rint(measuredSteps.get(measuredSteps.size() - 1).get("offeredRps").doubleValue() * EXTENSION);
 			this.log.line(experiment.id() + ": still meeting the objective; predicting and then measuring " + next
 					+ " req/s");
-			ObjectNode step = this.steps.predictStep(experiment, run.calibration().get("inputs"), next);
-			step.put("extension", true);
-			step.put("at", Timestamps.now(this.log.clock()));
-			((ArrayNode) run.predictions().get("steps")).add(step);
-			save(experiment, "predictions", run.predictions());
-			String digest = digest(experiment, "predictions");
-			this.log.line(experiment.id() + ": predictions saved with " + next + " req/s, sha256 " + digest);
-			arrayOf(run.measured(), "extensionSeals").addObject()
-				.put("offeredRps", next)
-				.put("predictionsSha256", digest);
-			save(experiment, "measured", run.measured());
-			measuredSteps.add(this.steps.measure(experiment, next));
-			save(experiment, "measured", run.measured());
+			add(experiment, run, next, "extension");
 		}
+	}
+
+	// the knee lies between two steps, or below the lowest: steps between or below them
+	// until those either side of it are within 3% of each other
+	private void refine(Experiment experiment, Run run) {
+		ArrayNode measuredSteps = (ArrayNode) run.measured().get("steps");
+		Optional<Long> next = KneeBracket.next(measuredSteps.valueStream().toList());
+		for (int added = 0; next.isPresent() && added < MAX_REFINEMENTS; added++) {
+			this.log.line(experiment.id() + ": closing in on the knee; predicting and then measuring " + next.get()
+					+ " req/s");
+			add(experiment, run, next.get(), "refinement");
+			next = KneeBracket.next(measuredSteps.valueStream().toList());
+		}
+		if (next.isPresent()) {
+			this.log.line(experiment.id() + ": stopped closing in on the knee after " + MAX_REFINEMENTS
+					+ " steps; it is not yet known to " + Math.round(KneeBracket.RESOLUTION * PERCENT) + "%");
+		}
+	}
+
+	// one more step, of a kind (an extension, a refinement) its prediction and its
+	// measurement both carry: predicted, saved and sealed before it is measured
+	private void add(Experiment experiment, Run run, long rps, String kind) {
+		ObjectNode step = this.steps.predictStep(experiment, run.calibration().get("inputs"), rps);
+		step.put(kind, true);
+		step.put("at", Timestamps.now(this.log.clock()));
+		((ArrayNode) run.predictions().get("steps")).add(step);
+		save(experiment, "predictions", run.predictions());
+		String digest = digest(experiment, "predictions");
+		this.log.line(experiment.id() + ": predictions saved with " + rps + " req/s, sha256 " + digest);
+		arrayOf(run.measured(), "extensionSeals").addObject().put("offeredRps", rps).put("predictionsSha256", digest);
+		save(experiment, "measured", run.measured());
+		ObjectNode measured = this.steps.measure(experiment, rps);
+		measured.put(kind, true);
+		((ArrayNode) run.measured().get("steps")).add(measured);
+		save(experiment, "measured", run.measured());
 	}
 
 	private void compare(Experiment experiment, ObjectNode predictions, ObjectNode measured) {

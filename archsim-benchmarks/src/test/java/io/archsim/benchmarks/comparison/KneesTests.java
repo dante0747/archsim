@@ -30,6 +30,18 @@ class KneesTests {
 		assertThat(disturbed).extracting(JsonNode::intValue).containsExactly(2550, 3825, 4590);
 	}
 
+	// steps as measured.json holds them, not a comparison's rows
+	@Test
+	void disturbedMeasuredSteps_aMissBelowAStepThatMet_isDisturbed() {
+		List<JsonNode> steps = List.of(JsonText.read("{\"offeredRps\": 100, \"p95\": 2.0, \"successRate\": 1.0}"),
+				JsonText.read("{\"offeredRps\": 200, \"p95\": 60.0, \"successRate\": 1.0}"),
+				JsonText.read("{\"offeredRps\": 300, \"p95\": 9.0, \"successRate\": 1.0}"));
+
+		List<JsonNode> disturbed = Knees.disturbedMeasuredSteps(steps);
+
+		assertThat(disturbed).extracting(JsonNode::intValue).containsExactly(200);
+	}
+
 	@Test
 	void disturbedSteps_aMissOnTheSuccessRateAlone_isDisturbed() {
 		List<JsonNode> rows = List.of(measured(100, 2.0, 1.0), measured(200, 9.0, 0.9), measured(300, 9.0, 1.0));

@@ -128,6 +128,112 @@ class ComparisonTests {
 		assertThat(comparison.get("rows")).noneMatch((row) -> row.has("resources"));
 	}
 
+	// 350 req/s, measured last: between the 300 req/s step that met the objective and
+	// the 400 req/s one that missed it
+	@Test
+	void compare_aStepTheRunAddedToCloseInOnItsKnee_isKeptApartFromTheLadder() {
+		ObjectNode comparison = Comparison.compare(PG_MIXED, predictionsWithAKneeSearchStep(),
+				measuredWithAKneeSearchStep(), NONE);
+
+		assertThat(comparison.get("kneeSearchRows").valueStream().map((row) -> row.get("offeredRps").intValue()))
+			.containsExactly(350);
+		assertThat(rowsByRate(comparison).has("350")).isFalse();
+	}
+
+	// p95 42 ms at 300 req/s and 60 ms at 350: 50 ms at 300 + 50 x 8 / 18
+	@Test
+	void compare_aStepTheRunAdded_countsTowardsTheMeasuredKnee() {
+		ObjectNode comparison = Comparison.compare(PG_MIXED, predictionsWithAKneeSearchStep(),
+				measuredWithAKneeSearchStep(), NONE);
+
+		assertThat(comparison.at("/measuredKnee/kneeRps").doubleValue()).isEqualTo(322.2);
+	}
+
+	// the ladder's four steps at or below the knee, as without the step
+	@Test
+	void compare_aStepTheRunAdded_isLeftOutOfTheP95Summary() {
+		ObjectNode comparison = Comparison.compare(PG_MIXED, predictionsWithAKneeSearchStep(),
+				measuredWithAKneeSearchStep(), NONE);
+
+		assertThat(comparison.at("/belowKnee/steps").intValue()).isEqualTo(4);
+	}
+
+	@Test
+	void compare_aLadderAlone_hasNoKneeSearchRows() {
+		ObjectNode comparison = Comparison.compare(PG_MIXED, predictions(), measured(), NONE);
+
+		assertThat(comparison.has("kneeSearchRows")).isFalse();
+	}
+
+	@Test
+	void compare_stepsMeasuredOutOfLoadOrder_rowsAreInLoadOrder() {
+		ObjectNode measured = measured();
+		ArrayNode steps = measured.withArray("steps");
+		steps.add(steps.remove(1));
+
+		ObjectNode comparison = Comparison.compare(PG_MIXED, predictions(), measured, NONE);
+
+		assertThat(comparison.get("rows").valueStream().map((row) -> row.get("offeredRps").intValue()))
+			.containsExactly(50, 100, 200, 300, 400);
+	}
+
+	// the ladder's four steps at or below both knees, as without the step
+	@Test
+	void compare_aStepTheRunAdded_isLeftOutOfTheResourcesSummary() {
+		ObjectNode predictions = predictionsWithResources();
+		ObjectNode predicted = predictedKneeSearchStep();
+		predicted.putObject("resources").putObject("api").put("cores", 1.2).put("memoryMiB", 260.0);
+		predictions.withArray("steps").add(predicted);
+		ObjectNode measured = measuredWithResources();
+		ObjectNode added = measuredKneeSearchStep();
+		withResources(added, 0.6);
+		measured.withArray("steps").add(added);
+
+		JsonNode below = Comparison.compare(PG_MIXED, predictions, measured, NONE).at("/resources/belowKnee");
+
+		assertThat(below.at("/api/steps").intValue()).isEqualTo(4);
+	}
+
+	// the simulations of a development check carry no mark: the measured step's tells
+	@Test
+	void compare_aStepTheRunAddedAgainstPredictionsWithoutItsMark_isStillKeptApart() {
+		ObjectNode predictions = predictionsWithAKneeSearchStep();
+		predictions.get("steps").forEach((step) -> ((ObjectNode) step).remove("refinement"));
+
+		ObjectNode comparison = Comparison.compare(PG_MIXED, predictions, measuredWithAKneeSearchStep(), NONE);
+
+		assertThat(comparison.get("kneeSearchRows")).hasSize(1);
+	}
+
+	private static ObjectNode predictionsWithAKneeSearchStep() {
+		ObjectNode predictions = predictions();
+		predictions.withArray("steps").add(predictedKneeSearchStep());
+		return predictions;
+	}
+
+	private static ObjectNode measuredWithAKneeSearchStep() {
+		ObjectNode measured = measured();
+		measured.withArray("steps").add(measuredKneeSearchStep());
+		return measured;
+	}
+
+	// a step at 350 req/s the run added, as its predictions mark it
+	private static ObjectNode predictedKneeSearchStep() {
+		return NODES.objectNode()
+			.put("offeredRps", 350)
+			.put("p50", 15.0)
+			.put("p95", 30.0)
+			.put("p99", 60.0)
+			.put("successRate", 1.0)
+			.put("throughputRps", 350)
+			.put("refinement", true);
+	}
+
+	// the same step as its measurements mark it: a p95 of 60 ms, which misses
+	private static ObjectNode measuredKneeSearchStep() {
+		return step(350, Repeats.repeat(60.0), Repeats.repeat(60.0), Repeats.repeat(60.0)).put("refinement", true);
+	}
+
 	// a later simulation that put the service at a quarter of a core at every step
 	private static ObjectNode laterSimulation() {
 		ObjectNode later = JsonText.object("""

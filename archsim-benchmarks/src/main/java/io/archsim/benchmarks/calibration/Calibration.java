@@ -20,18 +20,18 @@ import io.archsim.engine.numeric.PythonRound;
 import io.archsim.model.text.PythonFormat;
 
 /**
- * Calibrates an experiment (protocol v6): after settling and a rest, a staircase of its
- * traffic from 50 req/s ({@link Staircase}), down again, and the top rate once more:
- * every rate twice, the top three times. Each top pass, with the auxiliary mixes run
- * right after it at the same rate, gives one replicate set of model inputs (CPU per
- * request net of idle, timings from the pass); the inputs are their medians. A top pass
- * still disturbed after its retry gives no replicate: another runs in its place, two at
- * most.
+ * Calibrates an experiment (protocol v7, whose calibration is v6's): after settling and a
+ * rest, a staircase of its traffic from 50 req/s ({@link Staircase}), down again, and the
+ * top rate once more: every rate twice, the top three times. Each top pass, with the
+ * auxiliary mixes run right after it at the same rate, gives one replicate set of model
+ * inputs (CPU per request net of idle, timings from the pass); the inputs are their
+ * medians. A top pass still disturbed after its retry gives no replicate: another runs in
+ * its place, two at most.
  */
 public final class Calibration {
 
 	/** The calibration protocol this runs (docs/validation.md, Protocol). */
-	static final String PROTOCOL = "v6";
+	static final String PROTOCOL = "v7";
 
 	/** The staircase's first rate. */
 	static final int FIRST_RPS = 50;

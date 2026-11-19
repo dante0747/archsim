@@ -1,5 +1,6 @@
 package io.archsim.benchmarks.resimulation;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
@@ -17,6 +18,7 @@ import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.benchmarks.RepositoryLayout;
+import io.archsim.benchmarks.ResultCopies;
 import io.archsim.benchmarks.designs.Simulations;
 import io.archsim.benchmarks.inputs.ModelInputs;
 import io.archsim.benchmarks.results.KeptRun;
@@ -74,6 +76,25 @@ class DevCheckTests {
 	void of_aKeptRun_saysTheHarnessDerivedItsInputsAgain() {
 		assertThat(cacheTtl.get("how").stringValue()).startsWith(
 				"Inputs derived again from this run's calibration passes with today's harness, and its measured");
+	}
+
+	// hot-row's latest run with its 856 req/s step marked as one the run added: the
+	// check simulates every measured load afresh, so only the measurement says which
+	@Test
+	void of_aRunThatClosedInOnItsKnee_keepsItsKneeSearchStepsApart(@TempDir Path results) throws IOException {
+		Path folder = results.resolve("pg-hot-row");
+		ResultCopies.copy(LAYOUT.results().resolve("pg-hot-row"), folder);
+		ObjectNode measured = (ObjectNode) ResultFiles.read(folder.resolve("measured.json")).orElseThrow();
+		measured.get("steps")
+			.valueStream()
+			.filter((step) -> step.get("offeredRps").intValue() == 856)
+			.forEach((step) -> ((ObjectNode) step).put("refinement", true));
+		ResultFiles.write(folder.resolve("measured.json"), measured);
+
+		ObjectNode check = CHECKS.of(new KeptRun("pg-hot-row", folder)).orElseThrow();
+
+		assertThat(check.at("/comparison/kneeSearchRows").valueStream().map((row) -> row.get("offeredRps").intValue()))
+			.containsExactly(856);
 	}
 
 	// run 1 was calibrated from one pass, not a low and a top one

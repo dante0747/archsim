@@ -65,6 +65,19 @@ Read these numbers as runs on one laptop, three to six per experiment:
   measured; each then ran three times on 3-4 Nov. Median knee errors: cache-ttl -6%,
   python-mixed +29%, chain +30%, go-mixed +67% and java-mixed +70%. Only cache-ttl meets
   criterion 1 (within ±25%); python-mixed and chain miss it by about five points.
+- **A measured knee is coarser than its one figure.** Each is interpolated between two steps of a
+  ladder that stands at shares of the *predicted* knee, and towards a step at which k6 had run
+  out of virtual users and dropped requests, so that its latency was cut short
+  ([Protocol](#protocol), step 4; each experiment's ladder shows the share dropped at every step
+  and names the two steps). java-mixed's 4,650 req/s lies somewhere between 3,950 and 5,925
+  req/s, which puts its knee error between +33% and +100%. Protocol v7 (19 Nov 2026,
+  [ADR-0086](adr/0086-keep-the-load-open-loop-past-the-objective-and-close-in-on-the-measured-knee.md))
+  closes in on the measured knee to 3% and keeps the load open-loop until at least a quarter
+  of a second of arrivals are waiting; no run has used it yet. Its check also suggests that
+  the kept runs' p95 below the knee carries some of k6's own garbage collection: at 3,000 req/s
+  pg-mixed read 6 to 11 ms as the kept runs loaded it and 2.9 to 3.9 ms as v7 does. The two
+  differ in both the virtual users and k6's collector, so this is a lead, not a finding, but
+  it bears on every p95 error and on criterion 2 below.
 - **On stacks it was not tuned on, ArchSim promised too much capacity.** Four of the five
   predicted knees are above the measured ones, the unsafe side: a design sized on them runs out
   of headroom sooner than predicted. The CPU those stacks cost is predicted well (busy cores at
@@ -325,12 +338,42 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
    changes, and the machine. Its sha256 goes to the log and into `measured.json` before the
    first step is measured. When the system still
    meets the objective at the top of the ladder, the runner climbs by 30% (at most four times),
-   predicting, saving and sealing each new step before measuring it.
+   predicting, saving and sealing each new step before measuring it. Since protocol v7 it then
+   **closes in on the measured knee**: it measures halfway between the last step that met the
+   objective and the first that missed it until the two are within 3% of the higher, and halves
+   the lowest step when even that missed (at most eight such steps), each predicted, saved and
+   sealed before it is measured, like a step above the ladder. The measured knee then no longer
+   depends on where the prediction put the ladder. These steps count towards both knees and
+   each ladder lists them ("knee search"), but they cluster just under the knee, so they stay
+   out of the chart, the p95 errors and the criteria, which remain the ladder's
+   (`kneeSearchRows` in `comparison.json`). In the kept runs the knee is interpolated between
+   two of the ladder's steps, which each experiment's section names.
 4. **Measure** each step three times: 5 s of warm-up, then 20 s measured, 2 s client timeout;
    each metric is the median of the three (robust to one stall), and a step whose three p95s
    differ by more than 2x across the objective is marked unstable. p50, p95 and p99 are over
    successful requests started in the window, as in ArchSim's reports; requests k6 could not
-   send in time count as failures. A repeat in which k6 sent nothing (the load generator failed)
+   send count as failures. k6 sends each request from a virtual user, and with every one of
+   them waiting for an answer it drops the next request: the load is then no longer open-loop,
+   and the latencies it measures are held down. Since protocol v7 every virtual user is started
+   before the first request and serves the warm-up and the measured window alike: as many as a
+   whole 2 s timeout's arrivals up to 1,000, as many as a quarter of a second's above that
+   (five times the objective's p95), fifty more, and 3,000 at most (`Traffic.virtualUsers`). So
+   up to 500 req/s the load is open-loop until requests time out, and above that k6 drops a
+   request only once at least a quarter of a second of arrivals are waiting (less above
+   11,800 req/s). The step records them (`generator`: the users and the seconds of arrivals
+   they hold), the repeats in which k6 still dropped requests (`droppedRepeats`), and in each
+   repeat k6's own busy cores through the window (`k6Cores`), since a load generator short of
+   CPU measures its own queue. The kept runs started each step with virtual users for 50 ms of
+   arrivals and fifty more, and k6 added others one at a time, up to 3,000, while dropping
+   requests: past the knee their latencies were held down by how fast it added them, and their
+   success rate falls by the share k6 never sent. The ladders below show that share for every
+   step ("Dropped"). Virtual users are not free either: k6's garbage collector marks every
+   one's memory, and on the idle laptop pg-mixed's p95 at 3,000 req/s read 6 to 11 ms with 200
+   of them, 59 ms with 1,000 and 140 to 240 ms with 3,050, the median unchanged. So k6 now
+   runs with its collector relaxed (`GOGC=800` and `GOMEMLIMIT=3GiB` in `compose.yaml`), which
+   brought 650 to 3,050 users back to 3 to 10 ms, and a step holds no more than 3,000
+   ([ADR-0086](adr/0086-keep-the-load-open-loop-past-the-objective-and-close-in-on-the-measured-knee.md)).
+   A repeat in which k6 sent nothing (the load generator failed)
    is recorded, discarded and run again. A repeat in which requests were sent and none succeeded
    is a failed repeat: it has no latency, and in the step's medians it counts as slower than any
    measured repeat (run 4 recorded two such repeats as 0 ms; the comparison now treats them as
@@ -359,8 +402,8 @@ Earlier runs are kept in `benchmarks/results/<experiment>/run-N/` (cache-aside a
 first run in run 4, which their `run-1/` folders hold). The protocol changed between runs, each
 time after a run exposed a flaw in the calibration. Every change was made with earlier results
 in view (the PostgreSQL experiments' for v2 to v4, all four's for v5 and v6), so all four
-experiments are in-sample for the current protocol (v6, first run in the v6 campaign of 1-2
-Nov):
+experiments are in-sample for the protocol every counted run used (v6, first run in the v6
+campaign of 1-2 Nov):
 
 | Run | Protocol | What it showed |
 | --- | --- | --- |
@@ -391,6 +434,24 @@ estimate put it for cache-aside (3,023 to 3,350 req/s) and Kafka (971 to 1,015),
 pg-mixed in two of three runs (2,453 and 2,502; the third reached 3,155), and the predicted knees
 landed 25% below cache-aside's measured knee (median), 11% above pg-mixed's and 3% below
 Kafka's.
+
+**Protocol v7** (19 Nov 2026,
+[ADR-0086](adr/0086-keep-the-load-open-loop-past-the-objective-and-close-in-on-the-measured-knee.md);
+no run yet) changes how every k6 run is loaded and how the knee is found. What the calibration
+measures and derives is unchanged, though its passes, the settling, the smoke test and the
+machine's checks now hold the same virtual users ready, with k6's garbage collector relaxed. A
+review of these benchmarks found that in every kept run k6 ran out of virtual users past the
+knee (step 4), and that the measured knee was interpolated between two steps the prediction had
+placed, towards a step held down that way: with all nine experiments' results in view, so it is
+in-sample for them like the protocols before it. Under v7 k6 holds its virtual users ready, each
+repeat records k6's own CPU, and the run closes in on the measured knee to 3% (step 3). Checks on
+the pg-mixed stack, on the idle machine with the settings as committed: at 3,000 req/s, below
+its knee, a p95 of 2.9 and 3.9 ms with 1,050 virtual users (6 to 11 ms with the kept runs' 200
+and k6's collector at its default); at 6,000 req/s, past its knee, a p50 of 94 ms and a p95 of
+376 ms with 1,550, where the old script, on a machine that was building, read 78 ms and 156 ms.
+k6 filled both of its CPUs at 6,000 req/s in each, so on this laptop the load generator itself
+may be the limit at such rates, which `k6Cores` will now show; no check could run below a knee
+above 4,400 req/s, where k6 allocates faster.
 
 Every kept run, compared the same way (`compare`):
 
@@ -563,7 +624,8 @@ connections and PostgreSQL 16 on CPUs 4,5.
   checked yet. chain's gateway and API get one CPU each (0 and 2), as does cache-ttl's Redis
   (0). No container shares a physical core with k6 or with another container. The cost: chain
   and cache-ttl leave CPUs 1 and 3 idle and give k6 one core (6,7), so their ladders need
-  watching for dropped iterations.
+  watching for dropped iterations (each ladder shows the share of requests k6 dropped at every
+  step, and from protocol v7 each repeat records k6's own CPU).
 - **Service statistics.** Every service exposes the same `/stats` as the Node.js one: CPU per
   request, own time, call timings and garbage collection.
   - gunicorn's workers add theirs up in shared memory and take CPU from the container's cgroup.
@@ -603,20 +665,21 @@ Model inputs from a staircase of calibration passes at 50, 621, 2,826 and 3,553 
 
 Measured in the calibration pass at 3,553 req/s: p50 0.53 ms, p95 2.39 ms.
 
-| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1,975 | 0.46 / 0.55 | 1.67 / 1.63 | -2% | 2.89 / 2.24 | 100% / 100% | 1,975 / 1,975 |
-| 3,950 | 0.56 / 0.53 | 2.88 / 1.70 | -41% | 8.40 / 2.42 | 100% / 100% | 3,950 / 3,950 |
-| 5,925 | 1.39 / 0.56 | 56.8 / 1.87 | -97% | 112 / 2.73 | 97% / 100% | 5,758 / 5,925 |
-| 7,110 | 4.13 / 0.67 | 78.3 / 2.19 | -97% | 146 / 5.24 | 92% / 100% | 6,516 / 7,110 |
-| 7,900 (unstable) | 17.8 / 17.9 | 99.7 / 33.7 | -66% | 169 / 37.2 | 86% / 100% | 6,811 / 7,892 |
-| 8,690 | 47.6 / 1,239 | 149 / 1,916 | +1188% | 220 / 1,994 | 80% / 75% | 6,977 / 6,676 |
-| 9,875 | 61.3 / 1,635 | 171 / 1,954 | +1044% | 244 / 1,994 | 70% / 15% | 7,462 / 1,974 |
-| 11,850 | 76.1 / - | 194 / - | - | 274 / - | 57% / 0% | 6,778 / 394 |
+| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Dropped | Throughput meas / pred |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1,975 | 0.46 / 0.55 | 1.67 / 1.63 | -2% | 2.89 / 2.24 | 100% / 100% | - | 1,975 / 1,975 |
+| 3,950 | 0.56 / 0.53 | 2.88 / 1.70 | -41% | 8.40 / 2.42 | 100% / 100% | - | 3,950 / 3,950 |
+| 5,925 | 1.39 / 0.56 | 56.8 / 1.87 | -97% | 112 / 2.73 | 97% / 100% | 2.8% | 5,758 / 5,925 |
+| 7,110 | 4.13 / 0.67 | 78.3 / 2.19 | -97% | 146 / 5.24 | 92% / 100% | 8.4% | 6,516 / 7,110 |
+| 7,900 (unstable) | 17.8 / 17.9 | 99.7 / 33.7 | -66% | 169 / 37.2 | 86% / 100% | 14% | 6,811 / 7,892 |
+| 8,690 | 47.6 / 1,239 | 149 / 1,916 | +1188% | 220 / 1,994 | 80% / 75% | 20% | 6,977 / 6,676 |
+| 9,875 | 61.3 / 1,635 | 171 / 1,954 | +1044% | 244 / 1,994 | 70% / 15% | 30% | 7,462 / 1,974 |
+| 11,850 | 76.1 / - | 194 / - | - | 274 / - | 57% / 0% | 43% | 6,778 / 394 |
 
 Unstable: the step's repeats' p95s differ by more than 2x across the objective (a repeat with no successful request counts as slower than any).
+Dropped: the share of the step's requests k6 never sent, because it had no virtual user free (the median of the repeats). The load was then no longer open-loop: the step's latencies are a lower bound, and its success rate counts the unsent requests as failed. k6 started this run's steps with virtual users for about 50 ms of arrivals and added more one at a time, up to 3,000, dropping requests meanwhile (every run before protocol v7). Past the knee the latencies it measured were held down by how fast it added them, and where the knee lies between the last step that met the objective and the first that missed it is not measured.
 
-Knee: measured 4,650 req/s, predicted 7,907 req/s on the same steps (+70%); ArchSim's own search before measuring put it at 7,900 req/s. Its predicted 80% range was 5,926 to 10,531 req/s: the measured knee fell outside it. Data: `benchmarks/results/java-mixed/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
+Knee: measured 4,650 req/s (between the steps at 3,950 and 5,925 req/s), predicted 7,907 req/s on the same steps (+70%); ArchSim's own search before measuring put it at 7,900 req/s. Its predicted 80% range was 5,926 to 10,531 req/s: the measured knee fell outside it. Data: `benchmarks/results/java-mixed/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
 <!-- END GENERATED: java-mixed -->
 
 ## go-mixed
@@ -646,18 +709,20 @@ Model inputs from a staircase of calibration passes at 50, 1,551 and 4,132 req/s
 
 Measured in the calibration pass at 4,132 req/s: p50 0.46 ms, p95 2.17 ms.
 
-| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred |
-| --- | --- | --- | --- | --- | --- | --- |
-| 2,475 | 0.42 / 0.46 | 1.54 / 1.45 | -6% | 2.58 / 2.03 | 100% / 100% | 2,475 / 2,475 |
-| 4,950 | 0.50 / 0.46 | 2.95 / 1.57 | -47% | 9.56 / 2.24 | 100% / 100% | 4,950 / 4,950 |
-| 7,425 | 1.48 / 0.51 | 45.7 / 1.80 | -96% | 71.2 / 2.52 | 98% / 100% | 7,284 / 7,425 |
-| 8,910 | 3.65 / 0.64 | 66.2 / 2.11 | -97% | 86.2 / 3.53 | 92% / 100% | 8,170 / 8,910 |
-| 9,900 | 13.8 / 7.06 | 76.5 / 20.2 | -74% | 105 / 24.1 | 84% / 100% | 8,532 / 9,900 |
-| 10,890 | 46.8 / 1,239 | 90.9 / 1,916 | +2007% | 118 / 1,994 | 79% / 77% | 8,629 / 8,660 |
-| 12,375 | 71.3 / 1,603 | 114 / 1,954 | +1620% | 160 / 1,994 | 69% / 16% | 8,741 / 2,551 |
-| 14,850 | 85.0 / - | 141 / - | - | 197 / - | 54% / 0% | 8,031 / 519 |
+| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Dropped | Throughput meas / pred |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 2,475 | 0.42 / 0.46 | 1.54 / 1.45 | -6% | 2.58 / 2.03 | 100% / 100% | - | 2,475 / 2,475 |
+| 4,950 | 0.50 / 0.46 | 2.95 / 1.57 | -47% | 9.56 / 2.24 | 100% / 100% | - | 4,950 / 4,950 |
+| 7,425 | 1.48 / 0.51 | 45.7 / 1.80 | -96% | 71.2 / 2.52 | 98% / 100% | 2.5% | 7,284 / 7,425 |
+| 8,910 | 3.65 / 0.64 | 66.2 / 2.11 | -97% | 86.2 / 3.53 | 92% / 100% | 8.3% | 8,170 / 8,910 |
+| 9,900 | 13.8 / 7.06 | 76.5 / 20.2 | -74% | 105 / 24.1 | 84% / 100% | 16% | 8,532 / 9,900 |
+| 10,890 | 46.8 / 1,239 | 90.9 / 1,916 | +2007% | 118 / 1,994 | 79% / 77% | 21% | 8,629 / 8,660 |
+| 12,375 | 71.3 / 1,603 | 114 / 1,954 | +1620% | 160 / 1,994 | 69% / 16% | 31% | 8,741 / 2,551 |
+| 14,850 | 85.0 / - | 141 / - | - | 197 / - | 54% / 0% | 46% | 8,031 / 519 |
 
-Knee: measured 5,950 req/s, predicted 9,916 req/s on the same steps (+67%); ArchSim's own search before measuring put it at 9,900 req/s. Its predicted 80% range was 7,426 to 13,199 req/s: the measured knee fell outside it. Data: `benchmarks/results/go-mixed/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
+Dropped: the share of the step's requests k6 never sent, because it had no virtual user free (the median of the repeats). The load was then no longer open-loop: the step's latencies are a lower bound, and its success rate counts the unsent requests as failed. k6 started this run's steps with virtual users for about 50 ms of arrivals and added more one at a time, up to 3,000, dropping requests meanwhile (every run before protocol v7). Past the knee the latencies it measured were held down by how fast it added them, and where the knee lies between the last step that met the objective and the first that missed it is not measured.
+
+Knee: measured 5,950 req/s (between the steps at 4,950 and 7,425 req/s), predicted 9,916 req/s on the same steps (+67%); ArchSim's own search before measuring put it at 9,900 req/s. Its predicted 80% range was 7,426 to 13,199 req/s: the measured knee fell outside it. Data: `benchmarks/results/go-mixed/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
 <!-- END GENERATED: go-mixed -->
 
 ## python-mixed
@@ -686,18 +751,20 @@ Model inputs from a staircase of calibration passes at 50, 755 and 1,307 req/s (
 
 Measured in the calibration pass at 1,307 req/s: p50 1.31 ms, p95 8.58 ms.
 
-| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred |
-| --- | --- | --- | --- | --- | --- | --- |
-| 440 | 1.00 / 1.84 | 2.33 / 6.14 | +164% | 3.80 / 11.3 | 100% / 100% | 440 / 440 |
-| 881 | 1.05 / 1.80 | 3.13 / 5.90 | +88% | 6.15 / 11.3 | 100% / 100% | 881 / 881 |
-| 1,322 | 1.35 / 2.11 | 7.60 / 6.78 | -11% | 18.1 / 11.8 | 100% / 100% | 1,322 / 1,322 |
-| 1,586 | 3.85 / 3.07 | 82.5 / 10.9 | -87% | 95.9 / 16.5 | 96% / 100% | 1,523 / 1,586 |
-| 1,762 | 12.6 / 15.6 | 82.6 / 45.4 | -45% | 119 / 63.6 | 86% / 100% | 1,524 / 1,765 |
-| 1,938 | 109 / 1,215 | 162 / 1,916 | +1086% | 185 / 1,994 | 87% / 91% | 1,684 / 1,788 |
-| 2,202 | 192 / 1,572 | 292 / 1,954 | +569% | 328 / 1,994 | 74% / 16% | 1,640 / 471 |
-| 2,643 | 218 / - | 316 / - | - | 362 / - | 62% / 0% | 1,630 / 103 |
+| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Dropped | Throughput meas / pred |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 440 | 1.00 / 1.84 | 2.33 / 6.14 | +164% | 3.80 / 11.3 | 100% / 100% | - | 440 / 440 |
+| 881 | 1.05 / 1.80 | 3.13 / 5.90 | +88% | 6.15 / 11.3 | 100% / 100% | - | 881 / 881 |
+| 1,322 | 1.35 / 2.11 | 7.60 / 6.78 | -11% | 18.1 / 11.8 | 100% / 100% | - | 1,322 / 1,322 |
+| 1,586 | 3.85 / 3.07 | 82.5 / 10.9 | -87% | 95.9 / 16.5 | 96% / 100% | 4.0% | 1,523 / 1,586 |
+| 1,762 | 12.6 / 15.6 | 82.6 / 45.4 | -45% | 119 / 63.6 | 86% / 100% | 14% | 1,524 / 1,765 |
+| 1,938 | 109 / 1,215 | 162 / 1,916 | +1086% | 185 / 1,994 | 87% / 91% | 13% | 1,684 / 1,788 |
+| 2,202 | 192 / 1,572 | 292 / 1,954 | +569% | 328 / 1,994 | 74% / 16% | 26% | 1,640 / 471 |
+| 2,643 | 218 / - | 316 / - | - | 362 / - | 62% / 0% | 38% | 1,630 / 103 |
 
-Knee: measured 1,388 req/s, predicted 1,762 req/s on the same steps (+27%); ArchSim's own search before measuring put it at 1,762 req/s. Its predicted 80% range was 1,314 to 2,363 req/s: the measured knee fell inside it. Data: `benchmarks/results/python-mixed/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
+Dropped: the share of the step's requests k6 never sent, because it had no virtual user free (the median of the repeats). The load was then no longer open-loop: the step's latencies are a lower bound, and its success rate counts the unsent requests as failed. k6 started this run's steps with virtual users for about 50 ms of arrivals and added more one at a time, up to 3,000, dropping requests meanwhile (every run before protocol v7). Past the knee the latencies it measured were held down by how fast it added them, and where the knee lies between the last step that met the objective and the first that missed it is not measured.
+
+Knee: measured 1,388 req/s (between the steps at 1,322 and 1,586 req/s), predicted 1,762 req/s on the same steps (+27%); ArchSim's own search before measuring put it at 1,762 req/s. Its predicted 80% range was 1,314 to 2,363 req/s: the measured knee fell inside it. Data: `benchmarks/results/python-mixed/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
 <!-- END GENERATED: python-mixed -->
 
 ## chain
@@ -732,18 +799,20 @@ Model inputs from a staircase of calibration passes at 50, 728, 2,120 and 2,816 
 
 Measured in the calibration pass at 2,816 req/s: p50 1.01 ms, p95 9.04 ms.
 
-| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1,112 | 0.81 / 1.16 | 2.58 / 2.42 | -6% | 5.43 / 3.32 | 100% / 100% | 1,112 / 1,112 |
-| 2,225 | 0.91 / 1.14 | 5.38 / 2.47 | -54% | 16.1 / 3.46 | 100% / 100% | 2,225 / 2,225 |
-| 3,338 | 1.44 / 1.24 | 30.9 / 2.67 | -91% | 68.4 / 3.67 | 99% / 100% | 3,309 / 3,338 |
-| 4,005 | 2.98 / 1.48 | 62.6 / 3.20 | -95% | 103 / 5.04 | 97% / 100% | 3,902 / 4,005 |
-| 4,450 | 21.6 / 13.8 | 90.6 / 27.7 | -69% | 118 / 31.8 | 91% / 100% | 4,064 / 4,448 |
-| 4,895 | 48.4 / 1,264 | 113 / 1,916 | +1595% | 160 / 1,994 | 87% / 77% | 4,265 / 3,891 |
-| 5,562 | 82.8 / 1,603 | 149 / 1,954 | +1209% | 219 / 1,994 | 76% / 15% | 4,203 / 1,136 |
-| 6,675 | 105 / - | 211 / - | - | 298 / - | 59% / 0% | 3,962 / 230 |
+| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Dropped | Throughput meas / pred |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1,112 | 0.81 / 1.16 | 2.58 / 2.42 | -6% | 5.43 / 3.32 | 100% / 100% | - | 1,112 / 1,112 |
+| 2,225 | 0.91 / 1.14 | 5.38 / 2.47 | -54% | 16.1 / 3.46 | 100% / 100% | - | 2,225 / 2,225 |
+| 3,338 | 1.44 / 1.24 | 30.9 / 2.67 | -91% | 68.4 / 3.67 | 99% / 100% | 0.9% | 3,309 / 3,338 |
+| 4,005 | 2.98 / 1.48 | 62.6 / 3.20 | -95% | 103 / 5.04 | 97% / 100% | 2.5% | 3,902 / 4,005 |
+| 4,450 | 21.6 / 13.8 | 90.6 / 27.7 | -69% | 118 / 31.8 | 91% / 100% | 8.7% | 4,064 / 4,448 |
+| 4,895 | 48.4 / 1,264 | 113 / 1,916 | +1595% | 160 / 1,994 | 87% / 77% | 13% | 4,265 / 3,891 |
+| 5,562 | 82.8 / 1,603 | 149 / 1,954 | +1209% | 219 / 1,994 | 76% / 15% | 24% | 4,203 / 1,136 |
+| 6,675 | 105 / - | 211 / - | - | 298 / - | 59% / 0% | 41% | 3,962 / 230 |
 
-Knee: measured 3,388 req/s, predicted 4,455 req/s on the same steps (+32%); ArchSim's own search before measuring put it at 4,450 req/s. Its predicted 80% range was 3,339 to 5,931 req/s: the measured knee fell inside it. Data: `benchmarks/results/chain/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
+Dropped: the share of the step's requests k6 never sent, because it had no virtual user free (the median of the repeats). The load was then no longer open-loop: the step's latencies are a lower bound, and its success rate counts the unsent requests as failed. k6 started this run's steps with virtual users for about 50 ms of arrivals and added more one at a time, up to 3,000, dropping requests meanwhile (every run before protocol v7). Past the knee the latencies it measured were held down by how fast it added them, and where the knee lies between the last step that met the objective and the first that missed it is not measured.
+
+Knee: measured 3,388 req/s (between the steps at 3,338 and 4,005 req/s), predicted 4,455 req/s on the same steps (+32%); ArchSim's own search before measuring put it at 4,450 req/s. Its predicted 80% range was 3,339 to 5,931 req/s: the measured knee fell inside it. Data: `benchmarks/results/chain/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
 <!-- END GENERATED: chain -->
 
 ## cache-ttl
@@ -773,18 +842,20 @@ Model inputs from a staircase of calibration passes at 50, 617, 1,713, 2,863 and
 
 Measured in the calibration pass at 3,262 req/s: p50 0.53 ms, p95 3.60 ms.
 
-| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred | Hit ratio meas / pred |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 1,275 | 0.52 / 0.47 | 1.73 / 2.37 | +37% | 3.66 / 5.79 | 100% / 100% | 1,275 / 1,275 | 62% / 62% |
-| 2,550 | 0.47 / 0.50 | 2.11 / 2.78 | +32% | 8.03 / 5.79 | 100% / 100% | 2,550 / 2,550 | 67% / 67% |
-| 3,825 | 0.56 / 0.74 | 5.96 / 5.04 | -15% | 17.7 / 11.1 | 100% / 100% | 3,825 / 3,825 | 69% / 69% |
-| 4,590 | 0.64 / 1.60 | 15.1 / 9.50 | -37% | 37.8 / 18.6 | 100% / 100% | 4,578 / 4,589 | 70% / 70% |
-| 5,100 | 0.72 / 8.43 | 22.6 / 35.8 | +58% | 49.0 / 48.2 | 100% / 100% | 5,082 / 5,102 | 71% / 71% |
-| 5,610 | 0.82 / 1,101 | 26.1 / 1,806 | +6822% | 61.1 / 1,954 | 99% / 98% | 5,532 / 5,218 | 71% / 71% |
-| 6,375 | 1.45 / 1,572 | 51.8 / 1,954 | +3670% | 98.5 / 1,994 | 95% / 21% | 6,052 / 1,614 | 72% / 71% |
-| 7,650 | 2.12 / - | 71.6 / - | - | 115 / - | 92% / 0% | 7,023 / 352 | 72% / 71% |
+| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Dropped | Throughput meas / pred | Hit ratio meas / pred |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1,275 | 0.52 / 0.47 | 1.73 / 2.37 | +37% | 3.66 / 5.79 | 100% / 100% | - | 1,275 / 1,275 | 62% / 62% |
+| 2,550 | 0.47 / 0.50 | 2.11 / 2.78 | +32% | 8.03 / 5.79 | 100% / 100% | - | 2,550 / 2,550 | 67% / 67% |
+| 3,825 | 0.56 / 0.74 | 5.96 / 5.04 | -15% | 17.7 / 11.1 | 100% / 100% | - | 3,825 / 3,825 | 69% / 69% |
+| 4,590 | 0.64 / 1.60 | 15.1 / 9.50 | -37% | 37.8 / 18.6 | 100% / 100% | 0.3% | 4,578 / 4,589 | 70% / 70% |
+| 5,100 | 0.72 / 8.43 | 22.6 / 35.8 | +58% | 49.0 / 48.2 | 100% / 100% | 0.3% | 5,082 / 5,102 | 71% / 71% |
+| 5,610 | 0.82 / 1,101 | 26.1 / 1,806 | +6822% | 61.1 / 1,954 | 99% / 98% | 1.4% | 5,532 / 5,218 | 71% / 71% |
+| 6,375 | 1.45 / 1,572 | 51.8 / 1,954 | +3670% | 98.5 / 1,994 | 95% / 21% | 5.1% | 6,052 / 1,614 | 72% / 71% |
+| 7,650 | 2.12 / - | 71.6 / - | - | 115 / - | 92% / 0% | 8.2% | 7,023 / 352 | 72% / 71% |
 
-Knee: measured 5,420 req/s, predicted 5,104 req/s on the same steps (-6%); ArchSim's own search before measuring put it at 5,100 req/s. Its predicted 80% range was 3,826 to 6,798 req/s: the measured knee fell inside it. Data: `benchmarks/results/cache-ttl/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
+Dropped: the share of the step's requests k6 never sent, because it had no virtual user free (the median of the repeats). The load was then no longer open-loop: the step's latencies are a lower bound, and its success rate counts the unsent requests as failed. k6 started this run's steps with virtual users for about 50 ms of arrivals and added more one at a time, up to 3,000, dropping requests meanwhile (every run before protocol v7). Past the knee the latencies it measured were held down by how fast it added them, and where the knee lies between the last step that met the objective and the first that missed it is not measured.
+
+Knee: measured 5,420 req/s (between the steps at 5,100 and 5,610 req/s), predicted 5,104 req/s on the same steps (-6%); ArchSim's own search before measuring put it at 5,100 req/s. Its predicted 80% range was 3,826 to 6,798 req/s: the measured knee fell inside it. Data: `benchmarks/results/cache-ttl/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
 <!-- END GENERATED: cache-ttl -->
 
 ## pg-mixed
@@ -814,18 +885,20 @@ Model inputs from a staircase of calibration passes at 50, 793, 2,610 and 3,262 
 
 Measured in the calibration pass at 3,262 req/s: p50 0.54 ms, p95 2.93 ms.
 
-| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1,300 | 0.48 / 0.56 | 1.71 / 1.66 | -3% | 3.04 / 2.47 | 100% / 100% | 1,300 / 1,300 |
-| 2,600 | 0.52 / 0.54 | 2.09 / 1.76 | -16% | 6.07 / 2.73 | 100% / 100% | 2,600 / 2,600 |
-| 3,900 | 0.69 / 0.57 | 9.78 / 1.87 | -81% | 33.8 / 2.95 | 100% / 100% | 3,900 / 3,900 |
-| 4,680 | 2.12 / 0.72 | 63.6 / 2.28 | -96% | 81.0 / 6.65 | 99% / 100% | 4,622 / 4,680 |
-| 5,200 | 91.6 / 15.3 | 145 / 38.0 | -74% | 173 / 42.8 | 86% / 100% | 4,490 / 5,191 |
-| 5,720 | 115 / 1,239 | 165 / 1,916 | +1062% | 212 / 1,994 | 77% / 75% | 4,403 / 4,399 |
-| 6,500 | 126 / 1,635 | 189 / 1,954 | +934% | 228 / 1,994 | 67% / 15% | 4,348 / 1,298 |
-| 7,800 | 141 / - | 219 / - | - | 302 / - | 55% / 0% | 4,319 / 259 |
+| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Dropped | Throughput meas / pred |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1,300 | 0.48 / 0.56 | 1.71 / 1.66 | -3% | 3.04 / 2.47 | 100% / 100% | - | 1,300 / 1,300 |
+| 2,600 | 0.52 / 0.54 | 2.09 / 1.76 | -16% | 6.07 / 2.73 | 100% / 100% | - | 2,600 / 2,600 |
+| 3,900 | 0.69 / 0.57 | 9.78 / 1.87 | -81% | 33.8 / 2.95 | 100% / 100% | - | 3,900 / 3,900 |
+| 4,680 | 2.12 / 0.72 | 63.6 / 2.28 | -96% | 81.0 / 6.65 | 99% / 100% | 1.2% | 4,622 / 4,680 |
+| 5,200 | 91.6 / 15.3 | 145 / 38.0 | -74% | 173 / 42.8 | 86% / 100% | 14% | 4,490 / 5,191 |
+| 5,720 | 115 / 1,239 | 165 / 1,916 | +1062% | 212 / 1,994 | 77% / 75% | 23% | 4,403 / 4,399 |
+| 6,500 | 126 / 1,635 | 189 / 1,954 | +934% | 228 / 1,994 | 67% / 15% | 33% | 4,348 / 1,298 |
+| 7,800 | 141 / - | 219 / - | - | 302 / - | 55% / 0% | 45% | 4,319 / 259 |
 
-Knee: measured 4,483 req/s, predicted 5,203 req/s on the same steps (+16%); ArchSim's own search before measuring put it at 5,200 req/s. Its predicted 80% range was 3,902 to 6,931 req/s: the measured knee fell inside it. Data: `benchmarks/results/pg-mixed/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
+Dropped: the share of the step's requests k6 never sent, because it had no virtual user free (the median of the repeats). The load was then no longer open-loop: the step's latencies are a lower bound, and its success rate counts the unsent requests as failed. k6 started this run's steps with virtual users for about 50 ms of arrivals and added more one at a time, up to 3,000, dropping requests meanwhile (every run before protocol v7). Past the knee the latencies it measured were held down by how fast it added them, and where the knee lies between the last step that met the objective and the first that missed it is not measured.
+
+Knee: measured 4,483 req/s (between the steps at 3,900 and 4,680 req/s), predicted 5,203 req/s on the same steps (+16%); ArchSim's own search before measuring put it at 5,200 req/s. Its predicted 80% range was 3,902 to 6,931 req/s: the measured knee fell inside it. Data: `benchmarks/results/pg-mixed/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
 <!-- END GENERATED: pg-mixed -->
 
 ## pg-hot-row
@@ -854,20 +927,21 @@ Model inputs from a staircase of calibration passes at 50, 206, 327 and 363 req/
 
 Measured in the calibration pass at 363 req/s: p50 1.42 ms, p95 2.76 ms.
 
-| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred |
-| --- | --- | --- | --- | --- | --- | --- |
-| 214 | 1.67 / 1.60 | 3.08 / 2.52 | -18% | 3.64 / 3.13 | 100% / 100% | 214 / 214 |
-| 428 | 1.29 / 1.54 | 2.63 / 2.42 | -8% | 4.04 / 3.07 | 100% / 100% | 428 / 428 |
-| 642 | 1.23 / 1.63 | 2.66 / 2.62 | -1% | 4.91 / 3.39 | 100% / 100% | 642 / 642 |
-| 770 | 1.22 / 1.91 | 3.26 / 3.32 | +2% | 8.01 / 4.39 | 100% / 100% | 770 / 770 |
-| 856 | 1.32 / 7.95 | 12.2 / 37.2 | +206% | 76.6 / 41.9 | 100% / 100% | 856 / 854 |
-| 942 (unstable) | 1.72 / 1,239 | 19.0 / 1,916 | +10003% | 37.1 / 1,994 | 100% / 78% | 942 / 758 |
-| 1,070 (unstable) | 382 / 1,603 | 845 / 1,954 | +131% | 877 / 1,994 | 96% / 16% | 1,026 / 222 |
-| 1,284 | 1,196 / - | 1,930 / - | - | 1,972 / - | 49% / 0% | 626 / 45 |
+| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Dropped | Throughput meas / pred |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 214 | 1.67 / 1.60 | 3.08 / 2.52 | -18% | 3.64 / 3.13 | 100% / 100% | - | 214 / 214 |
+| 428 | 1.29 / 1.54 | 2.63 / 2.42 | -8% | 4.04 / 3.07 | 100% / 100% | - | 428 / 428 |
+| 642 | 1.23 / 1.63 | 2.66 / 2.62 | -1% | 4.91 / 3.39 | 100% / 100% | - | 642 / 642 |
+| 770 | 1.22 / 1.91 | 3.26 / 3.32 | +2% | 8.01 / 4.39 | 100% / 100% | - | 770 / 770 |
+| 856 | 1.32 / 7.95 | 12.2 / 37.2 | +206% | 76.6 / 41.9 | 100% / 100% | - | 856 / 854 |
+| 942 (unstable) | 1.72 / 1,239 | 19.0 / 1,916 | +10003% | 37.1 / 1,994 | 100% / 78% | - | 942 / 758 |
+| 1,070 (unstable) | 382 / 1,603 | 845 / 1,954 | +131% | 877 / 1,994 | 96% / 16% | 4.1% | 1,026 / 222 |
+| 1,284 | 1,196 / - | 1,930 / - | - | 1,972 / - | 49% / 0% | 11% | 626 / 45 |
 
 Unstable: the step's repeats' p95s differ by more than 2x across the objective (a repeat with no successful request counts as slower than any).
+Dropped: the share of the step's requests k6 never sent, because it had no virtual user free (the median of the repeats). The load was then no longer open-loop: the step's latencies are a lower bound, and its success rate counts the unsent requests as failed. k6 started this run's steps with virtual users for about 50 ms of arrivals and added more one at a time, up to 3,000, dropping requests meanwhile (every run before protocol v7). Past the knee the latencies it measured were held down by how fast it added them, and where the knee lies between the last step that met the objective and the first that missed it is not measured.
 
-Knee: measured 947 req/s, predicted 857 req/s on the same steps (-10%); ArchSim's own search before measuring put it at 856 req/s. Its predicted 80% range was 678 to 1,080 req/s: the measured knee fell inside it. Data: `benchmarks/results/pg-hot-row/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
+Knee: measured 947 req/s (between the steps at 942 and 1,070 req/s), predicted 857 req/s on the same steps (-10%); ArchSim's own search before measuring put it at 856 req/s. Its predicted 80% range was 678 to 1,080 req/s: the measured knee fell inside it. Data: `benchmarks/results/pg-hot-row/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
 <!-- END GENERATED: pg-hot-row -->
 
 ## cache-aside
@@ -896,18 +970,20 @@ Model inputs from a staircase of calibration passes at 50, 651, 2,052 and 3,470 
 
 Measured in the calibration pass at 3,470 req/s: p50 0.40 ms, p95 1.69 ms.
 
-| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred | Hit ratio meas / pred |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 1,412 | 0.41 / 0.40 | 1.39 / 1.39 | 0% | 3.28 / 2.57 | 100% / 100% | 1,412 / 1,412 | 70% / 70% |
-| 2,825 | 0.41 / 0.38 | 1.54 / 1.45 | -6% | 4.44 / 2.62 | 100% / 100% | 2,825 / 2,825 | 75% / 75% |
-| 4,238 | 0.43 / 0.54 | 2.38 / 2.37 | 0% | 8.38 / 3.97 | 100% / 100% | 4,238 / 4,238 | 79% / 79% |
-| 5,085 | 0.52 / 0.99 | 7.03 / 4.30 | -39% | 23.7 / 6.92 | 100% / 100% | 5,085 / 5,086 | 80% / 80% |
-| 5,650 | 0.51 / 9.31 | 5.87 / 41.9 | +614% | 22.3 / 55.3 | 100% / 100% | 5,639 / 5,635 | 81% / 81% |
-| 6,215 | 0.56 / 1,191 | 10.7 / 1,916 | +17808% | 35.1 / 1,994 | 100% / 86% | 6,208 / 5,453 | 82% / 81% |
-| 7,062 | 0.81 / 1,603 | 27.6 / 1,954 | +6979% | 63.1 / 1,994 | 98% / 17% | 6,955 / 1,568 | 83% / 81% |
-| 8,475 | 1.04 / - | 48.4 / - | - | 77.6 / - | 96% / 0% | 8,175 / 332 | 84% / 81% |
+| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Dropped | Throughput meas / pred | Hit ratio meas / pred |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1,412 | 0.41 / 0.40 | 1.39 / 1.39 | 0% | 3.28 / 2.57 | 100% / 100% | - | 1,412 / 1,412 | 70% / 70% |
+| 2,825 | 0.41 / 0.38 | 1.54 / 1.45 | -6% | 4.44 / 2.62 | 100% / 100% | - | 2,825 / 2,825 | 75% / 75% |
+| 4,238 | 0.43 / 0.54 | 2.38 / 2.37 | 0% | 8.38 / 3.97 | 100% / 100% | - | 4,238 / 4,238 | 79% / 79% |
+| 5,085 | 0.52 / 0.99 | 7.03 / 4.30 | -39% | 23.7 / 6.92 | 100% / 100% | - | 5,085 / 5,086 | 80% / 80% |
+| 5,650 | 0.51 / 9.31 | 5.87 / 41.9 | +614% | 22.3 / 55.3 | 100% / 100% | 0.2% | 5,639 / 5,635 | 81% / 81% |
+| 6,215 | 0.56 / 1,191 | 10.7 / 1,916 | +17808% | 35.1 / 1,994 | 100% / 86% | 0.1% | 6,208 / 5,453 | 82% / 81% |
+| 7,062 | 0.81 / 1,603 | 27.6 / 1,954 | +6979% | 63.1 / 1,994 | 98% / 17% | 1.5% | 6,955 / 1,568 | 83% / 81% |
+| 8,475 | 1.04 / - | 48.4 / - | - | 77.6 / - | 96% / 0% | 3.5% | 8,175 / 332 | 84% / 81% |
 
-Knee: measured 6,752 req/s, predicted 5,652 req/s on the same steps (-16%); ArchSim's own search before measuring put it at 5,650 req/s. Its predicted 80% range was 4,238 to 7,533 req/s: the measured knee fell inside it. Data: `benchmarks/results/cache-aside/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
+Dropped: the share of the step's requests k6 never sent, because it had no virtual user free (the median of the repeats). The load was then no longer open-loop: the step's latencies are a lower bound, and its success rate counts the unsent requests as failed. k6 started this run's steps with virtual users for about 50 ms of arrivals and added more one at a time, up to 3,000, dropping requests meanwhile (every run before protocol v7). Past the knee the latencies it measured were held down by how fast it added them, and where the knee lies between the last step that met the objective and the first that missed it is not measured.
+
+Knee: measured 6,752 req/s (between the steps at 6,215 and 7,062 req/s), predicted 5,652 req/s on the same steps (-16%); ArchSim's own search before measuring put it at 5,650 req/s. Its predicted 80% range was 4,238 to 7,533 req/s: the measured knee fell inside it. Data: `benchmarks/results/cache-aside/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
 <!-- END GENERATED: cache-aside -->
 
 ## kafka
@@ -940,18 +1016,20 @@ Model inputs from a staircase of calibration passes at 50 and 406 req/s (each ra
 
 Measured in the calibration pass at 406 req/s: p50 0.79 ms, p95 2.21 ms.
 
-| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Throughput meas / pred | Consumed/s meas / pred | Message age p95 meas / pred (ms) |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 522 | 0.75 / 0.94 | 2.35 / 1.99 | -15% | 6.57 / 2.84 | 100% / 100% | 522 / 522 | 522 / 522 | 10.0 / 7.20 |
-| 1,044 | 0.83 / 0.97 | 3.56 / 2.11 | -41% | 12.7 / 3.13 | 100% / 100% | 1,044 / 1,044 | 1,044 / 1,044 | 66.0 / 18.6 |
-| 1,566 | 0.80 / 1.10 | 12.9 / 2.62 | -80% | 33.4 / 4.47 | 100% / 100% | 1,566 / 1,566 | 1,566 / 1,426 | 1,835 / 2,847 |
-| 1,879 | 0.84 / 1.48 | 18.5 / 5.04 | -73% | 60.3 / 14.1 | 100% / 100% | 1,875 / 1,879 | 1,735 / 1,443 | 7,173 / 6,164 |
-| 2,088 | 0.86 / 10.3 | 26.0 / 29.4 | +13% | 56.7 / 31.8 | 100% / 100% | 2,080 / 2,089 | 1,740 / 1,442 | 8,596 / 10,112 |
-| 2,297 | 0.94 / 1,290 | 36.4 / 1,954 | +5268% | 79.3 / 1,994 | 99% / 84% | 2,281 / 1,973 | 1,715 / 1,444 | 10,393 / 8,133 |
-| 2,610 | 1.03 / 1,603 | 45.8 / 1,954 | +4167% | 103 / 1,994 | 98% / 16% | 2,565 / 537 | 1,690 / 1,445 | 12,242 / 8,461 |
-| 3,132 | 2.14 / - | 76.9 / - | - | 120 / - | 97% / 0% | 3,024 / 107 | 1,670 / 1,449 | 15,098 / 8,979 |
+| Offered req/s | p50 meas / pred (ms) | p95 meas / pred (ms) | p95 error | p99 meas / pred (ms) | Success meas / pred | Dropped | Throughput meas / pred | Consumed/s meas / pred | Message age p95 meas / pred (ms) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 522 | 0.75 / 0.94 | 2.35 / 1.99 | -15% | 6.57 / 2.84 | 100% / 100% | - | 522 / 522 | 522 / 522 | 10.0 / 7.20 |
+| 1,044 | 0.83 / 0.97 | 3.56 / 2.11 | -41% | 12.7 / 3.13 | 100% / 100% | - | 1,044 / 1,044 | 1,044 / 1,044 | 66.0 / 18.6 |
+| 1,566 | 0.80 / 1.10 | 12.9 / 2.62 | -80% | 33.4 / 4.47 | 100% / 100% | <0.1% | 1,566 / 1,566 | 1,566 / 1,426 | 1,835 / 2,847 |
+| 1,879 | 0.84 / 1.48 | 18.5 / 5.04 | -73% | 60.3 / 14.1 | 100% / 100% | 0.2% | 1,875 / 1,879 | 1,735 / 1,443 | 7,173 / 6,164 |
+| 2,088 | 0.86 / 10.3 | 26.0 / 29.4 | +13% | 56.7 / 31.8 | 100% / 100% | 0.4% | 2,080 / 2,089 | 1,740 / 1,442 | 8,596 / 10,112 |
+| 2,297 | 0.94 / 1,290 | 36.4 / 1,954 | +5268% | 79.3 / 1,994 | 99% / 84% | 0.7% | 2,281 / 1,973 | 1,715 / 1,444 | 10,393 / 8,133 |
+| 2,610 | 1.03 / 1,603 | 45.8 / 1,954 | +4167% | 103 / 1,994 | 98% / 16% | 1.7% | 2,565 / 537 | 1,690 / 1,445 | 12,242 / 8,461 |
+| 3,132 | 2.14 / - | 76.9 / - | - | 120 / - | 97% / 0% | 3.4% | 3,024 / 107 | 1,670 / 1,449 | 15,098 / 8,979 |
 
-Knee: measured 2,387 req/s, predicted 2,090 req/s on the same steps (-12%); ArchSim's own search before measuring put it at 2,088 req/s. Its predicted 80% range was 1,566 to 2,784 req/s: the measured knee fell inside it. Data: `benchmarks/results/kafka/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
+Dropped: the share of the step's requests k6 never sent, because it had no virtual user free (the median of the repeats). The load was then no longer open-loop: the step's latencies are a lower bound, and its success rate counts the unsent requests as failed. k6 started this run's steps with virtual users for about 50 ms of arrivals and added more one at a time, up to 3,000, dropping requests meanwhile (every run before protocol v7). Past the knee the latencies it measured were held down by how fast it added them, and where the knee lies between the last step that met the objective and the first that missed it is not measured.
+
+Knee: measured 2,387 req/s (between the steps at 2,297 and 2,610 req/s), predicted 2,090 req/s on the same steps (-12%); ArchSim's own search before measuring put it at 2,088 req/s. Its predicted 80% range was 1,566 to 2,784 req/s: the measured knee fell inside it. Data: `benchmarks/results/kafka/` (each repeat's numbers as extracted from k6's summary; the summaries themselves are not kept).
 <!-- END GENERATED: kafka -->
 
 ## Resources: CPU and memory
@@ -1174,7 +1252,11 @@ From the baseline campaign (run 7: protocol v5, engine 0.14.0, three counted run
 - **The model's cliff is sharper than the real one.** Past its knee ArchSim's p95 jumps to the 2 s
   client timeout within one or two steps; the real systems degrade over several steps
   (pg-mixed 122 ms at 4,950 req/s and 174 ms at 5,445; cache-aside 7.8 ms at 5,335, where ArchSim
-  predicts 1.9 s). So "how far past the knee can I go" is answered pessimistically.
+  predicts 1.9 s). So "how far past the knee can I go" is answered pessimistically. Part of
+  the gap is the measurement's: at those steps k6 had run out of virtual users and dropped
+  requests (the ladders' "Dropped" column), so the real latencies were higher than the ones
+  measured, by an amount these runs cannot tell. Protocol v7 measures them whole until at least
+  a quarter of a second of arrivals are waiting.
 - **Kafka's consumers and message age.** The consumer kept up with about 1,630 to 1,670
   messages/s; ArchSim capped it at 1,383/s from the INSERT and commit times measured at the top
   of calibration. Below that limit real messages waited longer than the model's (p95 132 ms

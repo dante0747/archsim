@@ -70,7 +70,31 @@ class MeasurementTests {
 
 		assertThat(step.at("/runs/0").propertyNames()).containsExactly("offeredRps", "p50", "p95", "p99", "mean",
 				"sent", "dropped", "failed", "succeeded", "successRate", "throughputRps", "serviceCpuMsPerRequest",
-				"containerCpuShare", "resources", "drain", "at");
+				"containerCpuShare", "k6Cores", "resources", "drain", "at");
+	}
+
+	// k6's container, its counter rising a millisecond a second like the others'
+	@Test
+	void step_aRepeat_recordsK6sOwnBusyCores(@TempDir Path folder) {
+		ObjectNode step = measured(folder, new Stack(3, "0", "{}"), "pg-mixed");
+
+		assertThat(step.at("/runs/0/k6Cores").doubleValue()).isEqualTo(0.001);
+	}
+
+	// 50 req/s: 100 requests may wait for their 2 s timeout, and fifty more
+	@Test
+	void step_aLoad_recordsTheVirtualUsersK6HeldReady(@TempDir Path folder) {
+		ObjectNode step = measured(folder, new Stack(3, "0", "{}"), "pg-mixed");
+
+		// the count is a long, so compared as written
+		assertThat(step.get("generator")).hasToString("{\"virtualUsers\":150,\"coverS\":2.0}");
+	}
+
+	@Test
+	void step_repeatsWithNothingDropped_countsNoneDropped(@TempDir Path folder) {
+		ObjectNode step = measured(folder, new Stack(3, "0", "{}"), "pg-mixed");
+
+		assertThat(step.get("droppedRepeats").intValue()).isZero();
 	}
 
 	// a millisecond of CPU a second, over the whole k6 command

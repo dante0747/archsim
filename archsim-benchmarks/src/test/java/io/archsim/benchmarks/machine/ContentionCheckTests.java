@@ -67,15 +67,15 @@ class ContentionCheckTests {
 				"PostgreSQL's idle CPU taken@2500", "every idle CPU taken@2500");
 	}
 
-	// k6's 14 ms of CPU over the 14 s it was watched;
-	// the service's and PostgreSQL's 36 ms over the run's 36 s
+	// k6's 16 ms of CPU over the 16 s it was watched;
+	// the service's and PostgreSQL's 38 ms over the run's 38 s
 	@Test
 	void run_aServiceStep_recordsEachContainersCpu(@TempDir Path results) {
 		JsonNode step = checked(new FakeStack(results), results, ContentionCheck.Parts.SERVICE_ONLY).at("/service/0");
 
 		assertThat(step.get("k6Cores").doubleValue()).isEqualTo(0.001);
 		assertThat(step.get("serviceCores").doubleValue()).isEqualTo(0.001);
-		assertThat(step.get("postgresCpuMsPerRequest").doubleValue()).isEqualTo(0.048);
+		assertThat(step.get("postgresCpuMsPerRequest").doubleValue()).isEqualTo(0.0507);
 	}
 
 	@Test
@@ -164,7 +164,7 @@ class ContentionCheckTests {
 
 		assertThat(stack.logs().text().lines()).contains("[12:34:56] contention: machine at rest 0.4 busy LPs",
 				"[12:34:56] contention service  1250 req/s as benchmarked                 service 0.5 ms, "
-						+ "postgres 0.048 ms, p95 9.0, k6 0.001 cores, MHz 3000.0, busy LPs 0.4");
+						+ "postgres 0.0507 ms, p95 9.0, k6 0.001 cores, MHz 3000.0, busy LPs 0.4");
 	}
 
 	// the step's condition and rate, in order

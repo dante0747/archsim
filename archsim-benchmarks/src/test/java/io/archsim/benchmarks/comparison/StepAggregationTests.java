@@ -45,6 +45,17 @@ class StepAggregationTests {
 		assertThat(step.get("failedRepeats").intValue()).isEqualTo(2);
 	}
 
+	// k6 had no virtual user free for 40 requests of one repeat
+	@Test
+	void aggregate_aRepeatK6DroppedRequestsIn_countsIt() {
+		ObjectNode dropping = Repeats.repeat(3.0);
+		dropping.put("dropped", 40);
+
+		ObjectNode step = StepAggregation.aggregate(List.of(Repeats.repeat(2.0), dropping, Repeats.repeat(2.5)));
+
+		assertThat(step.get("droppedRepeats").intValue()).isOne();
+	}
+
 	@Test
 	void aggregate_everyRepeatFailed_isNotUnstable() {
 		ObjectNode step = StepAggregation

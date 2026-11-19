@@ -18,6 +18,7 @@ import io.archsim.benchmarks.docker.Instruments;
 import io.archsim.benchmarks.docker.StackLifecycle;
 import io.archsim.benchmarks.experiments.Experiments;
 import io.archsim.benchmarks.load.K6;
+import io.archsim.benchmarks.load.K6Cpu;
 import io.archsim.benchmarks.machine.ContentionConditions.ProbeCondition;
 import io.archsim.benchmarks.machine.ContentionConditions.ServiceCondition;
 import io.archsim.benchmarks.results.ResultFiles;

@@ -127,3 +127,4 @@ what the repository shows.
 | [0083](0083-name-each-utilisation-and-compare-like-with-like.md) | Name each utilisation, and compare like with like | Accepted | 2026-11-17 |
 | [0084](0084-judge-asynchronous-designs-by-their-messages-too.md) | Judge asynchronous designs by their messages too | Accepted | 2026-11-17 |
 | [0085](0085-size-a-kafka-broker-as-measured-and-name-idle-consumers.md) | Size a Kafka broker as measured, and name idle consumers | Accepted | 2026-11-17 |
+| [0086](0086-keep-the-load-open-loop-past-the-objective-and-close-in-on-the-measured-knee.md) | Keep the load open-loop past the objective, and close in on the measured knee | Proposed | 2026-11-19 |

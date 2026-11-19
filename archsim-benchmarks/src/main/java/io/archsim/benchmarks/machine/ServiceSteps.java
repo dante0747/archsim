@@ -15,6 +15,7 @@ import io.archsim.benchmarks.docker.Stacks;
 import io.archsim.benchmarks.experiments.Experiment;
 import io.archsim.benchmarks.experiments.Experiments;
 import io.archsim.benchmarks.load.K6;
+import io.archsim.benchmarks.load.K6Cpu;
 import io.archsim.benchmarks.load.K6Measured;
 import io.archsim.benchmarks.load.Traffic;
 import io.archsim.benchmarks.machine.ContentionConditions.ServiceCondition;
@@ -95,10 +96,11 @@ final class ServiceSteps {
 		this.running.services().post(ServiceHttp.API + "/reset");
 		Map<String, Long> before = this.running.cgroups().usageUsec(CONTAINERS);
 		double fromMs = this.tools.hostMs();
-		K6Cpu watch = K6Cpu.watch(this.running.compose(), this.running.ticker(), SECONDS, this.tools.watch());
+		K6.Window window = new K6.Window(0, SECONDS);
+		K6Cpu watch = K6Cpu.watch(this.running, window, this.tools.watch());
 		JsonNode summary;
 		try (watch) {
-			summary = this.k6.run(traffic, new K6.Window(0, SECONDS), "contention");
+			summary = this.k6.run(traffic, window, "contention");
 		}
 		Optional<Double> k6Cores = watch.cores();
 		double toMs = this.tools.hostMs();

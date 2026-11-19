@@ -15,7 +15,8 @@ import io.archsim.model.text.PythonText;
 /**
  * An experiment's section of the validation page: its latest run's calibration, the model
  * inputs it gave, its chart, every ladder step measured against predicted, notes on
- * unstable and failed steps, and the knees.
+ * unstable and failed steps and on those k6 dropped requests in, and the knees with the
+ * steps the measured one lies between.
  */
 final class ExperimentBlock {
 
@@ -38,7 +39,8 @@ final class ExperimentBlock {
 		}
 		List<String> lines = new ArrayList<>(head(experiment, calibration.get(), predictions.get(), comparison.get()));
 		lines.addAll(inputs(calibration.get()));
-		lines.addAll(LadderTable.of(experiment, comparison.get()));
+		lines.addAll(LadderTable.of(experiment, comparison.get(), DroppedSteps
+			.of(LatestRuns.load(results, experiment.id(), KeptRun.MEASURED).orElse(PythonValues.none()))));
 		lines.addAll(knees(experiment, comparison.get()));
 		PageTexts.standard()
 			.harnessCaveat(experiment.id(), PythonValues.get(calibration.get(), "at"))
@@ -140,13 +142,22 @@ final class ExperimentBlock {
 						+ Figures.rate(range.get("highRps")) + " req/s: the measured knee fell "
 						+ (PythonText.truthy(PythonValues.get(range, "containsMeasured")) ? "inside" : "outside")
 						+ " it.";
-		return List.of("", "Knee: measured " + Figures.knee(comparison.get("measuredKnee")) + " req/s, predicted "
+		return List.of("", "Knee: measured " + Figures.knee(comparison.get("measuredKnee")) + " req/s"
+				+ between(comparison.get("measuredKnee")) + ", predicted "
 				+ Figures.knee(comparison.get("predictedKnee")) + " req/s on the same steps ("
 				+ Figures.percent(comparison.get("kneeError")) + "); ArchSim's own search before measuring put it at "
 				+ Figures.rate(comparison.get("predictedKneeFine")) + " req/s." + rangeText
 				+ " Data: `benchmarks/results/" + experiment.id()
 				+ "/` (each repeat's numbers as extracted from k6's summary; the summaries themselves "
 				+ "are not kept).");
+	}
+
+	// the steps either side of a knee found between two: the last that met the objective
+	// and the first that missed it
+	private static String between(JsonNode knee) {
+		JsonNode steps = PythonValues.get(knee, "between");
+		return !PythonText.truthy(steps) ? "" : " (between the steps at " + Figures.rate(steps.get(0)) + " and "
+				+ Figures.rate(steps.get(1)) + " req/s)";
 	}
 
 	/**

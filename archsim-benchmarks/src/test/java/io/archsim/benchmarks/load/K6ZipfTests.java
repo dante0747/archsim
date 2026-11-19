@@ -19,9 +19,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
- * k6's Zipf sampler ({@code benchmarks/k6/load.js}), which spreads the keys of a large
- * keyspace by rejection inversion: Node.js runs it ({@code zipf-check.js}), skipped where
- * there is no {@code node}.
+ * k6's Zipf sampler ({@code benchmarks/k6/load.js}), which draws every skewed key by
+ * rejection inversion, the one-million-key spaces and cache-aside's 100,000 keys at 0.99:
+ * Node.js runs it ({@code zipf-check.js}), skipped where there is no {@code node}.
  */
 class K6ZipfTests {
 
@@ -31,7 +31,7 @@ class K6ZipfTests {
 	private static final double MAX_STANDARD_ERRORS = 4.5;
 
 	@Test
-	void sampleRejectionInversion_aLargeKeyspace_followsTheExactZipfDistribution(@TempDir Path folder)
+	void sampleRejectionInversion_eachKeyspace_followsTheExactZipfDistribution(@TempDir Path folder)
 			throws IOException, InterruptedException, URISyntaxException {
 		Path check = Path.of(Objects.requireNonNull(K6ZipfTests.class.getResource("zipf-check.js")).toURI());
 		Path load = RepositoryLayout.current().benchmarks().resolve("k6").resolve("load.js");
@@ -44,7 +44,7 @@ class K6ZipfTests {
 		assertThat(ended).as(output).isTrue();
 		assertThat(node.exitValue()).as(output).isZero();
 		JsonNode worst = PythonJsonReader.read(output.strip());
-		assertThat(worst.valueStream().map(JsonNode::doubleValue)).hasSize(3)
+		assertThat(worst.valueStream().map(JsonNode::doubleValue)).hasSize(4)
 			.allSatisfy((errors) -> assertThat(errors).isLessThan(MAX_STANDARD_ERRORS));
 	}
 

@@ -47,7 +47,7 @@ public final class K6 {
 				"MIX=" + traffic.mix(), "-e", "RATE=" + PythonFormat.format(traffic.rate(), "g"), "-e",
 				"WARMUP_S=" + window.warmup(), "-e", "DURATION_S=" + window.duration(), "-e", "KEYS=" + traffic.keys(),
 				"-e", "SKEW=" + PythonFormat.format(traffic.skew(), "g"), "-e", "TIMEOUT_MS=" + Protocol.TIMEOUT_MS,
-				"-e", "OUT=" + name, "k6", "run", "-q", "/scripts/load.js");
+				"-e", "VUS=" + traffic.virtualUsers(), "-e", "OUT=" + name, "k6", "run", "-q", "/scripts/load.js");
 		return ResultFiles.read(summary)
 			.orElseThrow(() -> new IllegalStateException("k6 wrote no summary to " + summary));
 	}

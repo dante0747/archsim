@@ -37,7 +37,7 @@ class K6Tests {
 			.asString()
 			.endsWith(" --profile load run --rm -e TARGET=http://api:8080 -e MIX=read:0.9,write:0.1 -e RATE=250 "
 					+ "-e WARMUP_S=5 -e DURATION_S=20 -e KEYS=100000 -e SKEW=0 -e TIMEOUT_MS=2000 "
-					+ "-e OUT=step-pg-mixed-250-1 k6 run -q /scripts/load.js");
+					+ "-e VUS=550 -e OUT=step-pg-mixed-250-1 k6 run -q /scripts/load.js");
 	}
 
 	@Test

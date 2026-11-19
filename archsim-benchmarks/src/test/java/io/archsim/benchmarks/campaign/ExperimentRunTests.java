@@ -23,8 +23,9 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 
 /**
  * An experiment's run on pg-mixed's latest run played back ({@link PlayedSteps}): the
- * ladder's top meeting the objective, so that the ladder climbs above its prediction,
- * each step above it predicted, saved and sealed before it is measured.
+ * ladder's top meeting the objective, so that the ladder climbs above its prediction, or
+ * a knee between two of its steps or below them all, so that the run closes in on it;
+ * each step it adds predicted, saved and sealed before it is measured.
  */
 class ExperimentRunTests {
 
@@ -110,6 +111,87 @@ class ExperimentRunTests {
 
 		assertThat(logs.text().lines()).contains("[12:34:56] pg-mixed: predictions saved with " + above(steps)
 				+ " req/s, sha256 " + steps.digests().getLast());
+	}
+
+	// a third above the lowest step: between it and the second, which are 100% apart
+	@Test
+	void run_aKneeBetweenTwoSteps_measuresBetweenThemUntilTheyAreWithinThreePercent(@TempDir Path results) {
+		run(results, PlayedSteps.Script.kneeAt(PlayedSteps.lowest() * 4 / 3));
+
+		JsonNode between = read(results, "comparison.json").at("/measuredKnee/between");
+		assertThat(between.get(0).doubleValue() / between.get(1).doubleValue())
+			.isGreaterThanOrEqualTo(1 - KneeBracket.RESOLUTION);
+	}
+
+	// a tenth above the top: the ladder climbs 30% above it, then closes in between the
+	// two
+	@Test
+	void run_aKneeAboveTheLadder_closesInBetweenItsTopAndTheStepAbove(@TempDir Path results) {
+		run(results, PlayedSteps.Script.kneeAt(PlayedSteps.highest() * 11 / 10));
+
+		JsonNode between = read(results, "comparison.json").at("/measuredKnee/between");
+		assertThat(between.get(0).longValue()).isGreaterThan(PlayedSteps.highest());
+		assertThat(between.get(0).doubleValue() / between.get(1).doubleValue())
+			.isGreaterThanOrEqualTo(1 - KneeBracket.RESOLUTION);
+	}
+
+	@Test
+	void run_aStepBetweenTwoOfTheLadder_isPredictedAsARefinement(@TempDir Path results) {
+		run(results, PlayedSteps.Script.kneeAt(PlayedSteps.lowest() * 4 / 3));
+
+		JsonNode steps = read(results, "predictions.json").get("steps");
+		assertThat(steps.get(steps.size() - 1).get("refinement").booleanValue()).isTrue();
+	}
+
+	// each step between two of the ladder's is sealed before it is measured, as one above
+	// it is
+	@Test
+	void run_aRefinement_isSealedWithThePredictionsAsTheyWereBeforeItsStep(@TempDir Path results) {
+		PlayedSteps steps = run(results, PlayedSteps.Script.kneeAt(PlayedSteps.lowest() * 4 / 3));
+
+		JsonNode seals = read(results, "measured.json").get("extensionSeals");
+		assertThat(seals.get(seals.size() - 1).get("predictionsSha256").stringValue())
+			.isEqualTo(steps.digests().getLast());
+	}
+
+	// a stack far slower than predicted: no step of the ladder meets the objective
+	@Test
+	void run_aLadderMissingTheObjectiveFromItsLowestStep_measuresHalfOfIt(@TempDir Path results) {
+		PlayedSteps steps = run(results, PlayedSteps.Script.kneeAt(1));
+
+		assertThat(this.calls.get(this.calls.indexOf("measure " + steps.top()) + 1))
+			.isEqualTo("measure " + (long) Math.rint(PlayedSteps.lowest() / 2.0));
+	}
+
+	// a knee at a twentieth of the lowest step: five halvings reach below it, and closing
+	// in between the last two would take five more
+	@Test
+	void run_aKneeTheSearchCannotReachInEightSteps_addsEightSteps(@TempDir Path results) {
+		PlayedSteps steps = run(results, PlayedSteps.Script.kneeAt(PlayedSteps.lowest() / 20));
+
+		assertThat(this.calls.subList(this.calls.indexOf("measure " + steps.top()) + 1, this.calls.size()))
+			.hasSize(ExperimentRun.MAX_REFINEMENTS);
+	}
+
+	@Test
+	void run_aSearchItsCapEnded_saysSo(@TempDir Path results) {
+		Logs logs = new Logs();
+		PlayedSteps steps = new PlayedSteps(results, PlayedSteps.Script.kneeAt(PlayedSteps.lowest() / 20), this.calls);
+
+		new ExperimentRun(steps, results, (experiment) -> Optional.empty(), logs.log()).run(PG_MIXED);
+
+		assertThat(logs.text().lines())
+			.contains("[12:34:56] pg-mixed: stopped closing in on the knee after 8 steps; it is not yet known to 3%");
+	}
+
+	// what a step was measured for travels with measured.json, whatever it is compared
+	// with
+	@Test
+	void run_aStepBetweenTwoOfTheLadder_isMarkedInTheMeasurementsToo(@TempDir Path results) {
+		run(results, PlayedSteps.Script.kneeAt(PlayedSteps.lowest() * 4 / 3));
+
+		JsonNode steps = read(results, "measured.json").get("steps");
+		assertThat(steps.get(steps.size() - 1).get("refinement").booleanValue()).isTrue();
 	}
 
 	@Test

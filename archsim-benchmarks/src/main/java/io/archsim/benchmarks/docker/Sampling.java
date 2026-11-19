@@ -1,6 +1,5 @@
 package io.archsim.benchmarks.docker;
 
-import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -21,12 +20,6 @@ import io.archsim.benchmarks.experiments.Protocol;
  * container at once every five seconds through the window, on a pool of its own.
  */
 final class Sampling {
-
-	/** How long to wait for the load to start. */
-	private static final double LOAD_START_TIMEOUT_S = 120;
-
-	/** How often to ask the service whether the load started. */
-	private static final double LOAD_START_POLL_S = 0.2;
 
 	private final Instruments instruments;
 
@@ -66,7 +59,7 @@ final class Sampling {
 			.forEach((service) -> this.instruments.compose()
 				.container(service)
 				.ifPresent((container) -> containers.put(service, container)));
-		OptionalDouble start = loadStarted();
+		OptionalDouble start = LoadStart.await(this.instruments, this.stopped);
 		if (start.isEmpty() || containers.isEmpty()) {
 			return;
 		}
@@ -90,31 +83,6 @@ final class Sampling {
 		containers.forEach((service, container) -> read.put(service,
 				readers.submit(() -> this.instruments.cgroups().read(container))));
 		read.forEach((service, reading) -> Objects.requireNonNull(this.readings.get(service)).add(result(reading)));
-	}
-
-	// when the service first counted a finished request; empty when it did not within the
-	// timeout, or the sampler was stopped first
-	private OptionalDouble loadStarted() {
-		Ticker ticker = this.instruments.ticker();
-		double deadline = ticker.now() + LOAD_START_TIMEOUT_S;
-		while (this.stopped.getCount() > 0 && ticker.now() < deadline) {
-			if (hasRequests()) {
-				return OptionalDouble.of(ticker.now());
-			}
-			if (ticker.awaitStop(this.stopped, LOAD_START_POLL_S)) {
-				return OptionalDouble.empty();
-			}
-		}
-		return OptionalDouble.empty();
-	}
-
-	private boolean hasRequests() {
-		try {
-			return this.instruments.services().get(ServiceHttp.API + "/stats").path("requests").asDouble(0) > 0;
-		}
-		catch (UncheckedIOException ex) {
-			return false;
-		}
 	}
 
 	private static CgroupReading result(Future<CgroupReading> reading) {

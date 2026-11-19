@@ -6,7 +6,6 @@ import tools.jackson.databind.node.ObjectNode;
 import io.archsim.benchmarks.calibration.Calibrations;
 import io.archsim.benchmarks.designs.Designs;
 import io.archsim.benchmarks.docker.Instruments;
-import io.archsim.benchmarks.docker.ResourceSampler;
 import io.archsim.benchmarks.experiments.Experiment;
 import io.archsim.benchmarks.load.K6;
 import io.archsim.benchmarks.values.PythonValues;
@@ -38,7 +37,7 @@ final class DockerSteps implements ExperimentSteps {
 		this.tools = tools;
 		K6 k6 = new K6(stack.compose(), tools.summaries());
 		this.calibrations = new Calibrations(stack, k6, tools.inputs(), tools.log());
-		this.measurement = new Measurement(stack, k6, ResourceSampler.OWN_THREAD, tools.log());
+		this.measurement = new Measurement(stack, k6, Measurement.OWN_THREADS, tools.log());
 	}
 
 	@Override

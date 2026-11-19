@@ -22,9 +22,9 @@ import io.archsim.benchmarks.results.ResultFiles;
 
 /**
  * pg-mixed's latest run played back as any experiment's steps: its predictions and its
- * measured steps, a step meeting the objective or failing it as the script says; each
- * call kept, with the predictions' digest and the seals {@code measured.json} held as
- * each step started.
+ * measured steps, a step meeting the objective or failing it as the script says (every
+ * step, the ladder's top alone, or the steps up to a knee); each call kept, with the
+ * predictions' digest and the seals {@code measured.json} held as each step started.
  */
 final class PlayedSteps implements ExperimentSteps {
 
@@ -129,9 +129,29 @@ final class PlayedSteps implements ExperimentSteps {
 		return Collections.unmodifiableList(this.sealsHeld);
 	}
 
-	// every step meets the objective, or the ladder's top alone
+	/**
+	 * The ladder's lowest step, as predicted.
+	 * @return its offered load
+	 */
+	static long lowest() {
+		return PREDICTED.get("steps").get(0).get("offeredRps").longValue();
+	}
+
+	/**
+	 * The ladder's highest step, as predicted.
+	 * @return its offered load
+	 */
+	static long highest() {
+		JsonNode steps = PREDICTED.get("steps");
+		return steps.get(steps.size() - 1).get("offeredRps").longValue();
+	}
+
+	// every step meets the objective, or those up to the knee, or the ladder's top alone
 	private boolean meets(long rps) {
-		return this.script.everyStepMeets() || rps == top();
+		if (this.script.everyStepMeets()) {
+			return true;
+		}
+		return (this.script.knee() > 0) ? rps <= this.script.knee() : rps == top();
 	}
 
 	private static String sha256(Path file) {
@@ -150,14 +170,29 @@ final class PlayedSteps implements ExperimentSteps {
 	 * What the steps play.
 	 *
 	 * @param everyStepMeets whether every step meets the objective; else the ladder's top
-	 * alone does
+	 * alone does, or the steps up to the knee
 	 * @param top the ladder's top step, in place of the recorded one; 0 for the recorded
 	 * @param failing the experiment whose calibration fails; empty for none
+	 * @param knee the highest load that meets the objective; 0 for the ladder's top alone
+	 * meeting it
 	 */
-	record Script(boolean everyStepMeets, long top, String failing) {
+	record Script(boolean everyStepMeets, long top, String failing, long knee) {
 
 		/** The recorded ladder, its top meeting the objective once. */
 		static final Script TOP_MEETS = new Script(false, 0, "");
+
+		Script(boolean everyStepMeets, long top, String failing) {
+			this(everyStepMeets, top, failing, 0);
+		}
+
+		/**
+		 * The recorded ladder on a stack whose knee is at a load.
+		 * @param knee the highest load that meets the objective
+		 * @return the script
+		 */
+		static Script kneeAt(long knee) {
+			return new Script(false, 0, "", knee);
+		}
 
 	}
 

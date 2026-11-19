@@ -242,6 +242,15 @@ services:
     # hyperthread sibling, which stays idle) and records each container's cpuset and how they
     # fall on physical cores in results/<experiment>/environment.json.
     cpuset: "${BENCH_CPUS_K6:-6,7}"
+    # k6's garbage collector marks every virtual user's memory in each cycle, and with a thousand
+    # of them its cycles came often enough to add a tail of their own: at 3,000 req/s on the
+    # idle laptop pg-mixed's p95 read 6 to 11 ms with 200 virtual users, 59 ms with 1,000 and
+    # 140 to 240 ms with 3,050, the median unchanged. Letting the heap grow eight times between
+    # cycles (GOGC), under a limit that keeps k6 inside Docker's VM (GOMEMLIMIT), brought 650 to
+    # 3,050 virtual users back to 3 to 10 ms (docs/adr/0086).
+    environment:
+      GOGC: "800"
+      GOMEMLIMIT: 3GiB
     # The image runs as uid 12345: the harness makes results/.k6 writable for it (chmod 777) so that
     # handleSummary can write on Linux (untested on Linux so far).
     volumes:

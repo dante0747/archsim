@@ -20,6 +20,7 @@ import io.archsim.benchmarks.docker.Cpusets;
 import io.archsim.benchmarks.experiments.Experiment;
 import io.archsim.benchmarks.experiments.Experiments;
 import io.archsim.benchmarks.results.KeptRun;
+import io.archsim.benchmarks.results.ResultFiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -159,6 +160,87 @@ class PageBlocksTests {
 			.contains("Measured in the calibration pass at 346 req/s");
 	}
 
+	// java-mixed's latest run: its repeats at 5,925 req/s dropped 7.7%, 2.8% and 2.6%
+	@Test
+	void experiment_aStepK6DroppedRequestsIn_showsTheMedianShareOfItsRepeats() {
+		String block = ExperimentBlock.of(Experiments.standard().get("java-mixed"), LAYOUT.results());
+
+		assertThat(block).contains("| 97% / 100% | 2.8% | 5,758 / 5,925 |");
+	}
+
+	// 43% at 11,850 req/s: no decimal from 10% on
+	@Test
+	void experiment_aStepK6DroppedATenthOrMoreOf_showsAWholePercent() {
+		String block = ExperimentBlock.of(Experiments.standard().get("java-mixed"), LAYOUT.results());
+
+		assertThat(block).contains("| 57% / 0% | 43% | 6,778 / 394 |");
+	}
+
+	@Test
+	void experiment_aRunBeforeProtocolV7ThatDroppedRequests_saysHowK6AddedItsVirtualUsers() {
+		String block = ExperimentBlock.of(Experiments.standard().get("java-mixed"), LAYOUT.results());
+
+		assertThat(block).contains("Dropped: the share of the step's requests k6 never sent")
+			.contains("added more one at a time, up to 3,000, dropping requests meanwhile")
+			.contains("(every run before protocol v7)");
+	}
+
+	@Test
+	void experiment_aStepEveryRequestWasSentIn_showsNone() {
+		String block = ExperimentBlock.of(Experiments.standard().get("java-mixed"), LAYOUT.results());
+
+		assertThat(block).contains("| 100% / 100% | - | 3,950 / 3,950 |");
+	}
+
+	// hot-row's 856 req/s step: one repeat dropped 0.01%, the others nothing, so the
+	// median is none
+	@Test
+	void experiment_aStepOneRepeatDroppedAFewRequestsIn_showsTheMedianOfItsRepeats() {
+		String block = ExperimentBlock.of(Experiments.standard().get("pg-hot-row"), LAYOUT.results());
+
+		assertThat(block).contains("| 100% / 100% | - | 856 / 854 |");
+	}
+
+	// a run under protocol v7 records the virtual users k6 held ready
+	@Test
+	void experiment_aRunThatRecordsItsGenerator_saysHowManyArrivalsK6CouldHold(@TempDir Path results)
+			throws IOException {
+		ResultCopies.copy(LAYOUT.results().resolve("java-mixed"), results.resolve("java-mixed"));
+		Path file = results.resolve("java-mixed/measured.json");
+		ObjectNode measured = (ObjectNode) ResultFiles.read(file).orElseThrow();
+		((ObjectNode) measured.get("steps").get(0)).putObject("generator").put("virtualUsers", 1038).put("coverS", 0.5);
+		ResultFiles.write(file, measured);
+
+		String block = ExperimentBlock.of(Experiments.standard().get("java-mixed"), results);
+
+		assertThat(block).contains("k6 held virtual users ready for at least 0.5 s of each step's arrivals")
+			.doesNotContain("before protocol v7");
+	}
+
+	// a run that closed in on its knee: a step at 4,444 req/s between two of the ladder's
+	@Test
+	void experiment_aStepTheRunAddedToCloseInOnItsKnee_isShownInLoadOrderAndMarked(@TempDir Path results)
+			throws IOException {
+		String block = ExperimentBlock.of(Experiments.standard().get("java-mixed"), withAKneeSearchStep(results));
+
+		assertThat(block).containsSubsequence("| 3,950 |", "| 4,444 (knee search) |", "| 5,925 |");
+	}
+
+	@Test
+	void experiment_aRunThatClosedInOnItsKnee_saysWhatAKneeSearchStepIs(@TempDir Path results) throws IOException {
+		String block = ExperimentBlock.of(Experiments.standard().get("java-mixed"), withAKneeSearchStep(results));
+
+		assertThat(block).contains("Knee search: a step the run added between two of the ladder's");
+	}
+
+	@Test
+	void experiment_aKneeBetweenTwoSteps_namesThem() {
+		String block = ExperimentBlock.of(Experiments.standard().get("java-mixed"), LAYOUT.results());
+
+		assertThat(block).contains("Knee: measured 4,650 req/s (between the steps at 3,950 and 5,925 req/s), "
+				+ "predicted 7,907 req/s on the same steps (+70%)");
+	}
+
 	// two repeats at 1,126 req/s had no successful request
 	@Test
 	void experiment_aRunWithFailedRepeats_explainsThem(@TempDir Path results) throws IOException {
@@ -169,6 +251,17 @@ class PageBlocksTests {
 		assertThat(block).contains("| 1,126 (unstable) | - / - | - / - |")
 			.contains("At 1,126 req/s, 2 of 3 repeats had no successful request")
 			.doesNotContain("0.00");
+	}
+
+	// java-mixed's latest run with a knee-search step at 4,444 req/s in its comparison
+	private static Path withAKneeSearchStep(Path results) throws IOException {
+		ResultCopies.copy(LAYOUT.results().resolve("java-mixed"), results.resolve("java-mixed"));
+		Path file = results.resolve("java-mixed/comparison.json");
+		ObjectNode comparison = (ObjectNode) ResultFiles.read(file).orElseThrow();
+		comparison.putArray("kneeSearchRows")
+			.add(((ObjectNode) comparison.get("rows").get(1).deepCopy()).put("offeredRps", 4444));
+		ResultFiles.write(file, comparison);
+		return results;
 	}
 
 	private static List<JsonNode> latestComparisons() {

@@ -36,7 +36,7 @@ interface ExperimentSteps {
 	ObjectNode measure(Experiment experiment, long rps);
 
 	/**
-	 * Predicts one more step, above the ladder.
+	 * Predicts one more step: above the ladder, or where the run closes in on the knee.
 	 * @param experiment the experiment
 	 * @param inputs the calibration's inputs
 	 * @param rps the step's offered load

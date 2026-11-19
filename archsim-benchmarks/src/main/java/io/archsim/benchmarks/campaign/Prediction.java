@@ -38,7 +38,7 @@ public final class Prediction {
 	static final List<Double> STEP_FRACTIONS = List.of(0.25, 0.5, 0.75, 0.9, 1.0, 1.1, 1.25, 1.5);
 
 	/** The ladder's least step. */
-	private static final long LEAST_STEP = 10;
+	static final long LEAST_STEP = 10;
 
 	private static final JsonNodeFactory NODES = JsonNodeFactory.instance;
 

@@ -44,12 +44,12 @@ class CalibrationTests {
 
 	@Test
 	void calibrate_aCalibration_namesItsProtocol() {
-		assertThat(calibration.get("protocol").stringValue()).isEqualTo("v6");
+		assertThat(calibration.get("protocol").stringValue()).isEqualTo("v7");
 	}
 
 	@Test
 	void calibrate_aCalibration_namesItsProtocolInItsMethod() {
-		assertThat(calibration.get("method").stringValue()).endsWith("settled first (v6)");
+		assertThat(calibration.get("method").stringValue()).endsWith("settled first (v7)");
 	}
 
 	@Test

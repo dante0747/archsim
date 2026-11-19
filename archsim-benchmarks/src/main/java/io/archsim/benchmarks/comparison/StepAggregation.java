@@ -53,8 +53,9 @@ public final class StepAggregation {
 	/**
 	 * A step's metrics from its repeats.
 	 * @param repeats the repeats
-	 * @return the medians, whether the step is unstable, the repeats and the failed ones,
-	 * and the containers' resources when the repeats recorded them
+	 * @return the medians, whether the step is unstable, the repeats, the failed ones and
+	 * those k6 dropped requests in, and the containers' resources when the repeats
+	 * recorded them
 	 */
 	public static ObjectNode aggregate(List<? extends JsonNode> repeats) {
 		ObjectNode step = NODES.objectNode();
@@ -75,8 +76,15 @@ public final class StepAggregation {
 		step.put("unstable", unstable(repeats));
 		step.put("repeats", repeats.size());
 		step.put("failedRepeats", (int) repeats.stream().filter(StepAggregation::failedRepeat).count());
+		step.put("droppedRepeats", (int) repeats.stream().filter(StepAggregation::droppedIn).count());
 		RepeatResources.aggregate(repeats).ifPresent((resources) -> step.set("resources", resources));
 		return step;
+	}
+
+	// k6 had no virtual user free for some of the repeat's requests and dropped them: the
+	// load was no longer open-loop, and the repeat's latencies are a lower bound
+	private static boolean droppedIn(JsonNode repeat) {
+		return PythonValues.numberOrZero(repeat, "dropped") > 0;
 	}
 
 	// a failed repeat's p95 is infinite: one failed repeat makes a step unstable, all

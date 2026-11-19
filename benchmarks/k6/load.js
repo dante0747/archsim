@@ -3,7 +3,8 @@
 // distribution ArchSim samples (probability of rank k proportional to 1 / k^s; s = 0 is uniform).
 //
 // Environment: TARGET (base URL), MIX ("read:0.9,write:0.1"; endpoints read, write, cached,
-// event, hot), RATE (req/s), WARMUP_S, DURATION_S, KEYS, SKEW, TIMEOUT_MS, OUT (file name).
+// event, hot), RATE (req/s), WARMUP_S, DURATION_S, KEYS, SKEW, TIMEOUT_MS, VUS (virtual users,
+// all of them ready before the first request), OUT (file name).
 import exec from "k6/execution";
 import http from "k6/http";
 
@@ -14,27 +15,23 @@ const DURATION_S = Number(__ENV.DURATION_S || 30);
 const KEYS = Number(__ENV.KEYS || 100000);
 const SKEW = Number(__ENV.SKEW || 0);
 const TIMEOUT_MS = Number(__ENV.TIMEOUT_MS || 2000);
-const MAX_VUS = Number(__ENV.MAX_VUS || 3000);
+// The arrival rate stays open-loop only while a virtual user is free to send the next request:
+// with all of them waiting for answers k6 drops the request instead (dropped_iterations), and the
+// latencies it reports are held down. So every virtual user is started before the first request
+// (k6 starts one at a time once the test runs, dropping requests meanwhile). The harness says
+// how many (its Traffic and Protocol): enough for at least a quarter of a second of arrivals to
+// wait at once, and no more than k6's garbage collector carries without a tail of its own
+// (compose.yaml relaxes it).
+if (!__ENV.VUS) throw new Error("VUS: how many virtual users k6 holds ready (the harness's Traffic)");
+const VUS = Number(__ENV.VUS);
 const MIX = (__ENV.MIX || "read:1").split(",").map((p) => {
   const [name, share] = p.split(":");
   return { name, share: Number(share) };
 });
 
-// Up to TABLE_KEYS keys: cumulative Zipf weights over ranks 1..KEYS, searched per request. Every
-// VU builds its own copy, so a larger keyspace (cache-ttl's 1,000,000 keys: 8 MB and a million
-// powers per VU) is sampled by rejection-inversion instead, which draws exactly the same
-// distribution without a table (Hormann and Derflinger 1996, as in Apache Commons RNG).
-const TABLE_KEYS = 200000;
-const TABLE = KEYS <= TABLE_KEYS || SKEW === 0;
-const CDF = new Float64Array(TABLE ? KEYS : 0);
-let total = 0;
-if (TABLE) {
-  for (let k = 1; k <= KEYS; k++) {
-    total += SKEW === 0 ? 1 : Math.pow(k, -SKEW);
-    CDF[k - 1] = total;
-  }
-}
-
+// Keys are drawn without a table, so that a virtual user costs no memory of its own for them:
+// a uniform key directly, a skewed one by rejection-inversion, which draws the Zipf distribution
+// exactly (Hormann and Derflinger 1996, as in Apache Commons RNG).
 const helper1 = (x) => (Math.abs(x) > 1e-8 ? Math.log1p(x) / x : 1 - x * (0.5 - x * (1 / 3 - 0.25 * x)));
 const helper2 = (x) => (Math.abs(x) > 1e-8 ? Math.expm1(x) / x : 1 + x * 0.5 * (1 + (x / 3) * (1 + 0.25 * x)));
 const zH = (x) => Math.exp(-SKEW * Math.log(x));
@@ -60,16 +57,7 @@ function sampleRejectionInversion() {
 }
 
 function sampleKey() {
-  if (!TABLE) return sampleRejectionInversion();
-  const x = Math.random() * total;
-  let lo = 0;
-  let hi = KEYS - 1;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (CDF[mid] < x) lo = mid + 1;
-    else hi = mid;
-  }
-  return lo + 1;
+  return SKEW === 0 ? 1 + Math.floor(Math.random() * KEYS) : sampleRejectionInversion();
 }
 
 function pick() {
@@ -81,20 +69,28 @@ function pick() {
   return MIX[MIX.length - 1].name;
 }
 
-const arrival = (startTime, duration) => ({
+// The warm-up stops at once (gracefulStop 0) and hands its virtual users, with their connections,
+// to the measured window, which starts in the same instant: k6 plans the users of scenarios that
+// overlap side by side, so a warm-up left to finish its requests would double them. The requests
+// the warm-up still had in flight are cut off and counted to it, not to the window.
+const arrival = (startTime, duration, gracefulStop) => ({
   executor: "constant-arrival-rate",
   rate: RATE,
   timeUnit: "1s",
   duration: `${duration}s`,
   startTime: `${startTime}s`,
-  preAllocatedVUs: Math.min(MAX_VUS, Math.ceil(RATE * 0.05) + 50),
-  maxVUs: MAX_VUS,
-  gracefulStop: `${Math.ceil(TIMEOUT_MS / 1000) + 1}s`,
+  preAllocatedVUs: VUS,
+  maxVUs: VUS,
+  gracefulStop: `${gracefulStop}s`,
 });
+const MEASURED_STOP_S = Math.ceil(TIMEOUT_MS / 1000) + 1;
 
 export const options = {
   discardResponseBodies: true,
-  scenarios: WARMUP_S > 0 ? { warm: arrival(0, WARMUP_S), measure: arrival(WARMUP_S, DURATION_S) } : { measure: arrival(0, DURATION_S) },
+  scenarios:
+    WARMUP_S > 0
+      ? { warm: arrival(0, WARMUP_S, 0), measure: arrival(WARMUP_S, DURATION_S, MEASURED_STOP_S) }
+      : { measure: arrival(0, DURATION_S, MEASURED_STOP_S) },
   summaryTrendStats: ["avg", "min", "med", "p(95)", "p(99)", "max", "count"],
   // thresholds that always pass, only to get per-scenario sub-metrics in the summary
   thresholds: {

@@ -19,6 +19,7 @@ import io.archsim.benchmarks.docker.Stacks;
 import io.archsim.benchmarks.experiments.Experiment;
 import io.archsim.benchmarks.experiments.Protocol;
 import io.archsim.benchmarks.load.K6;
+import io.archsim.benchmarks.load.K6Cpu;
 import io.archsim.benchmarks.load.K6Measured;
 import io.archsim.benchmarks.load.Traffic;
 import io.archsim.benchmarks.results.Timestamps;
@@ -29,10 +30,18 @@ import io.archsim.model.text.PythonText;
 
 /**
  * A step of the load ladder measured on the running stack: three repeats of k6's 5 s
- * warm-up and 20 s window, each container's CPU and memory read through the window, the
- * cache's hit ratio or Kafka's queue, and the stack drained before the next repeat.
+ * warm-up and 20 s window, each container's CPU and memory and k6's own CPU read through
+ * the window, the cache's hit ratio or Kafka's queue, and the stack drained before the
+ * next repeat. The step keeps how many virtual users k6 held ready, and in how many of
+ * its repeats k6 had none free and dropped requests.
  */
 public final class Measurement {
+
+	/**
+	 * A thread of its own for each watch of a repeat: the containers' sampler and k6's
+	 * CPU.
+	 */
+	static final Executor OWN_THREADS = (task) -> Thread.ofPlatform().daemon().name("repeat-watch").start(task);
 
 	/** Repeats of each step. */
 	static final int REPEATS = 3;
@@ -66,7 +75,7 @@ public final class Measurement {
 
 	private final K6 k6;
 
-	private final Executor sampling;
+	private final Executor watches;
 
 	private final HarnessLog log;
 
@@ -74,14 +83,14 @@ public final class Measurement {
 	 * Measurements on a running stack.
 	 * @param stack what drives and reads it
 	 * @param k6 k6 on it
-	 * @param sampling what reads the containers through a repeat:
-	 * {@link ResourceSampler#OWN_THREAD}, or a test's own
+	 * @param watches what runs each watch of a repeat, the containers' sampler and k6's
+	 * CPU: {@link #OWN_THREADS}, or a test's own
 	 * @param log the log, whose clock dates each repeat
 	 */
-	public Measurement(Instruments stack, K6 k6, Executor sampling, HarnessLog log) {
+	public Measurement(Instruments stack, K6 k6, Executor watches, HarnessLog log) {
 		this.stack = stack;
 		this.k6 = k6;
-		this.sampling = sampling;
+		this.watches = watches;
 		this.log = log;
 	}
 
@@ -109,6 +118,8 @@ public final class Measurement {
 		ObjectNode step = NODES.objectNode().put("offeredRps", rps);
 		step.set("runs", runs);
 		step.put("at", Timestamps.now(this.log.clock()));
+		Traffic traffic = traffic(experiment, rps);
+		step.putObject("generator").put("virtualUsers", traffic.virtualUsers()).put("coverS", traffic.coveredSeconds());
 		if (!discarded.isEmpty()) {
 			step.set("discardedRuns", discarded);
 		}
@@ -124,12 +135,12 @@ public final class Measurement {
 		Map<String, Long> cpuBefore = this.stack.cgroups().usageUsec(services);
 		double start = this.stack.ticker().now();
 		ResourceSampler sampler = ResourceSampler.start(this.stack, services, ResourceSampler.Window.MEASURED,
-				this.sampling);
+				this.watches);
+		K6.Window window = new K6.Window(Protocol.WARMUP_S, Protocol.DURATION_S);
+		K6Cpu k6Cpu = K6Cpu.watch(this.stack, window, this.watches);
 		JsonNode summary;
-		try (sampler) {
-			summary = this.k6.run(Traffic.of(experiment, experiment.mix(), (double) rps),
-					new K6.Window(Protocol.WARMUP_S, Protocol.DURATION_S),
-					"step-" + experiment.id() + "-" + rps + "-" + run);
+		try (sampler; k6Cpu) {
+			summary = this.k6.run(traffic(experiment, rps), window, "step-" + experiment.id() + "-" + rps + "-" + run);
 		}
 		sampler.failure().ifPresent((why) -> this.log.line("  reading the containers failed: " + why));
 		double elapsed = this.stack.ticker().now() - start;
@@ -138,9 +149,14 @@ public final class Measurement {
 		JsonNode service = this.stack.services().get(ServiceHttp.API + "/stats");
 		row.set("serviceCpuMsPerRequest", service.get("cpuMsPerRequest"));
 		row.set("containerCpuShare", shares(services, cpuBefore, this.stack.cgroups().usageUsec(services), elapsed));
+		k6Cpu.cores().ifPresent((cores) -> row.put("k6Cores", cores));
 		sampler.result().ifPresent((resources) -> row.set("resources", resources));
 		new StepAfterwards(experiment, service, consumerBefore).record(row);
 		return finish(row);
+	}
+
+	private static Traffic traffic(Experiment experiment, long rps) {
+		return Traffic.of(experiment, experiment.mix(), (double) rps);
 	}
 
 	// a cache emptied and the statistics reset before a repeat; Kafka's consumer's

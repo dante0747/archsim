@@ -6,6 +6,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.JsonNodeFactory;
@@ -110,9 +111,25 @@ public final class Knees {
 	 * @return the missed steps' loads, in load order
 	 */
 	public static List<JsonNode> disturbedSteps(List<? extends JsonNode> rows) {
-		List<JsonNode> ladder = new ArrayList<>(rows);
+		return missedBelowOneThatMet(rows, (row) -> row.get("measured"));
+	}
+
+	/**
+	 * The measured steps that missed the objective below a higher step that met it:
+	 * {@link #disturbedSteps(List)} for steps as {@code measured.json} holds them, where
+	 * that reads a comparison's rows.
+	 * @param steps the measured steps, in any order
+	 * @return the missed steps' loads, in load order
+	 */
+	public static List<JsonNode> disturbedMeasuredSteps(List<? extends JsonNode> steps) {
+		return missedBelowOneThatMet(steps, (step) -> step);
+	}
+
+	private static List<JsonNode> missedBelowOneThatMet(List<? extends JsonNode> steps,
+			Function<JsonNode, JsonNode> measured) {
+		List<JsonNode> ladder = new ArrayList<>(steps);
 		ladder.sort((left, right) -> PythonValues.compare(left.get(RATE), right.get(RATE)));
-		List<Boolean> met = ladder.stream().map((row) -> Objective.isMetBy(row.get("measured"))).toList();
+		List<Boolean> met = ladder.stream().map((step) -> Objective.isMetBy(measured.apply(step))).toList();
 		List<JsonNode> disturbed = new ArrayList<>();
 		for (int i = 0; i < ladder.size(); i++) {
 			if (!met.get(i) && met.subList(i + 1, met.size()).contains(true)) {
