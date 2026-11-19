@@ -34,6 +34,12 @@ public record KeptRun(String experiment, Path directory) {
 	public static final String LATER_RESOURCES = "resources-predicted";
 
 	/**
+	 * Simple estimates of the knee from the calibration alone, to set beside the
+	 * prediction: {@code baselines.json}.
+	 */
+	public static final String BASELINES = "baselines";
+
+	/**
 	 * Whether a folder holds a run: its {@code measured.json}.
 	 * @param folder the folder
 	 * @return whether it is a run
@@ -49,6 +55,16 @@ public record KeptRun(String experiment, Path directory) {
 	 */
 	public Path file(String name) {
 		return this.directory.resolve(name + ".json");
+	}
+
+	/**
+	 * The run as the log names it: its experiment and its folder,
+	 * {@code pg-mixed (run-3)}.
+	 * @return the name
+	 */
+	public String name() {
+		Path folder = this.directory.getFileName();
+		return this.experiment + " (" + ((folder != null) ? folder : this.directory) + ")";
 	}
 
 }

@@ -24,7 +24,8 @@ import io.archsim.model.text.PythonText;
  */
 final class ValidationPage {
 
-	private static final String NO_RESULTS = "_No results yet._";
+	/** What a block says while there are no results. */
+	static final String NO_RESULTS = "_No results yet._";
 
 	private ValidationPage() {
 	}
@@ -55,6 +56,7 @@ final class ValidationPage {
 		text = replace(text, "tiers", comparisons.isEmpty() ? NO_RESULTS : TiersBlock.of(comparisons, history));
 		text = replace(text, "environment", EnvironmentBlock.of(environments(results), sources.cpusets()));
 		text = replace(text, "java-engine", JavaEngineCheck.block(results, sources.engines()));
+		text = replace(text, "baselines", BaselinesBlock.of(comparisons, sources));
 		Map<String, String> charts = new LinkedHashMap<>();
 		for (Experiment experiment : order) {
 			text = replace(text, experiment.id(), ExperimentBlock.of(experiment, results));

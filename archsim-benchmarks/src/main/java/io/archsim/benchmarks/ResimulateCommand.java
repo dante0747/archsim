@@ -12,10 +12,6 @@ import picocli.CommandLine.Spec;
 
 import io.archsim.benchmarks.designs.Simulations;
 import io.archsim.benchmarks.experiments.Experiments;
-import io.archsim.benchmarks.history.GitRepository;
-import io.archsim.benchmarks.provenance.EngineBuild;
-import io.archsim.benchmarks.provenance.MachineName;
-import io.archsim.benchmarks.provenance.Provenance;
 import io.archsim.benchmarks.resimulation.CheckStamp;
 import io.archsim.benchmarks.resimulation.DevLabels;
 import io.archsim.benchmarks.resimulation.Resimulation;
@@ -72,9 +68,7 @@ final class ResimulateCommand implements Callable<Integer>, HarnessRules.JavaEng
 		catch (IllegalArgumentException ex) {
 			throw new ParameterException(this.spec.commandLine(), ex.getMessage(), ex);
 		}
-		Provenance provenance = new Provenance(new GitRepository(this.layout.root()), MachineName.current(),
-				EngineBuild.current().orElse(null));
-		CheckStamp stamp = new CheckStamp(folder, provenance.of(), this.log.clock());
+		CheckStamp stamp = CheckStamp.of(folder, this.layout.root(), this.log.clock());
 		new Resimulation(this.layout.results(), this.setup.modelInputs(Simulations.onTheEngine()), stamp, this.log)
 			.resimulate(runs)
 			.forEach((written) -> this.log.line("wrote " + this.layout.name(written)));

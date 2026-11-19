@@ -11,8 +11,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Each stack's containers in {@code compose.yaml}, from {@code stacks.json}: the service
- * under test first (the one k6 calls and whose {@code /stats} calibration reads), and the
- * CPUs k6 runs on.
+ * under test first (the one k6 calls and whose {@code /stats} calibration reads), the
+ * ones that work behind a queue, and the CPUs k6 runs on.
  *
  * <p>
  * k6 gets the CPUs the stack's other containers leave free, except the service's
@@ -35,12 +35,15 @@ public final class Stacks {
 
 	private final Map<String, List<String>> containers;
 
+	private final Map<String, List<String>> behindQueue;
+
 	private final Map<String, String> k6Cpus;
 
 	private Stacks(Catalog catalog) {
 		this.cacheStacks = List.copyOf(catalog.cacheStacks());
 		this.postgresEveryRequest = List.copyOf(catalog.postgresEveryRequest());
 		this.containers = Map.copyOf(catalog.containers());
+		this.behindQueue = Map.copyOf(catalog.behindQueue());
 		this.k6Cpus = Map.copyOf(catalog.k6Cpus());
 	}
 
@@ -81,6 +84,16 @@ public final class Stacks {
 	}
 
 	/**
+	 * A stack's containers that work behind its queue, which no request waits for:
+	 * Kafka's consumer and the PostgreSQL it inserts into.
+	 * @param stack the stack
+	 * @return their compose services; none for a stack without a queue
+	 */
+	public List<String> behindQueue(String stack) {
+		return List.copyOf(this.behindQueue.getOrDefault(stack, List.of()));
+	}
+
+	/**
 	 * The CPUs the runner gives k6 on a stack, unless told otherwise.
 	 * @param stack the stack
 	 * @return its cpuset
@@ -102,7 +115,7 @@ public final class Stacks {
 	}
 
 	private record Catalog(List<String> cacheStacks, List<String> postgresEveryRequest,
-			Map<String, List<String>> containers, Map<String, String> k6Cpus) {
+			Map<String, List<String>> containers, Map<String, List<String>> behindQueue, Map<String, String> k6Cpus) {
 
 	}
 

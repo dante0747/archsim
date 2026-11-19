@@ -2,6 +2,7 @@ package io.archsim.benchmarks.inputs;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalDouble;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
@@ -19,6 +20,8 @@ import io.archsim.benchmarks.values.PythonValues;
 public final class CpuByLoad {
 
 	private static final int DECIMALS = 4;
+
+	private static final double MS_PER_SECOND = 1000.0;
 
 	private CpuByLoad() {
 	}
@@ -54,6 +57,20 @@ public final class CpuByLoad {
 			});
 		}
 		return rows;
+	}
+
+	/**
+	 * A container's busy cores in a calibration pass, net of what it burns at rest.
+	 * @param pass the pass
+	 * @param idle the idle pass
+	 * @param container the container
+	 * @return its CPU less its CPU at rest, over the pass's seconds; empty when the pass
+	 * did not read it
+	 */
+	public static OptionalDouble netCores(JsonNode pass, JsonNode idle, String container) {
+		Double net = PassReadings.netCpuMs(pass, idle, container);
+		return (net != null) ? OptionalDouble.of(net / (Protocol.CALIBRATION_S * MS_PER_SECOND))
+				: OptionalDouble.empty();
 	}
 
 	// the staircase's rates, each once, in order

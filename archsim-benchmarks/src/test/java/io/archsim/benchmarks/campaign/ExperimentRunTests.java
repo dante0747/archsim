@@ -221,6 +221,17 @@ class ExperimentRunTests {
 		assertThat(results.resolve("pg-mixed/resources-predicted.json")).doesNotExist();
 	}
 
+	// they estimate the knee from the calibration these results replace
+	@Test
+	void run_anExperiment_deletesTheBaselinesOfTheResultsItReplaces(@TempDir Path results) throws IOException {
+		Files.createDirectories(results.resolve("pg-mixed"));
+		Files.writeString(results.resolve("pg-mixed/baselines.json"), "{}");
+
+		run(results, PlayedSteps.Script.TOP_MEETS);
+
+		assertThat(results.resolve("pg-mixed/baselines.json")).doesNotExist();
+	}
+
 	private PlayedSteps run(Path results, PlayedSteps.Script script) {
 		PlayedSteps steps = new PlayedSteps(results, script, this.calls);
 		new ExperimentRun(steps, results, (experiment) -> Optional.empty(), new Logs().log()).run(PG_MIXED);

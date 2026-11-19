@@ -1,0 +1,164 @@
+{
+  "experiment": "pg-mixed",
+  "calibratedAt": "2026-10-30T21:30:44Z",
+  "kind": "baselines",
+  "rulesFixed": "2026-11-19",
+  "designedAfterMeasurements": true,
+  "how": "Simple estimates of the knee from this run's calibration alone, to set beside the simulator's prediction: no measured load step is used. Their rules were fixed on 2026-11-19. This run was calibrated and measured before that, so the rules were written with its results in view: its estimates check what the simulation adds and are not predictions.",
+  "inputs": "calibration.json's inputs as recorded, the ones predictions.json used, in the design today's harness builds from them",
+  "at": "2026-11-19T05:05:24Z",
+  "engineVersion": "1.5.0",
+  "provenance": {
+    "commit": "f398260f379e26bd4005c0d346b606decb67f714",
+    "engineSources": "28ec8d7792d09d055294b07e3b04e46e8b6fe1d07f0b5344c3bd25db39e86aef",
+    "javaBuild": "188507f507c175fc71f3de7c0ad5dadc3f8ebbef14802b4271f933d715bb7e17",
+    "harnessHash": "90f45abf2b2c1b203836ede5ba73abe153ba47d15a9993ac4964da32bdc8ceff",
+    "dirty": true,
+    "machineId": "i7-1165g7"
+  },
+  "objective": {
+    "p95Ms": 50.0,
+    "minSuccess": 0.99
+  },
+  "baselines": {
+    "bottleneckArithmetic": {
+      "how": "Each hard limit of the design's parts (a service's or a cache's cores, a pool of workers that wait for their calls, a database's cores and its connections, the lock of a row every write updates, a queue's consumers) times 1,000 over the milliseconds of one unit a client request takes, from the calibrated inputs' means: a service's CPU per request at the top calibration rate, a query's time, and for a worker, a connection or a lock the time it is held. A cache sends its database the share of its lookups that missed in the top calibration pass. The knee is the smallest such load among the limits a request waits for; work behind a queue is listed but does not bound it. No queueing and no simulation: waiting, the times' spread and garbage collection pauses are left out, and no measured load step is used.",
+      "kneeRps": 4229.2,
+      "limitedBy": {
+        "part": "api",
+        "limit": "cpu"
+      },
+      "limits": [
+        {
+          "part": "api",
+          "limit": "cpu",
+          "units": 1,
+          "msPerRequest": 0.236449,
+          "capacityRps": 4229.2,
+          "onRequestPath": true
+        },
+        {
+          "part": "db",
+          "limit": "cpu",
+          "units": 2,
+          "msPerRequest": 0.135616,
+          "capacityRps": 14747.5,
+          "onRequestPath": true
+        },
+        {
+          "part": "db",
+          "limit": "connections",
+          "units": 10,
+          "msPerRequest": 0.429679,
+          "capacityRps": 23273.2,
+          "onRequestPath": true
+        }
+      ]
+    },
+    "analyticEstimate": {
+      "how": "The highest load at which the engine's instant estimate of the design (queueing formulas at one load, not a simulation) gives a p95 within the objective, searched as the simulated knee is: by doubling from 100 req/s, then bisection to 1%. The estimate fails no request, so a load meets the objective when the estimate has a p95 there and it is within the objective's; it has none once a part a request waits for is overloaded. No measured load step is used.",
+      "kneeRps": 4150,
+      "basis": "p95",
+      "atKnee": {
+        "p95": 35.73,
+        "overloaded": false,
+        "saturationRps": 4229.1,
+        "summary": "p95 \u2248 36 ms; busiest Node.js service 98%"
+      },
+      "tried": [
+        {
+          "offeredRps": 100.0,
+          "p95": 1.66
+        },
+        {
+          "offeredRps": 200.0,
+          "p95": 1.67
+        },
+        {
+          "offeredRps": 400.0,
+          "p95": 1.7
+        },
+        {
+          "offeredRps": 800.0,
+          "p95": 1.75
+        },
+        {
+          "offeredRps": 1600.0,
+          "p95": 1.94
+        },
+        {
+          "offeredRps": 3200.0,
+          "p95": 3.4
+        },
+        {
+          "offeredRps": 6400.0,
+          "p95": null
+        },
+        {
+          "offeredRps": 4800,
+          "p95": null
+        },
+        {
+          "offeredRps": 4000,
+          "p95": 12.77
+        },
+        {
+          "offeredRps": 4400,
+          "p95": null
+        },
+        {
+          "offeredRps": 4200,
+          "p95": 95.77
+        },
+        {
+          "offeredRps": 4100,
+          "p95": 22.15
+        },
+        {
+          "offeredRps": 4150,
+          "p95": 35.73
+        },
+        {
+          "offeredRps": 4175,
+          "p95": 51.91
+        }
+      ]
+    },
+    "utilisationExtrapolation": {
+      "how": "Each container's CPU in the calibration staircase's passes (busy cores, net of what it burns at rest) against the offered rate, fitted with a straight line by least squares and extrapolated to the container's CPUs less its CPU at rest. The knee is the lowest such load among the containers a request waits for; one that works behind a queue is listed but does not bound it. A linear extrapolation of utilisation, not a Universal Scalability Law fit, which a staircase of open-loop passes at low load cannot identify. No model input, no simulation, no measured load step.",
+      "kneeRps": 4646.7,
+      "limitedBy": "api",
+      "ratesRps": [
+        50,
+        486.0,
+        865.0,
+        1246.0
+      ],
+      "cpusFrom": "environment.json's cpusets",
+      "containers": [
+        {
+          "container": "api",
+          "cpus": 1,
+          "onRequestPath": true,
+          "passes": 9,
+          "idleCores": 0.000974,
+          "interceptCores": 0.049595,
+          "cpuMsPerRequest": 0.204323,
+          "rSquared": 0.954228,
+          "capacityRps": 4646.7
+        },
+        {
+          "container": "postgres",
+          "cpus": 2,
+          "onRequestPath": true,
+          "passes": 9,
+          "idleCores": 0.014186,
+          "interceptCores": 0.023681,
+          "cpuMsPerRequest": 0.182194,
+          "rSquared": 0.967201,
+          "capacityRps": 10769.5
+        }
+      ]
+    }
+  }
+}

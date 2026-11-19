@@ -34,4 +34,19 @@ class KeptRunsTests {
 		assertThat(kafka).startsWith("kafka/run-1", "kafka/run-2").contains("kafka/run-10").endsWith("kafka");
 	}
 
+	@Test
+	void name_anOlderRun_isItsExperimentAndItsFolder() {
+		KeptRun run = new KeptRun("pg-mixed", RESULTS.resolve("pg-mixed/run-3"));
+
+		assertThat(run.name()).isEqualTo("pg-mixed (run-3)");
+	}
+
+	// the latest run is in the experiment's own folder
+	@Test
+	void name_theLatestRun_namesTheExperimentsFolder() {
+		KeptRun run = new KeptRun("pg-mixed", RESULTS.resolve("pg-mixed"));
+
+		assertThat(run.name()).isEqualTo("pg-mixed (pg-mixed)");
+	}
+
 }

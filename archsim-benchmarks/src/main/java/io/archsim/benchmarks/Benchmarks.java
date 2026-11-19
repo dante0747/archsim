@@ -22,7 +22,8 @@ import io.archsim.engine.version.EngineVersions;
  * {@code resources} predicts the CPU and memory of predictions that have none,
  * {@code resimulate} checks today's model against every kept run, {@code range-fit} fits
  * the predicted range of the knee, and {@code smoke} checks an experiment's stack on
- * Docker.
+ * Docker. {@code baselines}, which {@code run.py} never had, estimates every kept run's
+ * knee from its calibration alone (ADR-0087).
  */
 @Command(name = "archsim-benchmarks",
 		description = "ArchSim's accuracy benchmarks: calibrate, predict, measure, "
@@ -75,6 +76,7 @@ public final class Benchmarks implements Runnable {
 		HarnessLog log = setup.log();
 		CommandLine commandLine = new CommandLine(new Benchmarks()).addSubcommand(new CompareCommand(layout, log))
 			.addSubcommand(new ResourcesCommand(layout, log))
+			.addSubcommand(new BaselinesCommand(layout, log))
 			.addSubcommand(new ResimulateCommand(setup))
 			.addSubcommand(new RangeFitCommand(setup))
 			.addSubcommand(new SmokeCommand(setup))

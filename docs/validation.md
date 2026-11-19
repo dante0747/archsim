@@ -16,7 +16,7 @@ The engine versions on this page are the engine's own, not ArchSim's release num
 engine's version changes only when the same design and seed could give different results, and
 every report records it ([Two version numbers](getting-started.md#two-version-numbers)). The
 measured runs were predicted by the Python engine, up to its last version, 0.16.0; the Java
-engine, 1.1.1 today, re-simulates them ([The Java engine](#the-java-engine)).
+engine, 1.5.0 today, re-simulates them ([The Java engine](#the-java-engine)).
 
 ## Headline
 
@@ -146,6 +146,79 @@ Read these numbers as runs on one laptop, three to six per experiment:
 - **Nothing is validated.** No experiment meets all the [proposed tier
   thresholds](#proposed-tier-thresholds): criterion 3b needs a second machine.
 
+## Against simple estimates
+
+<!-- BEGIN GENERATED: baselines -->
+Would simple arithmetic on the same calibration find the knee as well as the simulation does? This table sets the simulator's predicted knee of each experiment's latest run beside three simpler estimates of it. Each cell is a knee in req/s and its error against the measured knee.
+
+- **Bottleneck arithmetic.** Each part's capacity is what it has (CPU cores, a pool of workers or of connections, the lock of a row that every write updates) divided by what one request takes of it, from the calibrated inputs; a database behind a cache is sent the share of lookups that missed in the top calibration pass. The knee is the smallest capacity among the parts a request waits for. No queueing, no simulation.
+- **Engine's analytic estimate.** The highest load at which ArchSim's own instant estimate, the queueing formulas it shows before a run, keeps the p95 within the objective.
+- **Utilisation extrapolation.** A straight line through each container's measured CPU over the calibration staircase, extended to the container's CPUs. The knee is the lowest such load among the containers a request waits for. It uses no model input, and it is not a Universal Scalability Law fit: the staircase's low, open-loop loads cannot identify one.
+
+| Experiment | Sample | Knee measured | Simulator | Bottleneck arithmetic | Engine's analytic estimate | Utilisation extrapolation |
+| --- | --- | --- | --- | --- | --- | --- |
+| [java-mixed](#java-mixed) | held out | 4,650 req/s | 7,907 (+70%) | 7,902 (+70%) | 7,850 (+69%) | 8,289 (+78%) |
+| [go-mixed](#go-mixed) | held out | 5,950 req/s | 9,916 (+67%) | 9,930 (+67%) | 8,650 (+45%) | 10,140 (+70%) |
+| [python-mixed](#python-mixed) | held out | 1,388 req/s | 1,762 (+27%) | 1,785 (+29%) | 1,775 (+28%) | 1,857 (+34%) |
+| [chain](#chain) | held out | 3,388 req/s | 4,455 (+32%) | 4,464 (+32%) | 4,400 (+30%) | 4,475 (+32%) |
+| [cache-ttl](#cache-ttl) | held out | 5,420 req/s | 5,104 (-6%) | 5,212 (-4%) | 5,150 (-5%) | 5,368 (-1%) |
+| [pg-mixed](#pg-mixed) | tuned on | 4,483 req/s | 5,203 (+16%) | 5,205 (+16%) | 5,100 (+14%) | 5,234 (+17%) |
+| [pg-hot-row](#pg-hot-row) | tuned on | 947 req/s | 857 (-10%) | 858 (-9%) | 1,712 (+81%) | 3,781 (+299%) |
+| [cache-aside](#cache-aside) | tuned on | 6,752 req/s | 5,652 (-16%) | 5,701 (-16%) | 5,600 (-17%) | 5,899 (-13%) |
+| [kafka](#kafka) | tuned on | 2,387 req/s | 2,090 (-12%) | 2,110 (-12%) | 2,050 (-14%) | 1,984 (-17%) |
+
+Median absolute knee error, held out (5 experiments): simulator 32%, bottleneck arithmetic 32%, engine's analytic estimate 30%, utilisation extrapolation 34%.
+
+Median absolute knee error, tuned on (4 experiments): simulator 14%, bottleneck arithmetic 14%, engine's analytic estimate 16%, utilisation extrapolation 17%.
+
+The simulator's knees are the predictions in the [headline](#headline), made before each run was measured. The three estimates were computed afterwards (on 2026-11-19; the analytic estimate by engine 1.5.0), from the calibration each prediction used and no measured load step. Their rules were fixed on 2026-11-19, with the results of every run calibrated before that day in view: for those runs the estimates check what the simulation adds and are not predictions. Each run's `baselines.json`, beside its `comparison.json`, has every figure and how it was found ([ADR 0087](adr/0087-compare-the-simulator-with-simple-estimates.md)).
+
+At kafka's knee the engine's estimate already calls the design overloaded, for work no request waits for ("Overloaded at 2,050 req/s: PostgreSQL needs 127% of its capacity; it saturates at about 1,612 req/s."); the p95 it gives there is the requests', which is what the objective judges.
+<!-- END GENERATED: baselines -->
+
+Read it as plainly as the headline (figures as of 19 Nov 2026):
+
+- **For the knee, the simulation adds nothing yet.** Bottleneck arithmetic on the same calibrated
+  inputs lands within two points of the simulator's error on every experiment, held out and
+  tuned on, and within 3% of the knee the simulator searched in 65 of the 67 kept runs. Each of
+  these stacks has one limit that is reached first, a core filling or the hot row's lock, and
+  the model charges it a fixed cost per request above the calibration staircase, so the simulated
+  p95 passes 50 ms just where that limit is reached. Where a predicted knee is wrong, the
+  calibrated cost per request is wrong, or the capacity it is divided into: nothing the
+  simulation adds to that division moves these knees.
+- **No estimate is clearly better.** Held out the four medians are 30% to 34%, tuned on 14% to
+  17%. The utilisation line, which reads no model input at all, is within nine points of the
+  simulator on eight experiments, and nearer the measured knee on cache-ttl and cache-aside (-1%
+  and -13% against -6% and -16%). How far each line is extended differs: 1.4 to 2.5 times past
+  the staircase's top rate on seven experiments, 4.9 times on Kafka, whose line stands on two
+  rates (50 and 406 req/s), and 10 times on pg-hot-row, whose staircase tops at 363 req/s.
+- **What does not know the design fails on pg-hot-row.** No core fills there: the hot row's lock
+  binds. The simulator models the lock and the arithmetic counts it (-10% and -9%); the
+  utilisation line, which sees CPU alone, is +299%. The engine's analytic estimate leaves lock
+  waits out too, and its +81% understates what that costs. Its knee is PostgreSQL's two cores
+  filling at 1,716 req/s, by the term the next point describes: two cores over the write and its
+  flush, which is exactly twice the lock's 858 req/s. Without that term its next limit would be
+  the service's core at 3,069 req/s (+224%).
+- **The engine's analytic estimate counts a commit's flush as PostgreSQL CPU**, which the
+  calibration measured without it (the estimator's `PartShapes`, where a write's time takes the
+  flush before the CPU share is applied). That term sets its knee on three experiments and shows
+  on a fourth. go-mixed: it fills the database's two cores at 8,676 req/s, before the service's
+  9,930, which is why the estimate departs from the simulator there (+45% against +67%).
+  java-mixed: it puts PostgreSQL at 7,897 req/s, 6 req/s under the service's 7,902, so the
+  estimate's agreement with the simulator there is a coincidence. pg-hot-row: the 1,716 req/s
+  above. Kafka: it is the "PostgreSQL needs 127% of its capacity; it saturates at about 1,612
+  req/s" quoted under the table, where the same run's arithmetic puts PostgreSQL's cores at
+  6,438 req/s. The estimator is not changed here.
+- **Kafka's consumers do not bound any of these knees.** The objective judges the producer's
+  requests, and neither the measured nor the simulated knee waits for the work behind the queue,
+  so the estimates leave it out too and list it in `baselines.json`. Counted, the consumers'
+  arithmetic would put the knee at 1,959 req/s (-18%).
+- **What the table does not test.** Latency below the knee (the headline's last column), which
+  the arithmetic and the utilisation line do not predict at all; and designs whose first limit is
+  not one resource filling, such as retries, timeouts, a queue backing up or two limits close
+  together. None of the nine experiments is such a design, so nothing here shows the simulation
+  predicting capacity better than a division. An experiment where the two differ would.
+
 ## The Java engine
 
 <!-- BEGIN GENERATED: java-engine -->
@@ -168,13 +241,16 @@ different modes are not compared with each other:
 ./gradlew :archsim-benchmarks:run --args="kafka"          # kafka
 ./gradlew :archsim-benchmarks:run --args="java-mixed"     # a held-out stack: needs a frozen engine (below)
 ./gradlew :archsim-benchmarks:run --args="all --runs 3"   # three independent runs of each, rotating
+./gradlew :archsim-benchmarks:run --args="baselines"      # each kept run's knee by three simple estimates
 ./gradlew :archsim-benchmarks:run --args="report --json"  # rewrite this page's tables, charts and accuracy.json
 ```
 
 `make benchmark` runs all of them. The harness's `compare` recomputes every
 `comparison.json` from the committed measurements and predictions without Docker;
 `resources` first predicts CPU and memory for results whose predictions have none
-(see [Resources](#resources-cpu-and-memory)). Results depend
+(see [Resources](#resources-cpu-and-memory)); `baselines`, also without Docker, writes each
+kept run's `baselines.json` where it has none or today's harness gives other figures (see
+[Against simple estimates](#against-simple-estimates)). Results depend
 on the machine: rerun on yours before quoting numbers. `--archive` first moves each
 experiment's latest results into its next `run-N/` folder, so the history below keeps them.
 
@@ -392,6 +468,18 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
    rising 2 to 3 times at once while none was more than half busy, and the same runs then met
    the objective at 3,169 and 5,100 req/s. It flags no other run under v5, and six of the 14
    earlier runs.
+6. **Set beside simple estimates** (since 19 Nov 2026,
+   [ADR 0087](adr/0087-compare-the-simulator-with-simple-estimates.md)): `baselines` estimates
+   each kept run's knee three simpler ways from the run's `calibration.json` alone: bottleneck
+   arithmetic on the calibrated inputs, the engine's own instant estimate, and a straight line
+   through the staircase's measured CPU ([Against simple
+   estimates](#against-simple-estimates)). It writes `baselines.json` beside the run's
+   `comparison.json`, with each figure, how it was found and what produced it; it reads no
+   measured step and changes no recorded file. Unlike the predictions, the estimates are computed
+   after a run is measured and are not sealed before it. Their rules were fixed on 19 Nov 2026,
+   with the results of every run kept until then in view: for those runs they check what the
+   simulation adds and are not predictions (`designedAfterMeasurements` in the file). For a run
+   calibrated later the rules predate the measurement, and the file says that instead.
 
 Nothing measured at steps 4 and 5 feeds back into the model: the predictions use only the
 calibration passes.
@@ -1355,7 +1443,9 @@ only the numbers taken from them. The four tuned-on experiments are in-sample fo
 and the engine, the five held-out ones are not. It shows that on this machine engine 0.16.0
 predicts the four tuned-on knees within 25% and one of the five held-out ones (median of their
 runs), and that on stacks it was not tuned on it errs towards promising too much capacity. It
-does not show how ArchSim does on other machines or on real applications.
+does not show how ArchSim does on other machines or on real applications, and it does not show
+the simulation finding a knee that bottleneck arithmetic on the same calibration misses: on
+these nine designs the two agree ([Against simple estimates](#against-simple-estimates)).
 
 ## Proposed tier thresholds
 

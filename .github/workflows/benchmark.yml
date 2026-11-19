@@ -73,8 +73,11 @@ jobs:
           for name in POSTGRES REDIS REDIS_TTL KAFKA SERVICE CONSUMER GATEWAY CHAIN_API JAVA GO PYTHON K6; do export "BENCH_CPUS_$name=$cpus"; done
           echo "every container shares CPUs $cpus"
           ./gradlew :archsim-benchmarks:run --args="$STACK --archive"
+      # the new runs' knees by three simple estimates (baselines.json), then the page
       - name: Report
-        run: ./gradlew :archsim-benchmarks:run --args="report --json"
+        run: |
+          ./gradlew :archsim-benchmarks:run --args="baselines"
+          ./gradlew :archsim-benchmarks:run --args="report --json"
       - uses: actions/upload-artifact@v7
         if: always()
         with:

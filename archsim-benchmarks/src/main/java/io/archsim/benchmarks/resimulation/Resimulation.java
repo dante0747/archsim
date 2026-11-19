@@ -62,13 +62,13 @@ public final class Resimulation {
 			KeptRun run = runs.get(index);
 			Optional<ObjectNode> check = checked.get(index);
 			if (check.isEmpty()) {
-				this.log.line(name(run) + ": skipped, no two-pass calibration");
+				this.log.line(run.name() + ": skipped, no two-pass calibration");
 				continue;
 			}
 			Path path = DevCheck.path(this.results, this.label, run.experiment(), check.get());
 			ResultFiles.write(path, check.get());
 			written.add(path);
-			this.log.line(name(run) + ": " + summary(check.get()));
+			this.log.line(run.name() + ": " + summary(check.get()));
 		}
 		return written;
 	}
@@ -78,7 +78,7 @@ public final class Resimulation {
 			return this.checks.of(run);
 		}
 		catch (MissingReadingException ex) {
-			this.log.line(name(run) + ": today's inputs cannot be derived from it (" + ex.getMessage() + ")");
+			this.log.line(run.name() + ": today's inputs cannot be derived from it (" + ex.getMessage() + ")");
 			return Optional.empty();
 		}
 	}
@@ -90,11 +90,6 @@ public final class Resimulation {
 				+ ", simulated " + PythonText.str(PythonValues.get(comparison.get("predictedKnee"), "kneeRps"))
 				+ " (error " + PythonText.str(comparison.get("kneeError")) + "); inputs as calibrated: "
 				+ PythonText.str(check.get("inputsAsCalibrated"));
-	}
-
-	private static String name(KeptRun run) {
-		Path folder = run.directory().getFileName();
-		return run.experiment() + " (" + ((folder != null) ? folder : run.directory()) + ")";
 	}
 
 }

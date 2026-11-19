@@ -21,6 +21,7 @@ import io.archsim.benchmarks.HarnessStopException;
 import io.archsim.benchmarks.comparison.Comparison;
 import io.archsim.benchmarks.experiments.Experiment;
 import io.archsim.benchmarks.experiments.Objective;
+import io.archsim.benchmarks.results.KeptRun;
 import io.archsim.benchmarks.results.ResultFiles;
 import io.archsim.benchmarks.results.Timestamps;
 import io.archsim.benchmarks.values.PythonValues;
@@ -87,6 +88,9 @@ public final class ExperimentRun {
 		}
 		ObjectNode calibration = this.steps.calibrate(experiment);
 		save(experiment, "calibration", calibration);
+		// baselines left by older results estimate the knee from the calibration this one
+		// replaces
+		delete(folder(experiment).resolve(KeptRun.BASELINES + ".json"));
 		ObjectNode predictions = this.steps.predict(experiment, calibration);
 		save(experiment, "predictions", predictions);
 		String digest = digest(experiment, "predictions");

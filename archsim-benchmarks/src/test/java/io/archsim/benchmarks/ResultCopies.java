@@ -15,6 +15,8 @@ public final class ResultCopies {
 
 	private static final String COMPARISON = KeptRun.COMPARISON + ".json";
 
+	private static final String BASELINES = KeptRun.BASELINES + ".json";
+
 	private ResultCopies() {
 	}
 
@@ -45,13 +47,27 @@ public final class ResultCopies {
 	 * @throws IOException when a file cannot be copied
 	 */
 	public static void copyWithoutComparisons(Path from, Path to) throws IOException {
+		copyWithout(COMPARISON, from, to);
+	}
+
+	/**
+	 * Copies a folder of results without its baselines, which the test estimates again.
+	 * @param from the committed folder
+	 * @param to where the copy goes
+	 * @throws IOException when a file cannot be copied
+	 */
+	public static void copyWithoutBaselines(Path from, Path to) throws IOException {
+		copyWithout(BASELINES, from, to);
+	}
+
+	private static void copyWithout(String name, Path from, Path to) throws IOException {
 		try (Stream<Path> files = Files.walk(from)) {
 			for (Path file : files.toList()) {
 				Path copy = to.resolve(from.relativize(file).toString());
 				if (Files.isDirectory(file)) {
 					Files.createDirectories(copy);
 				}
-				else if (!file.getFileName().toString().equals(COMPARISON)) {
+				else if (!file.getFileName().toString().equals(name)) {
 					Files.copy(file, copy);
 				}
 			}

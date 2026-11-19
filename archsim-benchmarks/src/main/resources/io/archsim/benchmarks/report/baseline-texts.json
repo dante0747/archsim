@@ -1,0 +1,21 @@
+{
+  "intro": [
+    "Would simple arithmetic on the same calibration find the knee as well as the simulation does? This table sets the simulator's predicted knee of each experiment's latest run beside three simpler estimates of it. Each cell is a knee in req/s and its error against the measured knee.",
+    "",
+    "- **Bottleneck arithmetic.** Each part's capacity is what it has (CPU cores, a pool of workers or of connections, the lock of a row that every write updates) divided by what one request takes of it, from the calibrated inputs; a database behind a cache is sent the share of lookups that missed in the top calibration pass. The knee is the smallest capacity among the parts a request waits for. No queueing, no simulation.",
+    "- **Engine's analytic estimate.** The highest load at which ArchSim's own instant estimate, the queueing formulas it shows before a run, keeps the p95 within the objective.",
+    "- **Utilisation extrapolation.** A straight line through each container's measured CPU over the calibration staircase, extended to the container's CPUs. The knee is the lowest such load among the containers a request waits for. It uses no model input, and it is not a Universal Scalability Law fit: the staircase's low, open-loop loads cannot identify one."
+  ],
+  "names": {
+    "simulator": "Simulator",
+    "bottleneckArithmetic": "Bottleneck arithmetic",
+    "analyticEstimate": "Engine's analytic estimate",
+    "utilisationExtrapolation": "Utilisation extrapolation"
+  },
+  "computed": "The simulator's knees are the predictions in the [headline](#headline), made before each run was measured. The three estimates were computed afterwards (on {dates}; the analytic estimate by engine {engines}), from the calibration each prediction used and no measured load step.",
+  "rules": "Their rules were fixed on {rulesFixed}, with the results of every run calibrated before that day in view: for those runs the estimates check what the simulation adds and are not predictions.",
+  "later": "The runs shown of {experiments} were calibrated after it: for them the rules predate the measurement, though the estimates are still computed after the run and are not sealed before it as its predictions are.",
+  "files": "Each run's `baselines.json`, beside its `comparison.json`, has every figure and how it was found ([ADR 0087](adr/0087-compare-the-simulator-with-simple-estimates.md)).",
+  "overloaded": "At {experiment}'s knee the engine's estimate already calls the design overloaded, for work no request waits for (\"{summary}\"); the p95 it gives there is the requests', which is what the objective judges.",
+  "missing": "No baselines yet for {experiments}: run `./gradlew :archsim-benchmarks:run --args=\"baselines\"`."
+}

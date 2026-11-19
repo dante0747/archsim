@@ -53,4 +53,5 @@ typecheck:
 
 benchmark:        ## accuracy benchmarks (Docker; about 1.5 hours, machine otherwise idle), then rewrite docs/validation.md and accuracy.json
 	./gradlew :archsim-benchmarks:run --args="all"
+	./gradlew :archsim-benchmarks:run --args="baselines"
 	./gradlew :archsim-benchmarks:run --args="report --json"

@@ -11,12 +11,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.benchmarks.designs.Simulations;
-import io.archsim.benchmarks.history.GitRepository;
 import io.archsim.benchmarks.inputs.ModelInputs;
 import io.archsim.benchmarks.machine.MachineFit;
-import io.archsim.benchmarks.provenance.EngineBuild;
-import io.archsim.benchmarks.provenance.MachineName;
-import io.archsim.benchmarks.provenance.Provenance;
 import io.archsim.benchmarks.range.KneeRanges;
 import io.archsim.benchmarks.range.RangeFit;
 import io.archsim.benchmarks.resimulation.CheckStamp;
@@ -55,9 +51,7 @@ final class RangeFitCommand implements Callable<Integer>, HarnessRules.JavaEngin
 
 	@Override
 	public Integer call() {
-		Provenance provenance = new Provenance(new GitRepository(this.layout.root()), MachineName.current(),
-				EngineBuild.current().orElse(null));
-		CheckStamp stamp = new CheckStamp(EngineVersions.ENGINE, provenance.of(), this.log.clock());
+		CheckStamp stamp = CheckStamp.of(EngineVersions.ENGINE, this.layout.root(), this.log.clock());
 		Optional<MachineFit> machine = this.setup.machine();
 		ModelInputs inputs = new ModelInputs(Simulations.onTheEngine(), machine.orElse(null));
 		Path cacheFile = machine.map((host) -> RangeFit.cachePath(this.cache, host)).orElse(this.cache);

@@ -11,6 +11,9 @@
     "chain": ["gateway", "chain-api", "postgres"],
     "cache-ttl": ["api-ttl", "postgres", "redis-ttl"]
   },
+  "behindQueue": {
+    "kafka": ["consumer", "postgres"]
+  },
   "k6Cpus": {
     "postgres": "0,1,6,7",
     "cache": "0,6,7",
