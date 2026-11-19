@@ -74,11 +74,7 @@ public final class Benchmarks implements Runnable {
 	static CommandLine commandLine(HarnessSetup setup) {
 		RepositoryLayout layout = setup.layout();
 		HarnessLog log = setup.log();
-		CommandLine commandLine = new CommandLine(new Benchmarks()).addSubcommand(new CompareCommand(layout, log))
-			.addSubcommand(new ResourcesCommand(layout, log))
-			.addSubcommand(new BaselinesCommand(layout, log))
-			.addSubcommand(new ResimulateCommand(setup))
-			.addSubcommand(new RangeFitCommand(setup))
+		CommandLine commandLine = ResultsCommands.addTo(new CommandLine(new Benchmarks()), setup)
 			.addSubcommand(new SmokeCommand(setup))
 			.addSubcommand(new ReportCommand(layout))
 			.addSubcommand(new JavaParityCommand(layout))
