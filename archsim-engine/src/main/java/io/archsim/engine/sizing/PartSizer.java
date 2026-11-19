@@ -83,8 +83,9 @@ final class PartSizer {
 			return Optional.of(PartSize.skipped(total, UNKNOWN_LOAD));
 		}
 		boolean onVm = MachineKind.of(node.type(), settings).map(MachineKind::isCompute).orElse(false);
-		Placement peak = new Placement(onVm, this.loads.peakSpeeds().getOrDefault(node.id(), 1.0));
-		return ofType(config, load.get(), peak).map((size) -> withBaseBusy(size, node, config, onVm))
+		Placement peak = new Placement(onVm, this.loads.peakSpeeds().getOrDefault(node.id(), 1.0),
+				Vcpus.of(this.design.architecture().host(), settings));
+		return ofType(config, load.get(), peak).map((size) -> withBaseBusy(size, node, config, peak))
 			.map((size) -> onMachine(size, node.type(), settings))
 			.map((size) -> size.forSpecs(specs, total));
 	}
@@ -94,11 +95,11 @@ final class PartSizer {
 	 * @param size the size at the peak
 	 * @param node the part
 	 * @param config its settings
-	 * @param onVm whether it runs on a VM of its own
+	 * @param peak where it runs, at the peak
 	 * @return the size, with its busy cores at the base load when they are known
 	 */
-	private PartSize withBaseBusy(PartSize size, NodeSpec node, Record config, boolean onVm) {
-		Placement base = new Placement(onVm, this.loads.baseSpeeds().getOrDefault(node.id(), 1.0));
+	private PartSize withBaseBusy(PartSize size, NodeSpec node, Record config, Placement peak) {
+		Placement base = peak.atHostSpeed(this.loads.baseSpeeds().getOrDefault(node.id(), 1.0));
 		return this.loads.base()
 			.node(node.id())
 			.flatMap((load) -> ofType(config, load, base))

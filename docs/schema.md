@@ -221,6 +221,10 @@ overrides in `provenance`.
   per physical core, and a vCPU whose core's other vCPU is busy too runs at this speed (above 0,
   at most 1; about 0.6 on Intel and AMD cores, so 2 vCPU do about 1.2 cores' work when both are
   busy). Ignored on a design with a `host`, whose sibling speed applies to every part.
+  Auto-sizing gives a part that sets it enough vCPU for its work at the peak to be 60% of what
+  they can do as hyperthreads, each counting as this share of a core: its whole-core size
+  divided by the sibling speed
+  ([simulation-model.md](simulation-model.md#resource-specs-cpu-memory-storage)).
 - `serviceTimeByLoad` (1.6; services): a list of `{"rps": ..., "factor": ...}` points (rate above
   0 per replica, factor above 0 and at most 100). At that many requests per second on a replica
   its service time is `serviceTimeMs` times the factor; between points the factor is

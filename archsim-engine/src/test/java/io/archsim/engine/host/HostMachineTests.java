@@ -3,6 +3,7 @@ package io.archsim.engine.host;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -20,6 +21,19 @@ class HostMachineTests {
 	@CsvSource({ "1, 1.0", "3, 0.9428571428571428", "6, 0.6285714285714287", "12, 0.31999999999999995" })
 	void speed_moreBusyThreads_slowEachDown(double busy, double speed) {
 		assertThat(LAPTOP.speed(busy)).isCloseTo(speed, within(1e-15));
+	}
+
+	@Test
+	void speedWithEveryThreadBusy_aHost_isItsAllCoreClockTimesItsSiblingSpeed() {
+		assertThat(LAPTOP.speedWithEveryThreadBusy()).isCloseTo(0.8 * 0.6, within(1e-15));
+	}
+
+	@ParameterizedTest(name = "at a sibling speed of {0}")
+	@ValueSource(doubles = { 0.3, 0.4, 0.5, 0.6, 0.8 })
+	void speedWithEveryThreadBusy_aPartsOwnHyperthreads_isTheirSiblingSpeed(double siblingSpeed) {
+		HostMachine own = HostMachine.ownHyperthreads(8.0, siblingSpeed);
+
+		assertThat(own.speedWithEveryThreadBusy()).isCloseTo(siblingSpeed, within(1e-15));
 	}
 
 	@Test

@@ -67,6 +67,16 @@ public record HostMachine(double cores, int threadsPerCore, double siblingSpeed,
 	}
 
 	/**
+	 * The speed of each thread with as many busy as it has: what its CPU capacity counts
+	 * on, since a load that fills it keeps every thread busy. On a part's own
+	 * hyperthreads, the sibling speed.
+	 * @return the speed, as a share of one thread's alone on the idle machine
+	 */
+	public double speedWithEveryThreadBusy() {
+		return speed(threads());
+	}
+
+	/**
 	 * The mean speed of a busy thread when {@code busy} threads want the CPU, it
 	 * included.
 	 * @param busy the busy threads

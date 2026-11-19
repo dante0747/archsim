@@ -6,7 +6,10 @@ public enum Need {
 	/** The CPU cores busy at the peak. */
 	BUSY_CORES("busyCores", Spec.CPU_CORES),
 
-	/** The cores the busy ones need at the target utilization. */
+	/**
+	 * The vCPU the busy cores need at the target utilization: more of them when they are
+	 * hyperthreads than when they are whole cores.
+	 */
 	CPU_CORES("cpuCores", Spec.CPU_CORES),
 
 	/** The memory it uses. */

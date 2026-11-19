@@ -23,9 +23,10 @@ made before this) keeps its illustrative rates and its results; choose a snapsho
   Cost lines say "from size", and every dollar figure says "illustrative rates".
 - **Any other provider** names a **price snapshot**: on-demand list prices of real instance
   types on a date, for a region. Auto-sizing then snaps each part to the cheapest instance type
-  that covers the CPU and memory it needs (a value you set counts as the need), so parts run on
-  shapes that exist; the inspector, the analysis and the report show the SKU, every cost line
-  cites its SKU and the snapshot date, and every dollar figure names the snapshot ("AWS
+  that covers the CPU and memory it needs (a value you set counts as the need; a part that sets
+  `siblingSpeed` needs more vCPU for the same work, since its vCPUs are hyperthreads), so parts
+  run on shapes that exist; the inspector, the analysis and the report show the SKU, every cost
+  line cites its SKU and the snapshot date, and every dollar figure names the snapshot ("AWS
   us-east-1 · Oct 2026").
 
 **Burstable types** (AWS's t families: t3, t4g, db.t4g, cache.t4g, kafka.t3) run on CPU

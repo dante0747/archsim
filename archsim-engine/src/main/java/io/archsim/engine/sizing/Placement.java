@@ -6,8 +6,18 @@ package io.archsim.engine.sizing;
  * @param onVm it runs on a VM of its own, whose operating system needs memory too
  * @param speed its CPU work's speed on the design's host machine, as a share of full
  * speed
+ * @param vcpus what its vCPUs are: whole cores, or its own hyperthreads
  */
-record Placement(boolean onVm, double speed) {
+record Placement(boolean onVm, double speed, Vcpus vcpus) {
+
+	/**
+	 * The same place at another load of the design's host machine.
+	 * @param hostSpeed its CPU work's speed on the host machine then
+	 * @return the placement at that speed
+	 */
+	Placement atHostSpeed(double hostSpeed) {
+		return new Placement(this.onVm, hostSpeed, this.vcpus);
+	}
 
 	/**
 	 * The busy cores at the part's speed, and the words for them.

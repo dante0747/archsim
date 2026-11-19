@@ -3,7 +3,7 @@ package io.archsim.engine.sizing;
 import java.util.Map;
 
 import io.archsim.engine.sizing.Placement.Work;
-import io.archsim.engine.sizing.Steps.Explained;
+import io.archsim.engine.sizing.Vcpus.CpuSize;
 import io.archsim.model.component.cache.CacheConfig;
 import io.archsim.model.document.Workload;
 
@@ -39,17 +39,18 @@ final class CacheSizer {
 		double perShard = totalRps / shards;
 		Work work = placement.atSpeed(perShard * ms / MILLIS_PER_SECOND,
 				"%s commands/s per node × %s ms".formatted(SizingText.brief(perShard), SizingText.brief(ms)));
-		Explained cpu = Steps.capped(Steps.cpu(work.busy(), work.intro()), executors,
-				"it runs %d command%s at a time (add shards)".formatted(executors, SizingText.plural(executors)));
+		CpuSize cpu = placement.vcpus()
+			.forWork(work, executors,
+					"it runs %d command%s at a time (add shards)".formatted(executors, SizingText.plural(executors)));
 		double data = workload.keyCount() * config.itemSizeKb() / shards / KIB_PER_GIB;
 		String over = (shards > 1) ? " over " + shards + " shards" : "";
 		String memoryWhy = "%s keys × %s KiB%s = %s per node; %s of memory holds keys, %s".formatted(
 				SizingText.brief(workload.keyCount()), SizingText.brief(config.itemSizeKb()), over,
 				SizingText.gib(data), SizingText.percent(CacheConfig.KEY_MEMORY_SHARE), SizingText.headroom());
-		Map<Need, Double> need = Map.of(Need.BUSY_CORES, work.busy(), Need.CPU_CORES, work.busy() / Sizing.TARGET_CPU,
-				Need.MEMORY_GIB, data / CacheConfig.KEY_MEMORY_SHARE);
+		Map<Need, Double> need = Map.of(Need.BUSY_CORES, work.busy(), Need.CPU_CORES, cpu.needed(), Need.MEMORY_GIB,
+				data / CacheConfig.KEY_MEMORY_SHARE);
 		double memory = Steps.memory(data / CacheConfig.KEY_MEMORY_SHARE * Sizing.MEMORY_HEADROOM, MIN_MEMORY_GIB);
-		return new PartSize(cpu.value(), memory, null, 0.0,
+		return new PartSize(cpu.vcpu(), memory, null, 0.0,
 				Map.of(Spec.CPU_CORES, cpu.why(), Spec.MEMORY_GIB, memoryWhy), null, null, need, null, false);
 	}
 

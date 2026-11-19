@@ -14,6 +14,9 @@ final class NeedText {
 	/** The most memory counts as more than the typical when it is this much above it. */
 	private static final double MEMORY_MARGIN = 0.005;
 
+	/** Two figures this close, as a share of one of them, differ by rounding alone. */
+	private static final double TOLERANCE = 1e-9;
+
 	private NeedText() {
 	}
 
@@ -62,9 +65,30 @@ final class NeedText {
 			return null;
 		}
 		Double busy = need.get(Need.BUSY_CORES.json());
-		String why = (busy != null) ? " (" + SizingText.brief(busy) + " busy at the peak, at a "
-				+ SizingText.percent(Sizing.TARGET_CPU) + " target)" : "";
+		String why = (busy != null) ? " (" + SizingText.brief(busy) + " busy at the peak, " + target(cpu, busy) + ")"
+				: "";
 		return "needs " + SizingText.brief(cpu) + " vCPU" + why + has;
+	}
+
+	/**
+	 * The target a CPU need was worked out for: of what its vCPUs can do, with what each
+	 * counts for when they are hyperthreads. That is read off the need: the busy cores
+	 * over the vCPUs they take at the target are a core each on whole cores, and less on
+	 * hyperthreads. It holds while hyperthreads are the only reason a need is above the
+	 * busy cores over the target, and for needs as they were worked out: rounded to four
+	 * places, as a summary shows them, a need on whole cores can come out above too.
+	 * @param cpu the vCPU needed, not rounded
+	 * @param busy the cores busy at the peak, not rounded
+	 * @return such as "at a 60% target of what its hyperthreads can do, 0.6 of a core
+	 * each"
+	 */
+	private static String target(double cpu, double busy) {
+		String target = "at a " + SizingText.percent(Sizing.TARGET_CPU) + " target";
+		double perVcpu = busy / (cpu * Sizing.TARGET_CPU);
+		if (perVcpu < 1.0 - TOLERANCE) {
+			return target + " of what its hyperthreads can do, " + SizingText.brief(perVcpu) + " of a core each";
+		}
+		return target;
 	}
 
 	private static @Nullable String memory(Map<String, Double> need, String has) {

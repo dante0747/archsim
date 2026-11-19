@@ -10,7 +10,10 @@ import java.util.Set;
  */
 public final class Sizing {
 
-	/** The CPU utilization a part is sized for at the peak. */
+	/**
+	 * The CPU utilization a part is sized for at the peak: its work as a share of what
+	 * its vCPUs can do.
+	 */
 	public static final double TARGET_CPU = 0.6;
 
 	/**

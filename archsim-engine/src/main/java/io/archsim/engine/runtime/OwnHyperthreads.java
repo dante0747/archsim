@@ -39,7 +39,7 @@ public final class OwnHyperthreads implements CpuMachine {
 		if (!CpuMachine.slows(fullSpeed, ownThreads)) {
 			return fullSpeed;
 		}
-		return fullSpeed * this.machine.speed(this.machine.threads());
+		return fullSpeed * this.machine.speedWithEveryThreadBusy();
 	}
 
 }
