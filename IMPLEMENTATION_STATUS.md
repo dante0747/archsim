@@ -1,17 +1,18 @@
 # Implementation status
 
-State as of 2026-11-19 (engine 1.5.1, the Java engine: 1.0.0 reproduces the frozen engine 0.16.0
+State as of 2026-11-19 (engine 1.5.2, the Java engine: 1.0.0 reproduces the frozen engine 0.16.0
 measured on the held-out experiments, 1.1.0 changes only how the cost counts autoscaled parts and
 prices the peak, ADR-0074, 1.1.1 where a run's per-request rates at the base load are measured,
 1.2.0 how a third-party API without a price is priced, ADR-0081, 1.2.1 how a cache's hit ratio
 counts refused lookups, ADR-0082, 1.3.0 a database's busiest instance's CPU and ceiling, ADR-0083,
 1.4.0 lost messages and a message's age, ADR-0084, 1.5.0 a Kafka broker's measured size and
-idle consumers, ADR-0085, and 1.5.1 the instant estimate's count of a commit's log flush as a
-wait, not database CPU, ADR-0089; schema 1.10, report 1.20; the API, the engine, the CLI, the MCP
-server, the benchmark harness and the repository's tooling in Java, and no Python left but the
-benchmarked stacks and three trial records). This file separates what is implemented, how it was
-verified, what is known to be limited, and what comes next. Nothing listed under "Implemented" is
-a stub or a mock.
+idle consumers, ADR-0085, 1.5.1 the instant estimate's count of a commit's log flush as a
+wait, not database CPU, ADR-0089, and 1.5.2 its count of a cache's commands over its shards
+with a read-through cache's fills, ADR-0092; schema 1.10, report 1.20; the API, the engine, the
+CLI, the MCP server, the benchmark harness and the repository's tooling in Java, and no Python
+left but the benchmarked stacks and three trial records). This file separates what is
+implemented, how it was verified, what is known to be limited, and what comes next. Nothing
+listed under "Implemented" is a stub or a mock.
 
 ## Implemented and covered by automated tests
 
@@ -2094,6 +2095,13 @@ With Docker Desktop (Docker 29, Compose 2.40) on the same machine:
   (median, tuned on), and pg-mixed's latency climbs before its core fills (+16%); see
   [Where the model is wrong, and why](docs/validation.md#where-the-model-is-wrong-and-why). The
   Kafka broker and its consumers have no CPU or memory in the model.
+- The instant estimate spreads a sharded part's load evenly over its shards, a cache's slots and
+  CPU as a database's: a hot key's shard fills before it says (in the hot-key feed's celebrity
+  scenario it reads the cache's slots 49% busy, where the hot shard needs about 1.4 times what
+  its one thread can do), and it has no row-lock wait (pg-hot-row). The sizing, the design
+  review's CPU check and a host machine's speeds count a read-through cache's requests and not
+  the commands that fill the keys it missed
+  ([ADR-0092](docs/adr/0092-spread-a-caches-commands-over-its-shards-and-count-its-fills.md)).
 - Still open after the review fixes: sampled mode checks the
   2M request limit against the full run, so the CLI and MCP refuse the 6M-request design
   (`scripts/perf.py` ran it on the Python engine with the limit raised; it has not been run on

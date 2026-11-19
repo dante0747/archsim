@@ -21,11 +21,12 @@ import io.archsim.engine.queueing.Moments;
  * @param cpu the share of its CPU in use at the peak; {@code null} without a CPU size
  * @param limit the share of a rate or throughput limit used at the peak; {@code null}
  * without one
- * @param populate whether it writes a value back after a miss (a read-through cache)
+ * @param fills the commands a second a read-through cache runs to fill the keys it
+ * missed, each taking a slot for a read's work; zero for other parts
  */
 record PartShape(Moments read, Moments write, Moments flush, @Nullable Moments publish, int pools,
 		@Nullable Integer slots, boolean queues, boolean blocks, @Nullable Double cpu, @Nullable Double limit,
-		boolean populate) {
+		double fills) {
 
 	/**
 	 * Its own time for a kind of request: its work, and for a write the log flush it then
@@ -52,7 +53,7 @@ record PartShape(Moments read, Moments write, Moments flush, @Nullable Moments p
 		double factor = cpuShare / speed + (1.0 - cpuShare);
 		Moments slowedPublish = (this.publish != null) ? this.publish.scaledBy(factor) : null;
 		return new PartShape(this.read.scaledBy(factor), this.write.scaledBy(factor), this.flush, slowedPublish,
-				this.pools, this.slots, this.queues, this.blocks, this.cpu / speed, this.limit, this.populate);
+				this.pools, this.slots, this.queues, this.blocks, this.cpu / speed, this.limit, this.fills);
 	}
 
 }

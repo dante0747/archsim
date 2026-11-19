@@ -1,5 +1,5 @@
 {
-  "why": "On threads a host machine slows, the Java stretches the CPU share of a write's query and not the log flush the write then waits for; the frozen engine 0.16.0 stretched both (engine 1.5.1, ADR-0089). In the two recorded cases with such a database, these figures are the Java's own: the database's own time, the slots it holds for it, what a caller that waits on it and the latency take from them, and the p95 the summary gives. Every other figure of the two cases is the frozen engine's (InstantEstimatorTests).",
+  "why": "On threads a host machine slows, the Java stretches the CPU share of a write's query and not the log flush the write then waits for; the frozen engine 0.16.0 stretched both (engine 1.5.1, ADR-0089). In the two recorded cases with such a database, these figures are the Java's own: the database's own time, the slots it holds for it, what a caller that waits on it and the latency take from them, and the p95 the summary gives. Each reads as the frozen engine's only where the Java's figure is the one listed (OwnFigures), and every other figure of the two cases is the frozen engine's (InstantEstimatorTests).",
   "cases": {
     "onAHostMachine_slowsEveryPartsCpuWork": {
       "/parts/1/meanHoldMs": 467.041,

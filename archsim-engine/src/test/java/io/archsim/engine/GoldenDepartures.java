@@ -11,8 +11,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.engine.parity.CacheDepartures;
-import io.archsim.engine.parity.CommitFlushDepartures;
 import io.archsim.engine.parity.CostDepartures;
+import io.archsim.engine.parity.EstimateDepartures;
 import io.archsim.engine.parity.KafkaSizingDepartures;
 import io.archsim.parity.GoldenEntry;
 import io.archsim.parity.JsonDiff;
@@ -134,8 +134,8 @@ public final class GoldenDepartures {
 
 	/**
 	 * A Java counterpart whose output reads as the frozen engine wrote it where the
-	 * Java's estimate of a database that flushes its commits departs
-	 * ({@link CommitFlushDepartures}), its caches ({@link CacheDepartures}) and its Kafka
+	 * Java's estimate of a database that flushes its commits or of a cache departs
+	 * ({@link EstimateDepartures}), its caches ({@link CacheDepartures}) and its Kafka
 	 * brokers' sizes ({@link KafkaSizingDepartures}).
 	 * @param call the Java counterpart of an entry's function
 	 * @return the counterpart, its output read so when the entry returned
@@ -149,7 +149,7 @@ public final class GoldenDepartures {
 
 	// the estimate's departure first: it reads the Java's own analysis
 	private static JsonNode asRecorded(JsonNode output, JsonNode expected) {
-		JsonNode departed = CommitFlushDepartures.asRecorded(output, expected);
+		JsonNode departed = EstimateDepartures.asRecorded(output, expected);
 		return KafkaSizingDepartures.asRecorded(CacheDepartures.asRecorded(departed, expected), expected);
 	}
 

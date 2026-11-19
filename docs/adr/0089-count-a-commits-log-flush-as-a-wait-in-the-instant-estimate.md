@@ -186,3 +186,8 @@ estimates", describes the estimate after it. [docs/simulation-model.md](../simul
 CPU in the estimate is its whole load over one shard's cores, where a run gives each shard its
 own (ADR-0083 lists the run's side of it), and a read-through cache's write-back after a miss is
 a command on its cores that the estimate's CPU does not count.
+
+**Status (19 Nov 2026):**
+[ADR-0092](0092-spread-a-caches-commands-over-its-shards-and-count-its-fills.md) (proposed, engine
+1.5.2) takes up both findings. The departure this ADR names, `CommitFlushDepartures`, is now the
+database's rule of `EstimateDepartures`, which reads a database and a cache in one pass.

@@ -1,0 +1,13 @@
+{
+  "why": "A read-through cache fills a key it missed with one more command on its shard's executor and cores. The Java's instant estimate counts the fill in the cache's slots, its CPU and the queue its commands wait in; the frozen engine 0.16.0 counted it only in a read's time (engine 1.5.2, ADR-0092). In the two recorded cases with such a cache, these figures are the Java's own: how often the cache's commands wait, and what its caller and the latency take from the longer wait. Each reads as the frozen engine's only where the Java's figure is the one listed (OwnFigures); EstimateDepartures reads the cache's shares as the frozen engine's, and every other figure of the two cases is the frozen engine's (InstantEstimatorTests).",
+  "cases": {
+    "aReadThroughCache_writesTheValueBackAfterAMiss": {
+      "/parts/0/meanResidenceMs": 13.692,
+      "/parts/1/waitProbability": 0.0066
+    },
+    "aTtlCacheWithLittleMemory_saysWhichKeysItHolds": {
+      "/parts/1/waitProbability": 0.0074,
+      "/paths/0/meanMs": 17.09
+    }
+  }
+}

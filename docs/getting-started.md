@@ -139,7 +139,7 @@ The parts find each other with their defaults: PostgreSQL at
    **Report** gives you a Markdown write-up; **Ctrl/⌘ K → Export** gives docker-compose,
    Kubernetes or Mermaid scaffolding.
 
-The numbers are engine 1.5.1's for the shipped template with its seed, 42; the template's inputs
+The numbers are engine 1.5.2's for the shipped template with its seed, 42; the template's inputs
 are illustrative assumptions. Every workspace is described in [features.md](features.md).
 
 ## Two version numbers

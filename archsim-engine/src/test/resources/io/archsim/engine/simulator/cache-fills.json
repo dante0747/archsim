@@ -1,0 +1,53 @@
+{
+  "why": "A read-through cache fills a key it missed with one more command on its shard's executor and cores. The Java's instant estimate, which every report records, counts the fill in the cache's slots, its CPU and the queue its commands wait in; the frozen engine 0.16.0 counted it only in a read's time (engine 1.5.2, ADR-0092). In the three recorded simulations with such a cache busy enough to show it, these figures of the estimate are the Java's own: the cache's wait, what a caller that waits on it holds, the latency and where its time goes. Each reads as the frozen engine's only where the Java's figure is the one listed (OwnFigures); EstimateDepartures reads the cache's shares as the frozen engine's, and every other figure of the three reports is the frozen engine's (SimulationCasesTests).",
+  "cases": {
+    "aReadThroughCacheWithAFixedHitRatio": {
+      "/estimate/breakdown/0/share": 0.3832,
+      "/estimate/breakdown/1/share": 0.2862,
+      "/estimate/breakdown/2/meanMs": 2.676,
+      "/estimate/breakdown/2/share": 0.1709,
+      "/estimate/breakdown/3/share": 0.1597,
+      "/estimate/latencyMs/mean": 15.66,
+      "/estimate/latencyMs/p95": 43.04,
+      "/estimate/parts/0/load": 0.3414,
+      "/estimate/parts/0/meanHoldMs": 13.655,
+      "/estimate/parts/0/meanResidenceMs": 13.655,
+      "/estimate/parts/0/slotUtilization": 0.3414,
+      "/estimate/parts/0/utilization": 0.3414,
+      "/estimate/parts/1/meanResidenceMs": 9.155,
+      "/estimate/parts/1/meanWaitMs": 0.018,
+      "/estimate/parts/1/perRequestMs": 2.676,
+      "/estimate/parts/1/waitProbability": 0.0248,
+      "/estimate/paths/0/meanMs": 17.404,
+      "/estimate/paths/1/meanMs": 8.658
+    },
+    "aTtlCacheWithShardsEvictingKeys": {
+      "/estimate/breakdown/0/share": 0.5198,
+      "/estimate/breakdown/1/share": 0.3433,
+      "/estimate/breakdown/2/meanMs": 1.18,
+      "/estimate/breakdown/2/share": 0.1369,
+      "/estimate/latencyMs/mean": 8.62,
+      "/estimate/latencyMs/p95": 21.89,
+      "/estimate/parts/0/meanResidenceMs": 6.619,
+      "/estimate/parts/0/meanWaitMs": 0.084,
+      "/estimate/parts/0/perRequestMs": 1.18,
+      "/estimate/parts/0/waitProbability": 0.1055,
+      "/estimate/paths/0/meanMs": 10.074,
+      "/estimate/paths/1/meanMs": 2.797
+    },
+    "aFullCacheRefusingNewKeysWhileSnapshotting": {
+      "/estimate/breakdown/0/share": 0.6466,
+      "/estimate/breakdown/1/share": 0.2889,
+      "/estimate/breakdown/2/meanMs": 0.696,
+      "/estimate/breakdown/2/share": 0.0645,
+      "/estimate/latencyMs/mean": 10.79,
+      "/estimate/latencyMs/p95": 29.57,
+      "/estimate/parts/0/meanResidenceMs": 8.791,
+      "/estimate/parts/0/meanWaitMs": 0.055,
+      "/estimate/parts/0/perRequestMs": 0.696,
+      "/estimate/parts/0/waitProbability": 0.1222,
+      "/estimate/paths/0/meanMs": 12.877,
+      "/estimate/paths/1/meanMs": 2.447
+    }
+  }
+}

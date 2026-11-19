@@ -79,7 +79,7 @@ API calls it directly, in the API's process, and since stage 4 simulates on it t
 calibration's replay runs on its `Simulator` through `ReplaySimulator.of`, on the API's pool of
 replay threads ([ADR-0054](adr/0054-replay-calibrations-on-a-pool-of-platform-threads.md)), and
 the worker role simulates the runs it claims
-([ADR-0053](adr/0053-simulate-runs-in-the-java-apps-worker-role.md)). It is engine 1.5.1: 1.0.0
+([ADR-0053](adr/0053-simulate-runs-in-the-java-apps-worker-role.md)). It is engine 1.5.2: 1.0.0
 replays the frozen engine 0.16.0's runs figure for figure
 ([java-parity.md](validation/java-parity.md)), 1.1.0 changes only how the cost counts
 autoscaled parts and prices the peak
@@ -94,10 +94,13 @@ database's busiest instance's CPU and sets its CPU ceiling where that instance f
 design's lost messages against its availability and judges how old its messages are when
 processed ([ADR-0084](adr/0084-judge-asynchronous-designs-by-their-messages-too.md)), 1.5.0
 sizes a Kafka broker from what ArchSim's Kafka experiment measured and reports a queue's idle
-consumers ([ADR-0085](adr/0085-size-a-kafka-broker-as-measured-and-name-idle-consumers.md)), and
+consumers ([ADR-0085](adr/0085-size-a-kafka-broker-as-measured-and-name-idle-consumers.md)),
 1.5.1 counts the log flush a database's write waits for as a wait in the instant estimate, not
 as work on its cores
-([ADR-0089](adr/0089-count-a-commits-log-flush-as-a-wait-in-the-instant-estimate.md)).
+([ADR-0089](adr/0089-count-a-commits-log-flush-as-a-wait-in-the-instant-estimate.md)), and 1.5.2
+spreads a cache's commands over every shard's cores in that estimate and counts a read-through
+cache's fills in its slots and CPU
+([ADR-0092](adr/0092-spread-a-caches-commands-over-its-shards-and-count-its-fills.md)).
 
 That frozen engine was the Python package `archsim_engine` (`packages/engine`, on SimPy and
 Pydantic), frozen at 0.16.0 for the port

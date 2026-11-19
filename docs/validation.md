@@ -16,7 +16,7 @@ The engine versions on this page are the engine's own, not ArchSim's release num
 engine's version changes only when the same design and seed could give different results, and
 every report records it ([Two version numbers](getting-started.md#two-version-numbers)). The
 measured runs were predicted by the Python engine, up to its last version, 0.16.0; the Java
-engine, 1.5.1 today, re-simulates them ([The Java engine](#the-java-engine)).
+engine, 1.5.2 today, re-simulates them ([The Java engine](#the-java-engine)).
 
 ## Headline
 
@@ -175,7 +175,7 @@ Median absolute knee error, held out (5 experiments): simulator 32%, bottleneck 
 
 Median absolute knee error, tuned on (4 experiments): simulator 14%, bottleneck arithmetic 14%, engine's analytic estimate 16%, utilisation extrapolation 17%.
 
-The simulator's knees are the predictions in the [headline](#headline), made before each run was measured. The three estimates were computed afterwards (on 2026-11-19; the analytic estimate by engine 1.5.0 and 1.5.1), from the calibration each prediction used and no measured load step. Their rules were fixed on 2026-11-19, with the results of every run calibrated before that day in view: for those runs the estimates check what the simulation adds and are not predictions. Each run's `baselines.json`, beside its `comparison.json`, has every figure and how it was found ([ADR 0087](adr/0087-compare-the-simulator-with-simple-estimates.md)).
+The simulator's knees are the predictions in the [headline](#headline), made before each run was measured. The three estimates were computed afterwards (on 2026-11-19; the analytic estimate by engine 1.5.0, 1.5.1 and 1.5.2), from the calibration each prediction used and no measured load step. Their rules were fixed on 2026-11-19, with the results of every run calibrated before that day in view: for those runs the estimates check what the simulation adds and are not predictions. Each run's `baselines.json`, beside its `comparison.json`, has every figure and how it was found ([ADR 0087](adr/0087-compare-the-simulator-with-simple-estimates.md)).
 
 At kafka's knee the engine's estimate already calls the design overloaded, for work no request waits for ("Overloaded at 2,050 req/s: Kafka needs 105% of its capacity; it saturates at about 1,959 req/s."); the p95 it gives there is the requests', which is what the objective judges.
 <!-- END GENERATED: baselines -->
@@ -236,7 +236,7 @@ Read it as plainly as the headline (figures as of 19 Nov 2026):
 ## The Java engine
 
 <!-- BEGIN GENERATED: java-engine -->
-Re-simulated, in-sample: engine 1.5.1 (Java) re-simulates every kept calibration with exactly 0.16.0's knees (65 of 65); the latest predictions shown are 0.16.0's, which 1.5.1 reproduces ([java-parity.md](validation/java-parity.md)).
+Re-simulated, in-sample: engine 1.5.2 (Java) re-simulates every kept calibration with exactly 0.16.0's knees (65 of 65); the latest predictions shown are 0.16.0's, which 1.5.2 reproduces ([java-parity.md](validation/java-parity.md)).
 <!-- END GENERATED: java-engine -->
 
 ## Reproduce
@@ -723,11 +723,12 @@ results, misses included, lead the [headline](#headline):
   version that changes how capacity or latency is modelled after that date lists all five in
   `tunedOn`, and can show out-of-sample accuracy only on experiments registered before the
   change. A change to how the harness derives the model inputs or builds the designs counts
-  as one too. The Java engine up to 1.5.1 predicts every kept calibration, the 15 held-out
+  as one too. The Java engine up to 1.5.2 predicts every kept calibration, the 15 held-out
   runs among them, exactly as 0.16.0 did, knees and steps (`:archsim-benchmarks:parity`: 65 of
-  65 on 19 Nov 2026), so they are still held out for it. Engine 1.5.1 changed how the instant
-  estimate counts a commit's flush, with every result in view
-  ([ADR 0089](adr/0089-count-a-commits-log-flush-as-a-wait-in-the-instant-estimate.md)): the
+  65 on 19 Nov 2026), so they are still held out for it. Engines 1.5.1 and 1.5.2 changed how the
+  instant estimate counts a commit's flush and a cache's commands, with every result in view
+  ([ADR 0089](adr/0089-count-a-commits-log-flush-as-a-wait-in-the-instant-estimate.md),
+  [ADR 0092](adr/0092-spread-a-caches-commands-over-its-shards-and-count-its-fills.md)): the
   simulator does not predict with that estimate, and the estimate's figures on this page were
   never predictions ([Against simple estimates](#against-simple-estimates)).
 - **Changed after registration, before any measurement (31 Oct 2026):** two library updates to

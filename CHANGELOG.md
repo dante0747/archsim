@@ -10,6 +10,19 @@ for when that version changes.
 
 ### Fixed
 
+- **The instant estimate counts a cache's commands as a run does (engine 1.5.2,
+  [ADR-0092](docs/adr/0092-spread-a-caches-commands-over-its-shards-and-count-its-fills.md)).**
+  A sharded cache's CPU was its whole load over one shard's cores, where each shard has its own;
+  it is now the share of every shard's cores busy, as a run reports it and as the estimate's
+  slots already were. A read-through cache's fill of a key it missed is one more command on the
+  shard's executor and cores: it now counts in the cache's slots, its CPU and the queue its
+  commands wait in, where it counted only in a read's time. The hot-key feed's six-shard Redis
+  reads 4.3% CPU at its 2,000 req/s, beside the 5.3% its run measures, where it read 26%, and
+  the design saturates at about 11,217 req/s where it read 7,692; the benchmark designs' Redis
+  reads 22.8% and 23.1% busy at the estimate's knee, where it read 19.3% and 17.9%, and neither
+  knee moves. A hot key's shard is still busier than the estimate's even spread says. A report's
+  `estimate` changes for the same design and seed, so the engine moves from 1.5.1 to 1.5.2;
+  nothing a run simulates changes, and its result digest is the same.
 - **The instant estimate no longer counts a commit's log flush as database CPU (engine 1.5.1,
   [ADR-0089](docs/adr/0089-count-a-commits-log-flush-as-a-wait-in-the-instant-estimate.md)).**
   A write waits for the log flush on its connection with no core at work, as a run models it

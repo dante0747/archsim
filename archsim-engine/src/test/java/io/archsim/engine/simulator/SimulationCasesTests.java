@@ -1,12 +1,16 @@
 package io.archsim.engine.simulator;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.engine.GoldenDepartures;
@@ -18,19 +22,28 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Whole simulations against the frozen engine's: each design of
  * {@code simulator/cases.json.gz} ({@code scripts/export_simulation_cases.py}, since
  * deleted), simulated in Java with the scenario, seed and mode Python simulated, gives
- * the report Python gave, compared as {@link ReportComparison} compares.
+ * the report Python gave, compared as {@link ReportComparison} compares. Where a
+ * read-through cache's fills make its commands wait more often, the estimate's figures
+ * {@code cache-fills.json} lists are the Java's own (ADR-0092), each read as Python's
+ * only where the Java's figure is the listed one ({@code OwnFigures}).
  */
 class SimulationCasesTests {
 
+	private static final JsonMapper JSON = JsonMapper.builder().build();
+
+	private static final String NAME = "name";
+
 	@TestFactory
-	Stream<DynamicTest> run_eachRecordedDesign_writesTheReportAsPython() {
+	Stream<DynamicTest> run_eachRecordedDesign_writesTheReportAsPython() throws IOException {
+		JsonNode own = ownFigures();
 		return SimulationCases.recorded()
 			.stream()
-			.map((recorded) -> DynamicTest.dynamicTest(recorded.get("name").stringValue(), () -> {
+			.map((recorded) -> DynamicTest.dynamicTest(recorded.get(NAME).stringValue(), () -> {
 				ObjectNode report = SimulationCases.simulate(recorded);
 
 				assertThat(ReportComparison.differences(recorded.get("report"), report,
-						GoldenDepartures.departing(recorded.get("name").stringValue())))
+						GoldenDepartures.departing(recorded.get(NAME).stringValue()),
+						own.path(recorded.get(NAME).stringValue())))
 					.isEmpty();
 			}));
 	}
@@ -46,8 +59,15 @@ class SimulationCasesTests {
 		JsonNode provenance = report.get("provenance");
 		assertThat(List.of(provenance.get("engineVersion").stringValue(), report.get("reportVersion").stringValue(),
 				provenance.get("reportVersion").stringValue(), provenance.get("java").stringValue()))
-			.containsExactly("1.5.1", "1.20", "1.20", System.getProperty("java.version"));
+			.containsExactly("1.5.2", "1.20", "1.20", System.getProperty("java.version"));
 		assertThat(provenance.get("wallSeconds").doubleValue()).isNotNegative();
+	}
+
+	private static JsonNode ownFigures() throws IOException {
+		try (InputStream in = Objects.requireNonNull(SimulationCasesTests.class.getResourceAsStream("cache-fills.json"),
+				"simulator/cache-fills.json")) {
+			return JSON.readTree(in).path("cases");
+		}
 	}
 
 }

@@ -15,14 +15,16 @@ package io.archsim.engine.version;
  * messages are when processed (ADR-0084); 1.5.0 sizes a Kafka broker from what ArchSim's
  * Kafka experiment measured and reports a queue's idle consumers (ADR-0085); 1.5.1 counts
  * the log flush a database's write waits for as a wait in the instant estimate every
- * report records, not as work on its cores (ADR-0089). The report's version is the Java
+ * report records, not as work on its cores (ADR-0089); 1.5.2 spreads a cache's commands
+ * over every shard's cores in that estimate, and counts a read-through cache's fill of a
+ * key it missed in its slots and CPU (ADR-0092). The report's version is the Java
  * simulator's own too (ADR-0050). The design schema's is the model's
  * ({@code ArchitectureDocument.SCHEMA_VERSION}).
  */
 public final class EngineVersions {
 
 	/** The engine every run records. Bump it when what a simulation means changes. */
-	public static final String ENGINE = "1.5.1";
+	public static final String ENGINE = "1.5.2";
 
 	/**
 	 * The version of the report format the Java simulator writes: 1.20 adds a queue's

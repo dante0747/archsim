@@ -4,17 +4,22 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.engine.load.CacheMisses;
+import io.archsim.engine.load.LoadEstimate;
+import io.archsim.engine.load.LoadEstimator;
 import io.archsim.engine.scenario.ScenarioResolver;
 import io.archsim.engine.simulator.SimulationCases;
 import io.archsim.model.DesignDocuments;
 import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.model.document.ArchitectureDocument;
+import io.archsim.model.document.Workload;
 import io.archsim.model.pricing.PriceSnapshots;
 import io.archsim.parity.GoldenFile;
 import io.archsim.parity.SchemaDepartures;
@@ -41,6 +46,10 @@ final class RecordedEstimates {
 
 	private static final ScenarioResolver RESOLVER = new ScenarioResolver(StandardComponents.registry(),
 			PriceSnapshots.shipped());
+
+	private static final LoadEstimator LOADS = new LoadEstimator(StandardComponents.registry());
+
+	private static final InstantEstimator ESTIMATOR = new InstantEstimator(StandardComponents.registry());
 
 	private RecordedEstimates() {
 	}
@@ -138,6 +147,43 @@ final class RecordedEstimates {
 	 * @param python the frozen engine's estimate
 	 */
 	record RecordedEstimate(Source source, String name, ArchitectureDocument design, JsonNode python) {
+
+		/**
+		 * The design's load at its workload's peak, each TTL cache's misses estimated as
+		 * the instant estimate estimates them.
+		 * @return the parts' and links' loads
+		 */
+		LoadEstimate peakLoad() {
+			Workload workload = this.design.workload();
+			double peak = workload.peakRate();
+			Map<String, Double> misses = LOADS.ttlMissShares(this.design.architecture(), workload, peak);
+			return LOADS.estimate(this.design.architecture(), workload, peak, new CacheMisses(misses, null));
+		}
+
+		/**
+		 * The design as the estimate reads it.
+		 * @return its graph
+		 */
+		EstimateGraph graph() {
+			return EstimateGraph.of(this.design.architecture(), StandardComponents.registry());
+		}
+
+		/**
+		 * The Java's estimate of the design's parts.
+		 * @return the parts, in the order the frozen engine's estimate has them
+		 */
+		JsonNode javaParts() {
+			return ESTIMATOR.estimate(this.design).toJson().path("parts");
+		}
+
+		/**
+		 * The frozen engine's estimate of the design's parts.
+		 * @return the parts
+		 */
+		JsonNode pythonParts() {
+			return this.python.path("parts");
+		}
+
 	}
 
 }

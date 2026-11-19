@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.engine.report.ReportDigest;
@@ -27,9 +28,9 @@ import io.archsim.parity.SchemaDepartures;
  * summary's message figures left out ({@link MessageDepartures}), its idle consumers left
  * out ({@link IdleConsumerDepartures}), its Kafka brokers' sizes as the frozen engine
  * sized them ({@link KafkaSizingDepartures}), its estimate of the databases that flush
- * their commits as the frozen engine counted their CPU ({@link CommitFlushDepartures}),
- * and Python's findings as the Java words a count of one request
- * ({@link WordingDepartures}).
+ * their commits and of the caches as the frozen engine counted their slots and CPU
+ * ({@link EstimateDepartures}), and Python's findings as the Java words a count of one
+ * request ({@link WordingDepartures}).
  */
 public final class ReportComparison {
 
@@ -84,8 +85,24 @@ public final class ReportComparison {
 	 * @return each difference, by JSON Pointer; none when the reports agree
 	 */
 	public static List<String> differences(JsonNode python, JsonNode java, CostDepartures.Departing departing) {
-		ObjectNode javaReport = (ObjectNode) asRecorded(withRecordedDigests(comparable(java, JAVA_RUNTIME), python),
-				python);
+		return differences(python, java, departing, JsonNodeFactory.instance.objectNode());
+	}
+
+	/**
+	 * Where the Java report differs from Python's, where some of its cost lines depart
+	 * from Python's and some of its figures are listed as its own.
+	 * @param python the frozen engine's report
+	 * @param java the Java simulator's report of the same run
+	 * @param departing the cost lines that depart
+	 * @param own the figures that are the Java's own, by JSON Pointer, each read as
+	 * Python's where the Java's is the one listed ({@link OwnFigures}), after the
+	 * report's departures
+	 * @return each difference, by JSON Pointer; none when the reports agree
+	 */
+	public static List<String> differences(JsonNode python, JsonNode java, CostDepartures.Departing departing,
+			JsonNode own) {
+		JsonNode recorded = asRecorded(withRecordedDigests(comparable(java, JAVA_RUNTIME), python), python);
+		ObjectNode javaReport = (ObjectNode) OwnFigures.asRecorded(recorded, python, own);
 		if (javaReport.has(COST)) {
 			javaReport.set(COST, CostDepartures.comparable(python.path(COST), javaReport.get(COST), departing));
 		}
@@ -154,7 +171,7 @@ public final class ReportComparison {
 	// the Java's report as the frozen engine would have written it: its schema's and its
 	// caches' departures put back
 	private static JsonNode asRecorded(JsonNode report, JsonNode python) {
-		JsonNode departed = CommitFlushDepartures.asRecorded(report, python);
+		JsonNode departed = EstimateDepartures.asRecorded(report, python);
 		departed = BusiestInstanceDepartures.asRecorded(CacheDepartures.asRecorded(departed, python), python);
 		departed = IdleConsumerDepartures.asRecorded(MessageDepartures.asRecorded(departed), python);
 		departed = KafkaSizingDepartures.asRecorded(departed, python);

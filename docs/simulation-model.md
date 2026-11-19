@@ -779,6 +779,17 @@ the time until the key expires or is next written):
   writes × write time) × cpuShare ÷ 1000 ÷ shards ÷ cores`. Before engine 1.5.1 the flush counted
   as CPU time too, which filled a write-heavy database's cores too early
   ([ADR-0089](adr/0089-count-a-commits-log-flush-as-a-wait-in-the-instant-estimate.md)).
+- **A cache's commands** spread evenly over its shards, as in a run, where each shard has its
+  own executors and `cpuCores`: its slots' share and its `cpuUtilization` are those of every
+  shard, `commands × command time ÷ 1000 ÷ shards ÷ (executors, or cpuCores)`. A read-through
+  cache's commands are its requests and a fill for each read it misses and reads through its
+  miss link (with `populateOnMiss`): the fill takes a slot and the shard's cores, and the
+  reads queue behind it, each paying for its own fill as before. A cache-aside caller's
+  write-back is a request to the cache already. A hot key's shard is busier than the even
+  spread says, which the estimate leaves to a run, as it does for a database's shards. Before
+  engine 1.5.2 a sharded cache's whole load counted on one shard's cores, and the fills did not
+  count in its slots or CPU
+  ([ADR-0092](adr/0092-spread-a-caches-commands-over-its-shards-and-count-its-fills.md)).
 - **Waiting:** an M/M/c queue per pool (a service replica, a database instance, a cache shard),
   Wq = C(c, a) / (c·μ - λ) with Erlang C. Load balancers, serverless functions and third-party
   APIs refuse rather than queue, so they add no wait.
@@ -803,8 +814,8 @@ pauses, autoscaling delays and the memory model. On the starter the estimate is 
 simulated mean and p95 and within a point of its busiest part's utilization; on the queueing lab
 (an M/M/4 queue) within 5%. archsim-engine's `EstimateAgreementTests` keeps both within 15%,
 and the estimate gives the frozen engine 0.16.0's figures on every golden entry and recorded
-case, but for the CPU of a database that flushes its commits and what follows from it
-(`CommitFlushDepartures`).
+case, but for the CPU of a database that flushes its commits, a cache's slots and CPU, and what
+follows from them (`EstimateDepartures`).
 
 ## Accounting invariants
 

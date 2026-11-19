@@ -3,7 +3,6 @@ package io.archsim.engine.estimate;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
@@ -14,14 +13,9 @@ import tools.jackson.databind.JsonNode;
 
 import io.archsim.engine.estimate.RecordedEstimates.RecordedEstimate;
 import io.archsim.engine.estimate.RecordedEstimates.Source;
-import io.archsim.engine.load.CacheMisses;
 import io.archsim.engine.load.LoadEstimate;
-import io.archsim.engine.load.LoadEstimator;
 import io.archsim.engine.load.NodeLoad;
 import io.archsim.model.component.database.DatabaseConfig;
-import io.archsim.model.component.standard.StandardComponents;
-import io.archsim.model.document.ArchitectureDocument;
-import io.archsim.model.document.Workload;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -46,10 +40,6 @@ class CommitFlushCpuTests {
 
 	/** Floating-point noise. */
 	private static final double NOISE = 1e-9;
-
-	private final InstantEstimator estimator = new InstantEstimator(StandardComponents.registry());
-
-	private final LoadEstimator loads = new LoadEstimator(StandardComponents.registry());
 
 	@TestFactory
 	Stream<DynamicTest> estimate_eachRecordedDatabase_hasPythonsCpuOverItsOwnAsItsFlushesAndQueriesOverItsQueries()
@@ -76,15 +66,11 @@ class CommitFlushCpuTests {
 	}
 
 	// the databases of a design whose CPU the frozen engine estimated
-	private List<Database> databases(RecordedEstimate recorded) {
-		ArchitectureDocument design = recorded.design();
-		Workload workload = design.workload();
-		double peak = workload.peakRate();
-		Map<String, Double> misses = this.loads.ttlMissShares(design.architecture(), workload, peak);
-		LoadEstimate load = this.loads.estimate(design.architecture(), workload, peak, new CacheMisses(misses, null));
-		EstimateGraph graph = EstimateGraph.of(design.architecture(), StandardComponents.registry());
-		JsonNode java = this.estimator.estimate(design).toJson().path("parts");
-		JsonNode python = recorded.python().path("parts");
+	private static List<Database> databases(RecordedEstimate recorded) {
+		LoadEstimate load = recorded.peakLoad();
+		EstimateGraph graph = recorded.graph();
+		JsonNode java = recorded.javaParts();
+		JsonNode python = recorded.pythonParts();
 		List<Database> databases = new ArrayList<>();
 		for (int index = 0; index < python.size(); index++) {
 			JsonNode part = python.get(index);

@@ -17,6 +17,7 @@ import io.archsim.engine.load.LoadEstimate;
 import io.archsim.engine.load.NodeLoad;
 import io.archsim.engine.numeric.FloatSum;
 import io.archsim.engine.queueing.Moments;
+import io.archsim.model.component.cache.CacheSpec;
 import io.archsim.model.component.database.DatabaseConfig;
 import io.archsim.model.component.queue.MessageQueueSpec;
 import io.archsim.model.component.service.ServiceConfig;
@@ -187,13 +188,28 @@ final class PartEstimates {
 			return;
 		}
 		Optional<PartShape> shape = this.graph.config(id)
-			.flatMap((config) -> PartShapes.of(config, here.get()))
+			.flatMap((config) -> PartShapes.of(config, here.get(), missedReads(id)))
 			.map((found) -> slowed(id, found));
 		if (shape.isEmpty()) {
 			note(node, here.get(), "No capacity model for this kind of part.");
 			return;
 		}
 		new Part(node, here.get(), shape.get()).estimate();
+	}
+
+	/**
+	 * The reads a second a part sends on its miss links: the reads a cache missed, which
+	 * a read-through cache fills with one more command each.
+	 * @param id the part's id
+	 * @return the reads; zero for a part without a miss link
+	 */
+	private double missedReads(String id) {
+		return FloatSum.of(this.graph.calls(id)
+			.stream()
+			.filter((edge) -> CacheSpec.MISS.equals(edge.sourcePort()))
+			.map((edge) -> this.loads.edges().get(edge.id()))
+			.filter(Objects::nonNull)
+			.mapToDouble(NodeLoad::read));
 	}
 
 	/**
@@ -310,7 +326,7 @@ final class PartEstimates {
 				Moments calls = this.down.get(op);
 				if (calls != null) {
 					Moments mine = wait.plus(this.shape.own(op));
-					Moments extra = writeBack(op, wait);
+					Moments extra = fillTime(op, wait);
 					own.put(op, mine.plus(extra));
 					this.stays.put(op, mine.plus(calls).plus(extra));
 				}
@@ -318,25 +334,18 @@ final class PartEstimates {
 		}
 
 		/**
-		 * A read-through cache's extra command after a miss: it writes the value back.
+		 * A read-through cache's fill after a miss: one more command, which fills the
+		 * key.
 		 * @param op reads or writes
 		 * @param wait the wait for a slot
-		 * @return the write-back's share of a read's time; zero otherwise
+		 * @return its fill's share of a read's time; zero otherwise
 		 */
-		private Moments writeBack(Op op, Moments wait) {
-			if (!this.shape.populate() || op != Op.READ) {
+		private Moments fillTime(Op op, Moments wait) {
+			double fills = this.shape.fills();
+			if (op != Op.READ || fills <= 0 || this.here.read() <= 0) {
 				return Moments.ZERO;
 			}
-			double missed = FloatSum.of(PartEstimates.this.graph.calls(this.node.id())
-				.stream()
-				.filter((edge) -> "miss".equals(edge.sourcePort()))
-				.map((edge) -> PartEstimates.this.loads.edges().get(edge.id()))
-				.filter(Objects::nonNull)
-				.mapToDouble(NodeLoad::read));
-			if (this.here.read() > 0 && missed > 0) {
-				return wait.plus(this.shape.own(Op.READ)).times(missed / this.here.read());
-			}
-			return Moments.ZERO;
+			return wait.plus(this.shape.own(Op.READ)).times(fills / this.here.read());
 		}
 
 		/**

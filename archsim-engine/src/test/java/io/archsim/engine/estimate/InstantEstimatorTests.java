@@ -8,12 +8,12 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
-import tools.jackson.core.JsonPointer;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
-import io.archsim.engine.parity.CommitFlushDepartures;
+import io.archsim.engine.parity.EstimateDepartures;
+import io.archsim.engine.parity.OwnFigures;
 import io.archsim.engine.scenario.ScenarioResolver;
 import io.archsim.model.DesignDocuments;
 import io.archsim.model.component.standard.StandardComponents;
@@ -32,13 +32,16 @@ import static org.assertj.core.api.Assertions.assertThat;
  * in {@code cases.json} (recorded from the frozen engine by
  * {@code scripts/export_estimate_cases.py}, since deleted) holds the resolved design and
  * the estimate the Python engine 0.16.0 gives for it; the estimate must match it as the
- * golden files do, a database that flushes its commits read as
- * {@link CommitFlushDepartures} reads it (ADR-0089). On threads a host machine slows, the
- * Java stretches a write's query and not the flush it then waits for, where Python
- * stretched both: {@code slowed-flush.json} lists the figures that are the Java's own in
- * the two cases with such a database, and every other figure of theirs must be Python's.
- * Two cases the Python engine fails on are the Java's own: a link to a part that does not
- * exist, and a rate limit first among parts that use none of their limits.
+ * golden files do, a database that flushes its commits and a cache read as
+ * {@link EstimateDepartures} reads them (ADR-0089, ADR-0092). Two lists name figures that
+ * are the Java's own, each read as Python's only where the Java's figure is the listed
+ * one ({@link OwnFigures}), and every other figure of their cases must be Python's. On
+ * threads a host machine slows, the Java stretches a write's query and not the flush it
+ * then waits for, where Python stretched both ({@code slowed-flush.json}, the two cases
+ * with such a database). A read-through cache's fills make its commands wait more often
+ * ({@code cache-fills.json}, the two cases with such a cache). Two cases the Python
+ * engine fails on are the Java's own: a link to a part that does not exist, and a rate
+ * limit first among parts that use none of their limits.
  */
 class InstantEstimatorTests {
 
@@ -66,18 +69,38 @@ class InstantEstimatorTests {
 			                  "edges": [{"id": "clients-db", "source": "clients", "target": "db"}]},
 			 "workload": {"rps": 100, "readRatio": 0}}""";
 
+	/**
+	 * 400 reads a second to a cache of 2 shards, each with one executor and 2 cores,
+	 * whose commands take 0.5 ms; half the reads miss and are read through from the
+	 * database, then filled with one more command.
+	 */
+	private static final String READ_THROUGH_CACHE = """
+			{"schemaVersion": "1.7", "kind": "archsim.architecture",
+			 "architecture": {"nodes": [{"id": "clients", "type": "traffic_source"},
+			                            {"id": "cache", "type": "cache",
+			                             "config": {"technology": "redis", "shards": 2, "cpuCores": 2,
+			                                        "hitRatio": 0.5, "populateOnMiss": true,
+			                                        "serviceTimeMs": {"kind": "constant", "value": 0.5}}},
+			                            {"id": "db", "type": "database", "config": {"maxConnections": 100}}],
+			                  "edges": [{"id": "clients-cache", "source": "clients", "target": "cache"},
+			                            {"id": "cache-db", "source": "cache", "sourcePort": "miss", "target": "db",
+			                             "config": {"requestTypes": ["read"]}}]},
+			 "workload": {"rps": 400, "readRatio": 1}}""";
+
+	/** The cache's commands a second: its reads, and a fill for each that missed. */
+	private static final double CACHE_COMMANDS = 400 + 200;
+
 	private final InstantEstimator estimator = new InstantEstimator(StandardComponents.registry());
 
 	@TestFactory
 	Stream<DynamicTest> estimate_eachCase_isThePythonEnginesEstimate() throws IOException {
-		JsonNode slowed = resource("slowed-flush.json").path(CASES);
+		JsonNode own = ownFigures();
 		return resource("cases.json").path(CASES)
 			.valueStream()
-			.map((entry) -> DynamicTest
-				.dynamicTest(name(entry),
-						() -> assertThat(JsonDiff.differences(entry.path(ESTIMATE),
-								asRecorded(estimate(entry), entry.path(ESTIMATE), slowed.path(name(entry)))))
-							.isEmpty()));
+			.map((entry) -> DynamicTest.dynamicTest(name(entry),
+					() -> assertThat(JsonDiff.differences(entry.path(ESTIMATE),
+							asRecorded(estimate(entry), entry.path(ESTIMATE), own.path(name(entry)))))
+						.isEmpty()));
 	}
 
 	@TestFactory
@@ -156,6 +179,44 @@ class InstantEstimatorTests {
 					(database) -> assertThat(database.meanHoldMs()).isEqualTo(4.0 + 6.0));
 	}
 
+	@Test
+	void estimate_aShardedReadThroughCache_spreadsItsCommandsOverEveryShardsCores() {
+		EstimatedPart cache = part(this.estimator.estimate(resolved(READ_THROUGH_CACHE)), "cache");
+
+		assertThat(cache.cpuUtilization()).isEqualTo(CACHE_COMMANDS * 0.5 / 1000 / (2 * 2));
+	}
+
+	@Test
+	void estimate_aReadThroughCache_holdsItsExecutorsForTheCommandsThatFillMissedKeys() {
+		EstimatedPart cache = part(this.estimator.estimate(resolved(READ_THROUGH_CACHE)), "cache");
+
+		assertThat(cache.slotUtilization()).isEqualTo(CACHE_COMMANDS * 0.5 / 1000 / 2);
+	}
+
+	@Test
+	void estimate_aReadThroughCache_queuesItsReadsBehindTheCommandsThatFillMissedKeys() {
+		EstimatedPart cache = part(this.estimator.estimate(resolved(READ_THROUGH_CACHE)), "cache");
+
+		// one executor a shard: a command waits as often as the executor is busy
+		assertThat(cache.waitProbability()).isEqualTo(CACHE_COMMANDS * 0.5 / 1000 / 2);
+	}
+
+	@Test
+	void estimate_aReadThroughCache_holdsAnExecutorForOneCommandsTime() {
+		EstimatedPart cache = part(this.estimator.estimate(resolved(READ_THROUGH_CACHE)), "cache");
+
+		assertThat(cache.meanHoldMs()).isEqualTo(0.5);
+	}
+
+	private static EstimatedPart part(InstantEstimate estimate, String id) {
+		return estimate.parts()
+			.stream()
+			.filter((part) -> part.id().equals(id))
+			.map(EstimatedPart.class::cast)
+			.findFirst()
+			.orElseThrow();
+	}
+
 	private static ArchitectureDocument resolved(String design) {
 		return RESOLVER.resolve(DesignDocuments.load(JSON.readTree(design)), null).document();
 	}
@@ -165,15 +226,26 @@ class InstantEstimatorTests {
 			.toJson();
 	}
 
-	// the Java's estimate read as the frozen engine's: its databases that flush as
-	// CommitFlushDepartures reads them, then the figures listed as its own as recorded
+	// the Java's estimate read as the frozen engine's: its databases that flush and its
+	// caches as EstimateDepartures reads them, then the figures listed as its own where
+	// they are the listed ones
 	private static JsonNode asRecorded(JsonNode java, JsonNode python, JsonNode own) {
-		JsonNode read = CommitFlushDepartures.asRecorded(java, python);
-		for (String pointer : own.propertyNames()) {
-			JsonPointer place = JsonPointer.compile(pointer);
-			((ObjectNode) read.at(place.head())).set(place.last().getMatchingProperty(), python.at(place));
-		}
-		return read;
+		return OwnFigures.asRecorded(EstimateDepartures.asRecorded(java, python), python, own);
+	}
+
+	// the figures each case lists as the Java's own: on threads a host machine slows, and
+	// where a read-through cache fills its misses
+	private static JsonNode ownFigures() throws IOException {
+		ObjectNode own = (ObjectNode) resource("slowed-flush.json").path(CASES).deepCopy();
+		resource("cache-fills.json").path(CASES)
+			.properties()
+			.forEach((listed) -> figuresOf(own, listed.getKey()).setAll((ObjectNode) listed.getValue()));
+		return own;
+	}
+
+	// the figures a case lists so far, an empty list for a case not listed yet
+	private static ObjectNode figuresOf(ObjectNode own, String name) {
+		return (own.get(name) instanceof ObjectNode listed) ? listed : own.putObject(name);
 	}
 
 	// an estimate's figures at the places listed, by place
