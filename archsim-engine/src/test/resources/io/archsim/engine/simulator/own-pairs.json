@@ -1,0 +1,28 @@
+{
+  "why": "A part on its own hyperthread pairs reaches its CPU limit where its vCPUs fill at the sibling speed, and past them runs its work at that speed and waits for a vCPU, which its CPU share past 1 counts; the frozen engine 0.16.0 saturated it where its vCPUs fill at the speed they run at the peak and, past them, also counted them taking turns at its own work (engine 1.6.0, ADR-0091). In the two recorded runs with such parts their estimate's figures listed here are the Java's own: a part's load, and for an overloaded one its CPU, slot and overall shares, its own time and the slots it holds for it, with its status, the busiest part's utilization, the saturation point and summary they set, and the design review's CPU check of it, which reads the same speed. The read-through cache's shares and the saturation point and summary they set are listed too, since its load no longer follows from its shares alone, which is what lets CacheCommandDepartures read them as the frozen engine's (cache-fills.json lists the rest of that run's own figures). Each reads as the frozen engine's only where the Java's figure is the one listed (OwnFigures), and every other figure of the two runs is the frozen engine's (SimulationCasesTests).",
+  "cases": {
+    "servicesOnTheirOwnHyperthreads": {
+      "/estimate/busiest/utilization": 1.0079,
+      "/estimate/parts/0/load": 0.8035,
+      "/estimate/parts/0/status": "busy",
+      "/estimate/parts/1/cpuUtilization": 1.0079,
+      "/estimate/parts/1/load": 1.0079,
+      "/estimate/parts/1/meanHoldMs": 28.67,
+      "/estimate/parts/1/meanServiceMs": 28.67,
+      "/estimate/parts/1/slotUtilization": 0.5376,
+      "/estimate/parts/1/utilization": 1.0079,
+      "/estimate/saturationRps": 297.6,
+      "/estimate/summary": "Overloaded at 300 req/s: Search needs 101% of its capacity; it saturates at about 298 req/s.",
+      "/review/0/detail": "At the 300 req/s peak about 300 req/s reach Search; 4 vCPU × 2 replicas at 16.1 ms of CPU work per request handle about 496 req/s at full speed, at 0.60 of it on its hyperthreads, so its CPU would be 101% busy and requests queue for a core. This is a static estimate (first attempts, fixed hit ratios); a run measures it."
+    },
+    "aReadThroughCacheWithAFixedHitRatio": {
+      "/estimate/busiest/utilization": 0.5306,
+      "/estimate/parts/1/cpuUtilization": 0.5306,
+      "/estimate/parts/1/load": 0.758,
+      "/estimate/parts/1/slotUtilization": 0.2653,
+      "/estimate/parts/1/utilization": 0.5306,
+      "/estimate/saturationRps": 527.7,
+      "/estimate/summary": "p95 ≈ 43 ms; busiest Memcached 53%"
+    }
+  }
+}

@@ -72,14 +72,14 @@ final class PartShapes {
 		}
 		if (serverless) {
 			return new PartShape(own, own, Moments.ZERO, null, 1, config.concurrencyLimit(), false, true, null, null,
-					0.0);
+					0.0, null);
 		}
 		Double cores = config.cpuCores();
 		Double cpu = (cores != null && cores != 0)
 				? load.total() * own.mean() * config.cpuShare() / (MILLIS_PER_SECOND * cores * Math.max(1, replicas))
 				: null;
 		return new PartShape(own, own, Moments.ZERO, null, Math.max(1, replicas), config.handlersPerReplica(), true,
-				config.holdsHandlerThroughCalls(), cpu, null, 0.0);
+				config.holdsHandlerThroughCalls(), cpu, null, 0.0, null);
 	}
 
 	/**
@@ -104,7 +104,7 @@ final class PartShapes {
 			cpu = primary / cores;
 		}
 		return new PartShape(read, write, flush, null, Math.max(1, config.partitions() * copies),
-				config.maxConnections(), true, false, cpu, limit(config, load), 0.0);
+				config.maxConnections(), true, false, cpu, limit(config, load), 0.0, null);
 	}
 
 	/**
@@ -142,19 +142,20 @@ final class PartShapes {
 		Double cores = config.cpuCores();
 		Double cpu = (cores != null && cores != 0)
 				? (load.total() + fills) * own.mean() / MILLIS_PER_SECOND / cores / shards : null;
-		return new PartShape(own, own, Moments.ZERO, null, shards, config.executors(), true, false, cpu, null, fills);
+		return new PartShape(own, own, Moments.ZERO, null, shards, config.executors(), true, false, cpu, null, fills,
+				null);
 	}
 
 	private static PartShape balancer(LoadBalancerConfig config, NodeLoad load) {
 		Moments own = Moments.of(config.overheadMs());
 		return new PartShape(own, own, Moments.ZERO, null, 1, config.maxConnections(), false, true, null,
-				share(load, config.rateLimitRps()), 0.0);
+				share(load, config.rateLimitRps()), 0.0, null);
 	}
 
 	private static PartShape api(ExternalApiConfig config, NodeLoad load) {
 		Moments own = Moments.of(config.latencyMs());
 		return new PartShape(own, own, Moments.ZERO, null, 1, config.concurrencyLimit(), false, false, null,
-				share(load, config.rateLimitRps()), 0.0);
+				share(load, config.rateLimitRps()), 0.0, null);
 	}
 
 	/**
@@ -175,7 +176,7 @@ final class PartShapes {
 		}
 		Moments consumer = Moments.of(config.consumerTimeMs());
 		return new PartShape(consumer, consumer, Moments.ZERO, publish, 1, config.consumerSlots(), true, true, null,
-				null, 0.0);
+				null, 0.0, null);
 	}
 
 	private static @Nullable Double share(NodeLoad load, @Nullable Double rateLimit) {

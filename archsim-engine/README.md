@@ -213,6 +213,17 @@ change its value only where the last seven say:
   commands wait longer, in two of the estimate's cases and three recorded simulations, the
   cache's wait, what its caller holds, the latency and where its time goes are the Java's own,
   listed in the two `cache-fills.json` and pinned by `OwnFigures`;
+- its instant estimate saturates a part on its own hyperthread pairs where its vCPUs fill at the
+  sibling speed: the CPU's share of its load is at least the share its work would take with every
+  vCPU at that speed, while its utilization stays the share busy at the peak's speed; and past its
+  vCPUs its work runs at the sibling speed and waits for one, where Python took the saturation
+  point from the speed at the peak and counted the vCPUs taking turns at the part's own work, so
+  an overloaded part ran at about a hundredth of its speed (engine 1.6.0, ADR-0091). The design
+  review's CPU check reads the same speed. The estimate's case of such a part and two recorded
+  simulations depart: their figures that move, and one simulation's CPU finding, are the Java's
+  own, listed in the two `own-pairs.json` and pinned by `OwnFigures`; the read-through cache of
+  one of them is listed with its shares, since its load no longer follows from them as
+  `CacheCommandDepartures` needs;
 - a third-party API whose price the design leaves unset costs its technology preset's price, or is
   not priced, listed in the cost's `unpriced` and a note (engine 1.2.0,
   [ADR-0081](../docs/adr/0081-price-an-unset-api-at-its-preset-or-leave-it-out-of-the-month.md)),

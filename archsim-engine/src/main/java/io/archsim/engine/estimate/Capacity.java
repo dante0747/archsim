@@ -18,13 +18,16 @@ import io.archsim.model.document.NodeSpec;
  * How much of a part's capacity the peak takes. Busy is the share of its slots or CPU in
  * use, what a run's utilization measures; a rate or throughput limit is not work: its
  * share says how close the part is to turning requests away (its load), which can bind
- * first without the part being busy at all. Each request takes a slot, and so does a
- * read-through cache's fill of a key it missed.
+ * first without the part being busy at all. On its own hyperthread pairs a part's CPU
+ * fills where every vCPU is busy at the sibling speed, so the CPU's share of its load is
+ * at least the share it would take then (ADR-0091). Each request takes a slot, and so
+ * does a read-through cache's fill of a key it missed.
  *
  * @param meanHoldMs how long a request or a fill holds a slot
  * @param slotUtilization the share of its slots in use; {@code null} without slots
  * @param utilization the larger of the slot and CPU shares; {@code null} for neither
- * @param load the largest of the slot, CPU and rate-limit shares; {@code null} for none
+ * @param load the largest of the slot, CPU and rate-limit shares, the CPU's on a part's
+ * own pairs at least its share at the sibling speed; {@code null} for none
  * @param limitedBy which share is the largest
  * @param stable whether the part keeps up: its load under 1 and its queue stable
  * @param waitProbability the chance a request or a fill waits for a slot
@@ -57,10 +60,10 @@ record Capacity(double meanHoldMs, @Nullable Double slotUtilization, @Nullable D
 		double meanHold = (arrivals > 0) ? busy(shape, here, hold) / arrivals : 0.0;
 		int slots = slots(shape);
 		Double slotShare = (slots != 0) ? arrivals * meanHold / (MILLIS_PER_SECOND * slots * shape.pools()) : null;
+		Double utilization = larger(slotShare, shape.cpu());
 		Map<Limit, Double> shares = new LinkedHashMap<>();
 		putIfKnown(shares, Limit.SLOTS, slotShare);
-		putIfKnown(shares, Limit.CPU, shape.cpu());
-		Double utilization = shares.values().stream().max(Double::compare).orElse(null);
+		putIfKnown(shares, Limit.CPU, shape.cpuLoad());
 		putIfKnown(shares, Limit.RATE_LIMIT, shape.limit());
 		Map.Entry<Limit, Double> largest = largest(shares);
 		Double load = (largest != null) ? largest.getValue() : null;
@@ -147,6 +150,13 @@ record Capacity(double meanHoldMs, @Nullable Double slotUtilization, @Nullable D
 			return PartStatus.OVERLOADED;
 		}
 		return (this.load != null && this.load >= BUSY) ? PartStatus.BUSY : PartStatus.OK;
+	}
+
+	private static @Nullable Double larger(@Nullable Double first, @Nullable Double second) {
+		if (first == null || second == null) {
+			return (first != null) ? first : second;
+		}
+		return Math.max(first, second);
 	}
 
 	private static void putIfKnown(Map<Limit, Double> shares, Limit limit, @Nullable Double share) {

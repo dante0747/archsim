@@ -20,9 +20,11 @@ package io.archsim.engine.version;
  * key it missed in its slots and CPU (ADR-0092); 1.6.0 counts the vCPUs of a service,
  * database or cache with 2 or more vCPU as hyperthread pairs at a sibling speed of 0.6 by
  * default from schema 1.11, as whole cores on a whole-core instance family, a serverless
- * platform or a pod, and sizes a part for the kind its instance type gives it (ADR-0091).
- * The report's version is the Java simulator's own too (ADR-0050). The design schema's is
- * the model's ({@code ArchitectureDocument.SCHEMA_VERSION}).
+ * platform or a pod, sizes a part for the kind its instance type gives it, and saturates
+ * a part on its own hyperthread pairs in the instant estimate where its vCPUs fill at the
+ * sibling speed (ADR-0091). The report's version is the Java simulator's own too
+ * (ADR-0050). The design schema's is the model's
+ * ({@code ArchitectureDocument.SCHEMA_VERSION}).
  */
 public final class EngineVersions {
 

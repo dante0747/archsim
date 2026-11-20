@@ -24,8 +24,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * deleted), simulated in Java with the scenario, seed and mode Python simulated, gives
  * the report Python gave, compared as {@link ReportComparison} compares. Where a
  * read-through cache's fills make its commands wait more often, the estimate's figures
- * {@code cache-fills.json} lists are the Java's own (ADR-0092), each read as Python's
- * only where the Java's figure is the listed one ({@code OwnFigures}).
+ * {@code cache-fills.json} lists are the Java's own (ADR-0092), and where a part runs on
+ * its own hyperthread pairs those {@code own-pairs.json} lists (ADR-0091), each read as
+ * Python's only where the Java's figure is the listed one ({@code OwnFigures}).
  */
 class SimulationCasesTests {
 
@@ -63,9 +64,23 @@ class SimulationCasesTests {
 		assertThat(provenance.get("wallSeconds").doubleValue()).isNotNegative();
 	}
 
+	// the figures each run lists as the Java's own: where a read-through cache fills its
+	// misses, and on a part's own pairs
 	private static JsonNode ownFigures() throws IOException {
-		try (InputStream in = Objects.requireNonNull(SimulationCasesTests.class.getResourceAsStream("cache-fills.json"),
-				"simulator/cache-fills.json")) {
+		ObjectNode own = (ObjectNode) cases("cache-fills.json").deepCopy();
+		cases("own-pairs.json").properties()
+			.forEach((listed) -> figuresOf(own, listed.getKey()).setAll((ObjectNode) listed.getValue()));
+		return own;
+	}
+
+	// the figures a run lists so far, an empty list for a run not listed yet
+	private static ObjectNode figuresOf(ObjectNode own, String name) {
+		return (own.get(name) instanceof ObjectNode listed) ? listed : own.putObject(name);
+	}
+
+	private static JsonNode cases(String name) throws IOException {
+		try (InputStream in = Objects.requireNonNull(SimulationCasesTests.class.getResourceAsStream(name),
+				"simulator/" + name)) {
 			return JSON.readTree(in).path("cases");
 		}
 	}

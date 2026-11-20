@@ -156,7 +156,9 @@ export interface EstimatePart {
   /** Share of its rate or throughput limit used at the peak (engine 0.13+): not work, but how close
    * it is to turning requests away. */
   rateLimitShare?: number | null;
-  /** The largest of the shares above: 1 or more means it cannot keep up (engine 0.13+). */
+  /** The largest of the shares above: 1 or more means it cannot keep up (engine 0.13+). On a part's
+   * own hyperthread pairs the CPU's share counts at least what its vCPUs do at the sibling speed
+   * (engine 1.6.0). */
   load?: number | null;
   /** Time a request spends in the part, waiting, working and in its own calls (ms; engine 0.13+). */
   meanResidenceMs?: number | null;

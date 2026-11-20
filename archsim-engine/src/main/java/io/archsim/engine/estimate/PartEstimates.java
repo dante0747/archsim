@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.Set;
 
 import org.jspecify.annotations.Nullable;
@@ -188,7 +189,8 @@ final class PartEstimates {
 			return;
 		}
 		Optional<PartShape> shape = this.graph.config(id)
-			.flatMap((config) -> PartShapes.of(config, here.get(), missedReads(id)))
+			.flatMap((config) -> PartShapes.of(config, here.get(), missedReads(id))
+				.map((found) -> onOwnPairs(config, found)))
 			.map((found) -> slowed(id, found));
 		if (shape.isEmpty()) {
 			note(node, here.get(), "No capacity model for this kind of part.");
@@ -210,6 +212,18 @@ final class PartEstimates {
 			.map((edge) -> this.loads.edges().get(edge.id()))
 			.filter(Objects::nonNull)
 			.mapToDouble(NodeLoad::read));
+	}
+
+	/**
+	 * A part's shape at full speed, on its own hyperthread pairs with the CPU share it
+	 * would take with every vCPU at the sibling speed.
+	 * @param config the part's config
+	 * @param shape its shape at full speed
+	 * @return the shape on its pairs, or as it is
+	 */
+	private PartShape onOwnPairs(Record config, PartShape shape) {
+		OptionalDouble siblingSpeed = OwnPairs.siblingSpeed(config, this.graph.architecture().host());
+		return siblingSpeed.isPresent() ? shape.onPairsAt(siblingSpeed.getAsDouble()) : shape;
 	}
 
 	/**

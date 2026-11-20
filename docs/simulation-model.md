@@ -559,7 +559,9 @@ ceiling in `capacityRps` is the load multiple at which the part's threads fill w
 part's load and the clients' grow in proportion to the window's (own hyperthreads: every vCPU
 busy); the event-loop formula in `explain` says the speed it assumed; the instant estimate, the
 design review and auto-sizing take the speed at the estimated peak, `busy = base / speed(busy) +
-other`, where `base` is the threads the parts' CPU work needs at full speed. Sizing on a host
+other`, where `base` is the threads the parts' CPU work needs at full speed (on a part's own
+hyperthreads at most every vCPU busy: past them its work waits for one rather than taking turns
+at it, so the speed is never below the sibling speed). Sizing on a host
 counts the parts it is about to size. A part on its own hyperthreads is sized another way,
 since the speed of its vCPUs depends on how many it gets: see the auto-sizing rules below.
 
@@ -848,6 +850,17 @@ the time until the key expires or is next written):
   engine 1.5.2 a sharded cache's whole load counted on one shard's cores, and the fills did not
   count in its slots or CPU
   ([ADR-0092](adr/0092-spread-a-caches-commands-over-its-shards-and-count-its-fills.md)).
+- **A part on its own hyperthread pairs** (2 or more vCPU and a sibling speed below 1, its
+  own, the design's or the default's) fills its vCPUs where every one is busy at the sibling
+  speed: 4 vCPU at 0.6 do 2.4 cores' work. Its `cpuUtilization` and `utilization` are the share
+  of its vCPUs busy at the peak, at the speed they run then (faster while some siblings idle),
+  as a run measures it; its `load`, which sets its status and the saturation point, is at least
+  the share of that ceiling the peak takes, so such a part saturates where its vCPUs fill at any
+  load. Past them its work runs at the sibling speed and waits for a vCPU, which a `load` past 1
+  says. Before engine 1.6.0 its saturation point came from the speed at the peak (a service of
+  4 vCPU at 0.6 read 400 req/s at 200 req/s, where its vCPUs fill at 240), and past its vCPUs
+  they also took turns at its own work, so it ran at a hundredth of its speed and read about 4
+  req/s (ADR-0091).
 - **Waiting:** an M/M/c queue per pool (a service replica, a database instance, a cache shard),
   Wq = C(c, a) / (c·μ - λ) with Erlang C. Load balancers, serverless functions and third-party
   APIs refuse rather than queue, so they add no wait.

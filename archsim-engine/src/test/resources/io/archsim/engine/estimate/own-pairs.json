@@ -1,0 +1,16 @@
+{
+  "why": "A part on its own hyperthread pairs with more work than its vCPUs do runs its work at the sibling speed and waits for a vCPU past them, which its CPU share past 1 counts; the frozen engine 0.16.0 also counted the vCPUs taking turns at its own work, so its overloaded part ran at a hundredth of its speed, and saturated where its vCPUs fill at the speed of the peak (engine 1.6.0, ADR-0091). In the one recorded case with such a part, 4 vCPU at a sibling speed of 0.6 doing 10 ms of CPU a request at 300 req/s, these figures are the Java's own: its CPU, slot and overall shares, its load, its own time and the slots it holds for it, the busiest part's utilization, and the saturation point, 240 req/s, with the summary that names it, where its vCPUs fill at 0.6 of a core each. Each reads as the frozen engine's only where the Java's figure is the one listed (OwnFigures), and every other figure of the case is the frozen engine's (InstantEstimatorTests).",
+  "cases": {
+    "withHyperthreads_slowsThePartOnItsOwnThreads": {
+      "/busiest/utilization": 1.25,
+      "/parts/0/cpuUtilization": 1.25,
+      "/parts/0/load": 1.25,
+      "/parts/0/meanHoldMs": 16.667,
+      "/parts/0/meanServiceMs": 16.667,
+      "/parts/0/slotUtilization": 0.0781,
+      "/parts/0/utilization": 1.25,
+      "/saturationRps": 240.0,
+      "/summary": "Overloaded at 300 req/s: api needs 125% of its capacity; it saturates at about 240 req/s."
+    }
+  }
+}

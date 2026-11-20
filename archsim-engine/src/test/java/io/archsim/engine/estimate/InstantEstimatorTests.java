@@ -2,6 +2,7 @@ package io.archsim.engine.estimate;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 
@@ -33,15 +34,18 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code scripts/export_estimate_cases.py}, since deleted) holds the resolved design and
  * the estimate the Python engine 0.16.0 gives for it; the estimate must match it as the
  * golden files do, a database that flushes its commits and a cache read as
- * {@link EstimateDepartures} reads them (ADR-0089, ADR-0092). Two lists name figures that
- * are the Java's own, each read as Python's only where the Java's figure is the listed
- * one ({@link OwnFigures}), and every other figure of their cases must be Python's. On
- * threads a host machine slows, the Java stretches a write's query and not the flush it
- * then waits for, where Python stretched both ({@code slowed-flush.json}, the two cases
- * with such a database). A read-through cache's fills make its commands wait more often
- * ({@code cache-fills.json}, the two cases with such a cache). Two cases the Python
- * engine fails on are the Java's own: a link to a part that does not exist, and a rate
- * limit first among parts that use none of their limits.
+ * {@link EstimateDepartures} reads them (ADR-0089, ADR-0092). Three lists name figures
+ * that are the Java's own, each read as Python's only where the Java's figure is the
+ * listed one ({@link OwnFigures}), and every other figure of their cases must be
+ * Python's. On threads a host machine slows, the Java stretches a write's query and not
+ * the flush it then waits for, where Python stretched both ({@code slowed-flush.json},
+ * the two cases with such a database). A read-through cache's fills make its commands
+ * wait more often ({@code cache-fills.json}, the two cases with such a cache). An
+ * overloaded part on its own hyperthread pairs runs at the sibling speed and saturates
+ * where its vCPUs fill at it, where Python counted its vCPUs taking turns
+ * ({@code own-pairs.json}, ADR-0091). Two cases the Python engine fails on are the Java's
+ * own: a link to a part that does not exist, and a rate limit first among parts that use
+ * none of their limits.
  */
 class InstantEstimatorTests {
 
@@ -181,21 +185,21 @@ class InstantEstimatorTests {
 
 	@Test
 	void estimate_aShardedReadThroughCache_spreadsItsCommandsOverEveryShardsCores() {
-		EstimatedPart cache = part(this.estimator.estimate(resolved(READ_THROUGH_CACHE)), "cache");
+		EstimatedPart cache = EstimatedParts.part(this.estimator.estimate(resolved(READ_THROUGH_CACHE)), "cache");
 
 		assertThat(cache.cpuUtilization()).isEqualTo(CACHE_COMMANDS * 0.5 / 1000 / (2 * 2));
 	}
 
 	@Test
 	void estimate_aReadThroughCache_holdsItsExecutorsForTheCommandsThatFillMissedKeys() {
-		EstimatedPart cache = part(this.estimator.estimate(resolved(READ_THROUGH_CACHE)), "cache");
+		EstimatedPart cache = EstimatedParts.part(this.estimator.estimate(resolved(READ_THROUGH_CACHE)), "cache");
 
 		assertThat(cache.slotUtilization()).isEqualTo(CACHE_COMMANDS * 0.5 / 1000 / 2);
 	}
 
 	@Test
 	void estimate_aReadThroughCache_queuesItsReadsBehindTheCommandsThatFillMissedKeys() {
-		EstimatedPart cache = part(this.estimator.estimate(resolved(READ_THROUGH_CACHE)), "cache");
+		EstimatedPart cache = EstimatedParts.part(this.estimator.estimate(resolved(READ_THROUGH_CACHE)), "cache");
 
 		// one executor a shard: a command waits as often as the executor is busy
 		assertThat(cache.waitProbability()).isEqualTo(CACHE_COMMANDS * 0.5 / 1000 / 2);
@@ -203,18 +207,9 @@ class InstantEstimatorTests {
 
 	@Test
 	void estimate_aReadThroughCache_holdsAnExecutorForOneCommandsTime() {
-		EstimatedPart cache = part(this.estimator.estimate(resolved(READ_THROUGH_CACHE)), "cache");
+		EstimatedPart cache = EstimatedParts.part(this.estimator.estimate(resolved(READ_THROUGH_CACHE)), "cache");
 
 		assertThat(cache.meanHoldMs()).isEqualTo(0.5);
-	}
-
-	private static EstimatedPart part(InstantEstimate estimate, String id) {
-		return estimate.parts()
-			.stream()
-			.filter((part) -> part.id().equals(id))
-			.map(EstimatedPart.class::cast)
-			.findFirst()
-			.orElseThrow();
 	}
 
 	private static ArchitectureDocument resolved(String design) {
@@ -233,13 +228,15 @@ class InstantEstimatorTests {
 		return OwnFigures.asRecorded(EstimateDepartures.asRecorded(java, python), python, own);
 	}
 
-	// the figures each case lists as the Java's own: on threads a host machine slows, and
-	// where a read-through cache fills its misses
+	// the figures each case lists as the Java's own: on threads a host machine slows,
+	// where a read-through cache fills its misses, and on a part's own pairs
 	private static JsonNode ownFigures() throws IOException {
 		ObjectNode own = (ObjectNode) resource("slowed-flush.json").path(CASES).deepCopy();
-		resource("cache-fills.json").path(CASES)
-			.properties()
-			.forEach((listed) -> figuresOf(own, listed.getKey()).setAll((ObjectNode) listed.getValue()));
+		for (String list : List.of("cache-fills.json", "own-pairs.json")) {
+			resource(list).path(CASES)
+				.properties()
+				.forEach((listed) -> figuresOf(own, listed.getKey()).setAll((ObjectNode) listed.getValue()));
+		}
 		return own;
 	}
 

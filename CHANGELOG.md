@@ -49,6 +49,27 @@ for when that version changes.
 
 ### Fixed
 
+- **The instant estimate saturates a part on its own hyperthreads where they fill (engine 1.6.0,
+  ADR-0091).** A part with 2 or more vCPU and a sibling speed below 1 (its own, the design's or,
+  from schema 1.11, the default) fills its vCPUs where every one is busy at the sibling speed, but
+  the estimate extrapolated its saturation point from the speed its vCPUs run at the peak, faster
+  while some siblings idle, and past its vCPUs it counted them taking turns at its own work on top
+  of the queue its CPU share past 1 already counts. A service of 4 vCPU at 0.6 doing 10 ms of CPU
+  a request, whose vCPUs fill at 240 req/s, read a saturation point of 400 req/s at 200 req/s, and
+  at 300 req/s needed 8094% of its capacity, its work 1,079 ms a request, and saturated at about 4
+  req/s. It now saturates at 240 req/s at either load, is busy (83% of its ceiling) at 200 req/s
+  and needs 125% at 300 req/s, its work 16.7 ms a request. Its utilization stays the share of its
+  vCPUs busy at the peak, as a run measures it. The design review's CPU check of such a part takes
+  the same speed (125% busy at 300 req/s, where it said 8094%). A design on a host machine is left
+  as it was: there the turns are other parts' threads, which a part's own share does not count.
+  The frozen engine counted the turns too, so its recorded estimates of such parts depart: one of
+  the estimate's cases and two recorded runs, whose figures, and one run's CPU finding, two
+  own-pairs.json list. A read-through cache of 2 vCPU at 0.7 in one of them saturates at about 528
+  req/s, at 76% of its ceiling at 400 req/s, where it read 935 before its fills counted (1.5.2)
+  and 754 since. An overloaded part's utilization falls with its speed (125% where it read 8094%),
+  and with it the busy replicas an autoscaled part's cost counts before a run and the analysis's
+  confidence, which weighs each part by it. Nothing a run simulates changes.
+
 - **The instant estimate counts a cache's commands as a run does (engine 1.5.2,
   [ADR-0092](docs/adr/0092-spread-a-caches-commands-over-its-shards-and-count-its-fills.md)).**
   A sharded cache's CPU was its whole load over one shard's cores, where each shard has its own;

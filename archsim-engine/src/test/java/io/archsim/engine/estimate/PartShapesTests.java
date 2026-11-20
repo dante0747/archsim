@@ -18,7 +18,9 @@ import static org.assertj.core.api.Assertions.within;
  * ({@code Operation} and {@code LogFlusher} of the database component). A cache's
  * commands spread over its shards, each with its own cores, and a read-through cache runs
  * one more command to fill a key after a miss ({@code CacheShards} and
- * {@code CacheRuntime} of the cache component).
+ * {@code CacheRuntime} of the cache component). A part on its own hyperthread pairs fills
+ * them where every vCPU is busy at the sibling speed, at whatever speed they run at the
+ * peak (ADR-0091).
  */
 class PartShapesTests {
 
@@ -135,6 +137,34 @@ class PartShapesTests {
 		PartShape slowed = cache(SHARDED_CACHE, MISSED).slowedTo(0.5, 1.0);
 
 		assertThat(slowed.fills()).isEqualTo(MISSED);
+	}
+
+	@Test
+	void onPairsAt_aPartWithACpuSize_takesItsShareAtTheSiblingSpeed() {
+		PartShape paired = database(FLUSHING).onPairsAt(0.5);
+
+		assertThat(paired.cpuAtSiblingSpeed()).isCloseTo(0.175 / 0.5, within(EXACT));
+	}
+
+	@Test
+	void slowedTo_aPartOnItsOwnPairs_keepsItsShareAtTheSiblingSpeed() {
+		PartShape slowed = database(FLUSHING).onPairsAt(0.5).slowedTo(0.8, 0.5);
+
+		assertThat(slowed.cpuAtSiblingSpeed()).isCloseTo(0.175 / 0.5, within(EXACT));
+	}
+
+	@Test
+	void cpuLoad_aPartOnItsOwnPairsSlowedLessThanItsSiblingSpeed_isItsShareAtTheSiblingSpeed() {
+		PartShape slowed = database(FLUSHING).onPairsAt(0.5).slowedTo(0.8, 0.5);
+
+		assertThat(slowed.cpuLoad()).isCloseTo(0.175 / 0.5, within(EXACT));
+	}
+
+	@Test
+	void cpuLoad_aPartOnWholeCores_isItsShareInUse() {
+		PartShape shape = database(FLUSHING);
+
+		assertThat(shape.cpuLoad()).isEqualTo(shape.cpu());
 	}
 
 	private static PartShape database(String database) {

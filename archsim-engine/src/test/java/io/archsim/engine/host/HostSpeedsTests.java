@@ -15,7 +15,8 @@ import static org.assertj.core.api.Assertions.within;
 
 /**
  * Each part's CPU speed on the design's host or its own hyperthreads: the Python engine's
- * values.
+ * values, but for an overloaded part on its own hyperthreads, which takes no turns at its
+ * own work (engine 1.6.0).
  */
 class HostSpeedsTests {
 
@@ -53,12 +54,23 @@ class HostSpeedsTests {
 
 	@Test
 	void onOwnThreads_aBusyPartWithHyperthreads_runsAtTheirSpeed() {
+		// 2.2 cores' work on 4 vCPU: 3 of them busy, one core's pair both
+		Map<String, Double> speeds = HostSpeeds.onOwnThreads(Map.of("api", runWork("""
+				{"cpuCores": 4, "siblingSpeed": 0.6, "serviceTimeMs": {"kind": "constant", "value": 10},
+				 "replicas": 1}""", 176, 44)), Map.of("api", 0.6));
+
+		assertThat(speeds).containsOnlyKeys("api");
+		assertThat(speeds.get("api")).isCloseTo(0.7333333333333334, within(1e-12));
+	}
+
+	@Test
+	void onOwnThreads_anOverloadedPartWithHyperthreads_runsAtTheSiblingSpeed() {
+		// 3 cores' work on 4 vCPU that do 2.4: past them its work waits for a vCPU
 		Map<String, Double> speeds = HostSpeeds.onOwnThreads(Map.of("api", runWork("""
 				{"cpuCores": 4, "siblingSpeed": 0.6, "serviceTimeMs": {"kind": "constant", "value": 10},
 				 "replicas": 1}""", 240, 60)), Map.of("api", 0.6));
 
-		assertThat(speeds).containsOnlyKeys("api");
-		assertThat(speeds.get("api")).isCloseTo(0.009266409266409266, within(1e-15));
+		assertThat(speeds.get("api")).isCloseTo(0.6, within(1e-12));
 	}
 
 	@Test

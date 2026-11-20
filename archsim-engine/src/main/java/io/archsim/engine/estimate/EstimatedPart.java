@@ -24,7 +24,8 @@ import io.archsim.model.codec.OmitWhenDefault;
  * @param slotUtilization the share of its slots in use
  * @param cpuUtilization the share of its CPU in use
  * @param rateLimitShare the share of a rate or throughput limit used
- * @param load the largest of those three shares
+ * @param load the largest of those three shares, the CPU's on a part's own hyperthread
+ * pairs at least the share of its vCPUs' capacity at the sibling speed (ADR-0091)
  * @param limitedBy which of them is the largest
  * @param waitProbability the chance a request waits for a slot; {@code null} when
  * overloaded

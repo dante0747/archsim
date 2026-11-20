@@ -83,8 +83,11 @@ public final class HostSpeeds {
 	/**
 	 * The speed of each part on its own hyperthreads, when the design has no host: a part
 	 * with a sibling speed set and at least 2 vCPU runs on {@code vCPU / 2} cores of two
-	 * threads each, at their speed for its busiest instance. Parts at full speed are left
-	 * out.
+	 * threads each, at their speed for its busiest instance. Past its vCPUs its work
+	 * waits for one, which its CPU share past 1 counts, so they run at their speed with
+	 * every one busy, the sibling speed, and do not also take turns at it (on a host
+	 * machine the turns are other parts' threads, which a part's own share does not
+	 * count). Parts at full speed are left out.
 	 * @param parts each part's work, by its id
 	 * @param siblingSpeeds the speed of a part's thread when its sibling thread is busy,
 	 * by its id, for the parts that set one
@@ -95,14 +98,26 @@ public final class HostSpeeds {
 		parts.forEach((id, work) -> {
 			Double sibling = siblingSpeeds.get(id);
 			if (sibling != null && runsOnOwnHyperthreads(work.cores(), sibling)) {
-				HostMachine own = HostMachine.ownHyperthreads(work.cores(), sibling);
-				double speed = own.solve(work.busiest(), 0.0).speed();
+				double speed = speedOnOwnThreads(work, sibling);
 				if (speed < 1.0) {
 					speeds.put(id, speed);
 				}
 			}
 		});
 		return speeds;
+	}
+
+	/**
+	 * The speed of a part's own hyperthreads for its busiest instance, with at most every
+	 * one busy.
+	 * @param work the part's work
+	 * @param siblingSpeed the speed of a thread whose sibling is busy too
+	 * @return the speed, as a share of full speed
+	 */
+	private static double speedOnOwnThreads(PartWork work, double siblingSpeed) {
+		HostMachine own = HostMachine.ownHyperthreads(work.cores(), siblingSpeed);
+		HostLoad load = own.solve(work.busiest(), 0.0);
+		return (load.busyThreads() < own.threads()) ? load.speed() : own.speedWithEveryThreadBusy();
 	}
 
 }
