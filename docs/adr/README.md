@@ -136,4 +136,4 @@ what the repository shows.
 | [0092](0092-spread-a-caches-commands-over-its-shards-and-count-its-fills.md) | Spread a cache's commands over its shards, and count its fills, in the instant estimate | Accepted | 2026-11-19 |
 | [0093](0093-fit-a-services-falling-cpu-per-request-as-a-law-of-its-rate.md) | Fit a service's falling CPU per request as a law of its rate | Accepted | 2026-11-20 |
 | [0094](0094-fit-the-knees-range-on-every-experiment-the-engine-is-tuned-on-with-an-error-each-experiment-shares.md) | Fit the knee's range on every experiment the engine is tuned on, with an error each experiment shares | Accepted | 2026-11-20 |
-| [0095](0095-run-the-benchmark-designs-on-the-laptops-fitted-host-machine-and-let-a-freeze-name-it.md) | Run the benchmark designs on the laptop's fitted host machine and let a freeze name it | Proposed | 2026-11-20 |
+| [0095](0095-run-the-benchmark-designs-on-the-laptops-fitted-host-machine-and-let-a-freeze-name-it.md) | Run the benchmark designs on the laptop's fitted host machine and let a freeze name it | Accepted | 2026-11-20 |
