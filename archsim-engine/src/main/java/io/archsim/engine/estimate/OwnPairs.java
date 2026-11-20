@@ -29,22 +29,16 @@ final class OwnPairs {
 	 * cores, or on a design with a host, whose threads are shared
 	 */
 	static OptionalDouble siblingSpeed(Record config, @Nullable HostSpec host) {
-		if (host != null) {
-			return OptionalDouble.empty();
-		}
 		return switch (config) {
-			case ServiceConfig service -> of(service.cpuCores(), service.siblingSpeed());
-			case DatabaseConfig database -> of(database.cpuCores(), database.siblingSpeed());
-			case CacheConfig cache -> of(cache.cpuCores(), cache.siblingSpeed());
+			case ServiceConfig service -> of(host, service.cpuCores(), service.siblingSpeed());
+			case DatabaseConfig database -> of(host, database.cpuCores(), database.siblingSpeed());
+			case CacheConfig cache -> of(host, cache.cpuCores(), cache.siblingSpeed());
 			default -> OptionalDouble.empty();
 		};
 	}
 
-	private static OptionalDouble of(@Nullable Double cores, @Nullable Double siblingSpeed) {
-		if (cores == null || siblingSpeed == null || !HostSpeeds.runsOnOwnHyperthreads(cores, siblingSpeed)) {
-			return OptionalDouble.empty();
-		}
-		return OptionalDouble.of(siblingSpeed);
+	private static OptionalDouble of(@Nullable HostSpec host, @Nullable Double cores, @Nullable Double siblingSpeed) {
+		return (cores != null) ? HostSpeeds.ownPairsSpeed(host, cores, siblingSpeed) : OptionalDouble.empty();
 	}
 
 }

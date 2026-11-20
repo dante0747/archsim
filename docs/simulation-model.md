@@ -692,8 +692,9 @@ Specs also feed the calculations around a run:
 - **Design review (`DesignReview`, before a run)**: a static estimate of the peak load at each part (peak
   rate split by read/write mix and client share, spread over load-balancer targets by replicas,
   cache misses at the fixed hit ratio) is compared with its CPU: high when the CPU would be over
-  100% busy, medium above 80%. It also flags a database working set that does not fit in memory
-  and a TTL cache smaller than the keyspace.
+  100% busy, medium above 80%; on a part's own hyperthread pairs, the share of their ceiling (every
+  vCPU busy at the sibling speed) the peak takes. It also flags a database working set that does
+  not fit in memory and a TTL cache smaller than the keyspace.
 - **Exports**: Kubernetes containers get `resources.requests` = `limits` from CPU and memory
   (set or auto-sized, as the engine reports them), except that an auto-sized pod requests the CPU
   it needs in millicores (e.g. `210m`, rounded up to 10m) with its whole cores as the limit, and
@@ -857,10 +858,12 @@ the time until the key expires or is next written):
   as a run measures it; its `load`, which sets its status and the saturation point, is at least
   the share of that ceiling the peak takes, so such a part saturates where its vCPUs fill at any
   load. Past them its work runs at the sibling speed and waits for a vCPU, which a `load` past 1
-  says. Before engine 1.6.0 its saturation point came from the speed at the peak (a service of
-  4 vCPU at 0.6 read 400 req/s at 200 req/s, where its vCPUs fill at 240), and past its vCPUs
-  they also took turns at its own work, so it ran at a hundredth of its speed and read about 4
-  req/s (ADR-0091).
+  says. The design review's CPU check judges it by the same share of that ceiling, and says so,
+  so the two agree on when it is short of CPU; it judged it at the speed at the peak, so at 0.6 it
+  said nothing from about 80% to 93% of the ceiling. Before engine 1.6.0 its saturation point came
+  from the speed at the peak (a service of 4 vCPU at 0.6 read 400 req/s at 200 req/s, where its
+  vCPUs fill at 240), and past its vCPUs they also took turns at its own work, so it ran at a
+  hundredth of its speed and read about 4 req/s (ADR-0091).
 - **Waiting:** an M/M/c queue per pool (a service replica, a database instance, a cache shard),
   Wq = C(c, a) / (c·μ - λ) with Erlang C. Load balancers, serverless functions and third-party
   APIs refuse rather than queue, so they add no wait.

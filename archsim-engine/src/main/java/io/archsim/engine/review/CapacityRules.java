@@ -82,9 +82,8 @@ final class CapacityRules {
 		this.findings.add(ReviewRule.CPU_CAPACITY, over ? Severity.HIGH : Severity.MEDIUM, Involved.node(id),
 				new Wording(over ? name + " needs more CPU at peak" : name + " has little CPU headroom",
 						"At the " + HalfUp.grouped(this.document.workload().peakRate()) + " req/s peak about "
-								+ HalfUp.grouped(busy.load()) + " req/s reach " + name + "; " + busy.how()
-								+ ", so its CPU would be " + ReviewText.percent(busy.share()) + " busy"
-								+ (over ? " and requests queue for a core" : "")
+								+ HalfUp.grouped(busy.load()) + " req/s reach " + name + "; " + busy.how() + ", so "
+								+ busy.verdict() + (over ? " and requests queue for a core" : "")
 								+ ". This is a static estimate (first attempts, fixed hit ratios); a run measures it.",
 						"Give it more CPU cores or replicas, or reduce the CPU work per request."));
 	}

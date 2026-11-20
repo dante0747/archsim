@@ -3,6 +3,7 @@ package io.archsim.engine.host;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.function.Function;
 
 import org.jspecify.annotations.Nullable;
@@ -78,6 +79,23 @@ public final class HostSpeeds {
 	 */
 	public static boolean runsOnOwnHyperthreads(double cores, @Nullable Double siblingSpeed) {
 		return siblingSpeed != null && cores >= Resources.FEWEST_PAIRED_VCPU && siblingSpeed < 1.0;
+	}
+
+	/**
+	 * The sibling speed of a part's own hyperthread pairs, whose CPU fills where every
+	 * vCPU is busy at it (ADR-0091): the instant estimate's load and the design review's
+	 * CPU check judge such a part by the share of that ceiling its work takes.
+	 * @param host the design's host machine; {@code null} when it has none
+	 * @param cores the part's vCPU per instance
+	 * @param siblingSpeed its sibling speed, as resolved; {@code null} when it has none
+	 * @return the speed; empty on a design with a host, whose threads its parts share,
+	 * and for a part of fewer than 2 vCPU or on whole cores
+	 */
+	public static OptionalDouble ownPairsSpeed(@Nullable HostSpec host, double cores, @Nullable Double siblingSpeed) {
+		if (host != null || siblingSpeed == null || !runsOnOwnHyperthreads(cores, siblingSpeed)) {
+			return OptionalDouble.empty();
+		}
+		return OptionalDouble.of(siblingSpeed);
 	}
 
 	/**

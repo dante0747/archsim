@@ -2,7 +2,9 @@ package io.archsim.engine.review;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalDouble;
 
+import io.archsim.engine.host.HostSpeeds;
 import io.archsim.engine.load.LoadEstimate;
 import io.archsim.engine.load.NodeLoad;
 import io.archsim.engine.numeric.TrueDivision;
@@ -19,10 +21,16 @@ import io.archsim.model.document.NodeSpec;
  * How busy a part's CPU is at the peak, from the static load estimate (first attempts,
  * fixed hit ratios): a service's replicas at their CPU work per request on their load
  * curve, a data store's primaries, a cache's commands, slowed where threads share cores.
+ * On its own hyperthread pairs a part's CPU fills where every vCPU is busy at the sibling
+ * speed, so it is judged by the share of that ceiling the peak takes, whatever speed its
+ * vCPUs run at the peak, as the instant estimate's load is (ADR-0091).
  */
 final class CpuNeeds {
 
-	/** From this share of its CPU busy on, a part has little headroom. */
+	/**
+	 * From this share of its CPU busy, or of its ceiling on its own hyperthread pairs,
+	 * on, a part has little headroom.
+	 */
 	static final double LITTLE_HEADROOM = 0.8;
 
 	private static final double MILLIS_PER_SECOND = 1000;
@@ -56,7 +64,8 @@ final class CpuNeeds {
 	}
 
 	/**
-	 * How busy a part's CPU is at the peak.
+	 * How busy a part's CPU is at the peak, or on its own hyperthread pairs how much of
+	 * their ceiling the peak takes.
 	 * @param node the part
 	 * @return its busy share and how it was worked out; empty for a part without a CPU
 	 * size (none, or not above zero), a load or threads that run, or of another type
@@ -68,19 +77,46 @@ final class CpuNeeds {
 		if (cores <= 0 || carried.isEmpty() || carried.get().total() <= 0) {
 			return Optional.empty();
 		}
+		OptionalDouble ownPairs = ownPairsSpeed(settings, cores);
+		if (ownPairs.isPresent()) {
+			double siblingSpeed = ownPairs.getAsDouble();
+			// threads that never run have no CPU time to judge
+			return (siblingSpeed == 0) ? Optional.empty()
+					: atFullSpeed(node, settings, cores, carried.get()).map((full) -> full.atCeiling(siblingSpeed));
+		}
 		Double speed = this.speeds.get(node.id());
 		if (speed != null && speed == 0) {
 			// threads that never run: there is no CPU time to judge
 			return Optional.empty();
 		}
-		Optional<Busy> busy = switch (node.type()) {
+		Optional<Busy> busy = atFullSpeed(node, settings, cores, carried.get());
+		return (speed != null) ? busy.map((full) -> full.slowed(speed, this.sharedCores)) : busy;
+	}
+
+	private OptionalDouble ownPairsSpeed(LenientSettings settings, double cores) {
+		OptionalDouble siblingSpeed = settings.number("siblingSpeed");
+		return siblingSpeed.isPresent()
+				? HostSpeeds.ownPairsSpeed(this.graph.architecture().host(), cores, siblingSpeed.getAsDouble())
+				: OptionalDouble.empty();
+	}
+
+	/**
+	 * How busy a part's CPU is at the peak at full speed.
+	 * @param node the part
+	 * @param settings its settings
+	 * @param cores its vCPU per instance
+	 * @param load its load
+	 * @return its busy share; empty for a serverless function, a service without CPU work
+	 * per request, a cache without a service time, or a part of another type
+	 */
+	private Optional<Busy> atFullSpeed(NodeSpec node, LenientSettings settings, double cores, NodeLoad load) {
+		return switch (node.type()) {
 			case ServiceSpec.TYPE ->
-				this.graph.serverless(node.id()) ? Optional.empty() : service(settings, cores, carried.get());
-			case DatabaseSpec.TYPE -> Optional.of(database(settings, cores, carried.get()));
-			case CacheSpec.TYPE -> cache(settings, cores, carried.get());
+				this.graph.serverless(node.id()) ? Optional.empty() : service(settings, cores, load);
+			case DatabaseSpec.TYPE -> Optional.of(database(settings, cores, load));
+			case CacheSpec.TYPE -> cache(settings, cores, load);
 			default -> Optional.empty();
 		};
-		return (speed != null) ? busy.map((full) -> full.slowed(speed, this.sharedCores)) : busy;
 	}
 
 	/**
@@ -147,15 +183,29 @@ final class CpuNeeds {
 	/**
 	 * How busy a part's CPU is.
 	 *
-	 * @param share the share of its CPU busy
+	 * @param share the share of its CPU busy at the peak or, on its own hyperthread
+	 * pairs, the share of their ceiling the peak takes
 	 * @param how how that was worked out, in words
 	 * @param load the requests per second it carries at the peak
+	 * @param ofCeiling whether the share is of its own pairs' ceiling, every vCPU busy at
+	 * the sibling speed, rather than of its CPU in use
 	 */
-	record Busy(double share, String how, double load) {
+	record Busy(double share, String how, double load, boolean ofCeiling) {
+
+		/**
+		 * How busy a part's CPU in use is.
+		 * @param share the share of its CPU busy
+		 * @param how how that was worked out, in words
+		 * @param load the requests per second it carries at the peak
+		 */
+		Busy(double share, String how, double load) {
+			this(share, how, load, false);
+		}
 
 		/**
 		 * As busy on threads that share cores.
-		 * @param speed the threads' speed, as a share of full speed
+		 * @param speed the speed the threads run at, at the peak, as a share of full
+		 * speed
 		 * @param where where they share cores: the host machine, or the part's own
 		 * hyperthreads
 		 * @return the busy share at that speed
@@ -163,6 +213,30 @@ final class CpuNeeds {
 		Busy slowed(double speed, String where) {
 			return new Busy(TrueDivision.of(this.share, speed),
 					this.how + " at full speed, at " + HalfUp.fixed(speed, 2) + " of it on " + where, this.load);
+		}
+
+		/**
+		 * As judged on its own hyperthread pairs: by the share of their ceiling, every
+		 * vCPU busy at the sibling speed, the peak takes.
+		 * @param siblingSpeed the speed of a vCPU whose sibling is busy too
+		 * @return the share of the ceiling
+		 */
+		Busy atCeiling(double siblingSpeed) {
+			return new Busy(TrueDivision.of(this.share, siblingSpeed),
+					this.how + " at full speed; with every vCPU busy on its hyperthreads they run at "
+							+ HalfUp.fixed(siblingSpeed, 2) + " of it",
+					this.load, true);
+		}
+
+		/**
+		 * What the share says, in words: how busy its CPU would be, or how much of its
+		 * ceiling the peak would take.
+		 * @return the words
+		 */
+		String verdict() {
+			String percent = ReviewText.percent(this.share);
+			return this.ofCeiling ? "the peak would take " + percent + " of its CPU's ceiling"
+					: "its CPU would be " + percent + " busy";
 		}
 
 	}

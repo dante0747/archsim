@@ -22,9 +22,9 @@ package io.archsim.engine.version;
  * default from schema 1.11, as whole cores on a whole-core instance family, a serverless
  * platform or a pod, sizes a part for the kind its instance type gives it, and saturates
  * a part on its own hyperthread pairs in the instant estimate where its vCPUs fill at the
- * sibling speed (ADR-0091). The report's version is the Java simulator's own too
- * (ADR-0050). The design schema's is the model's
- * ({@code ArchitectureDocument.SCHEMA_VERSION}).
+ * sibling speed, and judges its CPU in the design review by the same ceiling (ADR-0091).
+ * The report's version is the Java simulator's own too (ADR-0050). The design schema's is
+ * the model's ({@code ArchitectureDocument.SCHEMA_VERSION}).
  */
 public final class EngineVersions {
 

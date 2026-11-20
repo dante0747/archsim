@@ -59,16 +59,21 @@ for when that version changes.
   at 300 req/s needed 8094% of its capacity, its work 1,079 ms a request, and saturated at about 4
   req/s. It now saturates at 240 req/s at either load, is busy (83% of its ceiling) at 200 req/s
   and needs 125% at 300 req/s, its work 16.7 ms a request. Its utilization stays the share of its
-  vCPUs busy at the peak, as a run measures it. The design review's CPU check of such a part takes
-  the same speed (125% busy at 300 req/s, where it said 8094%). A design on a host machine is left
-  as it was: there the turns are other parts' threads, which a part's own share does not count.
-  The frozen engine counted the turns too, so its recorded estimates of such parts depart: one of
-  the estimate's cases and two recorded runs, whose figures, and one run's CPU finding, two
-  own-pairs.json list. A read-through cache of 2 vCPU at 0.7 in one of them saturates at about 528
-  req/s, at 76% of its ceiling at 400 req/s, where it read 935 before its fills counted (1.5.2)
-  and 754 since. An overloaded part's utilization falls with its speed (125% where it read 8094%),
-  and with it the busy replicas an autoscaled part's cost counts before a run and the analysis's
-  confidence, which weighs each part by it. Nothing a run simulates changes.
+  vCPUs busy at the peak, as a run measures it. The design review's CPU check of such a part, as
+  the estimate's load does, judges it by the share of its ceiling its work takes and says so (the
+  peak would take 125% of the service's ceiling at 300 req/s, where it said its CPU would be 8094%
+  busy); it judged it at the speed at the peak, so it said nothing from about 80% to 93% of the
+  ceiling at 0.6, and now finds little CPU headroom at 200 and 220 req/s (83% and 92% of the
+  ceiling). A design on a host machine is left as it was: there the turns are other parts'
+  threads, which a part's own share does not count. The frozen engine counted the turns too, so
+  its recorded estimates of such parts depart: one of the estimate's cases and two recorded runs,
+  whose figures, one run's CPU finding and the finding of little CPU headroom its gateway (2 vCPU
+  at 0.7, 80% of its ceiling at 300 req/s) gains, two own-pairs.json list. A read-through cache of
+  2 vCPU at 0.7 in one of them saturates at about 528 req/s, at 76% of its ceiling at 400 req/s,
+  where it read 935 before its fills counted (1.5.2) and 754 since. An overloaded part's
+  utilization falls with its speed (125% where it read 8094%), and with it the busy replicas an
+  autoscaled part's cost counts before a run and the analysis's confidence, which weighs each part
+  by it. Nothing a run simulates changes.
 
 - **The instant estimate counts a cache's commands as a run does (engine 1.5.2,
   [ADR-0092](docs/adr/0092-spread-a-caches-commands-over-its-shards-and-count-its-fills.md)).**
