@@ -2,6 +2,7 @@ package io.archsim.engine.parity;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -113,6 +114,26 @@ public final class ReportComparison {
 		return differences;
 	}
 
+	/**
+	 * A report's input digest taken over its design as the frozen engine was given it, at
+	 * its schema ({@link SchemaDepartures}), once the digest is checked to be the input's
+	 * own: from schema 1.8 the Java writes a run's input at its current schema, and from
+	 * 1.11 pins a design of the frozen engine's to whole cores (ADR-0074, ADR-0091).
+	 * @param report the Java's report
+	 * @param pythonInput the frozen engine's input of the same run, from which an API
+	 * price the upgrade unset is put back; a missing node where none is kept
+	 * @return the digest, or empty when the report's is not its input's own, so the
+	 * difference shows
+	 */
+	public static Optional<String> recordedInputDigest(JsonNode report, JsonNode pythonInput) {
+		JsonNode input = report.path("input");
+		String digest = report.path("provenance").path(INPUT_DIGEST).stringValue("");
+		if (!input.isObject() || !ReportDigest.of(input).equals(digest)) {
+			return Optional.empty();
+		}
+		return Optional.of(ReportDigest.of(SchemaDepartures.asRecorded(input, pythonInput)));
+	}
+
 	private static void numberKinds(String where, Compared compared, List<String> differences) {
 		JsonNode expected = compared.expected();
 		if (expected.isNumber()) {
@@ -158,10 +179,7 @@ public final class ReportComparison {
 	private static JsonNode withRecordedDigests(JsonNode report, JsonNode python) {
 		ObjectNode copy = (ObjectNode) report.deepCopy();
 		ObjectNode provenance = (ObjectNode) copy.get("provenance");
-		JsonNode input = report.path("input");
-		if (input.isObject() && ReportDigest.of(input).equals(provenance.path(INPUT_DIGEST).stringValue(""))) {
-			provenance.put(INPUT_DIGEST, ReportDigest.of(SchemaDepartures.asRecorded(input, python.path("input"))));
-		}
+		recordedInputDigest(report, python.path("input")).ifPresent((digest) -> provenance.put(INPUT_DIGEST, digest));
 		if (ReportDigest.ofResult(report).equals(provenance.path(RESULT_DIGEST).stringValue(""))) {
 			provenance.put(RESULT_DIGEST, ReportDigest.ofResult(asRecorded(report, python)));
 		}
