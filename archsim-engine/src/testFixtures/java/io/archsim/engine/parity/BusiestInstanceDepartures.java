@@ -16,11 +16,13 @@ import tools.jackson.databind.node.ObjectNode;
  * ({@code busiestInstanceCpuUtilization}), and its CPU ceiling is where that instance's
  * cores fill, where Python spread its requests' CPU time evenly over the instances that
  * serve them; the Java explains that ceiling among the database's own formulas. Its part
- * reads as Python's once its share lies between the mean over its instances and all their
- * busy cores on one, its ceiling is no higher than Python's but for chance, and Python's
- * capacity, its limit and its ceiling were it served alone follow from the Java's slots
- * and Python's CPU ceiling by the rules that set them; its new figure is then left out,
- * those figures are Python's, and Python's CPU formula stands where Python had it.</li>
+ * reads as Python's once its share lies between the mean over its instances (or below it,
+ * where the database refused operations: its busiest instance is the one sent the most
+ * work, which counts those it refused) and all their busy cores on one, its ceiling is no
+ * higher than Python's but for chance, and Python's capacity, its limit and its ceiling
+ * were it served alone follow from the Java's slots and Python's CPU ceiling by the rules
+ * that set them; its new figure is then left out, those figures are Python's, and
+ * Python's CPU formula stands where Python had it.</li>
  * <li>A finding that gives that ceiling names the busiest instance where Python named the
  * work per request: it reads as Python's once it is Python's but for that sentence and
  * received the same; its evidence's capacity is then Python's.</li>
@@ -119,14 +121,17 @@ public final class BusiestInstanceDepartures {
 		explain.insert(Math.min(pythons, explain.size()), python.path(EXPLAIN).get(pythons));
 	}
 
-	// its share between the mean over its instances and all their busy cores on one, its
-	// ceiling no higher than Python's but for chance
+	// its share no higher than all their busy cores on one, nor lower than their mean
+	// unless it refused operations: its busiest instance is the one sent the most work,
+	// those it refused counted, which its cores did not run; its ceiling no higher than
+	// Python's but for chance
 	private static boolean isPlausible(JsonNode java, JsonNode theirs) {
 		JsonNode summary = java.path(SUMMARY);
 		double busiest = summary.path(BUSIEST).asDouble();
 		double mean = summary.path("cpuCoreUtilization").asDouble(0);
-		double instances = instances(java);
-		boolean share = busiest >= mean - SHARE_ROUNDING && busiest <= Math.min(1, instances * mean) + SHARE_ROUNDING;
+		boolean refused = summary.path("rejectedTotal").asLong(0) > 0;
+		boolean aboveMean = refused || busiest >= mean - SHARE_ROUNDING;
+		boolean share = aboveMean && busiest <= Math.min(1, instances(java) * mean) + SHARE_ROUNDING;
 		return share && summary.path(CPU_CAPACITY).asDouble() <= theirs.path(CPU_CAPACITY).asDouble(0) * CHANCE;
 	}
 

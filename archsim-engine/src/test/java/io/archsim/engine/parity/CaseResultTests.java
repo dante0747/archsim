@@ -1,6 +1,8 @@
 package io.archsim.engine.parity;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
@@ -15,6 +17,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class CaseResultTests {
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
+
+	private static final String REFUSED = "refusedLookups";
 
 	@Test
 	void of_javaFiguresEqualToPythonsButTheSeed_isAnExactReplay() {
@@ -63,7 +67,7 @@ class CaseResultTests {
 	void of_aJavaRunFailingWherePythonsRan_missesTheBar() {
 		RecordedCase recorded = recorded(python(42, 10, 20, "a"), python(43, 10, 20, "a"), python(44, 10, 20, "a"));
 
-		CaseResult result = CaseResult.of(recorded, List.of(java(10, 20, "a"), java(10, 20, "a"), failed()));
+		CaseResult result = CaseResult.of(recorded, List.of(java(10, 20, "a"), java(10, 20, "a"), javaFailed()));
 
 		assertThat(result.missed()).containsExactly("1 seed failed otherwise than Python's (Java failed 1, Python 0)");
 		assertThat(result.meetsTheBar()).isFalse();
@@ -82,7 +86,7 @@ class CaseResultTests {
 	void of_runsFailingAsPythonsDid_replayExactlyWithoutADigest() {
 		RecordedCase recorded = recorded(failed(42), failed(43));
 
-		CaseResult result = CaseResult.of(recorded, List.of(failed(), failed()));
+		CaseResult result = CaseResult.of(recorded, List.of(javaFailed(), javaFailed()));
 
 		assertThat(result).extracting(CaseResult::exact, CaseResult::digestsEqual).containsExactly(2, 0);
 		assertThat(result.meetsTheBar()).isTrue();
@@ -92,10 +96,38 @@ class CaseResultTests {
 	void of_runsFailingOtherwiseThanPythons_missesTheBar() {
 		RecordedCase recorded = recorded(failed(42), failed(43));
 
-		CaseResult result = CaseResult.of(recorded,
-				List.of(failed(), JSON.createObjectNode().put("error", "NullPointerException: no part")));
+		CaseResult result = CaseResult.of(recorded, List.of(javaFailed(),
+				new JavaRun(JSON.createObjectNode().put("error", "NullPointerException: no part"), Set.of())));
 
 		assertThat(result.missed()).containsExactly("1 seed failed otherwise than Python's (Java failed 2, Python 2)");
+	}
+
+	@Test
+	void of_aRunDepartingInItsResultDigestAloneWhereTheBaselinesKeepTooLittle_isCountedUnderThatDeparture() {
+		RecordedCase recorded = recorded(python(42, 10, 20, "a"), python(43, 12, 22, "b"));
+
+		CaseResult result = CaseResult.of(recorded, List.of(java(10, 20, "a"), departing(12, 22, "c")));
+
+		assertThat(result.departing()).isEqualTo(new CaseResult.Departing(1, Map.of(REFUSED, 1)));
+	}
+
+	@Test
+	void of_aRunShowingSuchADepartureThatDepartsInAnotherFigureToo_isNotCountedAsDepartingThereAlone() {
+		RecordedCase recorded = recorded(python(42, 10, 20, "a"));
+
+		CaseResult result = CaseResult.of(recorded, List.of(departing(10, 21, "c")));
+
+		assertThat(result.departing()).isEqualTo(new CaseResult.Departing(0, Map.of()));
+	}
+
+	@Test
+	void of_aRunShowingSuchADepartureThatReplaysExactly_isAnExactReplayNotADeparture() {
+		RecordedCase recorded = recorded(python(42, 10, 20, "a"));
+
+		CaseResult result = CaseResult.of(recorded, List.of(departing(10, 20, "a")));
+
+		assertThat(result.exact()).isEqualTo(1);
+		assertThat(result.departing()).isEqualTo(new CaseResult.Departing(0, Map.of()));
 	}
 
 	private static RecordedCase recorded(JsonNode... runs) {
@@ -103,18 +135,31 @@ class CaseResultTests {
 	}
 
 	private static JsonNode python(long seed, double p50, double p95, String digest) {
-		return ((ObjectNode) java(p50, p95, digest)).put("seed", seed);
+		return ((ObjectNode) figures(p50, p95, digest)).put("seed", seed);
 	}
 
 	private static JsonNode failed(long seed) {
-		return failed().put("seed", seed);
+		return error().put("seed", seed);
 	}
 
-	private static ObjectNode failed() {
+	private static JavaRun javaFailed() {
+		return new JavaRun(error(), Set.of());
+	}
+
+	private static ObjectNode error() {
 		return JSON.createObjectNode().put("error", "SimulationLimitError: the run went over 2000000 requests");
 	}
 
-	private static JsonNode java(double p50, double p95, String digest) {
+	private static JavaRun java(double p50, double p95, String digest) {
+		return new JavaRun(figures(p50, p95, digest), Set.of());
+	}
+
+	// a run showing a departure the baselines keep too little of to read
+	private static JavaRun departing(double p50, double p95, String digest) {
+		return new JavaRun(figures(p50, p95, digest), Set.of(REFUSED));
+	}
+
+	private static JsonNode figures(double p50, double p95, String digest) {
 		return JSON.readTree("""
 				{"resultDigest": "%s", "summary": {"latencyMs": {"p50": %s, "p95": %s}, "throughputRps": 100.0},
 				 "nodes": {"api": {"utilization": 0.5}}}""".formatted(digest, p50, p95));

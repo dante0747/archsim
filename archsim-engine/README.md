@@ -252,7 +252,9 @@ change its value only where the last seven say:
   where Python spread its requests' CPU time evenly over the instances that serve them (engine
   1.3.0, ADR-0083). Every recorded run with read replicas or partitions departs.
   `BusiestInstanceDepartures` reads such a part as Python's once its busiest share lies between
-  the mean over its instances and `min(1, instances × mean)`, its CPU ceiling is no higher than
+  the mean over its instances (or below it, where the database refused operations: the busiest
+  instance is the one sent the most work, refused operations included) and
+  `min(1, instances × mean)`, its CPU ceiling is no higher than
   1.02 × Python's, and Python's capacity, limit and ceiling were it served alone follow from the
   Java's slots and Python's CPU ceiling; and a bottleneck finding that names the busiest instance
   as Python's once it is Python's but for that sentence.
@@ -548,7 +550,15 @@ data now, not recorded again.
   2% of its median (`ParityBar`), and no seed failing otherwise than Python's (`CaseResult`),
   each case and in total, with the runs that replay Python's exactly, the metric furthest from
   Python's and the cases that miss, written to `build/parity/simulation-parity.json`. A failed
-  run is recorded with its error, as the baselines record one (`RunError`).
+  run is recorded with its error, as the baselines record one (`RunError`). Each run is read as
+  the frozen engine's where the engine has changed on purpose since
+  ([ADR-0096](../docs/adr/0096-read-the-simulation-paritys-runs-as-the-frozen-engines-where-the-engine-changed-on-purpose.md)):
+  `RunDepartures` reads its report with the golden reports' departures, guided by the baselines'
+  figures of the run and by the frozen engine's report of the template's run in its golden file
+  (`Baselines.frozenReport`), and `RunFigures` keeps its figures and digests from the report so
+  read. A run that departs only where the baselines keep too little to read it (a cache's refused
+  lookups) is counted apart: each case's `departing`, and in total `departingRuns` and
+  `departures`, by departure.
   `-Parchsim.parity.baselines=DIR` judges another recording, `.out=DIR` writes elsewhere,
   `.threads=N` and `.only=TEMPLATE,...` choose how; hours of simulation, under a six-hour
   timeout.

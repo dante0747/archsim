@@ -1,7 +1,10 @@
 package io.archsim.engine.parity;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.function.BiPredicate;
 import java.util.stream.IntStream;
 
@@ -18,11 +21,13 @@ import io.archsim.parity.JsonDiff;
  * @param runs how many runs
  * @param exact how many gave exactly Python's figures, or Python's error
  * @param digestsEqual how many gave Python's result digest
+ * @param departing the runs that depart only where the baselines keep too little to read
+ * them as the frozen engine's
  * @param failures the runs that failed on each side
  * @param metrics each metric against the bar
  */
-record CaseResult(String template, String scenario, int runs, int exact, int digestsEqual, Failures failures,
-		List<MetricVerdict> metrics) {
+record CaseResult(String template, String scenario, int runs, int exact, int digestsEqual, Departing departing,
+		Failures failures, List<MetricVerdict> metrics) {
 
 	private static final String DIGEST = "resultDigest";
 
@@ -39,19 +44,20 @@ record CaseResult(String template, String scenario, int runs, int exact, int dig
 	 * A case's Java runs judged against Python's: run by run for an exact replay, and
 	 * over the seeds by the bar.
 	 * @param recorded the case and Python's runs
-	 * @param java the Java figures of the same runs, in order
+	 * @param runs the Java runs of the same seeds, in order
 	 * @return the result
 	 */
-	static CaseResult of(RecordedCase recorded, List<JsonNode> java) {
+	static CaseResult of(RecordedCase recorded, List<JavaRun> runs) {
 		List<JsonNode> python = recorded.runs().stream().map(CaseResult::withoutSeed).toList();
+		List<JsonNode> java = runs.stream().map(JavaRun::figures).toList();
 		int exact = count(python, java, (one, other) -> JsonDiff.differences(one, other).isEmpty());
 		int digests = count(python, java,
 				(one, other) -> one.path(DIGEST).isString() && one.path(DIGEST).equals(other.path(DIGEST)));
 		Failures failures = new Failures(count(python, java, (one, other) -> one.has(ERROR)),
 				count(python, java, (one, other) -> other.has(ERROR)),
 				count(python, java, (one, other) -> !one.path(ERROR).equals(other.path(ERROR))));
-		return new CaseResult(recorded.template(), recorded.scenario(), java.size(), exact, digests, failures,
-				ParityBar.judge(python, java));
+		return new CaseResult(recorded.template(), recorded.scenario(), java.size(), exact, digests,
+				Departing.of(python, runs), failures, ParityBar.judge(python, java));
 	}
 
 	/**
@@ -101,6 +107,43 @@ record CaseResult(String template, String scenario, int runs, int exact, int dig
 		return (int) IntStream.range(0, java.size())
 			.filter((index) -> test.test(python.get(index), java.get(index)))
 			.count();
+	}
+
+	/**
+	 * The runs that depart only where the baselines keep too little to read them as the
+	 * frozen engine's: every figure kept is Python's but the result digest, and the run
+	 * shows such a departure ({@link RunDepartures#unread}).
+	 *
+	 * @param runs how many
+	 * @param byDeparture how many show each departure, by its name
+	 */
+	record Departing(int runs, Map<String, Integer> byDeparture) {
+
+		private static final List<String> RESULT_DIGEST_ALONE = List.of("/" + DIGEST);
+
+		/**
+		 * Copies the counts, in the order of their names, so the record does not change.
+		 */
+		Departing {
+			byDeparture = Collections.unmodifiableMap(new TreeMap<>(byDeparture));
+		}
+
+		// the seeds' Java runs that depart from Python's so
+		static Departing of(List<JsonNode> python, List<JavaRun> java) {
+			int runs = 0;
+			Map<String, Integer> byDeparture = new TreeMap<>();
+			for (int index = 0; index < java.size(); index++) {
+				JavaRun run = java.get(index);
+				boolean digestAlone = RESULT_DIGEST_ALONE
+					.equals(JsonDiff.differences(python.get(index), run.figures()));
+				if (digestAlone && !run.departures().isEmpty()) {
+					runs++;
+					run.departures().forEach((departure) -> byDeparture.merge(departure, 1, Integer::sum));
+				}
+			}
+			return new Departing(runs, byDeparture);
+		}
+
 	}
 
 	/**

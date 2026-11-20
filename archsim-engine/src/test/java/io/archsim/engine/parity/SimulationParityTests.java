@@ -36,11 +36,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  * baselines recorded, simulated in Java as the baselines were (the template's document
  * the frozen engine ran, the whole run, the engine's request limit and an hour's
  * wall-clock limit), judged by the port plan's bar ({@link CaseResult},
- * {@link ParityBar}), the runs that replay Python's exactly counted, and written to
- * {@code simulation-parity.json} ({@link ParityReport}). A run that fails is recorded
- * with its error ({@link RunError}), as the baselines record one, and the others go on.
- * Hours of simulation: {@code ./gradlew :archsim-engine:parity}, not part of
- * {@code check}.
+ * {@link ParityBar}), the runs that replay Python's exactly counted, each read as the
+ * frozen engine's where a deliberate engine change departs ({@link RunFigures}), with the
+ * runs that depart only where the baselines keep too little to read them so
+ * ({@link RunDepartures}), and written to {@code simulation-parity.json}
+ * ({@link ParityReport}). A run that fails is recorded with its error ({@link RunError}),
+ * as the baselines record one, and the others go on. Hours of simulation:
+ * {@code ./gradlew :archsim-engine:parity}, not part of {@code check}.
  */
 @Tag("parity")
 class SimulationParityTests {
@@ -74,15 +76,15 @@ class SimulationParityTests {
 
 	// each case's runs simulated in Java, several at once, and judged against Python's
 	private List<CaseResult> simulate(List<RecordedCase> recorded) {
-		Map<String, JsonNode> designs = new LinkedHashMap<>();
-		recorded.forEach((one) -> designs.computeIfAbsent(one.template(), Baselines::design));
+		Map<String, Baselines.Recorded> templates = new LinkedHashMap<>();
+		recorded.forEach((one) -> templates.computeIfAbsent(one.template(), Baselines::recorded));
 		int total = recorded.stream().mapToInt((one) -> one.runs().size()).sum();
 		AtomicInteger done = new AtomicInteger();
 		Runnable finishedOne = () -> progress(done.incrementAndGet(), total);
 		try (ExecutorService pool = Executors.newFixedThreadPool(threads())) {
 			List<Pending> pending = recorded.stream()
 				.map((one) -> new Pending(one,
-						submitted(pool, Objects.requireNonNull(designs.get(one.template()), one.template()), one,
+						submitted(pool, Objects.requireNonNull(templates.get(one.template()), one.template()), one,
 								finishedOne)))
 				.toList();
 			return pending.stream().map((one) -> CaseResult.of(one.recorded(), finished(one.runs()))).toList();
@@ -90,11 +92,11 @@ class SimulationParityTests {
 	}
 
 	// a case's runs, each seed's queued
-	private List<Future<JsonNode>> submitted(ExecutorService pool, JsonNode design, RecordedCase recorded,
+	private List<Future<JavaRun>> submitted(ExecutorService pool, Baselines.Recorded template, RecordedCase recorded,
 			Runnable finishedOne) {
-		return recorded.runs().stream().map((row) -> pool.submit(() -> {
+		return recorded.runs().stream().map((python) -> pool.submit(() -> {
 			try {
-				return run(design, recorded.scenario(), row.get("seed").longValue());
+				return run(template, recorded.scenario(), python);
 			}
 			finally {
 				finishedOne.run();
@@ -102,27 +104,31 @@ class SimulationParityTests {
 		})).toList();
 	}
 
-	private JsonNode run(JsonNode design, String scenario, long seed) {
-		RunRequest request = RunRequest.of(BASE.equals(scenario) ? null : scenario).withSeed(seed).withLimits(LIMITS);
-		return RunFigures.of(this.simulator.run(design.deepCopy(), request));
+	// the seed Python ran, simulated in Java, its figures read as the frozen engine's
+	private JavaRun run(Baselines.Recorded template, String scenario, JsonNode python) {
+		RunRequest request = RunRequest.of(BASE.equals(scenario) ? null : scenario)
+			.withSeed(python.get("seed").longValue())
+			.withLimits(LIMITS);
+		JsonNode report = this.simulator.run(template.design().deepCopy(), request);
+		return new JavaRun(RunFigures.of(report, python, template.frozenReport()), RunDepartures.unread(report));
 	}
 
-	// each run's figures, or the error it failed with
-	private static List<JsonNode> finished(List<Future<JsonNode>> runs) {
-		List<JsonNode> figures = new ArrayList<>();
-		for (Future<JsonNode> run : runs) {
+	// each run, or the error it failed with
+	private static List<JavaRun> finished(List<Future<JavaRun>> runs) {
+		List<JavaRun> finished = new ArrayList<>();
+		for (Future<JavaRun> run : runs) {
 			try {
-				figures.add(run.get());
+				finished.add(run.get());
 			}
 			catch (InterruptedException ex) {
 				Thread.currentThread().interrupt();
 				throw new IllegalStateException("the parity run was interrupted", ex);
 			}
 			catch (ExecutionException ex) {
-				figures.add(RunError.of(Objects.requireNonNullElse(ex.getCause(), ex)));
+				finished.add(JavaRun.failed(Objects.requireNonNullElse(ex.getCause(), ex)));
 			}
 		}
-		return figures;
+		return finished;
 	}
 
 	// a relative folder from the repository's root, as the report's
@@ -157,7 +163,7 @@ class SimulationParityTests {
 	 * @param recorded the case
 	 * @param runs its runs, in the baselines' order
 	 */
-	private record Pending(RecordedCase recorded, List<Future<JsonNode>> runs) {
+	private record Pending(RecordedCase recorded, List<Future<JavaRun>> runs) {
 
 	}
 

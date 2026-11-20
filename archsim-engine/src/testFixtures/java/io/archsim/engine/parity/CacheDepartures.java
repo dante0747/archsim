@@ -97,6 +97,31 @@ public final class CacheDepartures {
 		return copy;
 	}
 
+	/**
+	 * The Java's report with the hit ratio of each cache that refused lookups read as the
+	 * frozen engine's, where only the frozen engine's summary values of its parts are
+	 * kept, as the simulation baselines keep them: once its hit ratio is shown to count
+	 * the lookups it refused and Python's not to, it is Python's. Its counter, series and
+	 * formula stay the Java's: without its hits and misses by bucket, nothing gives the
+	 * frozen engine's series, so the part still departs.
+	 * @param java the Java's report, which is not changed
+	 * @param python the frozen engine's summary values of each part of the same run, by
+	 * its id
+	 * @return a copy of the Java's report
+	 */
+	public static JsonNode hitRatiosAsRecorded(JsonNode java, JsonNode python) {
+		JsonNode copy = java.deepCopy();
+		for (JsonNode part : copy.path("nodes")) {
+			JsonNode summary = part.path("summary");
+			JsonNode theirs = python.path(part.path("id").stringValue(""));
+			boolean refused = summary.path("counters").path(REFUSED).asLong(0) > 0;
+			if (refused && refusedLookupsCount(summary, theirs)) {
+				((ObjectNode) summary).set(HIT_RATIO, theirs.get(HIT_RATIO));
+			}
+		}
+		return copy;
+	}
+
 	private static void put(JsonNode java, JsonNode python) {
 		if (java instanceof ObjectNode object && python.isObject()) {
 			putPart(object, python);

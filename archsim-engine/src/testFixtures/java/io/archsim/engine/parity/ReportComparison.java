@@ -134,6 +134,22 @@ public final class ReportComparison {
 		return Optional.of(ReportDigest.of(SchemaDepartures.asRecorded(input, pythonInput)));
 	}
 
+	/**
+	 * A report's result digest taken over its result as the frozen engine would have
+	 * written it, once the digest is checked to be its result's own.
+	 * @param report the Java's report
+	 * @param read the same report read as the frozen engine's
+	 * @return the digest, or empty when the report's is not its result's own, so the
+	 * difference shows
+	 */
+	public static Optional<String> recordedResultDigest(JsonNode report, JsonNode read) {
+		String digest = report.path("provenance").path(RESULT_DIGEST).stringValue("");
+		if (!ReportDigest.ofResult(report).equals(digest)) {
+			return Optional.empty();
+		}
+		return Optional.of(ReportDigest.ofResult(read));
+	}
+
 	private static void numberKinds(String where, Compared compared, List<String> differences) {
 		JsonNode expected = compared.expected();
 		if (expected.isNumber()) {
@@ -180,9 +196,8 @@ public final class ReportComparison {
 		ObjectNode copy = (ObjectNode) report.deepCopy();
 		ObjectNode provenance = (ObjectNode) copy.get("provenance");
 		recordedInputDigest(report, python.path("input")).ifPresent((digest) -> provenance.put(INPUT_DIGEST, digest));
-		if (ReportDigest.ofResult(report).equals(provenance.path(RESULT_DIGEST).stringValue(""))) {
-			provenance.put(RESULT_DIGEST, ReportDigest.ofResult(asRecorded(report, python)));
-		}
+		recordedResultDigest(report, asRecorded(report, python))
+			.ifPresent((digest) -> provenance.put(RESULT_DIGEST, digest));
 		return copy;
 	}
 

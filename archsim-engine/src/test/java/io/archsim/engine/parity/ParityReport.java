@@ -5,7 +5,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ArrayNode;
@@ -13,8 +16,10 @@ import tools.jackson.databind.node.ObjectNode;
 
 /**
  * What the parity run found, as {@code simulation-parity.json}: how many cases meet the
- * bar, pass each of its tests and replay exactly, the runs that replay exactly, the
- * metric furthest from Python's, the cases that miss and what they missed, and each case.
+ * bar, pass each of its tests and replay exactly, the runs that replay exactly, the runs
+ * that depart only where the baselines keep too little to read them as the frozen
+ * engine's and by which departure, the metric furthest from Python's, the cases that miss
+ * and what they missed, and each case.
  */
 final class ParityReport {
 
@@ -61,7 +66,14 @@ final class ParityReport {
 		totals.put("exactReplays", results.stream().mapToInt(CaseResult::exact).sum());
 		totals.put("pythonRunsFailed", results.stream().mapToInt((result) -> result.failures().python()).sum());
 		totals.put("javaRunsFailed", results.stream().mapToInt((result) -> result.failures().java()).sum());
-		return totals.put("digestsEqual", results.stream().mapToInt(CaseResult::digestsEqual).sum());
+		totals.put("digestsEqual", results.stream().mapToInt(CaseResult::digestsEqual).sum());
+		totals.put("departingRuns", results.stream().mapToInt((result) -> result.departing().runs()).sum());
+		ObjectNode departures = totals.putObject("departures");
+		results.stream()
+			.flatMap((result) -> result.departing().byDeparture().entrySet().stream())
+			.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, Integer::sum, TreeMap::new))
+			.forEach(departures::put);
+		return totals;
 	}
 
 	private static long counted(List<CaseResult> results, Predicate<CaseResult> test) {

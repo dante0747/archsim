@@ -72,13 +72,47 @@ final class Baselines {
 	 * @return its document as recorded
 	 */
 	static JsonNode design(String template) {
-		return GoldenFile.read("templates/" + template).at("/document");
+		return recorded(template).design();
+	}
+
+	/**
+	 * The frozen engine's report of a run of the template's design, as its golden file
+	 * keeps it (a shorter run than the baselines'): what the frozen engine wrote of the
+	 * design's parts, which every run of the design writes alike, such as an API's price
+	 * of 0 that the upgrade to schema 1.9 unsets (ADR-0081).
+	 * @param template the template's id
+	 * @return the report
+	 */
+	static JsonNode frozenReport(String template) {
+		return recorded(template).frozenReport();
+	}
+
+	/**
+	 * What the frozen engine recorded of a template beyond its runs' figures, read from
+	 * its golden file once.
+	 * @param template the template's id
+	 * @return its document ({@link #design}) and its report ({@link #frozenReport})
+	 */
+	static Recorded recorded(String template) {
+		GoldenFile golden = GoldenFile.read("templates/" + template);
+		return new Recorded(golden.at("/document"), golden.at("/runs/base/report"));
 	}
 
 	private static JsonNode gzipped(Path path) throws IOException {
 		try (InputStream in = new GZIPInputStream(Files.newInputStream(path))) {
 			return JSON.readTree(in);
 		}
+	}
+
+	/**
+	 * What the frozen engine recorded of a template beyond its runs' figures.
+	 *
+	 * @param design its document as the frozen engine ran it ({@link Baselines#design})
+	 * @param frozenReport the frozen engine's report of a run of it
+	 * ({@link Baselines#frozenReport})
+	 */
+	record Recorded(JsonNode design, JsonNode frozenReport) {
+
 	}
 
 }

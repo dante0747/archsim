@@ -80,6 +80,16 @@ class BaselinesTests {
 			.map((database) -> database.at("/config/cpuCores").intValue())).containsExactly(8);
 	}
 
+	@Test
+	void frozenReport_aTemplate_isTheFrozenEnginesReportOfItsDesignWithItsPartsSettings() {
+		JsonNode report = Baselines.frozenReport("auth-token-introspection");
+
+		assertThat(report.at("/nodes")
+			.valueStream()
+			.filter((node) -> "idp".equals(node.path("id").stringValue("")))
+			.map((api) -> api.at("/config/costPerMillionRequests").toString())).containsExactly("0.0");
+	}
+
 	private void writeBaselines() throws IOException {
 		Files.writeString(this.folder.resolve("manifest.json"), """
 				{"files": [{"path": "serverless-burst.json.gz"}, {"path": "queueing-lab.json.gz"}]}""");

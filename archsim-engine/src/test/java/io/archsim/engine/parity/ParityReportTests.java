@@ -3,6 +3,7 @@ package io.archsim.engine.parity;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -22,6 +23,10 @@ class ParityReportTests {
 
 	private static final CaseResult.Failures NONE = new CaseResult.Failures(0, 0, 0);
 
+	private static final CaseResult.Departing NOT_DEPARTING = new CaseResult.Departing(0, Map.of());
+
+	private static final String REFUSED = "refusedLookups";
+
 	@TempDir
 	private Path out;
 
@@ -38,14 +43,22 @@ class ParityReportTests {
 
 	@Test
 	void write_aCaseWhoseRunsFailedOtherwiseThanPythons_isCountedWithEachSidesFailures() throws IOException {
-		CaseResult failing = new CaseResult("queueing-lab", "spike", 2, 1, 0, new CaseResult.Failures(1, 2, 1),
-				List.of(verdict("p50", 10.0)));
+		CaseResult failing = new CaseResult("queueing-lab", "spike", 2, 1, 0, NOT_DEPARTING,
+				new CaseResult.Failures(1, 2, 1), List.of(verdict("p50", 10.0)));
 
 		JsonNode report = written(List.of(result("base", 2, 2, verdict("p50", 10.0)), failing));
 
 		assertThat(List.of("casesWithMismatchedFailures", "pythonRunsFailed", "javaRunsFailed", "casesMeetingTheBar"))
 			.map((name) -> report.get(name).intValue())
 			.containsExactly(1, 1, 2, 1);
+	}
+
+	@Test
+	void write_casesWithRunsDepartingWhereTheBaselinesKeepTooLittle_countsTheRunsAndEachDeparture() throws IOException {
+		JsonNode report = written(List.of(departing("base", 1), departing("spike", 2)));
+
+		assertThat(report.get("departingRuns").intValue()).isEqualTo(3);
+		assertThat(report.get("departures").toString()).isEqualTo("{\"refusedLookups\":3}");
 	}
 
 	@Test
@@ -108,8 +121,14 @@ class ParityReportTests {
 		return MetricVerdict.of(metric, python, List.of(javaMedian));
 	}
 
+	// a case whose runs that do not replay exactly depart where a cache refused lookups
+	private static CaseResult departing(String scenario, int runs) {
+		return new CaseResult("queueing-lab", scenario, 2, 2 - runs, 2 - runs,
+				new CaseResult.Departing(runs, Map.of(REFUSED, runs)), NONE, List.of(verdict("p50", 10.0)));
+	}
+
 	private static CaseResult result(String scenario, int exact, int digests, MetricVerdict verdict) {
-		return new CaseResult("queueing-lab", scenario, 2, exact, digests, NONE, List.of(verdict));
+		return new CaseResult("queueing-lab", scenario, 2, exact, digests, NOT_DEPARTING, NONE, List.of(verdict));
 	}
 
 }
