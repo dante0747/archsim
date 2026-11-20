@@ -10,6 +10,21 @@ for when that version changes.
 
 ### Changed
 
+- **The accuracy benchmarks fit a service's falling CPU per request as a law of its rate
+  ([ADR-0093](docs/adr/0093-fit-a-services-falling-cpu-per-request-as-a-law-of-its-rate.md)).** The benchmark harness charged a service the CPU per
+  request of its calibration staircase's top rate at every rate above it, while the measured cost
+  kept falling: near the knee it charged 16% too much (the median over the kept v6 runs' steps at
+  75% busy or more). It now fits the staircase's costs as `floor + shared x rate^-k` (the harness's
+  new `CostLaws`, with `k` at most 1) and carries the law above the top to where the service's
+  CPUs fill, but no further than twice the top rate, as the `serviceTimeByLoad` table the engine
+  already reads: 5.4% there, erring high. Re-simulated in-sample, cache-aside's median knee error
+  moves from -22% to -7% and the median of the 37 counted v6 runs' absolute errors from 16.3% to
+  12.9%; cache-ttl, chain, Kafka and pg-mixed move 3 to 16 points toward promising more capacity,
+  which the laptop's own slowdown, not modelled while `BENCH_HOST` is off, held back. With W27's
+  host machine as well (a what-if: two of its numbers are assumed) every experiment is within
+  20% and the median is 11.9%. On a host machine the law is fitted on the work per request, so the
+  machine's slowdown is not counted twice. The engine's results do not change, so it stays 1.6.0;
+  `archsim calibrate` keeps fitting customers' telemetry as before.
 - **A vCPU counts as a hyperthread unless the design or its instance family says otherwise (schema
   1.11, engine 1.6.0, ADR-0091).** A service, database or cache with 2 or more vCPU, on a design
   without a `host`, runs on hyperthread pairs at the first sibling speed that applies: its own

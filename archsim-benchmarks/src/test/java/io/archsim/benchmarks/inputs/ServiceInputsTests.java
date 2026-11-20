@@ -25,7 +25,8 @@ class ServiceInputsTests {
 
 	@Test
 	void of_markCompacts_takesThePausesOffTheCpuPerRequest() {
-		ObjectNode inputs = ServiceInputs.of(Experiments.standard().get("pg-mixed"), passes(MARK_COMPACTS));
+		ObjectNode inputs = ServiceInputs.of(Experiments.standard().get("pg-mixed"), passes(MARK_COMPACTS),
+				CurveForm.LAW, null);
 
 		assertThat(inputs.get("serviceTimeMs").get("value"))
 			.isEqualTo(ModelDistributions.lognormalWithMean(0.2 - 100.0 / 50_000, OWN_TIME));
@@ -33,7 +34,8 @@ class ServiceInputsTests {
 
 	@Test
 	void of_markCompacts_saysWhatItTookOff() {
-		ObjectNode inputs = ServiceInputs.of(Experiments.standard().get("pg-mixed"), passes(MARK_COMPACTS));
+		ObjectNode inputs = ServiceInputs.of(Experiments.standard().get("pg-mixed"), passes(MARK_COMPACTS),
+				CurveForm.LAW, null);
 
 		assertThat(inputs.get("serviceTimeMs").get("how").stringValue())
 			.contains("less the 0.0020 ms per request of the pauses modelled as GC");
@@ -42,7 +44,7 @@ class ServiceInputsTests {
 	@Test
 	void of_aServiceThatReportedNoGc_isTheCpuPerRequest() {
 		ObjectNode inputs = ServiceInputs.of(Experiments.standard().get("pg-mixed"),
-				passes("{\"requests\": 50000, \"cpuMs\": 10000.0}"));
+				passes("{\"requests\": 50000, \"cpuMs\": 10000.0}"), CurveForm.LAW, null);
 
 		assertThat(inputs.get("serviceTimeMs").get("value"))
 			.isEqualTo(ModelDistributions.lognormalWithMean(0.2, OWN_TIME));
@@ -51,7 +53,7 @@ class ServiceInputsTests {
 	@Test
 	void of_aServiceThatReportedNoGc_modelsNoPause() {
 		ObjectNode inputs = ServiceInputs.of(Experiments.standard().get("pg-mixed"),
-				passes("{\"requests\": 50000, \"cpuMs\": 10000.0}"));
+				passes("{\"requests\": 50000, \"cpuMs\": 10000.0}"), CurveForm.LAW, null);
 
 		assertThat(inputs.has("gcPauseMs")).isFalse();
 	}

@@ -27,9 +27,10 @@ import io.archsim.benchmarks.results.ResultFiles;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * A kept run checked with today's model, against the check the Python harness wrote with
- * the Java engine before it was 1.0.0 ({@code results/dev/0.16.0-java/}): the same
- * inputs, knee, steps and comparison; only what names the check (when, the engine, the
+ * A kept run checked with today's model, its inputs derived as they were recorded
+ * ({@link ModelInputs#asRecorded}), against the check the Python harness wrote with the
+ * Java engine before it was 1.0.0 ({@code results/dev/0.16.0-java/}): the same inputs,
+ * knee, steps and comparison; only what names the check (when, the engine, the
  * provenance, each step's result digest) and the words that name the harness differ.
  */
 class DevCheckTests {
@@ -40,7 +41,8 @@ class DevCheckTests {
 
 	private static final JsonNode PROVENANCE = JsonNodeFactory.instance.objectNode().put("machineId", "test");
 
-	private static final DevCheck CHECKS = new DevCheck(LAYOUT.results(), new ModelInputs(Simulations.onTheEngine()),
+	private static final DevCheck CHECKS = new DevCheck(LAYOUT.results(),
+			ModelInputs.asRecorded(Simulations.onTheEngine()),
 			new CheckStamp("1.0.0", PROVENANCE, Clock.fixed(Instant.parse("2026-11-13T10:00:00Z"), ZoneOffset.UTC)));
 
 	/** Cache-ttl's latest run checked, once for the tests of what names a check. */

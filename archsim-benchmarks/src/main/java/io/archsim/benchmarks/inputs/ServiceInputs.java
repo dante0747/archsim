@@ -1,5 +1,6 @@
 package io.archsim.benchmarks.inputs;
 
+import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
@@ -7,6 +8,7 @@ import tools.jackson.databind.node.ObjectNode;
 import io.archsim.benchmarks.experiments.Experiment;
 import io.archsim.benchmarks.experiments.Experiments;
 import io.archsim.benchmarks.experiments.Protocol;
+import io.archsim.benchmarks.machine.MachineFit;
 import io.archsim.benchmarks.values.PythonValues;
 import io.archsim.engine.numeric.PythonRound;
 import io.archsim.model.text.PythonFormat;
@@ -36,9 +38,12 @@ final class ServiceInputs {
 	 * @param experiment the experiment
 	 * @param passes the calibration's passes: {@code low}, {@code high}, and under
 	 * protocol v5 {@code idle}, {@code staircase} and {@code cpuByLoad}
+	 * @param curve how its CPU per request changes with load
+	 * @param machine the design's host machine's fit, which a law of its cost is fitted
+	 * for; {@code null} for none
 	 * @return the inputs, each with its value and how it was found
 	 */
-	static ObjectNode of(Experiment experiment, JsonNode passes) {
+	static ObjectNode of(Experiment experiment, JsonNode passes, CurveForm curve, @Nullable MachineFit machine) {
 		JsonNode high = passes.get("high");
 		JsonNode service = high.get("service");
 		GcInputs.Node gc = experiment.runsOnNode() ? GcInputs.node(service) : GcInputs.Node.none();
@@ -47,7 +52,8 @@ final class ServiceInputs {
 		inputs.set("clientLinkLatencyMs", clientLatency(high.get("k6"), PassReadings.timing(service, "handler")));
 		ObjectNode lowLoad = inputs.putObject("measuredLowLoad").set("rateRps", high.get("rateRps"));
 		lowLoad.setAll((ObjectNode) high.get("k6"));
-		LoadCurveInput.of(passes).ifPresent((curve) -> inputs.set("serviceTimeByLoad", curve));
+		LoadCurveInput.of(passes, Experiments.standard().runtime(experiment).cpuCores(), curve, machine)
+			.ifPresent((byLoad) -> inputs.set("serviceTimeByLoad", byLoad));
 		inputs.setAll(experiment.runsOnNode() ? gc.inputs() : GcInputs.runtime(experiment, service));
 		if (experiment.stack().equals("chain")) {
 			inputs.setAll(ChainInputs.of(passes));

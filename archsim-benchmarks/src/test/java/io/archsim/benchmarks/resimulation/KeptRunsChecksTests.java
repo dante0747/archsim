@@ -35,7 +35,7 @@ class KeptRunsChecksTests {
 
 	private static final Path RECORDED = RESULTS.resolve("dev/0.16.0-java");
 
-	private static final DevCheck CHECKS = new DevCheck(RESULTS, new ModelInputs(Simulations.onTheEngine()),
+	private static final DevCheck CHECKS = new DevCheck(RESULTS, ModelInputs.asRecorded(Simulations.onTheEngine()),
 			new CheckStamp("1.0.0", JsonNodeFactory.instance.objectNode(), Clock.systemUTC()));
 
 	@ParameterizedTest(name = "{0}")

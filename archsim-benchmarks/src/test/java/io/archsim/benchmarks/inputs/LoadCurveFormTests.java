@@ -23,6 +23,9 @@ import io.archsim.benchmarks.RepositoryLayout;
 import io.archsim.benchmarks.docker.Cpusets;
 import io.archsim.benchmarks.docker.Stacks;
 import io.archsim.benchmarks.experiments.Experiments;
+import io.archsim.benchmarks.machine.ContentionFit;
+import io.archsim.benchmarks.machine.KnownMachine;
+import io.archsim.benchmarks.machine.MachineFit;
 import io.archsim.benchmarks.results.ResultFiles;
 import io.archsim.engine.calibration.resources.RatePoint;
 
@@ -82,6 +85,27 @@ class LoadCurveFormTests {
 		String how = LoadCurveInput.curve(V6_BY_LOAD, V6, 1, CurveForm.LOG).orElseThrow().get("how").stringValue();
 
 		assertThat(how).contains("carried from 3,000 to 4,500 req/s (one measured stretch on)").endsWith("then flat");
+	}
+
+	@Test
+	void of_theLogForm_carriesTheStaircasesFallOn() {
+		JsonNode points = LoadCurveInput.of(v6Calibration(), 1, CurveForm.LOG, null).orElseThrow().get("value");
+
+		assertThat(points.get(points.size() - 1).get("rps").doubleValue()).isEqualTo(4500.0);
+	}
+
+	@Test
+	void of_theLawForm_isTheLaw() {
+		assertThat(LoadCurveInput.of(v6Calibration(), 1, CurveForm.LAW, null))
+			.isEqualTo(LawCurveInput.of(v6Calibration(), 1, null));
+	}
+
+	@Test
+	void of_theFlatFormOnAMachine_isTheFlatCurve() {
+		MachineFit fit = ContentionFit.of(KnownMachine.check()).orElseThrow();
+
+		assertThat(LoadCurveInput.of(v6Calibration(), 1, CurveForm.FLAT, fit))
+			.isEqualTo(LoadCurveInput.of(v6Calibration()));
 	}
 
 	// the derivation keeps the curve flat even where the log form would carry it on

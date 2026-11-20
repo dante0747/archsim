@@ -1,0 +1,1350 @@
+{
+  "experiment": "kafka",
+  "results": "kafka/run-4",
+  "calibratedAt": "2026-10-31T01:19:14Z",
+  "calibrationMethod": "staircase up and down, CPU per request net of idle at the top rate, median of 3 replicates, anchored at the top rate, settled first (v5)",
+  "kind": "in-sample re-simulation",
+  "designedAfterMeasurements": true,
+  "how": "Inputs derived again from this run's calibration passes with today's harness, and its measured load steps simulated with today's engine. It is designed after the measurements were seen, so it checks a model change against data the change may have been tuned on: it is never a prediction and never shown as one.",
+  "at": "2026-11-20T11:05:14Z",
+  "engineVersion": "1.6.0-law-host",
+  "provenance": {
+    "commit": "0f4348b92f5f77be7af999f4ca19fafc20e51a22",
+    "engineSources": "03f8df10ab2698a7a5ed6f5ad8721667636eedc4df5fa594f3c832fb0c0b72fb",
+    "javaBuild": "48de60120dd5433fdfb3795b34f52c8a43489534b41727afcdbd4698611c39ee",
+    "harnessHash": "3e659a1d6fc83ebf300483ccec3d0b6f9aa72139b404d26c682d964a33fdf709",
+    "dirty": true,
+    "machineId": "i7-1165g7"
+  },
+  "inputsAsCalibrated": false,
+  "sameLatencyAsPredictions": {
+    "steps": 0,
+    "of": 8,
+    "predictedWith": "0.14.0"
+  },
+  "inputs": {
+    "serviceTimeMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.385247,
+        "p95": 0.964909
+      },
+      "how": "the median of 3 replicates (first): mean = Node's CPU per request at 575 req/s net of idle: (9234 - 1196 ms at rest) / 17251 requests = 0.4659 ms, less the 0.0009 ms per request of the pauses modelled as GC (gcPauseMs) = 0.4650 ms; shape (p95/median 0.0239/0.0095 ms) from the handler's own time; x 0.9682, the machine's thread speed at the pass (1.82 busy threads: the containers 1.38, k6 0.14, at rest 0.30)"
+    },
+    "clientLinkLatencyMs": {
+      "value": 0.0,
+      "how": "the median of 3 replicates (second): anchored: (measured median 0.849 ms - the model's median without it 1.013 ms at 575 req/s) / 2, one way, at least 0"
+    },
+    "measuredLowLoad": {
+      "rateRps": 575.0,
+      "p50": 0.8487,
+      "p95": 3.658,
+      "p99": 7.3194,
+      "mean": 1.2942,
+      "sent": 17251,
+      "dropped": 0,
+      "failed": 0,
+      "succeeded": 17251,
+      "successRate": 1.0,
+      "throughputRps": 575.0333
+    },
+    "serviceTimeByLoad": {
+      "value": [
+        {
+          "rps": 50.0,
+          "factor": 1.5006
+        },
+        {
+          "rps": 61.7,
+          "factor": 1.4487
+        },
+        {
+          "rps": 77.2,
+          "factor": 1.3958
+        },
+        {
+          "rps": 96.5,
+          "factor": 1.3449
+        },
+        {
+          "rps": 120.6,
+          "factor": 1.2958
+        },
+        {
+          "rps": 150.7,
+          "factor": 1.2486
+        },
+        {
+          "rps": 188.4,
+          "factor": 1.2032
+        },
+        {
+          "rps": 235.5,
+          "factor": 1.1594
+        },
+        {
+          "rps": 294.4,
+          "factor": 1.1172
+        },
+        {
+          "rps": 368.0,
+          "factor": 1.0767
+        },
+        {
+          "rps": 460.0,
+          "factor": 1.0376
+        },
+        {
+          "rps": 575.0,
+          "factor": 1.0
+        },
+        {
+          "rps": 718.8,
+          "factor": 0.9638
+        },
+        {
+          "rps": 898.4,
+          "factor": 0.9289
+        },
+        {
+          "rps": 1150.0,
+          "factor": 0.8919
+        }
+      ],
+      "how": "the median of 3 replicates (first): the staircase's work per request, its CPU per request net of idle times the machine's thread speed during the pass (0.6883 ms at 50, 0.5505 ms at 231, 0.4953 ms at 436, 0.4511 ms at 575 req/s), fitted as a law of the rate, 0.01266 + 1.328 \u00d7 rate^-0.17 ms, over the top rate's (0.4636 ms); carried to 1,150 req/s, 2 times the top rate, then flat"
+    },
+    "gcPauseMs": {
+      "value": 6.0833,
+      "how": "the median of 3 replicates (first): V8's mark-compact cycles in the pass (per request as trial 2026-10-31-kafka-w21 measured at 502 req/s): 16.3 ms (incremental 3.6 ms, major 12.6 ms) over 2.29087 cycles, a mean of 7.104 ms (the model's median: mean / 1.17); 176.779 scavenges, 158.6 ms, left in the CPU per request"
+    },
+    "gcEveryRequests": {
+      "value": 7530,
+      "how": "the median of 3 replicates (first): 17251 requests / 2.29087 mark-compact cycles in the pass (per request as trial 2026-10-31-kafka-w21 measured at 502 req/s)"
+    },
+    "publishTimeMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.4902,
+        "p95": 2.8876
+      },
+      "how": "the median of 3 replicates (second): producer.send with acks=all on one broker: median 0.490, p95 2.888 ms"
+    },
+    "consumerTimeMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.0095,
+        "p95": 0.021
+      },
+      "how": "the median of 3 replicates (second): consumer's own time per message (handling minus the INSERT): median 0.009, p95 0.021 ms"
+    },
+    "consumerConcurrency": {
+      "value": 3,
+      "how": "the median of 3 replicates (first): the stack's setting, not measured: one kafkajs consumer processes 3 of its 6 partitions at once (partitionsConsumedConcurrently)"
+    },
+    "fetchOverheadMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.93,
+        "p95": 3.88
+      },
+      "how": "the median of 3 replicates (first): not recorded in this run (the service reports kafkajs's fetch cycle since W23): the W23 trial's top calibration passes on the same laptop (17577 polls), median 0.930, p95 3.880 ms"
+    },
+    "writeServiceTimeMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.247,
+        "p95": 0.7773
+      },
+      "how": "the median of 3 replicates (third): PostgreSQL's CPU per INSERT (0.3149 ms), shaped like the consumer's INSERT less its commit wait (median 1.479 - 0.828 ms, p95 2.875 - 0.828 ms)"
+    },
+    "dbLinkLatencyMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.1323,
+        "p95": 0.8817
+      },
+      "how": "the median of 3 replicates (third): each way: the round trip the service measured less PostgreSQL's time, in two legs that keep its mean and variance (median 0.1323, p95 0.8817 ms)"
+    },
+    "dbCpuShare": {
+      "value": 0.9682,
+      "how": "the median of 3 replicates (first): PostgreSQL CPU per query at the top pass net of idle (0.3289 ms) / the model's mean time per query (the INSERT, 0.011 ms); x 0.9682, the machine's thread speed at the pass (1.82 busy threads: the containers 1.38, k6 0.14, at rest 0.30)"
+    },
+    "commitFlushMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.8014,
+        "p95": 1.3747
+      },
+      "how": "the median of 3 replicates (third): fitted so that the model's writes wait as long for their lock and flush as the service's did at 575 req/s (synchronous_commit on minus off: median 1.133 - 0.305 ms, p95/median 1.72, a mean of 0.874 ms); in the model there: lock 0.000 ms, flush 0.874 ms, 1.00 commits per flush",
+      "model": {
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 0.8744,
+        "commitsPerFlush": 1.001
+      }
+    },
+    "host": {
+      "value": {
+        "physicalCores": 4,
+        "threadsPerCore": 2,
+        "siblingSpeed": 0.48,
+        "allCoreClock": 0.729,
+        "otherBusyThreads": 0.7672,
+        "clientCpuMs": 1.156
+      },
+      "how": "the median of 3 replicates (first): contention check 2026-11-01T00:48:59Z: 4 physical cores of 8 threads (the VM's topology); clock 4,050 MHz with 1 busy thread, 2,951 with 8 (a line through 24 probe conditions) = 0.729; a thread sharing its core at 0.48 of its speed alone (the probe's CPU per unit of work against the busy threads, 20 conditions, rms 5.5% in log); ASSUMED, not measured (the quiet service check never ran: other sessions' jobs and a throttled laptop): 0.30 threads busy at rest and k6 0.25 ms of CPU per request; other load: the background, k6 and consumer, kafka (no CPU in the model: 0.47 cores at rest, 0.9060 ms per request)"
+    },
+    "anchor": {
+      "rateRps": 575.0,
+      "measuredP50": 0.8487,
+      "modelP50WithoutClientLatency": 1.0134,
+      "residualMs": 0.1625
+    }
+  },
+  "knee": {
+    "kneeRps": 1850,
+    "tried": [
+      {
+        "offeredRps": 100.0,
+        "p95": 3.7443,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 200.0,
+        "p95": 3.6709,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 400.0,
+        "p95": 3.4592,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 800.0,
+        "p95": 3.4592,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 1600.0,
+        "p95": 4.4748,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 3200.0,
+        "p95": null,
+        "successRate": 0.0
+      },
+      {
+        "offeredRps": 2400,
+        "p95": null,
+        "successRate": 0.0
+      },
+      {
+        "offeredRps": 2000,
+        "p95": 1954.4549,
+        "successRate": 0.5729
+      },
+      {
+        "offeredRps": 1800,
+        "p95": 10.4853,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 1900,
+        "p95": 726.1345,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 1850,
+        "p95": 48.1719,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 1875,
+        "p95": 292.0177,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 1862,
+        "p95": 115.1333,
+        "successRate": 1.0
+      }
+    ]
+  },
+  "steps": [
+    {
+      "offeredRps": 534,
+      "p50": 1.0134,
+      "p95": 3.3913,
+      "p99": 7.0563,
+      "mean": 1.3732,
+      "successRate": 1.0,
+      "throughputRps": 534.0,
+      "resultDigest": "d296e8e063bf6ce1fd0c70c0a767ac93e91878e69afae95988adc495bd3a5015",
+      "resources": {
+        "api": {
+          "cores": 0.261,
+          "memoryMiB": 268.3
+        },
+        "db": {
+          "cores": 0.1774
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.077,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.0617
+      },
+      "queue": {
+        "consumedRps": 533.9,
+        "backlogAtEnd": 0,
+        "meanMessageAgeMs": 5.493,
+        "p95MessageAgeMs": 10.4853
+      }
+    },
+    {
+      "offeredRps": 1069,
+      "p50": 1.0134,
+      "p95": 3.5283,
+      "p99": 7.1974,
+      "mean": 1.3734,
+      "successRate": 1.0,
+      "throughputRps": 1068.95,
+      "resultDigest": "7bfcfd5d219d8b03b4f9d40d75637bbdb2e7c457c6efa94c7b189ff5fc41ca0d",
+      "resources": {
+        "api": {
+          "cores": 0.4874,
+          "memoryMiB": 283.6
+        },
+        "db": {
+          "cores": 0.3796
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.225,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.1727
+      },
+      "queue": {
+        "consumedRps": 1068.95,
+        "backlogAtEnd": 0,
+        "meanMessageAgeMs": 17.9243,
+        "p95MessageAgeMs": 31.7826
+      }
+    },
+    {
+      "offeredRps": 1604,
+      "p50": 1.3638,
+      "p95": 4.4748,
+      "p99": 8.4329,
+      "mean": 1.8015,
+      "successRate": 1.0,
+      "throughputRps": 1604.05,
+      "resultDigest": "b331096e6822f15e29099cbc70a6808686b93a4d1eae141cb46ad9627e6526e1",
+      "resources": {
+        "api": {
+          "cores": 0.814,
+          "memoryMiB": 302.1
+        },
+        "db": {
+          "cores": 0.581
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.269,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.2015
+      },
+      "queue": {
+        "consumedRps": 1347.3,
+        "backlogAtEnd": 0,
+        "meanMessageAgeMs": 2622.8057,
+        "p95MessageAgeMs": 4859.9695
+      }
+    },
+    {
+      "offeredRps": 1924,
+      "p50": 785.9913,
+      "p95": 1215.1266,
+      "p99": 1264.2177,
+      "mean": 773.6948,
+      "successRate": 1.0,
+      "throughputRps": 1833.15,
+      "resultDigest": "9fa0111e131109626b4fda9babd9a2ffc0bd51b9e0522206cbd8cd925ef8f869",
+      "resources": {
+        "api": {
+          "cores": 0.9978,
+          "memoryMiB": 4893.7
+        },
+        "db": {
+          "cores": 0.6574
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.262,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.1929
+      },
+      "queue": {
+        "consumedRps": 1321.6,
+        "backlogAtEnd": 0,
+        "meanMessageAgeMs": 4219.1498,
+        "p95MessageAgeMs": 7366.0922
+      }
+    },
+    {
+      "offeredRps": 2138,
+      "p50": 1603.3337,
+      "p95": 1954.4549,
+      "p99": 1993.544,
+      "mean": 1608.7994,
+      "successRate": 0.1377,
+      "throughputRps": 402.15,
+      "resultDigest": "d8f8acb7bad28eb884e2a1f810790f05deebc9b47b1f2c3b3cb17b59df3aa9ff",
+      "resources": {
+        "api": {
+          "cores": 0.9979,
+          "memoryMiB": 22060.0
+        },
+        "db": {
+          "cores": 0.6912
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.247,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.1918
+      },
+      "queue": {
+        "consumedRps": 1303.8,
+        "backlogAtEnd": 0,
+        "meanMessageAgeMs": 3549.8265,
+        "p95MessageAgeMs": 6412.6266
+      }
+    },
+    {
+      "offeredRps": 2352,
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "mean": null,
+      "successRate": 0.0,
+      "throughputRps": 93.15,
+      "resultDigest": "e4511cdb8ba8acf5ef2d6ebae60f8a028b4e0c5b422899f2c8896c145737d9db",
+      "resources": {
+        "api": {
+          "cores": 0.9979,
+          "memoryMiB": 38706.2
+        },
+        "db": {
+          "cores": 0.7252
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.235,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.1814
+      },
+      "queue": {
+        "consumedRps": 1287.8,
+        "backlogAtEnd": 0,
+        "meanMessageAgeMs": 2990.9257,
+        "p95MessageAgeMs": 6042.7612
+      }
+    },
+    {
+      "offeredRps": 2672,
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "mean": null,
+      "successRate": 0.0,
+      "throughputRps": 0.0,
+      "resultDigest": "e69fc9f95d948390dfd37011f7f262088694f3fe1789acc9e08a266886fb9838",
+      "resources": {
+        "api": {
+          "cores": 0.998,
+          "memoryMiB": 62122.0
+        },
+        "db": {
+          "cores": 0.7692
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.205,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.1791
+      },
+      "queue": {
+        "consumedRps": 1250.15,
+        "backlogAtEnd": 0,
+        "meanMessageAgeMs": 2051.481,
+        "p95MessageAgeMs": 3683.2495
+      }
+    },
+    {
+      "offeredRps": 3207,
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "mean": null,
+      "successRate": 0.0,
+      "throughputRps": 0.0,
+      "resultDigest": "b40bff53bcdc704187e16895b4e972fe7db9f2b177e3031b1f4484474361f37e",
+      "resources": {
+        "api": {
+          "cores": 0.998,
+          "memoryMiB": 99426.3
+        },
+        "db": {
+          "cores": 0.8426
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.161,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.1591
+      },
+      "queue": {
+        "consumedRps": 1186.05,
+        "backlogAtEnd": 3,
+        "meanMessageAgeMs": 743.5668,
+        "p95MessageAgeMs": 1315.2921
+      }
+    }
+  ],
+  "comparison": {
+    "experiment": "kafka",
+    "title": "Kafka: Node.js producer, 6 partitions, 3 consumers inserting into PostgreSQL",
+    "objective": {
+      "p95Ms": 50.0,
+      "minSuccess": 0.99
+    },
+    "measuredKnee": {
+      "kneeRps": 2087.2,
+      "bound": "interpolated",
+      "between": [
+        1924,
+        2138
+      ]
+    },
+    "predictedKnee": {
+      "kneeRps": 1616.0,
+      "bound": "interpolated",
+      "between": [
+        1604,
+        1924
+      ]
+    },
+    "predictedKneeFine": 1850,
+    "kneeError": -0.2257569950172479,
+    "belowKnee": {
+      "steps": 4,
+      "medianAbsP95Error": 0.7743054022672752,
+      "maxAbsP95Error": 28.426566343459935
+    },
+    "rows": [
+      {
+        "offeredRps": 534,
+        "measured": {
+          "p50": 0.8821414999999999,
+          "p95": 4.15661,
+          "p99": 8.287133800000031,
+          "successRate": 1.0,
+          "throughputRps": 534.05,
+          "queue": {
+            "consumedRps": 534.08,
+            "backlogAtEnd": 0,
+            "p95MessageAgeMs": 15,
+            "meanMessageAgeMs": 5.640576725025746
+          }
+        },
+        "predicted": {
+          "p50": 1.0134,
+          "p95": 3.3913,
+          "p99": 7.0563,
+          "successRate": 1.0,
+          "throughputRps": 534.0,
+          "queue": {
+            "consumedRps": 533.9,
+            "backlogAtEnd": 0,
+            "meanMessageAgeMs": 5.493,
+            "p95MessageAgeMs": 10.4853
+          }
+        },
+        "error": {
+          "p50": 0.14879528964457536,
+          "p95": -0.18411878910939433,
+          "p99": -0.14852346175465714,
+          "throughputRps": -9.362419249125462e-05
+        },
+        "unstable": false,
+        "repeats": 3,
+        "failedRepeats": 0,
+        "resources": {
+          "producer": {
+            "measured": {
+              "cores": 0.3002,
+              "memoryMiB": 47.6
+            },
+            "predicted": {
+              "cores": 0.261,
+              "memoryMiB": 268.3
+            },
+            "error": {
+              "cores": -0.13057961359093942,
+              "memory": 4.63655462184874
+            }
+          },
+          "consumer": {
+            "measured": {
+              "cores": 0.3109,
+              "memoryMiB": 67.4
+            },
+            "predicted": {
+              "cores": null,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": null,
+              "memory": null
+            }
+          },
+          "postgres": {
+            "measured": {
+              "cores": 0.1961,
+              "memoryMiB": 98.1
+            },
+            "predicted": {
+              "cores": 0.1774,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": -0.09535951045385005,
+              "memory": null
+            }
+          },
+          "kafka": {
+            "measured": {
+              "cores": 0.8728,
+              "memoryMiB": 1024.2
+            },
+            "predicted": {
+              "cores": null,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": null,
+              "memory": null
+            }
+          }
+        }
+      },
+      {
+        "offeredRps": 1069,
+        "measured": {
+          "p50": 1.0019689999999999,
+          "p95": 11.64750319999999,
+          "p99": 29.152603989999985,
+          "successRate": 1.0,
+          "throughputRps": 1069.05,
+          "queue": {
+            "consumedRps": 1069.08,
+            "backlogAtEnd": 0,
+            "p95MessageAgeMs": 118,
+            "meanMessageAgeMs": 34.43265363389767
+          }
+        },
+        "predicted": {
+          "p50": 1.0134,
+          "p95": 3.5283,
+          "p99": 7.1974,
+          "successRate": 1.0,
+          "throughputRps": 1068.95,
+          "queue": {
+            "consumedRps": 1068.95,
+            "backlogAtEnd": 0,
+            "meanMessageAgeMs": 17.9243,
+            "p95MessageAgeMs": 31.7826
+          }
+        },
+        "error": {
+          "p50": 0.011408536591451624,
+          "p95": -0.6970767091096397,
+          "p99": -0.7531129636834887,
+          "throughputRps": -9.354099434068477e-05
+        },
+        "unstable": false,
+        "repeats": 3,
+        "failedRepeats": 0,
+        "resources": {
+          "producer": {
+            "measured": {
+              "cores": 0.4818,
+              "memoryMiB": 91.7
+            },
+            "predicted": {
+              "cores": 0.4874,
+              "memoryMiB": 283.6
+            },
+            "error": {
+              "cores": 0.011623080116230788,
+              "memory": 2.092693565976009
+            }
+          },
+          "consumer": {
+            "measured": {
+              "cores": 0.3268,
+              "memoryMiB": 71.8
+            },
+            "predicted": {
+              "cores": null,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": null,
+              "memory": null
+            }
+          },
+          "postgres": {
+            "measured": {
+              "cores": 0.3621,
+              "memoryMiB": 103.7
+            },
+            "predicted": {
+              "cores": 0.3796,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": 0.04832919083126213,
+              "memory": null
+            }
+          },
+          "kafka": {
+            "measured": {
+              "cores": 1.0043,
+              "memoryMiB": 1031.1
+            },
+            "predicted": {
+              "cores": null,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": null,
+              "memory": null
+            }
+          }
+        }
+      },
+      {
+        "offeredRps": 1604,
+        "measured": {
+          "p50": 1.237863,
+          "p95": 30.1402535,
+          "p99": 70.02012809,
+          "successRate": 0.9982854827145484,
+          "throughputRps": 1601.2,
+          "queue": {
+            "consumedRps": 1601.8,
+            "backlogAtEnd": 0,
+            "p95MessageAgeMs": 3535,
+            "meanMessageAgeMs": 1932.2508961690721
+          }
+        },
+        "predicted": {
+          "p50": 1.3638,
+          "p95": 4.4748,
+          "p99": 8.4329,
+          "successRate": 1.0,
+          "throughputRps": 1604.05,
+          "queue": {
+            "consumedRps": 1347.3,
+            "backlogAtEnd": 0,
+            "meanMessageAgeMs": 2622.8057,
+            "p95MessageAgeMs": 4859.9695
+          }
+        },
+        "error": {
+          "p50": 0.10173742974788,
+          "p95": -0.8515340954249107,
+          "p99": -0.8795646304850968,
+          "throughputRps": 0.0017799150637021666
+        },
+        "unstable": false,
+        "repeats": 3,
+        "failedRepeats": 0,
+        "resources": {
+          "producer": {
+            "measured": {
+              "cores": 0.6208,
+              "memoryMiB": 150.8
+            },
+            "predicted": {
+              "cores": 0.814,
+              "memoryMiB": 302.1
+            },
+            "error": {
+              "cores": 0.31121134020618546,
+              "memory": 1.003315649867374
+            }
+          },
+          "consumer": {
+            "measured": {
+              "cores": 0.3004,
+              "memoryMiB": 156.6
+            },
+            "predicted": {
+              "cores": null,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": null,
+              "memory": null
+            }
+          },
+          "postgres": {
+            "measured": {
+              "cores": 0.4602,
+              "memoryMiB": 112.8
+            },
+            "predicted": {
+              "cores": 0.581,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": 0.2624945675793133,
+              "memory": null
+            }
+          },
+          "kafka": {
+            "measured": {
+              "cores": 0.9979,
+              "memoryMiB": 1063.8
+            },
+            "predicted": {
+              "cores": null,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": null,
+              "memory": null
+            }
+          }
+        }
+      },
+      {
+        "offeredRps": 1924,
+        "measured": {
+          "p50": 1.317416,
+          "p95": 41.29352319999993,
+          "p99": 74.69702487999999,
+          "successRate": 0.9957640332640333,
+          "throughputRps": 1915.85,
+          "queue": {
+            "consumedRps": 1679.36,
+            "backlogAtEnd": 5921,
+            "p95MessageAgeMs": 7540,
+            "meanMessageAgeMs": 4357.70186009146
+          }
+        },
+        "predicted": {
+          "p50": 785.9913,
+          "p95": 1215.1266,
+          "p99": 1264.2177,
+          "successRate": 1.0,
+          "throughputRps": 1833.15,
+          "queue": {
+            "consumedRps": 1321.6,
+            "backlogAtEnd": 0,
+            "meanMessageAgeMs": 4219.1498,
+            "p95MessageAgeMs": 7366.0922
+          }
+        },
+        "error": {
+          "p50": 595.615875319565,
+          "p95": 28.426566343459935,
+          "p99": 15.924605792947615,
+          "throughputRps": -0.04316621864968542
+        },
+        "unstable": false,
+        "repeats": 3,
+        "failedRepeats": 0,
+        "resources": {
+          "producer": {
+            "measured": {
+              "cores": 0.6879,
+              "memoryMiB": 157.0
+            },
+            "predicted": {
+              "cores": 0.9978,
+              "memoryMiB": 4893.7
+            },
+            "error": {
+              "cores": 0.4505015263846491,
+              "memory": 30.170063694267515
+            }
+          },
+          "consumer": {
+            "measured": {
+              "cores": 0.3063,
+              "memoryMiB": 209.9
+            },
+            "predicted": {
+              "cores": null,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": null,
+              "memory": null
+            }
+          },
+          "postgres": {
+            "measured": {
+              "cores": 0.4708,
+              "memoryMiB": 123.8
+            },
+            "predicted": {
+              "cores": 0.6574,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": 0.39634664401019537,
+              "memory": null
+            }
+          },
+          "kafka": {
+            "measured": {
+              "cores": 0.9901,
+              "memoryMiB": 1074.6
+            },
+            "predicted": {
+              "cores": null,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": null,
+              "memory": null
+            }
+          }
+        }
+      },
+      {
+        "offeredRps": 2138,
+        "measured": {
+          "p50": 1.9706345,
+          "p95": 52.712426800000024,
+          "p99": 81.65270683000027,
+          "successRate": 0.9896400926077501,
+          "throughputRps": 2115.9,
+          "queue": {
+            "consumedRps": 1674.8,
+            "backlogAtEnd": 11057,
+            "p95MessageAgeMs": 9423,
+            "meanMessageAgeMs": 5713.072514432329
+          }
+        },
+        "predicted": {
+          "p50": 1603.3337,
+          "p95": 1954.4549,
+          "p99": 1993.544,
+          "successRate": 0.1377,
+          "throughputRps": 402.15,
+          "queue": {
+            "consumedRps": 1303.8,
+            "backlogAtEnd": 0,
+            "meanMessageAgeMs": 3549.8265,
+            "p95MessageAgeMs": 6412.6266
+          }
+        },
+        "error": {
+          "p50": 812.6129251771447,
+          "p95": 36.0776877227743,
+          "p99": 23.414916264203335,
+          "throughputRps": -0.8099390330355877
+        },
+        "unstable": false,
+        "repeats": 3,
+        "failedRepeats": 0,
+        "resources": {
+          "producer": {
+            "measured": {
+              "cores": 0.7283,
+              "memoryMiB": 168.0
+            },
+            "predicted": {
+              "cores": 0.9979,
+              "memoryMiB": 22060.0
+            },
+            "error": {
+              "cores": 0.3701771248112043,
+              "memory": 130.3095238095238
+            }
+          },
+          "consumer": {
+            "measured": {
+              "cores": 0.3055,
+              "memoryMiB": 232.0
+            },
+            "predicted": {
+              "cores": null,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": null,
+              "memory": null
+            }
+          },
+          "postgres": {
+            "measured": {
+              "cores": 0.4746,
+              "memoryMiB": 136.5
+            },
+            "predicted": {
+              "cores": 0.6912,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": 0.4563843236409608,
+              "memory": null
+            }
+          },
+          "kafka": {
+            "measured": {
+              "cores": 1.0497,
+              "memoryMiB": 1082.6
+            },
+            "predicted": {
+              "cores": null,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": null,
+              "memory": null
+            }
+          }
+        }
+      },
+      {
+        "offeredRps": 2352,
+        "measured": {
+          "p50": 3.1783390000000002,
+          "p95": 79.35730100000002,
+          "p99": 118.88519824000002,
+          "successRate": 0.973703231292517,
+          "throughputRps": 2290.15,
+          "queue": {
+            "consumedRps": 1640.76,
+            "backlogAtEnd": 16439,
+            "p95MessageAgeMs": 13150,
+            "meanMessageAgeMs": 7060.286264571718
+          }
+        },
+        "predicted": {
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "successRate": 0.0,
+          "throughputRps": 93.15,
+          "queue": {
+            "consumedRps": 1287.8,
+            "backlogAtEnd": 0,
+            "meanMessageAgeMs": 2990.9257,
+            "p95MessageAgeMs": 6042.7612
+          }
+        },
+        "error": {
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "throughputRps": -0.9593258083531646
+        },
+        "unstable": false,
+        "repeats": 3,
+        "failedRepeats": 0,
+        "resources": {
+          "producer": {
+            "measured": {
+              "cores": 0.7709,
+              "memoryMiB": 178.3
+            },
+            "predicted": {
+              "cores": 0.9979,
+              "memoryMiB": 38706.2
+            },
+            "error": {
+              "cores": 0.2944610195874951,
+              "memory": 216.08468872686478
+            }
+          },
+          "consumer": {
+            "measured": {
+              "cores": 0.3091,
+              "memoryMiB": 232.0
+            },
+            "predicted": {
+              "cores": null,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": null,
+              "memory": null
+            }
+          },
+          "postgres": {
+            "measured": {
+              "cores": 0.4761,
+              "memoryMiB": 150.2
+            },
+            "predicted": {
+              "cores": 0.7252,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": 0.5232094097878596,
+              "memory": null
+            }
+          },
+          "kafka": {
+            "measured": {
+              "cores": 1.1074,
+              "memoryMiB": 1087.1
+            },
+            "predicted": {
+              "cores": null,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": null,
+              "memory": null
+            }
+          }
+        }
+      },
+      {
+        "offeredRps": 2672,
+        "measured": {
+          "p50": 6.956319,
+          "p95": 84.42595159999998,
+          "p99": 132.33967120000003,
+          "successRate": 0.9541176250444415,
+          "throughputRps": 2549.45,
+          "queue": {
+            "consumedRps": 1616.32,
+            "backlogAtEnd": 23678,
+            "p95MessageAgeMs": 12168,
+            "meanMessageAgeMs": 8735.50261799275
+          }
+        },
+        "predicted": {
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "successRate": 0.0,
+          "throughputRps": 0.0,
+          "queue": {
+            "consumedRps": 1250.15,
+            "backlogAtEnd": 0,
+            "meanMessageAgeMs": 2051.481,
+            "p95MessageAgeMs": 3683.2495
+          }
+        },
+        "error": {
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "throughputRps": -1.0
+        },
+        "unstable": false,
+        "repeats": 3,
+        "failedRepeats": 0,
+        "resources": {
+          "producer": {
+            "measured": {
+              "cores": 0.8238,
+              "memoryMiB": 180.3
+            },
+            "predicted": {
+              "cores": 0.998,
+              "memoryMiB": 62122.0
+            },
+            "error": {
+              "cores": 0.21145909201262444,
+              "memory": 343.54797559622847
+            }
+          },
+          "consumer": {
+            "measured": {
+              "cores": 0.3063,
+              "memoryMiB": 242.4
+            },
+            "predicted": {
+              "cores": null,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": null,
+              "memory": null
+            }
+          },
+          "postgres": {
+            "measured": {
+              "cores": 0.4704,
+              "memoryMiB": 167.0
+            },
+            "predicted": {
+              "cores": 0.7692,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": 0.6352040816326531,
+              "memory": null
+            }
+          },
+          "kafka": {
+            "measured": {
+              "cores": 1.1043,
+              "memoryMiB": 1111.6
+            },
+            "predicted": {
+              "cores": null,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": null,
+              "memory": null
+            }
+          }
+        }
+      },
+      {
+        "offeredRps": 3207,
+        "measured": {
+          "p50": 28.708295999999997,
+          "p95": 132.3197084,
+          "p99": 200.27737409,
+          "successRate": 0.8453875056516112,
+          "throughputRps": 2711.2,
+          "queue": {
+            "consumedRps": 1579.12,
+            "backlogAtEnd": 30609,
+            "p95MessageAgeMs": 15388,
+            "meanMessageAgeMs": 10843.77853059496
+          }
+        },
+        "predicted": {
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "successRate": 0.0,
+          "throughputRps": 0.0,
+          "queue": {
+            "consumedRps": 1186.05,
+            "backlogAtEnd": 3,
+            "meanMessageAgeMs": 743.5668,
+            "p95MessageAgeMs": 1315.2921
+          }
+        },
+        "error": {
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "throughputRps": -1.0
+        },
+        "unstable": false,
+        "repeats": 3,
+        "failedRepeats": 0,
+        "resources": {
+          "producer": {
+            "measured": {
+              "cores": 0.8425,
+              "memoryMiB": 182.7
+            },
+            "predicted": {
+              "cores": 0.998,
+              "memoryMiB": 99426.3
+            },
+            "error": {
+              "cores": 0.18456973293768542,
+              "memory": 543.2052545155994
+            }
+          },
+          "consumer": {
+            "measured": {
+              "cores": 0.3186,
+              "memoryMiB": 256.0
+            },
+            "predicted": {
+              "cores": null,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": null,
+              "memory": null
+            }
+          },
+          "postgres": {
+            "measured": {
+              "cores": 0.5005,
+              "memoryMiB": 183.0
+            },
+            "predicted": {
+              "cores": 0.8426,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": 0.6835164835164838,
+              "memory": null
+            }
+          },
+          "kafka": {
+            "measured": {
+              "cores": 1.1661,
+              "memoryMiB": 1124.3
+            },
+            "predicted": {
+              "cores": null,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": null,
+              "memory": null
+            }
+          }
+        }
+      }
+    ],
+    "resources": {
+      "measuredBy": "window",
+      "predictedBy": "predictions",
+      "belowKnee": {
+        "producer": {
+          "steps": 3,
+          "medianAbsCoresError": 0.13057961359093942,
+          "maxAbsCoresError": 0.31121134020618546,
+          "medianAbsMemoryError": 2.092693565976009,
+          "maxAbsMemoryError": 4.63655462184874
+        },
+        "consumer": {
+          "steps": 3,
+          "medianAbsCoresError": null,
+          "maxAbsCoresError": null,
+          "medianAbsMemoryError": null,
+          "maxAbsMemoryError": null
+        },
+        "postgres": {
+          "steps": 3,
+          "medianAbsCoresError": 0.09535951045385005,
+          "maxAbsCoresError": 0.2624945675793133,
+          "medianAbsMemoryError": null,
+          "maxAbsMemoryError": null
+        },
+        "kafka": {
+          "steps": 3,
+          "medianAbsCoresError": null,
+          "maxAbsCoresError": null,
+          "medianAbsMemoryError": null,
+          "maxAbsMemoryError": null
+        }
+      }
+    }
+  }
+}

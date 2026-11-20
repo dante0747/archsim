@@ -365,14 +365,21 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
    writes), and each service's memory at idle and per req/s is fitted to its working set over the
    staircase (W24; calibrations without the readings keep ArchSim's defaults). The inputs are the
    replicates' medians; `cpuByLoad` keeps every rate's CPU per request, which since W21 (engine
-   0.15.0) becomes the service's `serviceTimeByLoad`, relative to the top rate and kept at the
-   top rate's cost above it. W26 added a way to carry a measured fall above the top
-   (`extend_load_curve`, the harness's `CurveForm.LOG`): fitted over every pass at the rates
-   that kept the core at least 30% busy, used only when the top kept it at least 45% busy and
-   the fall is more than twice its standard error, continued linearly in log(rate) at most as
-   far above the top as those rates span below it, and never past where the core fills. It is
-   **off by default** (`CurveForm.FLAT`): it was checked only on staircases built from the
-   kept runs' measured ladders, not on a v6 calibration (see "What would make it better next").
+   0.15.0) becomes the service's `serviceTimeByLoad`, relative to the top rate. Every kept run
+   was predicted with the curve kept at the top rate's cost above it (`CurveForm.FLAT`). Since
+   20 Nov 2026 the harness fits the rates' costs as a law of the rate, `floor + shared ×
+   rate^-k` with `k` at most 1 (the harness's `CostLaws`, `CurveForm.LAW`), and carries it above
+   the top to where the service's CPUs fill, but no further than twice the top rate
+   ([ADR-0093](adr/0093-fit-a-services-falling-cpu-per-request-as-a-law-of-its-rate.md)): on the
+   kept v6 runs it charged the service's CPU per request near the knee within 5.4% (median of
+   the measured steps at 75% busy or more) where the flat curve charged 16.2% too much. Where
+   no law falls with the rate (python-mixed), the curve stays flat. W26 added another way to
+   carry a measured fall above the top (`extend_load_curve`, `CurveForm.LOG`): fitted over
+   every pass at the rates that kept the core at least 30% busy, used only when the top kept it
+   at least 45% busy and the fall is more than twice its standard error, continued linearly in
+   log(rate) at most as far above the top as those rates span below it, and never past where
+   the core fills. It stayed **off**: re-simulated in-sample it moved cache-aside from -25% to
+   -23% and nothing else.
    Since W21 the Node.js service also reports V8's garbage
    collections: its mark-compact cycles in the top pass become the model's GC pauses
    (`gcPauseMs`, `gcEveryRequests`), and their time comes off the CPU per request, which already
@@ -1520,7 +1527,15 @@ What would make it better next, in order:
    python-mixed (+29%) ran on the two hyperthreads of one core, and chain's +30% needs a cause
    of its own.
 2. A CPU per request that keeps falling with load above the calibration staircase
-   (cache-aside's -34%). Protocol v6 (W26) calibrates to about two thirds of the core, which is
+   (cache-aside's -34%). Since 20 Nov 2026 the harness fits the staircase's costs as a law of
+   the rate and carries it above the top
+   ([ADR-0093](adr/0093-fit-a-services-falling-cpu-per-request-as-a-law-of-its-rate.md)):
+   re-simulated in-sample, cache-aside's median knee error over its counted v6 runs moves from
+   -22% to -7%, while cache-ttl, chain, Kafka and pg-mixed move 3 to 16 points toward promising
+   more capacity, the machine's own slowdown no longer offset by too high a cost
+   ([development checks](validation/dev-checks.md), `1.6.0-law`). With W27's host machine as
+   well (`1.6.0-law-host`, a what-if fit) every experiment is within 20%. What follows is the
+   history. Protocol v6 (W26) calibrates to about two thirds of the core, which is
    estimated to bring cache-aside to about -20% (protocol history, above). The rest of the fall
    comes above that: between half and three quarters of the core pg-mixed's cost fell too (0%
    to 7% in its ladders, like cache-aside's 5% to 12%), and only above three quarters did it stop

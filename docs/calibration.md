@@ -174,8 +174,14 @@ median rate.
   error (from the scatter of repeated measurements at each rate), it continues that fall
   linearly in log(rate), at most as far above the top as those rates span below it and never
   past where the CPUs fill, as one more point. Below 30% busy part of the fall is the host's
-  power management, which does not continue. Neither `archsim calibrate` nor the benchmarks use
-  it by default yet (the harness's `CurveForm`). A service that autoscales, or runs
+  power management, which does not continue. `archsim calibrate` does not use it. The accuracy
+  benchmarks fit their staircase another way: as a law of the rate, `floor + shared ×
+  rate^-k` (the harness's `CostLaws`), carried above the top to where the CPUs fill but no
+  further than twice the top rate, which near the knee came within about 5% of the measured
+  cost where the flat curve was 16% high
+  ([ADR-0093](adr/0093-fit-a-services-falling-cpu-per-request-as-a-law-of-its-rate.md)).
+  `archsim calibrate` keeps the never-rising bins until the law is shown on telemetry like
+  yours, not only on the benchmarks' services. A service that autoscales, or runs
   serverless, gets a note instead (its rate per replica is not known), and so does a database
   (it has no such setting).
 - **More CPU than service time.** CPU spent outside the handler time you measured (HTTP parsing,

@@ -42,10 +42,12 @@ class HostParityTests {
 
 	private static final Path W27 = RESULTS.resolve("dev/0.16.0-w27");
 
-	private static final ModelInputs WHAT_IF = new ModelInputs(Simulations.onTheEngine(), HostSwitch
-		.fit(Map.of("BENCH_HOST", "on", "BENCH_HOST_FIT",
-				RESULTS.resolve("trials/2026-11-01-w27/what-if-fit.json").toString()), RESULTS)
-		.orElseThrow());
+	private static final ModelInputs WHAT_IF = ModelInputs
+		.asRecorded(Simulations.onTheEngine(),
+				HostSwitch
+					.fit(Map.of("BENCH_HOST", "on", "BENCH_HOST_FIT",
+							RESULTS.resolve("trials/2026-11-01-w27/what-if-fit.json").toString()), RESULTS)
+					.orElseThrow());
 
 	/** The CPU-time inputs whose how names the thread speed they were taken to. */
 	private static final List<String> SCALED = List.of("serviceTimeMs", "apiServiceTimeMs", "cacheServiceTimeMs",

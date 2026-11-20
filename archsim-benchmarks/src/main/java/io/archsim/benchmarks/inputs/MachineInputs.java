@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.stream.IntStream;
 
 import tools.jackson.databind.JsonNode;
@@ -83,6 +84,18 @@ final class MachineInputs {
 	}
 
 	/**
+	 * The machine's thread speed during a calibration pass: with its busy threads, every
+	 * container's CPU over the pass, k6's for its rate and the background at rest.
+	 * @param pass the pass, with its rate, the service's wall time and each container's
+	 * CPU
+	 * @param fit the machine's fit
+	 * @return the speed, 1 at most; empty without the pass's CPU readings
+	 */
+	static OptionalDouble speedDuring(JsonNode pass, MachineFit fit) {
+		return PassLoad.of(pass, fit).map((load) -> OptionalDouble.of(load.speed())).orElse(OptionalDouble.empty());
+	}
+
+	/**
 	 * A time input, a number or a distribution, times a factor.
 	 * @param value the input's value
 	 * @param factor the factor
@@ -144,7 +157,7 @@ final class MachineInputs {
 	}
 
 	/**
-	 * The machine during the top pass.
+	 * The machine during a calibration pass.
 	 *
 	 * @param cores each container's busy cores over the pass, in the pass's order
 	 * @param rate the pass's rate, in requests per second

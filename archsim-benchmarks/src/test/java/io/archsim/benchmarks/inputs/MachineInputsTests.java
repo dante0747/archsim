@@ -112,6 +112,20 @@ class MachineInputsTests {
 		assertThat(design.at("/architecture/host")).isEqualTo(inputs.at("/host/value"));
 	}
 
+	@Test
+	void speedDuring_aPassThatSharedTheMachine_isTheSpeedWithItsBusyThreads() {
+		assertThat(MachineInputs.speedDuring(passes(1600).get("high"), FIT).orElseThrow()).isCloseTo(SPEED,
+				within(1e-12));
+	}
+
+	@Test
+	void speedDuring_aPassWithoutItsCpuReadings_isEmpty() {
+		ObjectNode passes = passes(1600);
+		((ObjectNode) passes.get("high")).remove("containerCpuMs");
+
+		assertThat(MachineInputs.speedDuring(passes.get("high"), FIT)).isEmpty();
+	}
+
 	private static ObjectNode applied(ObjectNode passes) {
 		ObjectNode inputs = inputs();
 		MachineInputs.apply(passes, inputs, FIT);

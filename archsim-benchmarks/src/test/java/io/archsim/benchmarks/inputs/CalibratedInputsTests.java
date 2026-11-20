@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class CalibratedInputsTests {
 
-	private static final ModelInputs INPUTS = new ModelInputs(Simulations.onTheEngine());
+	private static final ModelInputs INPUTS = ModelInputs.asRecorded(Simulations.onTheEngine());
 
 	@ParameterizedTest
 	@ValueSource(strings = { "pg-mixed", "pg-hot-row", "cache-aside", "kafka", "java-mixed", "go-mixed", "python-mixed",

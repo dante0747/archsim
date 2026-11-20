@@ -42,7 +42,7 @@ class RecordedPartsTests {
 		JsonNode calibration = TrialGc.give(run.calibration(),
 				TrialGc.of(RepositoryLayout.current().results(), run.experiment()).orElseThrow());
 
-		ObjectNode inputs = ServiceInputs.of(run.experiment(), calibration.get("passes"));
+		ObjectNode inputs = ServiceInputs.of(run.experiment(), calibration.get("passes"), CurveForm.FLAT, null);
 
 		inputs.remove("clientLinkLatencyMs");
 		assertThat(RecordedRun.text(inputs)).isEqualTo(
@@ -65,7 +65,7 @@ class RecordedPartsTests {
 	void serviceTimeByLoad_pgMixedsLatestRun_isWhatTheHarnessDerived() {
 		RecordedRun run = RecordedRun.of("pg-mixed", "2026-11-04T11-52-16Z");
 
-		ObjectNode inputs = ServiceInputs.of(run.experiment(), run.firstReplicate());
+		ObjectNode inputs = ServiceInputs.of(run.experiment(), run.firstReplicate(), CurveForm.FLAT, null);
 
 		assertThat(RecordedRun.text(inputs.get("serviceTimeByLoad")))
 			.isEqualTo(RecordedRun.text(RecordedRun.ownHows(run.inputs("serviceTimeByLoad")).get("serviceTimeByLoad")));

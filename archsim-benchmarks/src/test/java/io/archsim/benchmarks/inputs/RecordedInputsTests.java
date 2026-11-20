@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class RecordedInputsTests {
 
-	private static final ModelInputs INPUTS = new ModelInputs(Simulations.onTheEngine());
+	private static final ModelInputs INPUTS = ModelInputs.asRecorded(Simulations.onTheEngine());
 
 	@ParameterizedTest(name = "{0} {1}")
 	@CsvSource({ "pg-mixed, 2026-11-04T11-52-16Z", "pg-hot-row, 2026-11-04T12-24-30Z", "kafka, 2026-10-30T11-20-01Z" })

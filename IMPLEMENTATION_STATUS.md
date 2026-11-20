@@ -9,7 +9,8 @@ counts refused lookups, ADR-0082, 1.3.0 a database's busiest instance's CPU and 
 idle consumers, ADR-0085, 1.5.1 the instant estimate's count of a commit's log flush as a
 wait, not database CPU, ADR-0089, 1.5.2 its count of a cache's commands over its shards
 with a read-through cache's fills, ADR-0092, and 1.6.0 a vCPU counted as a hyperthread unless
-the design, its instance family or its platform says otherwise, ADR-0091; schema 1.11, report
+the design, its instance family or its platform says otherwise, ADR-0091, with the benchmark
+harness fitting a service's falling CPU per request as a law of its rate, ADR-0093; schema 1.11, report
 1.21; the API, the engine, the
 CLI, the MCP server, the benchmark harness and the repository's tooling in Java, and no Python
 left but the benchmarked stacks and three trial records). This file separates what is
@@ -2232,8 +2233,13 @@ After the Java port (ADR 0017), so that none of it is written twice:
      full cores; chain's +30% needs a cause of its own;
    - a CPU cost that rises near full load (pg-mixed), and how hyperthreaded vCPUs become
      capacity;
-   - a CPU per request that keeps falling above the calibration staircase (cache-aside, -24.5%
-     in-sample);
+   - a CPU per request that keeps falling above the calibration staircase: since 20 Nov 2026 the
+     benchmark harness fits it as a law of the rate (ADR-0093; cache-aside -22% to -7% in-sample,
+     the median of the 37 counted v6 runs' absolute knee errors 16.3% to 12.9%). The machine's
+     own slowdown, which that exposes in cache-ttl, chain, Kafka and pg-mixed, is W27's host
+     machine: with it every experiment is within 20% in-sample (median 11.9%), but its fit
+     assumes k6's CPU per request and the machine's background, which a quiet contention check
+     (`contention --service-only`, about 4 minutes on an idle laptop) would measure first;
    - refitting the predicted range with the v6 runs, and ranking replicates by mean. A trial
      refit by the Java harness (13 Nov 2026, not committed) on the 49 calibrations and 34 counted
      runs the results hold gave a model error of 0.1535, a correlation of 0.2643 and a fallback

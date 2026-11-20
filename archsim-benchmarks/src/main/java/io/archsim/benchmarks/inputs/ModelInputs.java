@@ -36,27 +36,66 @@ public final class ModelInputs {
 
 	private final @Nullable MachineFit machine;
 
+	private final CurveForm curve;
+
 	/**
 	 * Inputs whose fits and anchors simulate on an engine, for designs with no host
-	 * machine (the default, as before engine 0.16.0).
+	 * machine (the default, as before engine 0.16.0), the service's cost a law of its
+	 * rate.
 	 * @param simulations the simulations
 	 */
 	public ModelInputs(Simulations simulations) {
-		this(simulations, null);
+		this(simulations, null, CurveForm.LAW);
 	}
 
 	/**
 	 * Inputs whose fits and anchors simulate on an engine, for designs on the machine of
-	 * a contention fit ({@code BENCH_HOST=on}, {@link HostSwitch}).
+	 * a contention fit ({@code BENCH_HOST=on}, {@link HostSwitch}), the service's cost a
+	 * law of its rate.
 	 * @param simulations the simulations
 	 * @param machine the machine's fit; {@code null} for designs with no host machine
 	 */
 	public ModelInputs(Simulations simulations, @Nullable MachineFit machine) {
+		this(simulations, machine, CurveForm.LAW);
+	}
+
+	/**
+	 * Inputs whose fits and anchors simulate on an engine, with the service's cost per
+	 * request in a form.
+	 * @param simulations the simulations
+	 * @param machine the machine's fit; {@code null} for designs with no host machine
+	 * @param curve how the service's CPU per request changes with load
+	 */
+	ModelInputs(Simulations simulations, @Nullable MachineFit machine, CurveForm curve) {
 		this.simulations = simulations;
+		this.curve = curve;
 		this.database = new DatabaseInputs(new CommitFlush(new DatabaseAlone(simulations)));
 		this.anchoring = new Anchoring((experiment, inputs, rps, window) -> simulations
 			.simulate(Designs.design(experiment, inputs, rps, window)));
 		this.machine = machine;
+	}
+
+	/**
+	 * Inputs derived as every kept run's recorded inputs and development checks were, up
+	 * to ADR-0093: the service's cost per request flat above the staircase, and no host
+	 * machine.
+	 * @param simulations the simulations
+	 * @return the inputs
+	 */
+	public static ModelInputs asRecorded(Simulations simulations) {
+		return asRecorded(simulations, null);
+	}
+
+	/**
+	 * Inputs derived as the kept runs' recorded inputs and development checks were, up to
+	 * ADR-0093, for designs on a host machine or on none: the service's cost per request
+	 * flat above the staircase.
+	 * @param simulations the simulations
+	 * @param machine the machine's fit; {@code null} for designs with no host machine
+	 * @return the inputs
+	 */
+	public static ModelInputs asRecorded(Simulations simulations, @Nullable MachineFit machine) {
+		return new ModelInputs(simulations, machine, CurveForm.FLAT);
 	}
 
 	/**
@@ -126,7 +165,7 @@ public final class ModelInputs {
 	 * @return the inputs, each with its value and how it was found
 	 */
 	public ObjectNode of(Experiment experiment, JsonNode passes) {
-		ObjectNode inputs = ServiceInputs.of(experiment, passes);
+		ObjectNode inputs = ServiceInputs.of(experiment, passes, this.curve, this.machine);
 		if (experiment.stack().equals("kafka")) {
 			inputs.setAll(QueueInputs.of(passes));
 		}
