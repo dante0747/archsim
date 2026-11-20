@@ -2237,9 +2237,15 @@ After the Java port (ADR 0017), so that none of it is written twice:
      benchmark harness fits it as a law of the rate (ADR-0093; cache-aside -22% to -7% in-sample,
      the median of the 37 counted v6 runs' absolute knee errors 16.3% to 12.9%). The machine's
      own slowdown, which that exposes in cache-ttl, chain, Kafka and pg-mixed, is W27's host
-     machine: with it every experiment is within 20% in-sample (median 11.9%), but its fit
-     assumes k6's CPU per request and the machine's background, which a quiet contention check
-     (`contention --service-only`, about 4 minutes on an idle laptop) would measure first;
+     machine: with it every experiment is within 20% in-sample (median 11.9%), but only with
+     the what-if fit's assumed k6 CPU per request and background. Measured on a quiet laptop on
+     20 Nov 2026 (`contention --service-only`: k6 0.32 ms per request, 0.95 threads busy at rest),
+     the host machine over-corrects (median 16.2%, all but python-mixed predicted low;
+     `results/dev/1.6.0-law-host-measured/`): the probe of 1 Nov, taken while the laptop
+     throttled, gives a clock that falls faster with busy threads than the check of 20 Nov read
+     (4,040 MHz with 3.8 threads busy, where its line gives about 3,600). A full contention check
+     (`contention`, about 15 minutes on a cool, idle laptop) would refit the clock and the sibling
+     speed;
    - the predicted range: refitted on 20 Nov 2026 on all nine experiments engine 1.6.0 is
      tuned on, with an error each experiment's runs share (ADR-0094; leaving out each
      experiment it holds 41 of 49 runs, all eight misses below it). Still open: ranking

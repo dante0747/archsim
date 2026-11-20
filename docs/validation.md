@@ -1559,7 +1559,18 @@ What would make it better next, in order:
    -22% to -7%, while cache-ttl, chain, Kafka and pg-mixed move 3 to 16 points toward promising
    more capacity, the machine's own slowdown no longer offset by too high a cost
    ([development checks](validation/dev-checks.md), `1.6.0-law`). With W27's host machine as
-   well (`1.6.0-law-host`, a what-if fit) every experiment is within 20%. What follows is the
+   well (`1.6.0-law-host`, a what-if fit) every experiment is within 20%. That fit assumed k6's
+   CPU per request (0.25 ms) and the machine's background at rest (0.30 threads). A quiet
+   contention check on 20 Nov 2026 measured them, 0.32 ms and 0.95 threads
+   (`benchmarks/results/envcheck/2026-11-20T15-49-06Z-contention.json`; two attempts before it
+   were not quiet: Windows' maintenance started as the machine went idle), and with them the host
+   machine over-corrects: every experiment but python-mixed is predicted low, the median of the
+   37 counted v6 runs' absolute knee errors is 16.2% (`1.6.0-law-host-measured`), and cache-aside
+   and Kafka fall to -30% and -27%. The fit's clock comes from the probe of 1 Nov, taken on a
+   machine that was throttling: it puts the clock at about 3,600 MHz with 3.8 threads busy, where
+   the check of 20 Nov read 4,040. So the host machine stays off until a full contention check
+   (its probe, about 15 minutes) refits the clock and the sibling speed on a cool, quiet machine.
+   What follows is the
    history. Protocol v6 (W26) calibrates to about two thirds of the core, which is
    estimated to bring cache-aside to about -20% (protocol history, above). The rest of the fall
    comes above that: between half and three quarters of the core pg-mixed's cost fell too (0%

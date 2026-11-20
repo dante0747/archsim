@@ -1,0 +1,980 @@
+{
+  "experiment": "python-mixed",
+  "results": "python-mixed/run-1",
+  "calibratedAt": "2026-11-03T22:58:02Z",
+  "calibrationMethod": "staircase up and down, CPU per request net of idle at the top rate, median of 3 replicates, anchored at the top rate, settled first (v6)",
+  "kind": "in-sample re-simulation",
+  "designedAfterMeasurements": true,
+  "how": "Inputs derived again from this run's calibration passes with today's harness, and its measured load steps simulated with today's engine. It is designed after the measurements were seen, so it checks a model change against data the change may have been tuned on: it is never a prediction and never shown as one.",
+  "at": "2026-11-20T15:58:06Z",
+  "engineVersion": "1.6.0-law-host-measured",
+  "provenance": {
+    "commit": "37d97bc51f1fc10ce8be2c073a31a9b4aa623d0b",
+    "engineSources": "03f8df10ab2698a7a5ed6f5ad8721667636eedc4df5fa594f3c832fb0c0b72fb",
+    "javaBuild": "48de60120dd5433fdfb3795b34f52c8a43489534b41727afcdbd4698611c39ee",
+    "harnessHash": "2768c05ebf6969c971b9c6dda7b514bcc08486b7febfaaadcd64b171fdfc669b",
+    "dirty": false,
+    "machineId": "i7-1165g7"
+  },
+  "inputsAsCalibrated": false,
+  "sameLatencyAsPredictions": {
+    "steps": 0,
+    "of": 8,
+    "predictedWith": "0.16.0"
+  },
+  "inputs": {
+    "serviceTimeMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.719552,
+        "p95": 2.726514
+      },
+      "how": "the median of 3 replicates (first): mean = the Flask service (gunicorn)'s CPU per request at 1367 req/s net of idle: (43941 - 62 ms at rest) / 41010 requests = 1.0700 ms; shape (p95/median 1.0390/0.2742 ms) from the handler's own time; x 0.9335, the machine's thread speed at the pass (2.72 busy threads: the containers 1.33, k6 0.44, at rest 0.95)"
+    },
+    "clientLinkLatencyMs": {
+      "value": 0.0,
+      "how": "the median of 3 replicates (second): anchored: (measured median 1.319 ms - the model's median without it 2.328 ms at 1367 req/s) / 2, one way, at least 0"
+    },
+    "measuredLowLoad": {
+      "rateRps": 1367.0,
+      "p50": 1.2765,
+      "p95": 6.9284,
+      "p99": 25.0634,
+      "mean": 2.7111,
+      "sent": 41010,
+      "dropped": 0,
+      "failed": 0,
+      "succeeded": 41010,
+      "successRate": 1.0,
+      "throughputRps": 1367.0
+    },
+    "serviceTimeByLoad": {
+      "value": [
+        {
+          "rps": 50.0,
+          "factor": 1.7203
+        },
+        {
+          "rps": 60.1,
+          "factor": 1.5944
+        },
+        {
+          "rps": 75.2,
+          "factor": 1.4701
+        },
+        {
+          "rps": 93.9,
+          "factor": 1.3706
+        },
+        {
+          "rps": 117.4,
+          "factor": 1.291
+        },
+        {
+          "rps": 146.8,
+          "factor": 1.2273
+        },
+        {
+          "rps": 183.5,
+          "factor": 1.1764
+        },
+        {
+          "rps": 229.3,
+          "factor": 1.1356
+        },
+        {
+          "rps": 286.7,
+          "factor": 1.103
+        },
+        {
+          "rps": 358.4,
+          "factor": 1.077
+        },
+        {
+          "rps": 447.9,
+          "factor": 1.0561
+        },
+        {
+          "rps": 559.9,
+          "factor": 1.0394
+        },
+        {
+          "rps": 699.9,
+          "factor": 1.0261
+        },
+        {
+          "rps": 874.9,
+          "factor": 1.0154
+        },
+        {
+          "rps": 1093.6,
+          "factor": 1.0068
+        },
+        {
+          "rps": 1367.0,
+          "factor": 1.0
+        },
+        {
+          "rps": 1708.8,
+          "factor": 0.9945
+        },
+        {
+          "rps": 2084.9,
+          "factor": 0.9906
+        }
+      ],
+      "how": "the median of 3 replicates (first): the staircase's work per request, its CPU per request net of idle times the machine's thread speed during the pass (1.6687 ms at 50, 0.9613 ms at 747, 0.9988 ms at 1367 req/s), fitted as a law of the rate, 0.9419 + 36.2 \u00d7 rate^-1 ms, over the top rate's (0.9684 ms); carried to 2,085 req/s, where the service's 2 CPUs fill, then flat"
+    },
+    "gcPauseMs": {
+      "value": 0,
+      "how": "the median of 3 replicates (first): not modelled as a pause: each gunicorn worker collects on its own and stalls only its own request; the collections' CPU is in the CPU per request"
+    },
+    "writeServiceTimeMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.0847,
+        "p95": 0.8
+      },
+      "how": "the median of 3 replicates (first): PostgreSQL's CPU per UPDATE with synchronous_commit off (0.2151 ms), shaped like its round trip (median 0.417, p95 3.940 ms)",
+      "postgres": {
+        "executorMs": 0.0532
+      }
+    },
+    "readServiceTimeMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.0697,
+        "p95": 0.5853
+      },
+      "how": "the median of 3 replicates (third): PostgreSQL's CPU per SELECT (0.1610 ms, the pass's less its UPDATEs'), shaped like its round trip (median 0.392, p95 3.290 ms)",
+      "postgres": {
+        "executorMs": 0.0359
+      }
+    },
+    "dbLinkLatencyMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.1074,
+        "p95": 1.5532
+      },
+      "how": "the median of 3 replicates (first): each way: the round trip the service measured less PostgreSQL's time, in two legs that keep its mean and variance (median 0.1074, p95 1.5532 ms)"
+    },
+    "dbCpuShare": {
+      "value": 0.9334,
+      "how": "the median of 3 replicates (first): PostgreSQL CPU per query at the top pass net of idle (0.1727 ms) / the model's mean time per query (36932 reads at 0.168 ms and 4078 writes without their flush at 0.215 ms: 0.173 ms); x 0.9335, the machine's thread speed at the pass (2.72 busy threads: the containers 1.33, k6 0.44, at rest 0.95)"
+    },
+    "commitFlushMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 1.0882,
+        "p95": 1.0991
+      },
+      "how": "the median of 3 replicates (third): PostgreSQL's own WAL flushes at 1367 req/s (pg_stat_wal): 4104 flushes of 1.088 ms on average, 0.99 commits per flush (the model: 1.00); shaped like the commit wait the service measured (p95/median 1.01, mean 1.241 ms)",
+      "model": {
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.1412,
+        "commitsPerFlush": 1.002
+      },
+      "postgres": {
+        "syncs": 4104,
+        "flushMs": 1.0882,
+        "syncMs": 1.0715,
+        "commitsPerFlush": 0.9924
+      }
+    },
+    "serviceMemoryBaselineMb": {
+      "value": 326.004,
+      "how": "the median of 3 replicates (first): at idle: the api-python container's working set (the highest reading in each pass) against req/s over 8 points (at rest and 7 passes, 50 to 1,367 req/s), by non-negative least squares: 326.0 MiB + 0.0018 MiB per req/s, largest error at and above the median rate 3%"
+    },
+    "serviceMemoryPerRpsMb": {
+      "value": 0.001751,
+      "how": "the median of 3 replicates (first): per req/s: the api-python container's working set (the highest reading in each pass) against req/s over 8 points (at rest and 7 passes, 50 to 1,367 req/s), by non-negative least squares: 326.0 MiB + 0.0018 MiB per req/s, largest error at and above the median rate 3%"
+    },
+    "serviceMemoryPerRequestMb": {
+      "value": 0.01,
+      "how": "the median of 3 replicates (first): per request held: the floor, since the fit against req/s explains the whole working set (held requests' memory would count twice otherwise)"
+    },
+    "host": {
+      "value": {
+        "physicalCores": 4,
+        "threadsPerCore": 2,
+        "siblingSpeed": 0.48,
+        "allCoreClock": 0.729,
+        "otherBusyThreads": 0.95,
+        "clientCpuMs": 0.3207
+      },
+      "how": "the median of 3 replicates (first): contention check 2026-11-01T00:48:59Z (service part 2026-11-20T15:49:06Z): 4 physical cores of 8 threads (the VM's topology); clock 4,050 MHz with 1 busy thread, 2,951 with 8 (a line through 24 probe conditions) = 0.729; a thread sharing its core at 0.48 of its speed alone (the probe's CPU per unit of work against the busy threads, 20 conditions, rms 5.5% in log); 0.95 threads busy at rest; k6 0.3207 ms of CPU per request (median of 3 steps); other load: the background, k6"
+    },
+    "anchor": {
+      "rateRps": 1367.0,
+      "measuredP50": 1.2765,
+      "modelP50WithoutClientLatency": 2.2375,
+      "residualMs": 0.961
+    }
+  },
+  "knee": {
+    "kneeRps": 1688,
+    "tried": [
+      {
+        "offeredRps": 100.0,
+        "p95": 6.0225,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 200.0,
+        "p95": 5.5638,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 400.0,
+        "p95": 5.4547,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 800.0,
+        "p95": 5.3478,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 1600.0,
+        "p95": 15.2751,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 3200.0,
+        "p95": null,
+        "successRate": 0.0
+      },
+      {
+        "offeredRps": 2400,
+        "p95": null,
+        "successRate": 0.0
+      },
+      {
+        "offeredRps": 2000,
+        "p95": 1954.4549,
+        "successRate": 0.2805
+      },
+      {
+        "offeredRps": 1800,
+        "p95": 1368.4299,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 1700,
+        "p95": 71.5809,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 1650,
+        "p95": 22.698,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 1675,
+        "p95": 35.0906,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 1688,
+        "p95": 43.6307,
+        "successRate": 1.0
+      }
+    ]
+  },
+  "steps": [
+    {
+      "offeredRps": 462,
+      "p50": 1.6958,
+      "p95": 5.4547,
+      "p99": 10.0781,
+      "mean": 2.1997,
+      "successRate": 1.0,
+      "throughputRps": 462.05,
+      "resultDigest": "38c07f2ac609d8506eae1cc45d542d98114691424b6bef63670ff3ebaca01561",
+      "resources": {
+        "api": {
+          "cores": 0.513,
+          "memoryMiB": 326.7
+        },
+        "db": {
+          "cores": 0.0758
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.0,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.097
+      }
+    },
+    {
+      "offeredRps": 925,
+      "p50": 1.7643,
+      "p95": 5.5638,
+      "p99": 10.0781,
+      "mean": 2.2802,
+      "successRate": 1.0,
+      "throughputRps": 925.1,
+      "resultDigest": "71d21e95412591084970c97bf5d7d7ba55d3af99191020f28ec1c168ed9cd0ca",
+      "resources": {
+        "api": {
+          "cores": 1.0198,
+          "memoryMiB": 327.7
+        },
+        "db": {
+          "cores": 0.1576
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.002,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.128
+      }
+    },
+    {
+      "offeredRps": 1388,
+      "p50": 2.2823,
+      "p95": 7.3414,
+      "p99": 11.8081,
+      "mean": 2.9494,
+      "successRate": 1.0,
+      "throughputRps": 1388.05,
+      "resultDigest": "9ebdb37e9c901f5ae1f2e2583584145aaee91c71e0432ee4ea2f938ae25ff778",
+      "resources": {
+        "api": {
+          "cores": 1.5642,
+          "memoryMiB": 328.7
+        },
+        "db": {
+          "cores": 0.2602
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.008,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.1651
+      }
+    },
+    {
+      "offeredRps": 1665,
+      "p50": 7.7907,
+      "p95": 31.1594,
+      "p99": 37.2384,
+      "mean": 10.7934,
+      "successRate": 1.0,
+      "throughputRps": 1665.1,
+      "resultDigest": "4fa3cd5e3d15a2e86c5f2da57c232310069a974a7748d6ab2d7f12ab4cba1e49",
+      "resources": {
+        "api": {
+          "cores": 1.9384,
+          "memoryMiB": 329.7
+        },
+        "db": {
+          "cores": 0.3534
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.01,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.1734
+      }
+    },
+    {
+      "offeredRps": 1850,
+      "p50": 1264.2177,
+      "p95": 1954.4549,
+      "p99": 1993.544,
+      "mean": 1248.9589,
+      "successRate": 0.8928,
+      "throughputRps": 1691.9,
+      "resultDigest": "904b64c487cf96551ef37a9506ac94c1a1258b5038560350770bcd72ffb8e963",
+      "resources": {
+        "api": {
+          "cores": 2.0,
+          "memoryMiB": 366.6
+        },
+        "db": {
+          "cores": 0.3752
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.012,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.1784
+      }
+    },
+    {
+      "offeredRps": 2035,
+      "p50": 1510.8572,
+      "p95": 1954.4549,
+      "p99": 1993.544,
+      "mean": 1521.8791,
+      "successRate": 0.2265,
+      "throughputRps": 549.6,
+      "resultDigest": "f83589bdc2adacdd69c1b0599fccac95cbecaa6cdc61bf3b1b332fec5e7f51b0",
+      "resources": {
+        "api": {
+          "cores": 2.0,
+          "memoryMiB": 414.7
+        },
+        "db": {
+          "cores": 0.379
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.011,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.1765
+      }
+    },
+    {
+      "offeredRps": 2312,
+      "p50": 1954.4549,
+      "p95": 1993.544,
+      "p99": 1993.544,
+      "mean": 1959.8088,
+      "successRate": 0.0125,
+      "throughputRps": 190.0,
+      "resultDigest": "a6526f3a36a06a886c088771d35903d4e029904f30988ae19cf17ff1355b4e1c",
+      "resources": {
+        "api": {
+          "cores": 2.0,
+          "memoryMiB": 488.4
+        },
+        "db": {
+          "cores": 0.3826
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.011,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.1752
+      }
+    },
+    {
+      "offeredRps": 2775,
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "mean": null,
+      "successRate": 0.0,
+      "throughputRps": 0.0,
+      "resultDigest": "ec5ee4b5a75e984f06d35cf871f7602ff940865a29d1798d7419ee1fc0e97df7",
+      "resources": {
+        "api": {
+          "cores": 2.0,
+          "memoryMiB": 613.4
+        },
+        "db": {
+          "cores": 0.3912
+        }
+      },
+      "database": {
+        "commitsPerFlush": 1.01,
+        "meanLockWaitMs": 0.0,
+        "meanCommitWaitMs": 1.173
+      }
+    }
+  ],
+  "comparison": {
+    "experiment": "python-mixed",
+    "title": "Flask on gunicorn (10 sync workers) + PostgreSQL: 90% reads, 10% writes over 100,000 rows",
+    "objective": {
+      "p95Ms": 50.0,
+      "minSuccess": 0.99
+    },
+    "measuredKnee": {
+      "kneeRps": 1427.6,
+      "bound": "interpolated",
+      "between": [
+        1388,
+        1665
+      ]
+    },
+    "predictedKnee": {
+      "kneeRps": 1666.8,
+      "bound": "interpolated",
+      "between": [
+        1665,
+        1850
+      ]
+    },
+    "predictedKneeFine": 1688,
+    "kneeError": 0.16755393667694035,
+    "belowKnee": {
+      "steps": 3,
+      "medianAbsP95Error": 0.9495454634646809,
+      "maxAbsP95Error": 1.3842494159087229
+    },
+    "rows": [
+      {
+        "offeredRps": 462,
+        "measured": {
+          "p50": 0.943026,
+          "p95": 2.2878059499999996,
+          "p99": 3.710380800000001,
+          "successRate": 1.0,
+          "throughputRps": 462.05
+        },
+        "predicted": {
+          "p50": 1.6958,
+          "p95": 5.4547,
+          "p99": 10.0781,
+          "successRate": 1.0,
+          "throughputRps": 462.05
+        },
+        "error": {
+          "p50": 0.7982537066846512,
+          "p95": 1.3842494159087229,
+          "p99": 1.7161902088324723,
+          "throughputRps": 0.0
+        },
+        "unstable": false,
+        "repeats": 3,
+        "failedRepeats": 0,
+        "resources": {
+          "api-python": {
+            "measured": {
+              "cores": 0.4485,
+              "memoryMiB": 340.7
+            },
+            "predicted": {
+              "cores": 0.513,
+              "memoryMiB": 326.7
+            },
+            "error": {
+              "cores": 0.14381270903010032,
+              "memory": -0.04109186968007045
+            }
+          },
+          "postgres": {
+            "measured": {
+              "cores": 0.0899,
+              "memoryMiB": 142.3
+            },
+            "predicted": {
+              "cores": 0.0758,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": -0.1568409343715238,
+              "memory": null
+            }
+          }
+        }
+      },
+      {
+        "offeredRps": 925,
+        "measured": {
+          "p50": 0.988058,
+          "p95": 2.853896,
+          "p99": 5.105773,
+          "successRate": 1.0,
+          "throughputRps": 925.05
+        },
+        "predicted": {
+          "p50": 1.7643,
+          "p95": 5.5638,
+          "p99": 10.0781,
+          "successRate": 1.0,
+          "throughputRps": 925.1
+        },
+        "error": {
+          "p50": 0.7856239208629453,
+          "p95": 0.9495454634646809,
+          "p99": 0.9738637029104112,
+          "throughputRps": 5.4051132371296915e-05
+        },
+        "unstable": false,
+        "repeats": 3,
+        "failedRepeats": 0,
+        "resources": {
+          "api-python": {
+            "measured": {
+              "cores": 0.9253,
+              "memoryMiB": 340.7
+            },
+            "predicted": {
+              "cores": 1.0198,
+              "memoryMiB": 327.7
+            },
+            "error": {
+              "cores": 0.10212903923051986,
+              "memory": -0.038156736131493986
+            }
+          },
+          "postgres": {
+            "measured": {
+              "cores": 0.163,
+              "memoryMiB": 142.9
+            },
+            "predicted": {
+              "cores": 0.1576,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": -0.033128834355828314,
+              "memory": null
+            }
+          }
+        }
+      },
+      {
+        "offeredRps": 1388,
+        "measured": {
+          "p50": 2.0712450000000002,
+          "p95": 32.17688465,
+          "p99": 47.73854785,
+          "successRate": 1.0,
+          "throughputRps": 1388.0
+        },
+        "predicted": {
+          "p50": 2.2823,
+          "p95": 7.3414,
+          "p99": 11.8081,
+          "successRate": 1.0,
+          "throughputRps": 1388.05
+        },
+        "error": {
+          "p50": 0.1018976509297548,
+          "p95": -0.771842424154633,
+          "p99": -0.7526506244575683,
+          "throughputRps": 3.6023054755010466e-05
+        },
+        "unstable": true,
+        "repeats": 3,
+        "failedRepeats": 0,
+        "resources": {
+          "api-python": {
+            "measured": {
+              "cores": 1.7055,
+              "memoryMiB": 339.7
+            },
+            "predicted": {
+              "cores": 1.5642,
+              "memoryMiB": 328.7
+            },
+            "error": {
+              "cores": -0.08284960422163587,
+              "memory": -0.03238151309979394
+            }
+          },
+          "postgres": {
+            "measured": {
+              "cores": 0.2868,
+              "memoryMiB": 142.4
+            },
+            "predicted": {
+              "cores": 0.2602,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": -0.09274755927475598,
+              "memory": null
+            }
+          }
+        }
+      },
+      {
+        "offeredRps": 1665,
+        "measured": {
+          "p50": 6.346659000000001,
+          "p95": 69.70047714999997,
+          "p99": 91.64839902999998,
+          "successRate": 0.92996996996997,
+          "throughputRps": 1548.4
+        },
+        "predicted": {
+          "p50": 7.7907,
+          "p95": 31.1594,
+          "p99": 37.2384,
+          "successRate": 1.0,
+          "throughputRps": 1665.1
+        },
+        "error": {
+          "p50": 0.2275277433370848,
+          "p95": -0.5529528451728825,
+          "p99": -0.5936819366827077,
+          "throughputRps": 0.07536812193231711
+        },
+        "unstable": false,
+        "repeats": 3,
+        "failedRepeats": 0,
+        "resources": {
+          "api-python": {
+            "measured": {
+              "cores": 1.7642,
+              "memoryMiB": 341.0
+            },
+            "predicted": {
+              "cores": 1.9384,
+              "memoryMiB": 329.7
+            },
+            "error": {
+              "cores": 0.09874163926992399,
+              "memory": -0.03313782991202349
+            }
+          },
+          "postgres": {
+            "measured": {
+              "cores": 0.3036,
+              "memoryMiB": 142.6
+            },
+            "predicted": {
+              "cores": 0.3534,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": 0.16403162055335974,
+              "memory": null
+            }
+          }
+        }
+      },
+      {
+        "offeredRps": 1850,
+        "measured": {
+          "p50": 20.540782,
+          "p95": 88.81413749999997,
+          "p99": 116.50724113999998,
+          "successRate": 0.8588912303452748,
+          "throughputRps": 1589.55
+        },
+        "predicted": {
+          "p50": 1264.2177,
+          "p95": 1954.4549,
+          "p99": 1993.544,
+          "successRate": 0.8928,
+          "throughputRps": 1691.9
+        },
+        "error": {
+          "p50": 60.54671716003801,
+          "p95": 21.006123743531266,
+          "p99": 16.110902124997313,
+          "throughputRps": 0.06438929256707882
+        },
+        "unstable": false,
+        "repeats": 3,
+        "failedRepeats": 0,
+        "resources": {
+          "api-python": {
+            "measured": {
+              "cores": 1.7825,
+              "memoryMiB": 341.0
+            },
+            "predicted": {
+              "cores": 2.0,
+              "memoryMiB": 366.6
+            },
+            "error": {
+              "cores": 0.12201963534361852,
+              "memory": 0.07507331378299127
+            }
+          },
+          "postgres": {
+            "measured": {
+              "cores": 0.3131,
+              "memoryMiB": 142.8
+            },
+            "predicted": {
+              "cores": 0.3752,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": 0.1983391887575854,
+              "memory": null
+            }
+          }
+        }
+      },
+      {
+        "offeredRps": 2035,
+        "measured": {
+          "p50": 116.012442,
+          "p95": 182.16096369999994,
+          "p99": 206.65570572999985,
+          "successRate": 0.8499152271666216,
+          "throughputRps": 1729.45
+        },
+        "predicted": {
+          "p50": 1510.8572,
+          "p95": 1954.4549,
+          "p99": 1993.544,
+          "successRate": 0.2265,
+          "throughputRps": 549.6
+        },
+        "error": {
+          "p50": 12.023234180347657,
+          "p95": 9.729274045886049,
+          "p99": 8.64669227475678,
+          "throughputRps": -0.6822111075775534
+        },
+        "unstable": false,
+        "repeats": 3,
+        "failedRepeats": 0,
+        "resources": {
+          "api-python": {
+            "measured": {
+              "cores": 1.9791,
+              "memoryMiB": 342.5
+            },
+            "predicted": {
+              "cores": 2.0,
+              "memoryMiB": 414.7
+            },
+            "error": {
+              "cores": 0.010560355717245172,
+              "memory": 0.21080291970802917
+            }
+          },
+          "postgres": {
+            "measured": {
+              "cores": 0.3469,
+              "memoryMiB": 142.8
+            },
+            "predicted": {
+              "cores": 0.379,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": 0.0925338714326896,
+              "memory": null
+            }
+          }
+        }
+      },
+      {
+        "offeredRps": 2312,
+        "measured": {
+          "p50": 199.8640155,
+          "p95": 279.98161,
+          "p99": 328.29159752,
+          "successRate": 0.7351643598615917,
+          "throughputRps": 1699.7
+        },
+        "predicted": {
+          "p50": 1954.4549,
+          "p95": 1993.544,
+          "p99": 1993.544,
+          "successRate": 0.0125,
+          "throughputRps": 190.0
+        },
+        "error": {
+          "p50": 8.77892341005227,
+          "p95": 6.120267649007376,
+          "p99": 5.072479512298668,
+          "throughputRps": -0.88821556745308
+        },
+        "unstable": false,
+        "repeats": 3,
+        "failedRepeats": 0,
+        "resources": {
+          "api-python": {
+            "measured": {
+              "cores": 1.9955,
+              "memoryMiB": 343.4
+            },
+            "predicted": {
+              "cores": 2.0,
+              "memoryMiB": 488.4
+            },
+            "error": {
+              "cores": 0.0022550739163116756,
+              "memory": 0.42224810716365757
+            }
+          },
+          "postgres": {
+            "measured": {
+              "cores": 0.3533,
+              "memoryMiB": 126.5
+            },
+            "predicted": {
+              "cores": 0.3826,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": 0.08293235210868947,
+              "memory": null
+            }
+          }
+        }
+      },
+      {
+        "offeredRps": 2775,
+        "measured": {
+          "p50": 224.4686735,
+          "p95": 305.349945,
+          "p99": 345.3055266,
+          "successRate": 0.6104265744343566,
+          "throughputRps": 1694.3
+        },
+        "predicted": {
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "successRate": 0.0,
+          "throughputRps": 0.0
+        },
+        "error": {
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "throughputRps": -1.0
+        },
+        "unstable": false,
+        "repeats": 3,
+        "failedRepeats": 0,
+        "resources": {
+          "api-python": {
+            "measured": {
+              "cores": 1.9975,
+              "memoryMiB": 343.7
+            },
+            "predicted": {
+              "cores": 2.0,
+              "memoryMiB": 613.4
+            },
+            "error": {
+              "cores": 0.0012515644555694352,
+              "memory": 0.7846959557753855
+            }
+          },
+          "postgres": {
+            "measured": {
+              "cores": 0.3543,
+              "memoryMiB": 125.4
+            },
+            "predicted": {
+              "cores": 0.3912,
+              "memoryMiB": null
+            },
+            "error": {
+              "cores": 0.10414902624894154,
+              "memory": null
+            }
+          }
+        }
+      }
+    ],
+    "resources": {
+      "measuredBy": "window",
+      "predictedBy": "predictions",
+      "belowKnee": {
+        "api-python": {
+          "steps": 3,
+          "medianAbsCoresError": 0.10212903923051986,
+          "maxAbsCoresError": 0.14381270903010032,
+          "medianAbsMemoryError": 0.038156736131493986,
+          "maxAbsMemoryError": 0.04109186968007045
+        },
+        "postgres": {
+          "steps": 3,
+          "medianAbsCoresError": 0.09274755927475598,
+          "maxAbsCoresError": 0.1568409343715238,
+          "medianAbsMemoryError": null,
+          "maxAbsMemoryError": null
+        }
+      }
+    }
+  }
+}

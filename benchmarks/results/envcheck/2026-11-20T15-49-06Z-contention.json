@@ -1,0 +1,187 @@
+{
+  "at": "2026-11-20T15:49:06Z",
+  "environment": {
+    "cpu": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz",
+    "machineId": "i7-1165g7",
+    "os": "Windows-11-10.0.26300-SP0",
+    "powerMode": "Best performance",
+    "docker": "29.1.3 (linux/amd64)",
+    "dockerCpus": "8",
+    "dockerMemory": "8170147840",
+    "images": {
+      "postgres": "postgres:16-alpine",
+      "redis": "redis:7-alpine",
+      "kafka": "apache/kafka:3.8.0",
+      "k6": "grafana/k6:1.3.0",
+      "service": "node:24-alpine + pg 8.23.1, redis 4.7.1, kafkajs 2.2.4"
+    },
+    "java": "25.0.3+9-LTS"
+  },
+  "topology": {
+    "siblings": {
+      "0": [
+        0,
+        1
+      ],
+      "1": [
+        0,
+        1
+      ],
+      "2": [
+        2,
+        3
+      ],
+      "3": [
+        2,
+        3
+      ],
+      "4": [
+        4,
+        5
+      ],
+      "5": [
+        4,
+        5
+      ],
+      "6": [
+        6,
+        7
+      ],
+      "7": [
+        6,
+        7
+      ]
+    }
+  },
+  "how": "probe: 12 s of a fixed unit of V8 work (20 JSON round trips of a small record) on CPU 2, every container of a condition over the same window; burners run the same work. Service: pg-mixed, 5 s warm-up then 20 s recorded, burners at nice 19 on CPUs the stack uses. Host: Windows' Processor Information and Hyper-V logical processor counters, 1 s samples",
+  "probeRounds": [],
+  "serviceAtRest": {
+    "samples": 13,
+    "frequencyMHz": 2419.72,
+    "performanceLimitPct": 100.0,
+    "performanceLimitFlags": [
+      0
+    ],
+    "logicalProcessorBusyPct": [
+      11.29,
+      10.85,
+      18.04,
+      9.22,
+      11.02,
+      11.45,
+      12.81,
+      10.36
+    ],
+    "busyLogicalProcessors": 0.95
+  },
+  "service": [
+    {
+      "condition": "as benchmarked",
+      "rateRps": 1250,
+      "burners": {},
+      "k6": {
+        "p50": 0.4509225,
+        "p95": 1.6598617499999997,
+        "p99": 4.427309919999987,
+        "successRate": 1.0,
+        "throughputRps": 1250.1
+      },
+      "serviceCpuMsPerRequest": 0.2112220622350212,
+      "serviceCores": 0.2479,
+      "postgresCpuMsPerRequest": 0.1727,
+      "postgresCores": 0.2022,
+      "k6Cores": 0.4692,
+      "host": {
+        "samples": 20,
+        "frequencyMHz": 3954.74,
+        "performanceLimitPct": 100.0,
+        "performanceLimitFlags": [
+          0
+        ],
+        "logicalProcessorBusyPct": [
+          37.58,
+          27.73,
+          38.41,
+          28.4,
+          42.02,
+          17.15,
+          33.54,
+          18.5
+        ],
+        "busyLogicalProcessors": 2.43
+      }
+    },
+    {
+      "condition": "as benchmarked",
+      "rateRps": 2500,
+      "burners": {},
+      "k6": {
+        "p50": 0.432145,
+        "p95": 1.8146276,
+        "p99": 6.647012999999984,
+        "successRate": 1.0,
+        "throughputRps": 2499.95
+      },
+      "serviceCpuMsPerRequest": 0.1870187803756075,
+      "serviceCores": 0.4377,
+      "postgresCpuMsPerRequest": 0.1608,
+      "postgresCores": 0.3758,
+      "k6Cores": 0.8018,
+      "host": {
+        "samples": 21,
+        "frequencyMHz": 4024.15,
+        "performanceLimitPct": 100.0,
+        "performanceLimitFlags": [
+          0
+        ],
+        "logicalProcessorBusyPct": [
+          48.54,
+          33.21,
+          47.71,
+          34.09,
+          62.54,
+          23.95,
+          48.86,
+          27.26
+        ],
+        "busyLogicalProcessors": 3.26
+      }
+    },
+    {
+      "condition": "as benchmarked",
+      "rateRps": 3700,
+      "burners": {},
+      "k6": {
+        "p50": 0.439089,
+        "p95": 2.032855499999994,
+        "p99": 20.090329620000176,
+        "successRate": 1.0,
+        "throughputRps": 3699.95
+      },
+      "serviceCpuMsPerRequest": 0.16768934715333988,
+      "serviceCores": 0.5764,
+      "postgresCpuMsPerRequest": 0.1507,
+      "postgresCores": 0.5176,
+      "k6Cores": 1.0658,
+      "host": {
+        "samples": 20,
+        "frequencyMHz": 4042.35,
+        "performanceLimitPct": 100.0,
+        "performanceLimitFlags": [
+          0
+        ],
+        "logicalProcessorBusyPct": [
+          59.09,
+          35.81,
+          55.24,
+          36.84,
+          68.5,
+          28.44,
+          59.31,
+          32.34
+        ],
+        "busyLogicalProcessors": 3.76
+      }
+    }
+  ]
+}
