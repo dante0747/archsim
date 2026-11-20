@@ -213,8 +213,12 @@ Java port (2026-11-12).**
 - It replays the frozen engine 0.16.0 figure for figure
   ([docs/validation/java-parity.md](docs/validation/java-parity.md)): all 149 template cases meet
   the parity bar, every one of their 2,980 runs gives the frozen engine's figures and digests,
-  and all 65 kept calibrations' knees are the frozen engine's. It runs the templates about 14
-  times faster (34 s for all 25 against 484 s, best of 5;
+  and all 65 kept calibrations' knees are the frozen engine's. (Engine 1.6.0, 2026-11-20: with
+  the changes made on purpose since read as the frozen engine's, 2,860 of the 2,980 runs replay
+  it exactly; the other 120 depart only where a cache refused lookups, which the baselines keep
+  too little of to read;
+  [ADR-0096](docs/adr/0096-read-the-simulation-paritys-runs-as-the-frozen-engines-where-the-engine-changed-on-purpose.md).)
+  It runs the templates about 14 times faster (34 s for all 25 against 484 s, best of 5;
   [docs/performance.md](docs/performance.md)).
 - The Java app's worker role simulates every run
   ([ADR 0053](docs/adr/0053-simulate-runs-in-the-java-apps-worker-role.md)): each run is

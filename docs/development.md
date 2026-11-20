@@ -48,7 +48,8 @@ black-box API tests.
 ## What the tests check
 
 - **Parity with the frozen engine.** The Java engine's tests replay the runs the Python engine 0.16.0
-  recorded, figure for figure, and match its golden files ([parity/README.md](../parity/README.md)).
+  recorded and match its golden files ([parity/README.md](../parity/README.md)), reading the Java's
+  output as the frozen engine's where the engine has changed on purpose since.
 - **Queueing theory.** The simulator is checked against M/M/1 and M/M/c (Erlang C) queues and
   Little's law, the instant estimate against the simulation, and the starter example's scenarios
   against a directional reference benchmark.

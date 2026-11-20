@@ -91,7 +91,8 @@ public final class ParityRuns {
 	}
 
 	/**
-	 * A parity report of these cases, its worst metric the one furthest from Python's.
+	 * A parity report of these cases, its worst metric the one furthest from Python's and
+	 * no run departing where the baselines keep too little to read it.
 	 */
 	public static ObjectNode parity(ObjectNode... cases) {
 		ObjectNode parity = NODES.objectNode()
@@ -113,7 +114,9 @@ public final class ParityRuns {
 			.put("runs", SEEDS * cases.length)
 			.put("exactReplays", List.of(cases).stream().mapToInt((scenario) -> scenario.get("exact").intValue()).sum())
 			.put("digestsEqual",
-					List.of(cases).stream().mapToInt((scenario) -> scenario.get("digestsEqual").intValue()).sum());
+					List.of(cases).stream().mapToInt((scenario) -> scenario.get("digestsEqual").intValue()).sum())
+			.put("departingRuns", 0);
+		parity.putObject("departures");
 		parity.set("worst", worst(cases));
 		parity.put("threads", 4).put("javaSeconds", 3600.0);
 		parity.putArray("results").addAll(List.of(cases));

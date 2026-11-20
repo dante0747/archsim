@@ -100,6 +100,13 @@ final class JavaParityPage {
 	}
 
 	private static List<String> summary(JsonNode parity) {
+		List<String> lines = new ArrayList<>(counts(parity));
+		lines.addAll(ParityDepartures.notReplayed(parity));
+		lines.add(worst(PythonValues.get(parity, "worst")));
+		return lines;
+	}
+
+	private static List<String> counts(JsonNode parity) {
 		long cases = parity.get("cases").longValue();
 		return List.of("- **" + parity.get("casesMeetingTheBar").longValue() + " of " + cases
 				+ "** template cases meet the bar: " + parity.get("casesInsideTheRange").longValue() + " of " + cases
@@ -110,11 +117,11 @@ final class JavaParityPage {
 				+ ").",
 				"- **" + ParityNumbers.count(parity.get("exactReplays").longValue()) + " of "
 						+ ParityNumbers.count(parity.get("runs").longValue())
-						+ "** runs replay the frozen engine's exactly, every figure kept; "
+						+ "** runs replay the frozen engine's exactly, every figure kept, read as its where the "
+						+ "engine has changed on purpose since (below); "
 						+ ParityNumbers.count(parity.get("digestsEqual").longValue()) + " give its result digest, and "
 						+ parity.get("casesReplayingExactly").longValue() + " of " + cases
-						+ " cases replay in every seed.",
-				worst(PythonValues.get(parity, "worst")));
+						+ " cases replay in every seed.");
 	}
 
 	private static String worst(JsonNode worst) {
@@ -143,6 +150,7 @@ final class JavaParityPage {
 				"- The Java runs: `" + PARITY_COMMAND + "` simulated the same runs (" + parity.get("threads").asString()
 						+ " at a time) and wrote `simulation-parity.json`; the `javaSeconds` it records is not a "
 						+ "speed figure.",
+				ParityDepartures.READ,
 				"- The knees: `" + JAVA_KNEES_COMMAND + "` wrote `benchmarks/results/dev/" + KneePairs.JAVA_KNEES
 						+ "/` before the Java engine had a version of its own (it names the folder by its version "
 						+ "now), and the same harness on the frozen engine, `" + PYTHON_KNEES_COMMAND + "`, "

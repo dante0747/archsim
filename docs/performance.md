@@ -49,8 +49,9 @@ runs `ARCHSIM_MAX_CONCURRENT_RUNS` runs at once, each on a thread of its own
 ([below](#what-changed)) still answers a long steady run from a sample, and `/analyze` gives an
 instant estimate in about a millisecond.
 
-The Java engine replays the frozen Python engine 0.16.0's runs figure for figure
-([java-parity.md](validation/java-parity.md)) and runs the templates about 14 times faster:
+The Java engine replays the frozen Python engine 0.16.0's runs, read as that engine's where it has
+changed on purpose since ([java-parity.md](validation/java-parity.md) counts them), and runs the
+templates about 14 times faster:
 13.9 times at the median of the 25 templates, and 12 to 17 times on each template's best of 5
 runs. All 25 templates once take 34 s in Java against 484 s in Python, on the best of 5 runs.
 

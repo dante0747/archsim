@@ -12,8 +12,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * {@code docs/validation/java-parity.md} regenerated from its committed inputs is the
- * committed page, as CI's check of it was: every case, run and kept knee matching the
- * frozen engine exactly.
+ * committed page, as CI's check of it was: every case meeting the bar, and every run that
+ * does not replay the frozen engine exactly departing only where the baselines keep too
+ * little to read it as the frozen engine's.
  */
 class CommittedParityPageTests {
 
@@ -35,10 +36,10 @@ class CommittedParityPageTests {
 	}
 
 	@Test
-	void page_theCommittedInputs_matchTheFrozenEngineExactly() {
+	void page_theCommittedInputs_meetTheBarAndDepartOnlyWhereTheBaselinesKeepTooLittle() {
 		String page = PARITY.page();
 
-		assertThat(page).contains("**Every case, run and kept knee matches the frozen engine exactly.**");
+		assertThat(page).contains("**Stage 4's bar is met.**").contains("; none departs otherwise.");
 	}
 
 }

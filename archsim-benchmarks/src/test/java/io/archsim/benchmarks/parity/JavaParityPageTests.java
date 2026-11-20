@@ -8,6 +8,7 @@ import tools.jackson.databind.node.ObjectNode;
 import io.archsim.benchmarks.JsonText;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 class JavaParityPageTests {
 
@@ -79,6 +80,57 @@ class JavaParityPageTests {
 		assertThat(page).contains("All 2,980 runs")
 			.contains("**2,980 of 2,980** runs replay the frozen engine's exactly")
 			.contains("2,980 give its result digest");
+	}
+
+	@Test
+	void render_runsDepartingOnlyWhereTheBaselinesKeepTooLittle_countsAndNamesEachDeparture() {
+		ObjectNode parity = ParityRuns.parity(ParityRuns.met(), ParityRuns.missed()).put("departingRuns", 8);
+		parity.putObject("departures").put("refusedLookups", 8);
+
+		String page = JavaParityPage.render(parity, List.of(), NO_TEMPLATE_TIMED);
+
+		assertThat(page)
+			.contains("- Of the 8 runs that do not replay it exactly, 8 depart only where the baselines "
+					+ "keep too little to read them as the frozen engine's, every figure they keep its but the result "
+					+ "digest: in 8, a cache refused lookups")
+			.contains("[ADR-0082](../adr/0082-count-a-caches-refused-lookups-in-its-hit-ratio.md)")
+			.contains("; none departs otherwise.");
+	}
+
+	@Test
+	void render_aDepartureThePageHasNoWordsFor_isRefused() {
+		ObjectNode parity = ParityRuns.parity(ParityRuns.met(), ParityRuns.missed()).put("departingRuns", 8);
+		parity.putObject("departures").put("unknownDeparture", 8);
+
+		assertThatIllegalStateException().isThrownBy(() -> JavaParityPage.render(parity, List.of(), NO_TEMPLATE_TIMED))
+			.withMessageContaining("unknownDeparture");
+	}
+
+	@Test
+	void render_runsDepartingOtherwise_saysHowMany() {
+		String page = JavaParityPage.render(ParityRuns.parity(ParityRuns.met(), ParityRuns.missed()), List.of(),
+				NO_TEMPLATE_TIMED);
+
+		assertThat(page).contains("- Of the 8 runs that do not replay it exactly, none departs only where the "
+				+ "baselines keep too little to read them as the frozen engine's; 8 depart otherwise.");
+	}
+
+	@Test
+	void render_everyRunReplayingExactly_saysNothingOfDepartures() {
+		String page = JavaParityPage.render(ParityRuns.parity(ParityRuns.met()), List.of(), NO_TEMPLATE_TIMED);
+
+		assertThat(page).doesNotContain("do not replay it exactly");
+	}
+
+	@Test
+	void render_anyParityRun_namesWhatItReadsAsTheFrozenEngines() {
+		String page = JavaParityPage.render(ParityRuns.parity(ParityRuns.met()), List.of(), NO_TEMPLATE_TIMED);
+
+		assertThat(section(page, "How it was measured")).contains("- The departures: ")
+			.contains("[ADR-0081](../adr/0081-price-an-unset-api-at-its-preset-or-leave-it-out-of-the-month.md)")
+			.contains("[ADR-0083](../adr/0083-name-each-utilisation-and-compare-like-with-like.md)")
+			.contains("[ADR-0084](../adr/0084-judge-asynchronous-designs-by-their-messages-too.md)")
+			.contains("[ADR-0085](../adr/0085-size-a-kafka-broker-as-measured-and-name-idle-consumers.md)");
 	}
 
 	@Test

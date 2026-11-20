@@ -4,8 +4,8 @@ This page describes exactly what the ArchSim engine simulates, how metrics are d
 what it leaves out. If the code and this page disagree, that is a bug; please report it. The
 classes it names are the Java engine's (`archsim-engine`) and design model's (`archsim-model`),
 whose packages are listed in [archsim-engine/README.md](../archsim-engine/README.md#packages);
-the engine replays, figure for figure, the Python engine 0.16.0 it was ported from, which the tag
-`engine-0.16.0` keeps.
+the engine replays the Python engine 0.16.0 it was ported from, which the tag `engine-0.16.0`
+keeps, its runs read as that engine's where it has changed on purpose since.
 
 > **Results are estimates, not production guarantees.** The engine faithfully simulates the
 > *model you drew* with the *assumptions you entered* (service times, hit ratios, latencies,
@@ -1007,9 +1007,10 @@ simulator against exact results, with the tolerances the frozen engine 0.16.0 wa
 - The starter example's scenarios stay inside documented ranges and directions (fewer
   replicas ⇒ rejections and higher latency; more replicas ⇒ lower utilization).
 
-The Java simulator replays that engine's runs figure for figure
-([java-parity.md](validation/java-parity.md)). These checks pin down the queueing core. They say
-nothing about whether your service-time assumptions match your production system.
+The Java simulator replays that engine's runs, read as that engine's where it has changed on
+purpose since ([java-parity.md](validation/java-parity.md) counts them). These checks pin down the
+queueing core. They say nothing about whether your service-time assumptions match your production
+system.
 
 ## Limits
 
