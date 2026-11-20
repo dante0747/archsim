@@ -103,7 +103,7 @@ cache's fills in its slots and CPU
 ([ADR-0092](adr/0092-spread-a-caches-commands-over-its-shards-and-count-its-fills.md)), and 1.6.0
 counts the vCPUs of a service, database or cache as hyperthread pairs at 0.6 from schema 1.11
 unless the part, the design, its instance family or its platform says they are whole cores
-(ADR-0091).
+([ADR-0091](adr/0091-count-a-vcpu-as-a-hyperthread-unless-the-design-or-its-instance-family-says-otherwise.md)).
 
 That frozen engine was the Python package `archsim_engine` (`packages/engine`, on SimPy and
 Pydantic), frozen at 0.16.0 for the port

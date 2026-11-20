@@ -513,7 +513,7 @@ N busy vCPUs do less than N times one's work. Two optional settings model it (ar
   are hyperthreads, two per core, as on most x86 cloud instances; 1 makes them whole cores.
   Ignored on a design with a host.
 
-**The default (schema 1.11, ADR-0091).** A part with 2 or more vCPU, on a design without a
+**The default (schema 1.11, [ADR-0091](adr/0091-count-a-vcpu-as-a-hyperthread-unless-the-design-or-its-instance-family-says-otherwise.md)).** A part with 2 or more vCPU, on a design without a
 host, that sets no `siblingSpeed` runs on hyperthread pairs at the first sibling speed that
 applies: the design's `architecture.siblingSpeed`; 1 (whole cores) when the instance type the
 cost prices for it is of a whole-core family (Graviton and other Arm families, AWS T2 and its

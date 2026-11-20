@@ -132,4 +132,5 @@ what the repository shows.
 | [0088](0088-freeze-the-java-engine-by-its-sources-and-fix-the-criteria-before-a-campaign.md) | Freeze the Java engine by its sources, and fix the criteria before a campaign | Accepted | 2026-11-19 |
 | [0089](0089-count-a-commits-log-flush-as-a-wait-in-the-instant-estimate.md) | Count a commit's log flush as a wait in the instant estimate, not as CPU | Accepted | 2026-11-19 |
 | [0090](0090-register-a-second-held-out-set-before-the-next-model-change.md) | Register a second held-out set before the next model change | Accepted | 2026-11-19 |
+| [0091](0091-count-a-vcpu-as-a-hyperthread-unless-the-design-or-its-instance-family-says-otherwise.md) | Count a vCPU as a hyperthread unless the design or its instance family says otherwise | Proposed | 2026-11-20 |
 | [0092](0092-spread-a-caches-commands-over-its-shards-and-count-its-fills.md) | Spread a cache's commands over its shards, and count its fills, in the instant estimate | Accepted | 2026-11-19 |

@@ -199,7 +199,7 @@ overrides in `provenance`.
   `objectives.messageAgeP95Ms`, so those steps load older documents unchanged. 1.8 to 1.9 changes
   one setting: a third-party API's `costPerMillionRequests` of 0 is left unset (below), unless the
   design's provenance records it as `measured` or `assumed`. 1.10 to 1.11 counts a vCPU as a
-  hyperthread by default (below, ADR-0091) and writes `architecture.siblingSpeed: 1` once, so a
+  hyperthread by default (below, [ADR-0091](adr/0091-count-a-vcpu-as-a-hyperthread-unless-the-design-or-its-instance-family-says-otherwise.md)) and writes `architecture.siblingSpeed: 1` once, so a
   saved design keeps its results; its parts are left as they are, and so is the digest of a
   run's result.
 - `architecture.siblingSpeed` (1.11; above 0, at most 1; empty by default, left out of the JSON):
