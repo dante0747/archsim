@@ -20,7 +20,6 @@ import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestFactory;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 
 import io.archsim.engine.simulation.SimulationLimits;
 import io.archsim.engine.simulator.RunRequest;
@@ -34,18 +33,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * The Java simulator against the frozen engine's simulation baselines (ADR-0052): every
  * template case of {@code parity/simulation/} ({@link Baselines}), with each seed the
- * baselines recorded, simulated in Java as the baselines were (the whole run, the
- * engine's request limit and an hour's wall-clock limit), judged by the port plan's bar
- * ({@link CaseResult}, {@link ParityBar}), the runs that replay Python's exactly counted,
- * and written to {@code simulation-parity.json} ({@link ParityReport}). A run that fails
- * is recorded with its error ({@link RunError}), as the baselines record one, and the
- * others go on. Hours of simulation: {@code ./gradlew :archsim-engine:parity}, not part
- * of {@code check}.
+ * baselines recorded, simulated in Java as the baselines were (the template's document
+ * the frozen engine ran, the whole run, the engine's request limit and an hour's
+ * wall-clock limit), judged by the port plan's bar ({@link CaseResult},
+ * {@link ParityBar}), the runs that replay Python's exactly counted, and written to
+ * {@code simulation-parity.json} ({@link ParityReport}). A run that fails is recorded
+ * with its error ({@link RunError}), as the baselines record one, and the others go on.
+ * Hours of simulation: {@code ./gradlew :archsim-engine:parity}, not part of
+ * {@code check}.
  */
 @Tag("parity")
 class SimulationParityTests {
-
-	private static final JsonMapper JSON = JsonMapper.builder().build();
 
 	private static final double AN_HOUR_S = 3600.0;
 
@@ -77,7 +75,7 @@ class SimulationParityTests {
 	// each case's runs simulated in Java, several at once, and judged against Python's
 	private List<CaseResult> simulate(List<RecordedCase> recorded) {
 		Map<String, JsonNode> designs = new LinkedHashMap<>();
-		recorded.forEach((one) -> designs.computeIfAbsent(one.template(), SimulationParityTests::design));
+		recorded.forEach((one) -> designs.computeIfAbsent(one.template(), Baselines::design));
 		int total = recorded.stream().mapToInt((one) -> one.runs().size()).sum();
 		AtomicInteger done = new AtomicInteger();
 		Runnable finishedOne = () -> progress(done.incrementAndGet(), total);
@@ -125,10 +123,6 @@ class SimulationParityTests {
 			}
 		}
 		return figures;
-	}
-
-	private static JsonNode design(String template) {
-		return JSON.readTree(Repository.examples().resolve(template + ".json").toFile());
 	}
 
 	// a relative folder from the repository's root, as the report's

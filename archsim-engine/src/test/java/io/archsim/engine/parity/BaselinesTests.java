@@ -10,6 +10,7 @@ import java.util.zip.GZIPOutputStream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import tools.jackson.databind.JsonNode;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
@@ -67,6 +68,16 @@ class BaselinesTests {
 		assertThatIllegalStateException().isThrownBy(() -> Baselines.read(this.folder, List.of()))
 			.withMessageEndingWith(
 					": the frozen engine's are in parity/simulation (git checkout HEAD -- parity/simulation)");
+	}
+
+	@Test
+	void design_aTemplateChangedSinceTheFreeze_isTheDocumentTheFrozenEngineRan() {
+		JsonNode design = Baselines.design("sqlserver-saas-blocking");
+
+		assertThat(design.at("/architecture/nodes")
+			.valueStream()
+			.filter((node) -> "db".equals(node.path("id").stringValue("")))
+			.map((database) -> database.at("/config/cpuCores").intValue())).containsExactly(8);
 	}
 
 	private void writeBaselines() throws IOException {

@@ -32,7 +32,7 @@ class EndpointsTests {
 		assertThat(Json.strings(examples, "id")).contains("cache-aside-starter", "queueing-lab",
 				"retry-storm-ttl-cache");
 		assertThat(client.get("/examples/cache-aside-starter").json().path("schemaVersion").asString())
-			.isEqualTo("1.3");
+			.isEqualTo("1.11");
 		assertThat(client.get("/examples/nope").status()).isEqualTo(404);
 		assertThat(client.get("/schema/architecture").json().path("title").asString())
 			.isEqualTo("ArchitectureDocument");

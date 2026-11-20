@@ -47,6 +47,16 @@ for when that version changes.
   cores, at $432. Sized by hand at 4 vCPU on c6i and db.m6i, the same design's API fills at 480
   req/s where it filled at 800, and its p95 at 480 req/s is 244 ms where it was 39 ms.
 
+- **The templates start new designs on the default (schema 1.11).** The 25 templates are written at
+  schema 1.11 without the upgrade's `architecture.siblingSpeed: 1`, since a design started from one
+  is new. 24 keep their figures, 12 of them gaining the model note on pods. The .NET SaaS on SQL
+  Server template's database, whose month-end story was tuned on 8 whole cores, would count its 8
+  vCPU as 4 cores and succeed 74.9% at month-end where it succeeded 93.5%; it has 16 vCPU now, the
+  same 8 cores with two threads each (c6i.4xlarge, $1,325 a month where the template cost $1,077).
+  Its month-end close succeeds 91.3% (p95 1.4 s where it was 1.1 s), and with RCSI 99.4% (p95 608 ms
+  where it was 470 ms), its headline now the API, whose threads fill behind the sessions when
+  waiting postings hold them.
+
 ### Fixed
 
 - **The instant estimate saturates a part on its own hyperthreads where they fill (engine 1.6.0,

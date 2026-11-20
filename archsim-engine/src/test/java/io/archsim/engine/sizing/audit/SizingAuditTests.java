@@ -46,7 +46,8 @@ class SizingAuditTests {
 	 * 2026-10-28 (engine 0.13.0, the AWS snapshot of that date), where the hand pick
 	 * matched auto-sizing on every template; the bound catches a change that makes
 	 * auto-sizing dearer. Black Friday's adds its 24 peak hours a month (ADR-0074),
-	 * worked out on 2026-11-15.
+	 * worked out on 2026-11-15; the SQL Server template's is for its database's 16 vCPU
+	 * at schema 1.11, worked out on 2026-11-20.
 	 * <p>
 	 * What the run measured on 2026-10-28 is lower on six templates (the cheapest types
 	 * their simulated p95 CPU allows): auth-token -$72, black-friday -$283 (its checkout
@@ -212,7 +213,11 @@ class SizingAuditTests {
 		references.put("serverless-image-pipeline", 19365.0);
 		// cache: its keys +25% need a cache.r6g.xlarge
 		references.put("social-feed-hot-key", 1817.0);
-		references.put("sqlserver-saas-blocking", 1078.0);
+		// parts as set: 4 API servers c6i.xlarge $0.17/h; the db's 16 vCPU (8 cores
+		// of two threads), a c6i.4xlarge with its storage, $0.6811/h; the load
+		// balancer $0.0225/h and 39,420 LCU-hours at $0.008: 730 x 1.3836 + 315.36
+		// = $1,325.4
+		references.put("sqlserver-saas-blocking", 1325.0);
 		return references;
 	}
 

@@ -72,7 +72,7 @@ class ArchsimApplicationTests {
 		assertThat(this.mvc.get().uri("/api/v1/examples/cache-aside-starter")).hasStatusOk()
 			.bodyJson()
 			.extractingPath("$.schemaVersion")
-			.isEqualTo("1.3");
+			.isEqualTo("1.11");
 	}
 
 	@Test

@@ -13,6 +13,8 @@ import java.util.zip.GZIPInputStream;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import io.archsim.parity.GoldenFile;
+
 /**
  * The frozen engine's simulation baselines ({@code parity/simulation/}, ADR-0052): each
  * template file of the manifest, gzipped JSON of its cases, each case its runs by seed.
@@ -58,6 +60,19 @@ final class Baselines {
 			throw new IllegalArgumentException("not in the baselines: " + String.join(", ", unknown));
 		}
 		return cases;
+	}
+
+	/**
+	 * The template's document as the frozen engine ran it when it recorded the baselines:
+	 * the one the template's golden file keeps, not today's {@code examples/} file, which
+	 * may have moved on since (the SQL Server template's database has 16 vCPU from schema
+	 * 1.11, the same 8 cores counted as hyperthreads, where the frozen engine simulated 8
+	 * whole cores).
+	 * @param template the template's id
+	 * @return its document as recorded
+	 */
+	static JsonNode design(String template) {
+		return GoldenFile.read("templates/" + template).at("/document");
 	}
 
 	private static JsonNode gzipped(Path path) throws IOException {

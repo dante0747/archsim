@@ -17,6 +17,7 @@ import io.archsim.model.document.ArchitectureDocument;
 import io.archsim.model.issue.DocumentInvalidException;
 import io.archsim.model.issue.Issue;
 import io.archsim.model.issue.Severity;
+import io.archsim.model.upgrade.Upgrades;
 import io.archsim.parity.Repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,16 +32,20 @@ class DesignDocumentsTests {
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
+	/** Every example: the templates, where new designs start. */
+	static Stream<Path> templates() throws IOException {
+		try (Stream<Path> examples = Files.list(Repository.examples())) {
+			return examples.filter((path) -> path.toString().endsWith(".json")).sorted().toList().stream();
+		}
+	}
+
 	/**
 	 * Every example (the templates) and the web app's test fixture: the documents the
 	 * repo ships.
 	 */
 	static Stream<Path> documents() throws IOException {
 		Path webFixture = Repository.root().resolve("apps/web/src/test/fixtures/starter.json");
-		try (Stream<Path> examples = Files.list(Repository.examples())) {
-			List<Path> designs = examples.filter((path) -> path.toString().endsWith(".json")).sorted().toList();
-			return Stream.concat(designs.stream(), Stream.of(webFixture));
-		}
+		return Stream.concat(templates(), Stream.of(webFixture));
 	}
 
 	@ParameterizedTest(name = "{0}")
@@ -52,6 +57,17 @@ class DesignDocumentsTests {
 		ArchitectureDocument again = DesignDocuments.load(written);
 		assertThat(again).isEqualTo(read);
 		assertThat(DesignDocuments.toJson(again)).isEqualTo(written);
+	}
+
+	// a design started from a template is new, so it counts its vCPUs as a new
+	// design does; at an older schema the upgrade would pin it to whole cores
+	// (architecture.siblingSpeed: 1)
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("templates")
+	void toCurrent_aTemplate_leavesTheSiblingSpeedUnset(Path file) {
+		JsonNode upgraded = Upgrades.toCurrent(JSON.readTree(file.toFile())).document();
+
+		assertThat(upgraded.at("/architecture/siblingSpeed").isMissingNode()).isTrue();
 	}
 
 	@Test

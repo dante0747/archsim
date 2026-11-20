@@ -540,7 +540,9 @@ data now, not recorded again.
   inputs, so an edit to one runs the check again.
 - `./gradlew :archsim-engine:parity` runs `SimulationParityTests` (tagged `parity`, left out of
   `test`): every template case of the frozen engine's simulation baselines (149 cases, 20 seeds
-  each; `parity/simulation/` once recorded), simulated in Java and judged by the port plan's bar
+  each; `parity/simulation/` once recorded), each run on the document the frozen engine ran
+  (`Baselines.design`, the template's golden file's `/document`, not today's `examples/` file),
+  simulated in Java and judged by the port plan's bar
   ([ADR-0052](../docs/adr/0052-record-the-frozen-engines-simulation-baselines-once.md)): the
   Java median p50, p95, throughput and each part's utilization inside Python's range and within
   2% of its median (`ParityBar`), and no seed failing otherwise than Python's (`CaseResult`),

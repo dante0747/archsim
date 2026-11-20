@@ -21,13 +21,17 @@ us-east-1 snapshot of 2026-10-27, each template's own seed. Every scenario was s
 the Python engine's `archsim run examples/<template>.json --scenario <scenario>`; the tables come
 straight from those reports, a record of that engine. That engine has since been replaced by
 the Java one, so the file names this page gives (`analysis.py`, `cost.py`, `test_pricing` and
-the like) are the Python engine's of the time.
+the like) are the Python engine's of the time. The SQL Server template's numbers are the exception:
+its database moved to 16 vCPU when schema 1.11 began counting a vCPU as a hyperthread, so its
+section was re-run on the Java engine 1.6.0 with the AWS snapshot of 2026-10-28, whose cost also
+bills the load balancer's capacity units ($315 a month there).
 
 ## How to review a template
 
 1. Read the template's section below, then open the template and press Simulate on each
    scenario, or run the same command with today's [command line](getting-started.md#the-command-line).
-   Today's engine can give different numbers from the tables, which are engine 0.12.0's.
+   Today's engine can give different numbers from the tables, which are engine 0.12.0's (the SQL
+   Server template's are engine 1.6.0's).
 2. Go through the checklist and the "For reviewers" questions. Judge the design as you would a
    design review at work: would you build it like this, and do the numbers look like your
    production systems?
@@ -689,7 +693,8 @@ baseline when auto-sizing must cover it; CPU, not CPU and memory, is set on a ma
 one-queue technologies need their preset's partitions). Every scenario was
 simulated while it was tuned, and every number in a description comes from the final runs,
 re-run once more to confirm. Same conditions: engine 0.12.0, the AWS us-east-1 snapshot of
-2026-10-27, each template's own seed.
+2026-10-27, each template's own seed (the SQL Server template's numbers now come from engine
+1.6.0, see above).
 
 Several of them show their story in numbers the request path never sees (queue lag and age,
 dropped or dead-lettered messages, replica lag and stale reads, a provider's refused calls), and
@@ -863,22 +868,22 @@ Reviewed by: ______________________ (name, role, date)
 ## .NET SaaS on SQL Server: readers blocked by writers: `sqlserver-saas-blocking`
 
 A multi-tenant accounting app: browser users and customers' integrations call an ASP.NET Core API (four
-instances, 64 synchronous threads each) that keeps every tenant in one SQL Server database (8 vCPU, 32
-sessions). 1,500 req/s over 2,000 tenants, 15% of them postings; each posting updates its tenant's totals
-row, and the tenant's screens read it.
+instances, 64 synchronous threads each) that keeps every tenant in one SQL Server database (16 vCPU, 8 cores
+of two hyperthreads each, and 32 sessions). 1,500 req/s over 2,000 tenants, 15% of them postings; each
+posting updates its tenant's totals row, and the tenant's screens read it.
 
 **Checked.** Request paths (reads and postings both go to the one database, nothing else is on the path),
 the lock key (the tenant: a posting's transaction updates the tenant's totals row, so `rowLocks` queues a
 tenant's postings behind each other and, with locking reads, `readsWaitForWrites` makes that tenant's reads
-wait for them; both are SQL Server's defaults in the engine), the session pool (32, the most the validator
-accepts for 8 vCPU; the design review's "fewer connections than callers", 256 API threads against 32
-sessions, is the narrow point the month-end scenarios are about), client groups (browsers 75%: one attempt,
-15 s; integrations 25%: three attempts, 15 s, 1 s backoff, POSTs with an idempotency key), the timeout chain
-(the API queues a request at most 2 s and waits 3 s for SQL Server, which queues a query at most 2 s for a
-session; the load balancer gives up after 10 s, inside the clients' 15 s), the API's CPU (set to 4 vCPU per
-instance, 37% busy). On AWS: the API on 4 × c6i.xlarge and the database priced as a c6i.2xlarge; the
-template names the x86 families (c6i, m6i, r6i) so nothing snaps to Graviton, which SQL Server and
-Windows do not run on (see For reviewers).
+wait for them; both are SQL Server's defaults in the engine), the session pool (32, four per physical core;
+the design review's "fewer connections than callers", 256 API threads against 32 sessions, is the narrow
+point the month-end scenarios are about), client groups (browsers 75%: one attempt, 15 s; integrations 25%:
+three attempts, 15 s, 1 s backoff, POSTs with an idempotency key), the timeout chain (the API queues a
+request at most 2 s and waits 3 s for SQL Server, which queues a query at most 2 s for a session; the load
+balancer gives up after 10 s, inside the clients' 15 s), the API's CPU (set to 4 vCPU per instance, 2 cores
+of two hyperthreads each, 45% busy). On AWS: the API on 4 × c6i.xlarge and the database priced as a
+c6i.4xlarge; the template names the x86 families (c6i, m6i, r6i) so nothing snaps to Graviton, which SQL
+Server and Windows do not run on (see For reviewers).
 
 **Tuned while building.**
 - Month-end first also raised postings from 15% to 25% of requests. The largest tenant's totals row was then
@@ -889,18 +894,24 @@ Windows do not run on (see For reviewers).
 - A heavier tail (median 3 ms, p95 60 ms) made the results hinge on single samples: one posting of about 5 s
   on the hot row filled every session, with or without RCSI, and the failures came in two or three bursts.
   The lighter tail gives many medium waits instead, and the direction holds across seeds (below).
-- The database first had 16 vCPU and 64 sessions, twice what the load needs (16% CPU on a normal day). It has
-  8 vCPU and 32 sessions now (29%).
+- The database first had 16 vCPU and 64 sessions, twice what the load needs (16% CPU on a normal day), and
+  then 8 vCPU and 32 sessions (29%), both counted as whole cores. Since a vCPU on c6i counts as a
+  hyperthread (schema 1.11, ADR-0091), 8 vCPU are 4 cores: month-end fell from 93.5% to 74.9% success and
+  RCSI from 100% to 93.9%, with the database the bottleneck. It has 16 vCPU now, the same 8 cores with two
+  threads each, and keeps 32 sessions (14% of its vCPUs busy on a normal day).
 - The fourth scenario first combined RCSI with postings twice as long (a plan regression). It collapsed on
   postings waiting for each other, which the RCSI scenario already shows, so it became the fix for that:
   append-only postings.
 
 **For reviewers.** The price snapshot has no RDS for SQL Server types, so the database is priced as a
-self-managed c6i.2xlarge without a licence. A licence-included 8 vCPU instance costs several times more;
-the description says the cost leaves out the licence (see Follow-ups).
-Month-end depends on the few longest postings: on seeds 12 and 13 it succeeds 94.9% and 92.6%, with RCSI 100%
-and 99.5%, and append-only 100% (p95 87 and 86 ms). RCSI's p95 is 322 and 226 ms there (470 ms on the
-template's seed), so whether RCSI alone meets the 250 ms objective is a coin toss; the direction is not.
+self-managed c6i.4xlarge without a licence, $497 a month (the c6i.2xlarge of 8 vCPU was $249). A
+licence-included 16 vCPU instance costs several times more; the description says the cost leaves out the
+licence (see Follow-ups).
+Month-end depends on the few longest postings: on seeds 12 and 13 it succeeds 86.9% and 89.9%, with RCSI
+100% and 99.0%, and append-only 100% (p95 87 ms on both). RCSI's p95 is 292 and 529 ms there (608 ms on the
+template's seed), so RCSI alone misses the 250 ms objective on all three, and which part the headline names
+when the waiting postings fill the sessions, the database or the API behind it, depends on the seed; the
+direction does not.
 Append-only postings are modelled by turning row locks off: is that a fair stand-in for inserts plus a rollup
 job whose cost, and the totals' delay, are not modelled? Is synchronous data access (a thread per request)
 fair for a .NET SaaS today? With async calls the threads would be released and the wait would move into the
@@ -910,24 +921,26 @@ fault-impact finding comes fourth (see Follow-ups). No standby is drawn; the out
 availability-group or Multi-AZ failover. Would you add EF Core's retrying execution strategy? Here only the
 integrations retry.
 
-Results (engine 0.12.0, seed as in the template):
+Results (engine 1.6.0 at schema 1.11, when the database moved to 16 vCPU; seed as in the template):
 
 | Scenario | Success | p95 | Headline finding | Per month |
 | --- | --- | --- | --- | --- |
-| Normal day | 100% | 81 ms | No component is saturated | $762 |
-| Month-end close | 93.5% | 1,079 ms | Tenant DB (SQL Server) is the primary bottleneck | $762 |
-| Month-end close with RCSI | 100% | 470 ms | No component is saturated | $762 |
-| Month-end with RCSI and append-only postings | 100% | 86 ms | No component is saturated | $762 |
-| Failover: 15 s without the database (45–60 s) | 82.2% | 86 ms | No component is saturated | $762 |
+| Normal day | 100% | 82 ms | No component is saturated | $1,325 |
+| Month-end close | 91.3% | 1,396 ms | Tenant DB (SQL Server) is the primary bottleneck | $1,336 |
+| Month-end close with RCSI | 99.4% | 608 ms | Accounting API (ASP.NET Core) is the primary bottleneck | $1,326 |
+| Month-end with RCSI and append-only postings | 100% | 87 ms | No component is saturated | $1,325 |
+| Failover: 15 s without the database (45–60 s) | 82.2% | 87 ms | No component is saturated | $1,354 |
 
-Behind the headlines: at month-end 26,123 reads waited for a posting (469 on a normal day), the 32 sessions
-were 97% busy with a p95 wait of 335 ms for one, and the API's threads were 90% occupied, 3% of it their own
-work (the symptom finding); 10,694 requests found the API's queue full. Browser users kept 91.4%,
-integrations 100% at 1.10 attempts per request. Postings waited 16.9 ms on average for each other; with RCSI
-55.5 ms (the lock-contention finding), the sessions were 63% busy on average and full at the busiest
-moments; with append-only postings 24%. In the failover SQL Server refused 32,156 calls, 0.2% of requests
-succeeded inside the window and the system recovered about 2 s after it; browser users kept 81.3% over the
-run, integrations 85.0% at 1.37 attempts per request.
+Behind the headlines: at month-end 26,009 reads waited for a posting (460 on a normal day), the 32 sessions
+were 99% busy with a p95 wait of 316 ms for one, and the API's threads were 96% occupied, 10% of it their
+own work (the symptom finding); 14,314 requests found the API's queue full and 100 timed out in it.
+Browser users kept 88.5%, integrations 99.8% at 1.13 attempts per request. Postings waited 17.9 ms on
+average for each other; with RCSI 58.1 ms (the lock-contention finding), the sessions were 64% busy on
+average and full at the busiest moments, when the API's threads filled behind them and 1,021 requests found
+its queue full (browser users kept 99.2%, integrations 100% at 1.01 attempts per request); with append-only
+postings 24%. In the failover SQL Server refused 32,144 calls, 0.2% of requests succeeded inside the window
+and the system recovered about 2 s after it; browser users kept 81.3% over the run, integrations 85.0% at
+1.37 attempts per request.
 
 Reviewed by: ______________________ (name, role, date)
 
