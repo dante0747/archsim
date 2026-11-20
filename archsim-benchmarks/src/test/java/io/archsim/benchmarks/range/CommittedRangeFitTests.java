@@ -24,12 +24,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * {@code benchmarks/knee-range.json}, fitted on 20 Nov 2026 by {@code range-fit} with
- * engine 1.6.0 from {@code 1.6.0-law}'s development checks (ADR-0094), refitted here from
- * what it records itself: the calibrations' scales and each checked run's knees and
- * sensitivity, with the range each run's comparison records. The variation, the model's
- * error, the counts, every run's ranges and the whole file but for what names it come out
- * the same. (Its knees and sensitivities are simulated and its inputs derived again from
- * the calibrations, which takes minutes; the test refits from them.)
+ * engine 1.6.0 from {@code 1.6.0-law-host-refit}'s development checks, the designs on the
+ * laptop's host machine (ADR-0094, ADR-0095), refitted here from what it records itself:
+ * the calibrations' scales and each checked run's knees and sensitivity, with the range
+ * each run's comparison records. The variation, the model's error, the counts, every
+ * run's ranges and the whole file but for what names it come out the same. (Its knees and
+ * sensitivities are simulated and its inputs derived again from the calibrations, which
+ * takes minutes; the test refits from them.)
  */
 class CommittedRangeFitTests {
 
@@ -61,7 +62,7 @@ class CommittedRangeFitTests {
 		CheckStamp stamp = new CheckStamp("1.6.0", JsonNodeFactory.instance.objectNode(),
 				Clock.fixed(Instant.parse("2026-11-20T12:00:00Z"), ZoneOffset.UTC));
 
-		ObjectNode document = RangeFit.document(new RangeFit.Fitted(CALIBRATIONS, RUNS), stamp, "1.6.0-law");
+		ObjectNode document = RangeFit.document(new RangeFit.Fitted(CALIBRATIONS, RUNS), stamp, "1.6.0-law-host-refit");
 
 		ObjectNode committed = ((ObjectNode) FIT).deepCopy();
 		NAMES.forEach((name) -> {
@@ -125,11 +126,11 @@ class CommittedRangeFitTests {
 				 {"nominalCoverage": 0.8, "inRange": 29, "withRange": 37}]"""));
 	}
 
-	// leaving out each run's experiment: 41 of 49 (84%) inside the 80% range, where the
-	// model error fitted on the four tuned-on experiments held 32
+	// leaving out each run's experiment: 37 of 49 (76%) inside the 80% range on the host
+	// machine's knees, 10 of the 12 misses above it (ADR-0095)
 	@Test
-	void committedFit_leavingOutEachExperiment_holdsFortyOneOfFortyNine() {
-		assertThat(FIT.at("/check/counts/leaveExperimentOut/0.8")).isEqualTo(JsonText.read("[41, 49]"));
+	void committedFit_leavingOutEachExperiment_holdsThirtySevenOfFortyNine() {
+		assertThat(FIT.at("/check/counts/leaveExperimentOut/0.8")).isEqualTo(JsonText.read("[37, 49]"));
 	}
 
 	@Test

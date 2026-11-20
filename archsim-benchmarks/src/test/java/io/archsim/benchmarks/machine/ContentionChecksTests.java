@@ -14,7 +14,8 @@ import io.archsim.benchmarks.results.ResultFiles;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * This machine's contention checks, as {@code contention} writes them.
+ * The contention checks, as {@code contention} writes them, and a machine's fit from its
+ * own.
  */
 class ContentionChecksTests {
 
@@ -43,7 +44,7 @@ class ContentionChecksTests {
 		write(results, KnownMachine.check(2.5, 0.5).put("at", "2026-11-02T03:00:00Z"));
 		write(results, KnownMachine.check());
 
-		assertThat(ContentionChecks.latestFit(results).orElseThrow().how())
+		assertThat(ContentionChecks.latestFit(results, KnownMachine.ID).orElseThrow().how())
 			.startsWith("contention check 2026-11-02T03:00:00Z (service part 2026-11-01T03:00:00Z): ");
 	}
 
@@ -54,7 +55,7 @@ class ContentionChecksTests {
 		write(results, serviceOnly);
 		write(results, KnownMachine.check());
 
-		assertThat(ContentionChecks.latestFit(results).orElseThrow().how())
+		assertThat(ContentionChecks.latestFit(results, KnownMachine.ID).orElseThrow().how())
 			.startsWith("contention check 2026-11-01T03:00:00Z (service part 2026-11-02T03:00:00Z): ");
 	}
 
@@ -64,8 +65,27 @@ class ContentionChecksTests {
 		write(results, KnownMachine.check().put("at", "2026-11-02T03:00:00Z"));
 		write(results, KnownMachine.check());
 
-		assertThat(ContentionChecks.latestFit(results).orElseThrow().how())
+		assertThat(ContentionChecks.latestFit(results, KnownMachine.ID).orElseThrow().how())
 			.startsWith("contention check 2026-11-02T03:00:00Z: ");
+	}
+
+	// the committed checks are the laptop's: another machine's fit nothing here
+	@Test
+	void latestFit_onlyAnotherMachinesChecks_isNone(@TempDir Path results) {
+		write(results, KnownMachine.check());
+
+		assertThat(ContentionChecks.latestFit(results, "another-machine")).isEmpty();
+	}
+
+	@Test
+	void latestFit_aLaterCheckOfAnotherMachine_takesTheMachinesOwn(@TempDir Path results) {
+		ObjectNode another = KnownMachine.check().put("at", "2026-11-02T03:00:00Z");
+		another.putObject("environment").put("machineId", "another-machine");
+		write(results, another);
+		write(results, KnownMachine.check());
+
+		assertThat(ContentionChecks.latestFit(results, KnownMachine.ID).orElseThrow().how())
+			.startsWith("contention check 2026-11-01T03:00:00Z: ");
 	}
 
 	@Test
@@ -74,7 +94,7 @@ class ContentionChecksTests {
 		serviceOnly.putArray("probeRounds").addArray();
 		write(results, serviceOnly);
 
-		assertThat(ContentionChecks.latestFit(results)).isEmpty();
+		assertThat(ContentionChecks.latestFit(results, KnownMachine.ID)).isEmpty();
 	}
 
 	@Test

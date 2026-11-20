@@ -98,9 +98,9 @@ Read these numbers as runs on one laptop, three to six per experiment:
   the range's low end (java-mixed's latest: 4,650 req/s against a range from 5,926). Fifteen runs
   are too few for the coverage check to reject 80% at 5%, but misses gathered in two experiments
   are a bias, not bad luck. On the tuned-on experiments the range held 20 of 22 runs. It was
-  about x0.75 to x1.33 of the predicted knee; refitted on all nine experiments on 20 Nov 2026
-  (ADR-0094) it is wider, about x0.64 to x1.56, and holds 41 of the 49 counted runs leaving
-  out each experiment.
+  about x0.75 to x1.33 of the predicted knee. Refitted on all nine experiments on 20 Nov 2026
+  (ADR-0094), then on the host machine's knees (ADR-0095), it is about x0.81 to x1.23 and holds
+  37 of the 49 counted runs leaving out each experiment, 10 of its 12 misses above it.
 - **cache-ttl meets criteria 1, 2 and 3a**: median -6%, every step's p95 within a factor of two or
   3 ms at or below the knee, and no unstable step. Only criterion 3b, a second machine, is missing:
   it is the first experiment to pass everything one machine can show.
@@ -292,9 +292,11 @@ Three commands check the model and the machine rather than measure accuracy:
   CPU, alone and with its hyperthread sibling, other cores or every CPU busy, and at a part of
   its own time. Windows' counters (each logical processor's busy share as the hypervisor sees
   it, the actual frequency, power and thermal limits) are read every second meanwhile. It writes
-  `results/envcheck/<time>-contention.json`. With `BENCH_HOST=on` the benchmark designs take
-  their host machine from it (`architecture.host`, engine 0.16.0); by default they have none,
-  as before (see [What the machine itself does](#environment)). `contention
+  `results/envcheck/<time>-contention.json`, naming the machine (`environment.machineId`).
+  Since 20 Nov 2026 the benchmark designs take their host machine (`architecture.host`, engine
+  0.16.0) from the checks of the machine they run on, unless `BENCH_HOST=off`
+  ([ADR-0095](adr/0095-run-the-benchmark-designs-on-the-laptops-fitted-host-machine-and-let-a-freeze-name-it.md)); a machine with no check of its own gives
+  them none (see [What the machine itself does](#environment)). `contention
   --service-only` takes only the machine at rest and the service at three rates (about 4
   minutes).
 
@@ -462,6 +464,16 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
    the bias moves with the experiment left out, so the range stays centred on the predicted
    knee. The second held-out set, which no engine is tuned on yet, is its first test out of
    sample.
+
+   **Refitted again the same day** on the knees of the designs on the laptop's fitted host
+   machine ([ADR-0095](adr/0095-run-the-benchmark-designs-on-the-laptops-fitted-host-machine-and-let-a-freeze-name-it.md),
+   `1.6.0-law-host-refit`'s development checks), in the same form. The host machine takes most
+   of the error the experiments shared: by maximum likelihood the shared one is 0.131 and the
+   run's own 0.029, and the 80% range is about x0.81 to x1.23 of the predicted knee at the runs'
+   median calibration spread (0.094). Leaving out each run's experiment it holds 37 of the 49
+   runs (76%; at 50% and 90% nominal, 21 and 40). Two misses are below the range (pg-mixed's runs
+   9 and 14) and ten above it, where the stack held more than predicted: eight of cache-aside's
+   nine runs and two of Kafka's.
 
    `predictions.json` is written before the first measured step, with its provenance:
    the commit, the engine's and the harness's git object ids, whether either had uncommitted
@@ -738,8 +750,9 @@ results, misses included, lead the [headline](#headline):
   its three source trees at its tag, which a run's provenance records too
   ([ADR-0088](adr/0088-freeze-the-java-engine-by-its-sources-and-fix-the-criteria-before-a-campaign.md);
   `engine-id` prints what a freeze records). The seal also wants the entry's tag in the clone,
-  holding those very sources, and `BENCH_HOST` off: a host machine fitted from this machine's
-  own checks is a model choice no freeze names. A freeze is never edited: an engine that
+  holding those very sources, and the designs on the host machine the freeze names by its fit's
+  digest (`hostFit`), or on none when it names none (ADR-0095): the host machine is part of the
+  model. A freeze is never edited: an engine that
   changed gets a new version. None is frozen yet, so the held-out experiments stay sealed
   until the engine that predicts the next campaign is.
 - Before the freeze, `smoke <experiment>` was the only way to start their stacks: 20
@@ -1497,7 +1510,8 @@ From the baseline campaign (run 7: protocol v5, engine 0.14.0, three counted run
   side in every run of an experiment. The W28 range carries both, in about equal parts, so it
   narrows as calibrations repeat more closely and as the model improves (after a refit).
   Refitted on all nine experiments on 20 Nov 2026 with an error each experiment's runs share
-  (ADR-0094), it is wider, and holds 41 of 49 runs leaving out each experiment.
+  (ADR-0094), then on the host machine's knees (ADR-0095), it holds 37 of 49 runs leaving out
+  each experiment.
 
 p95 at the ladder's low steps (at most half the predicted knee):
 
@@ -1575,9 +1589,11 @@ What would make it better next, in order:
    are busy at rest and k6 takes 0.33 ms per request. With it (`1.6.0-law-host-refit`) the median
    is 14.5%, against 12.9% for the law alone: every experiment but python-mixed (+16%) is
    predicted low, by up to 29% (cache-aside), where the law alone promises up to 72% too much
-   (java-mixed). Whether the benchmark designs run on the host machine is a decision of its own:
-   the frozen engine that predicts the sealed experiments would have to name the fit
-   ([ADR-0088](adr/0088-freeze-the-java-engine-by-its-sources-and-fix-the-criteria-before-a-campaign.md)).
+   (java-mixed). Since 20 Nov 2026 the benchmark designs run on it
+   ([ADR-0095](adr/0095-run-the-benchmark-designs-on-the-laptops-fitted-host-machine-and-let-a-freeze-name-it.md)): fewer
+   promises of capacity that is not there at a higher median error. A freeze names the fit by
+   its digest (`hostFit` in `engines.json`), and a held-out experiment runs only on the fit its
+   freeze names; `BENCH_HOST=off` puts the designs on none.
    What follows is the
    history. Protocol v6 (W26) calibrates to about two thirds of the core, which is
    estimated to bring cache-aside to about -20% (protocol history, above). The rest of the fall
@@ -1596,8 +1612,9 @@ What would make it better next, in order:
    now carries that variation and the model's error; it holds 9 of the 12 runs in-sample and
    9 leaving out each experiment. On the held-out campaign it held 9 of 15 (nominal 80%), every
    miss java-mixed's or go-mixed's, whose measured knees fell below the range. Refitted on all
-   nine on 20 Nov 2026 with an error each experiment's runs share (ADR-0094), it holds 41 of 49
-   leaving out each experiment, every miss still below the range.
+   nine on 20 Nov 2026 with an error each experiment's runs share (ADR-0094), it held 41 of 49
+   leaving out each experiment, every miss still below the range; refitted on the host machine's
+   knees (ADR-0095), 37 of 49, ten of its twelve misses above it.
 4. Memory near the knee (a Node.js heap grows faster than linearly with load), a flush and a CPU
    per query that fall with load, and Kafka's rare consumer stalls (message age at mid load).
 

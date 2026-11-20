@@ -14,8 +14,9 @@ import io.archsim.benchmarks.results.ResultFiles;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The setup's derivation of the model inputs: the designs get a host machine only when
- * {@code BENCH_HOST=on} asks for one. pg-mixed's latest calibration derived again.
+ * The setup's derivation of the model inputs: the designs get the host machine the
+ * contention checks fit unless {@code BENCH_HOST=off} (ADR-0095). pg-mixed's latest
+ * calibration derived again.
  */
 class HarnessSetupTests {
 
@@ -36,33 +37,43 @@ class HarnessSetupTests {
 	}
 
 	@Test
-	void machine_hostSwitchedOnWithoutAFit_saysTheDesignsHaveNone(@TempDir Path folder) {
+	void machine_aFitThatCannotBeHad_saysTheDesignsHaveNone(@TempDir Path folder) {
 		Logs logs = new Logs();
 		HarnessSetup setup = Setups.onThisMachine(LAYOUT, logs.log(),
-				Map.of("BENCH_HOST", "on", "BENCH_HOST_FIT", folder.resolve("missing.json").toString()));
+				Map.of("BENCH_HOST_FIT", folder.resolve("missing.json").toString()));
 
 		assertThat(setup.machine()).isEmpty();
-		assertThat(logs.text().lines())
-			.containsExactly("[12:34:56] BENCH_HOST=on, but no machine to put the designs on "
-					+ "(no quiet contention check, or no fit where BENCH_HOST_FIT points): the designs have none");
+		assertThat(logs.text().lines()).containsExactly("[12:34:56] no host machine to put the designs on "
+				+ "(no quiet contention check, or no fit where BENCH_HOST_FIT points): the designs have none");
 	}
 
 	@Test
-	void machine_hostNotSwitchedOn_saysNothing() {
+	void machine_hostSwitchedOff_saysNothing() {
 		Logs logs = new Logs();
 
-		assertThat(Setups.onThisMachine(LAYOUT, logs.log()).machine()).isEmpty();
+		assertThat(Setups.onThisMachine(LAYOUT, logs.log(), Map.of("BENCH_HOST", "off")).machine()).isEmpty();
 		assertThat(logs.text()).isEmpty();
 	}
 
 	@Test
-	void modelInputs_hostNotSwitchedOn_givesTheDesignsNone() {
-		HarnessSetup setup = Setups.onThisMachine(LAYOUT, new Logs().log());
+	void modelInputs_hostSwitchedOff_givesTheDesignsNone() {
+		HarnessSetup setup = Setups.onThisMachine(LAYOUT, new Logs().log(), Map.of("BENCH_HOST", "off"));
 
 		JsonNode inputs = setup.modelInputs(Simulations.onTheEngine())
 			.rederive(Experiments.standard().get("pg-mixed"), CALIBRATION);
 
 		assertThat(inputs.has("host")).isFalse();
+	}
+
+	// the committed contention checks fit a host machine (ADR-0095)
+	@Test
+	void modelInputs_byDefault_givesTheDesignsTheHostTheCommittedChecksFit() {
+		HarnessSetup setup = Setups.onThisMachine(LAYOUT, new Logs().log());
+
+		JsonNode inputs = setup.modelInputs(Simulations.onTheEngine())
+			.rederive(Experiments.standard().get("pg-mixed"), CALIBRATION);
+
+		assertThat(inputs.at("/host/how").stringValue()).contains(": contention check 2026-11-20T17:00:31Z: ");
 	}
 
 }

@@ -33,6 +33,13 @@ class MachineFitTests {
 	}
 
 	@Test
+	void digest_aFitWordedOtherwise_isTheSame() {
+		ObjectNode reworded = FIT.json().put("how", "the same numbers, worded otherwise");
+
+		assertThat(MachineFit.of(reworded).digest()).isEqualTo(FIT.digest());
+	}
+
+	@Test
 	void digest_anotherClock_isAnother() {
 		assertThat(FIT.withClock("0.9").digest()).isNotEqualTo(FIT.digest());
 	}

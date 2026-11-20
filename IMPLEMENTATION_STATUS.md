@@ -1,6 +1,6 @@
 # Implementation status
 
-State as of 2026-11-19 (engine 1.6.0, the Java engine: 1.0.0 reproduces the frozen engine 0.16.0
+State as of 2026-11-20 (engine 1.6.0, the Java engine: 1.0.0 reproduces the frozen engine 0.16.0
 measured on the held-out experiments, 1.1.0 changes only how the cost counts autoscaled parts and
 prices the peak, ADR-0074, 1.1.1 where a run's per-request rates at the base load are measured,
 1.2.0 how a third-party API without a price is priced, ADR-0081, 1.2.1 how a cache's hit ratio
@@ -10,7 +10,8 @@ idle consumers, ADR-0085, 1.5.1 the instant estimate's count of a commit's log f
 wait, not database CPU, ADR-0089, 1.5.2 its count of a cache's commands over its shards
 with a read-through cache's fills, ADR-0092, and 1.6.0 a vCPU counted as a hyperthread unless
 the design, its instance family or its platform says otherwise, ADR-0091, with the benchmark
-harness fitting a service's falling CPU per request as a law of its rate, ADR-0093; schema 1.11, report
+harness fitting a service's falling CPU per request as a law of its rate, ADR-0093, and running
+its designs on the laptop's fitted host machine, ADR-0095; schema 1.11, report
 1.21; the API, the engine, the
 CLI, the MCP server, the benchmark harness and the repository's tooling in Java, and no Python
 left but the benchmarked stacks and three trial records). This file separates what is
@@ -2247,11 +2248,13 @@ After the Java port (ADR 0017), so that none of it is written twice:
      the same evening refitted it (clock 0.805 where it was 0.729, sibling 0.47, 0.90 threads at
      rest, k6 0.33 ms): with it the median is 14.5% (`1.6.0-law-host-refit`), every experiment but
      python-mixed (+16%) predicted low, by up to 29%, where the law alone over-promises by up to
-     72%. Running the benchmark designs on it is a decision still to make (a freeze must name the
-     fit);
+     72%. Since 20 Nov 2026 the benchmark designs run on it (ADR-0095; `BENCH_HOST=off` for
+     none), and a freeze names its fit (`hostFit`), which the seal of the held-out experiments
+     checks;
    - the predicted range: refitted on 20 Nov 2026 on all nine experiments engine 1.6.0 is
-     tuned on, with an error each experiment's runs share (ADR-0094; leaving out each
-     experiment it holds 41 of 49 runs, all eight misses below it). Still open: ranking
+     tuned on, with an error each experiment's runs share (ADR-0094), then on the host
+     machine's knees (ADR-0095; leaving out each experiment it holds 37 of 49 runs, ten of the
+     twelve misses above it). Still open: ranking
      replicates by mean, and an ensemble of simulations for the calibration part;
    - a CPU model for the Kafka broker and consumers.
 6. Right-size from a run (sizing plan W15): suggest cheaper instance types from the measured CPU

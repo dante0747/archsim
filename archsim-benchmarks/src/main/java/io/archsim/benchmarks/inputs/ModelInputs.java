@@ -50,8 +50,7 @@ public final class ModelInputs {
 
 	/**
 	 * Inputs whose fits and anchors simulate on an engine, for designs on the machine of
-	 * a contention fit ({@code BENCH_HOST=on}, {@link HostSwitch}), the service's cost a
-	 * law of its rate.
+	 * a contention fit ({@link HostSwitch}), the service's cost a law of its rate.
 	 * @param simulations the simulations
 	 * @param machine the machine's fit; {@code null} for designs with no host machine
 	 */

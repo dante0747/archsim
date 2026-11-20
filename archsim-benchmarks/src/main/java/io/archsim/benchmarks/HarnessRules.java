@@ -1,18 +1,21 @@
 package io.archsim.benchmarks;
 
 import java.util.Map;
+import java.util.Optional;
 
 import picocli.CommandLine;
 import picocli.CommandLine.ParameterException;
 import picocli.CommandLine.ParseResult;
 
+import io.archsim.benchmarks.machine.HostSwitch;
 import io.archsim.model.text.PythonText;
 
 /**
  * What every command of the harness keeps to: one that {@code run.py} had does not run
  * while {@code BENCH_ENGINE} names an engine other than Java's, though its help still
- * shows; and a stop ({@link HarnessStopException}) prints its reason alone and exits with
- * 1, as Python's {@code SystemExit} did.
+ * shows; none runs while {@code BENCH_HOST} is neither on nor off; and a stop
+ * ({@link HarnessStopException}) prints its reason alone and exits with 1, as Python's
+ * {@code SystemExit} did.
  */
 final class HarnessRules {
 
@@ -36,6 +39,7 @@ final class HarnessRules {
 				return help;
 			}
 			refuseOtherEngines(parsed, environment);
+			refuseAnUnknownHostSwitch(parsed, environment);
 			return new CommandLine.RunLast().execute(parsed);
 		});
 		commandLine.setExecutionExceptionHandler((ex, command, parsed) -> {
@@ -55,6 +59,14 @@ final class HarnessRules {
 		if (command instanceof JavaEngineOnly && !engine.isEmpty() && !"java".equals(engine)) {
 			throw new ParameterException(parsed.commandSpec().commandLine(), ENGINE_VARIABLE + "="
 					+ PythonText.repr(engine) + ": the harness runs the Java engine only (ADR-0062); unset it");
+		}
+	}
+
+	// BENCH_HOST is on or off (ADR-0095): another value is refused rather than read as on
+	private static void refuseAnUnknownHostSwitch(ParseResult parsed, Map<String, String> environment) {
+		Optional<String> why = HostSwitch.unknownValue(environment);
+		if (why.isPresent()) {
+			throw new ParameterException(parsed.commandSpec().commandLine(), why.get());
 		}
 	}
 

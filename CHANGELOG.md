@@ -10,6 +10,24 @@ for when that version changes.
 
 ### Changed
 
+- **The accuracy benchmarks' designs run on the laptop's fitted host machine, and a freeze names
+  it ([ADR-0095](docs/adr/0095-run-the-benchmark-designs-on-the-laptops-fitted-host-machine-and-let-a-freeze-name-it.md)).**
+  Every benchmark stack shares the laptop's 4 cores of 8 threads with k6, and with the law of
+  ADR-0093 alone the knees of 7 of the 9 experiments were predicted too high, java-mixed's by 72%.
+  The harness now puts the designs on the host machine the laptop's contention checks fit (the
+  probe of the latest check with one, the machine at rest and k6 of the latest quiet one, all
+  measured on 20 Nov 2026) unless `BENCH_HOST=off`, where it was opt-in (`BENCH_HOST=on`).
+  Re-simulated in-sample on the 37 counted v6 runs, the runs whose knee is predicted too high
+  fall from 25 to 4 and the largest over-prediction of an experiment's median from +72% to +16%
+  (python-mixed), while the median absolute error rises from 12.9% to 14.5% and the largest
+  under-prediction is cache-aside's -29%. Only the checks that name the machine count, so on
+  another machine, a CI runner among them, the designs have no host machine until it is checked;
+  `BENCH_HOST` is `on` or `off`, and another value is refused. `engine-id` records the fit's
+  digest, of its numbers, in a freeze's entry (`hostFit`), and names none from a what-if or from
+  checks not committed; a held-out experiment runs only on the fit its freeze names, where a
+  host machine kept it sealed. The predicted range, refitted on these knees, holds 37 of the 49
+  runs leaving out each experiment, about x0.81 to x1.23 of the predicted knee, 10 of its 12
+  misses above it. The engine's results do not change.
 - **The accuracy benchmarks' predicted range is fitted on all nine measured experiments, with an
   error each experiment's runs share ([ADR-0094](docs/adr/0094-fit-the-knees-range-on-every-experiment-the-engine-is-tuned-on-with-an-error-each-experiment-shares.md)).**
   The 80% range around a predicted knee took the model's own error from the four tuned-on

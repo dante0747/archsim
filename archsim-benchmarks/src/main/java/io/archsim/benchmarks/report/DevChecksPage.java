@@ -221,8 +221,7 @@ final class DevChecksPage {
 			List<String> machines = new ArrayList<>();
 			hosts.forEach((engine, how) -> {
 				if (!how.isEmpty()) {
-					machines.add("- Engine " + engine + " ran the designs on a host machine (`BENCH_HOST=on`, `run.py "
-							+ "machine_inputs`): " + how + ".");
+					machines.add("- Engine " + engine + " ran the designs on a host machine: " + how + ".");
 				}
 			});
 			if (!machines.isEmpty()) {

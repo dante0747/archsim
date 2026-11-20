@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.JsonNodeFactory;
+import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.benchmarks.experiments.Engines;
 import io.archsim.benchmarks.values.PythonValues;
@@ -41,9 +42,11 @@ public final class EngineFreeze {
 	 * @param version the engine's version
 	 * @param provenance what would run ({@link Provenance})
 	 * @param now the time, as {@code engines.json} writes it
+	 * @param host the host machine the designs would run on, which the freeze names
+	 * (ADR-0095)
 	 * @return the lines to print
 	 */
-	public List<String> lines(String version, JsonNode provenance, String now) {
+	public List<String> lines(String version, JsonNode provenance, String now, FreezeHost host) {
 		String sources = text(PythonValues.get(provenance, Engines.SOURCES_KEY));
 		String identity = "engine " + version + ": sources " + sources + ", commit "
 				+ text(PythonValues.get(provenance, "commit"));
@@ -56,14 +59,26 @@ public final class EngineFreeze {
 			return List.of(identity, "the engine's sources or the harness have uncommitted changes (or git cannot "
 					+ "tell): commit them first, so that the sources named are the ones that run");
 		}
+		if (host instanceof FreezeHost.Unrepeatable(String why)) {
+			return List.of(identity, why);
+		}
 		String tag = "engine-" + version;
-		JsonNode entry = JsonNodeFactory.instance.objectNode()
-			.put(Engines.SOURCES_KEY, sources)
+		return List.of(identity, "to freeze it: tag this commit " + tag + ", push the tag, and add to version "
+				+ version + "'s entry in benchmarks/engines.json: " + entry(provenance, now, tag, host));
+	}
+
+	// the entry a freeze adds: the sources, the harness, when, the tag, and the designs'
+	// host machine when they have one
+	private static ObjectNode entry(JsonNode provenance, String now, String tag, FreezeHost host) {
+		ObjectNode entry = JsonNodeFactory.instance.objectNode()
+			.put(Engines.SOURCES_KEY, text(PythonValues.get(provenance, Engines.SOURCES_KEY)))
 			.put("harnessHash", text(PythonValues.get(provenance, "harnessHash")))
 			.put("frozenAt", now)
 			.put(TAG, tag);
-		return List.of(identity, "to freeze it: tag this commit " + tag + ", push the tag, and add to version "
-				+ version + "'s entry in benchmarks/engines.json: " + entry);
+		if (host instanceof FreezeHost.Fit(String digest)) {
+			entry.put(Engines.HOST_FIT_KEY, digest);
+		}
+		return entry;
 	}
 
 	// the version's entry, when it is frozen with the Java engine's sources

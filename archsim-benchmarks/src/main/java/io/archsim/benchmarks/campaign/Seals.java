@@ -2,9 +2,11 @@ package io.archsim.benchmarks.campaign;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 
+import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 
 import io.archsim.benchmarks.experiments.Engines;
@@ -21,9 +23,9 @@ import io.archsim.benchmarks.values.PythonValues;
  * What would run is the frozen engine when a frozen entry names the hash over its three
  * source trees ({@code engineSources}, as a run's provenance records it), that entry's
  * tag is in the clone and holds those very sources, nothing in the engine or the harness
- * is uncommitted, and the designs are on no host machine of this machine's own fitting
- * ({@code BENCH_HOST}), which no freeze names. The frozen Python engine was known by its
- * tree; nothing runs it any more.
+ * is uncommitted, and the designs are on the host machine the freeze names by its fit's
+ * digest ({@code hostFit}, ADR-0095), or on none when it names none. The frozen Python
+ * engine was known by its tree; nothing runs it any more.
  */
 public final class Seals {
 
@@ -35,24 +37,24 @@ public final class Seals {
 
 	private final Function<String, Optional<String>> sourcesAt;
 
-	private final boolean onHostMachine;
+	private final @Nullable String hostFit;
 
-	private Seals(List<JsonNode> frozen, Function<String, Optional<String>> sourcesAt, boolean onHostMachine) {
+	private Seals(List<JsonNode> frozen, Function<String, Optional<String>> sourcesAt, @Nullable String hostFit) {
 		this.frozen = List.copyOf(frozen);
 		this.sourcesAt = sourcesAt;
-		this.onHostMachine = onHostMachine;
+		this.hostFit = hostFit;
 	}
 
 	/**
 	 * The seals the engines' file sets in a repository.
 	 * @param engines {@code benchmarks/engines.json}
 	 * @param git the repository, whose tags hold the frozen engines' sources
-	 * @param onHostMachine whether the command's designs would run on a host machine
-	 * fitted from this machine's checks ({@code BENCH_HOST=on})
+	 * @param hostFit the digest of the host machine the command's designs would run on
+	 * ({@link io.archsim.benchmarks.machine.MachineFit#digest()}); {@code null} for none
 	 * @return the seals
 	 */
-	public static Seals of(Path engines, GitRepository git, boolean onHostMachine) {
-		return of(engines, (tag) -> Provenance.engineSources(git, "refs/tags/" + tag), onHostMachine);
+	public static Seals of(Path engines, GitRepository git, @Nullable String hostFit) {
+		return of(engines, (tag) -> Provenance.engineSources(git, "refs/tags/" + tag), hostFit);
 	}
 
 	/**
@@ -60,16 +62,17 @@ public final class Seals {
 	 * @param engines {@code benchmarks/engines.json}
 	 * @param sourcesAt the hash over the engine's source trees at a tag; empty for a tag
 	 * the clone lacks
-	 * @param onHostMachine whether the designs would run on a host machine
+	 * @param hostFit the digest of the host machine the designs would run on;
+	 * {@code null} for none
 	 * @return the seals
 	 */
-	static Seals of(Path engines, Function<String, Optional<String>> sourcesAt, boolean onHostMachine) {
+	static Seals of(Path engines, Function<String, Optional<String>> sourcesAt, @Nullable String hostFit) {
 		List<JsonNode> java = Engines.read(engines)
 			.frozen()
 			.stream()
 			.filter((engine) -> engine.path(Engines.SOURCES_KEY).isString())
 			.toList();
-		return new Seals(java, sourcesAt, onHostMachine);
+		return new Seals(java, sourcesAt, hostFit);
 	}
 
 	/**
@@ -85,10 +88,6 @@ public final class Seals {
 		}
 		String sealed = experiment.id() + " is a held-out experiment (registered " + heldOut.registered() + ", commit "
 				+ prefix(heldOut.commit()) + ") and stays sealed: ";
-		if (this.onHostMachine) {
-			return Optional.of(sealed + "BENCH_HOST=on puts the designs on a host machine fitted from this machine's "
-					+ "own checks, which no freeze names. Unset it.");
-		}
 		return notTheFrozenEngine(provenance).map((why) -> sealed + why + " `./gradlew :archsim-benchmarks:run "
 				+ "--args=\"smoke " + experiment.id() + "\"` checks its stack without measuring it.");
 	}
@@ -115,7 +114,32 @@ public final class Seals {
 			return Optional.of("the engine's sources or the harness have uncommitted changes (or git cannot "
 					+ "tell), so the frozen engine's sources do not describe what would run.");
 		}
-		return Optional.empty();
+		return notItsHost(freeze.get());
+	}
+
+	// why the designs would not run on the host machine the freeze names, empty when
+	// they would; a hostFit that is no digest cannot be checked, so it opens nothing
+	private Optional<String> notItsHost(JsonNode freeze) {
+		JsonNode named = PythonValues.get(freeze, Engines.HOST_FIT_KEY);
+		if (!named.isString() && !named.isNull()) {
+			return Optional.of("its freeze's hostFit is not a fit's digest, so it cannot be checked.");
+		}
+		String frozenHost = named.isString() ? named.stringValue() : null;
+		if (Objects.equals(frozenHost, this.hostFit)) {
+			return Optional.empty();
+		}
+		String differ = " and the designs would run on " + host(this.hostFit) + ": ";
+		if (frozenHost == null) {
+			return Optional.of("its freeze names no host machine," + differ + "`BENCH_HOST=off` puts them on none "
+					+ "(ADR-0095).");
+		}
+		return Optional.of("its freeze names " + host(frozenHost) + " (`hostFit`)," + differ + "they run on its fit "
+				+ "with BENCH_HOST and BENCH_HOST_CLOCK unset, from the contention checks as they were at its tag or "
+				+ "from a file of the fit's keys that BENCH_HOST_FIT names (ADR-0095).");
+	}
+
+	private static String host(@Nullable String fit) {
+		return (fit != null) ? "host machine " + fit : "no host machine";
 	}
 
 	// a hash or a tag as text; what git could not name reads unknown

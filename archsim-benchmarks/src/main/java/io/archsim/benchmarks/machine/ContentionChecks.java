@@ -16,7 +16,8 @@ import io.archsim.benchmarks.results.ResultFiles;
 import io.archsim.model.text.PythonText;
 
 /**
- * This machine's contention checks ({@code contention}), in {@code results/envcheck}.
+ * The contention checks ({@code contention}) in {@code results/envcheck}: each names the
+ * machine it measured ({@code environment.machineId}), and only a machine's own fit it.
  */
 public final class ContentionChecks {
 
@@ -31,7 +32,7 @@ public final class ContentionChecks {
 	 * @return each check's file
 	 */
 	public static List<Path> in(Path results) {
-		Path folder = results.resolve("envcheck");
+		Path folder = folder(results);
 		if (!Files.isDirectory(folder)) {
 			return List.of();
 		}
@@ -44,15 +45,26 @@ public final class ContentionChecks {
 	}
 
 	/**
-	 * The machine's fit from the latest check with a probe and the latest quiet one with
-	 * a service part.
+	 * The folder the checks are in.
 	 * @param results the results folder
-	 * @return the fit; empty without a check with a probe or a quiet one
+	 * @return its {@code envcheck}
 	 */
-	static Optional<MachineFit> latestFit(Path results) {
+	public static Path folder(Path results) {
+		return results.resolve("envcheck");
+	}
+
+	/**
+	 * A machine's fit from its own latest check with a probe and its latest quiet one
+	 * with a service part.
+	 * @param results the results folder
+	 * @param machineId the machine ({@code MachineName}), whose checks alone count
+	 * @return the fit; empty without a check of the machine with a probe or a quiet one
+	 */
+	static Optional<MachineFit> latestFit(Path results, String machineId) {
 		List<JsonNode> checks = in(results).reversed()
 			.stream()
 			.map((file) -> ResultFiles.read(file).orElseThrow())
+			.filter((check) -> machineId.equals(check.at("/environment/machineId").stringValue("")))
 			.toList();
 		OptionalInt probe = IntStream.range(0, checks.size())
 			.filter((index) -> checks.get(index).path("probeRounds").valueStream().anyMatch(PythonText::truthy))

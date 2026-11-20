@@ -29,14 +29,16 @@ class EngineFreezeTests {
 
 	@Test
 	void lines_anEngine_namesItsSourcesAndCommit(@TempDir Path folder) throws IOException {
-		List<String> lines = freeze(folder, "[]").lines("1.5.0", provenance(SOURCES, "false"), NOW);
+		List<String> lines = freeze(folder, "[]").lines("1.5.0", provenance(SOURCES, "false"), NOW,
+				new FreezeHost.None());
 
 		assertThat(lines).first().isEqualTo("engine 1.5.0: sources " + SOURCES + ", commit " + COMMIT);
 	}
 
 	@Test
 	void lines_aCommittedEngineNotFrozenYet_sayWhatItsFreezeRecords(@TempDir Path folder) throws IOException {
-		List<String> lines = freeze(folder, "[]").lines("1.5.0", provenance(SOURCES, "false"), NOW);
+		List<String> lines = freeze(folder, "[]").lines("1.5.0", provenance(SOURCES, "false"), NOW,
+				new FreezeHost.None());
 
 		assertThat(lines).last()
 			.isEqualTo("to freeze it: tag this commit engine-1.5.0, push the tag, and add to version 1.5.0's entry in "
@@ -44,24 +46,46 @@ class EngineFreezeTests {
 					+ "\",\"frozenAt\":\"" + NOW + "\",\"tag\":\"engine-1.5.0\"}");
 	}
 
+	// the designs on a host machine (ADR-0095): the freeze names its fit
+	@Test
+	void lines_onAHostMachine_recordTheFitsDigestInTheEntry(@TempDir Path folder) throws IOException {
+		List<String> lines = freeze(folder, "[]").lines("1.5.0", provenance(SOURCES, "false"), NOW,
+				new FreezeHost.Fit("0123456789abcdef"));
+
+		assertThat(lines).last().asString().endsWith(",\"tag\":\"engine-1.5.0\",\"hostFit\":\"0123456789abcdef\"}");
+	}
+
+	// a what-if fit, or checks not committed: the fit named would be no one's to give
+	// again
+	@Test
+	void lines_aHostTheRepositoryCannotGiveAgain_sayWhyInsteadOfAnEntry(@TempDir Path folder) throws IOException {
+		List<String> lines = freeze(folder, "[]").lines("1.5.0", provenance(SOURCES, "false"), NOW,
+				new FreezeHost.Unrepeatable("BENCH_HOST_FIT puts the designs on a what-if host machine"));
+
+		assertThat(lines).last().isEqualTo("BENCH_HOST_FIT puts the designs on a what-if host machine");
+	}
+
 	// the sources named would not be the ones that run; "null": git could not tell
 	@Test
 	void lines_anEngineWithUncommittedChanges_sayToCommitThemFirst(@TempDir Path folder) throws IOException {
-		List<String> lines = freeze(folder, "[]").lines("1.5.0", provenance(SOURCES, "true"), NOW);
+		List<String> lines = freeze(folder, "[]").lines("1.5.0", provenance(SOURCES, "true"), NOW,
+				new FreezeHost.None());
 
 		assertThat(lines).last().asString().contains("uncommitted changes").contains("commit them first");
 	}
 
 	@Test
 	void lines_anEngineGitCannotVouchFor_sayToCommitFirst(@TempDir Path folder) throws IOException {
-		List<String> lines = freeze(folder, "[]").lines("1.5.0", provenance(SOURCES, "null"), NOW);
+		List<String> lines = freeze(folder, "[]").lines("1.5.0", provenance(SOURCES, "null"), NOW,
+				new FreezeHost.None());
 
 		assertThat(lines).last().asString().contains("commit them first");
 	}
 
 	@Test
 	void lines_aVersionFrozenWithTheseSources_saySoAndNameItsTag(@TempDir Path folder) throws IOException {
-		List<String> lines = freeze(folder, frozen(SOURCES)).lines("1.5.0", provenance(SOURCES, "false"), NOW);
+		List<String> lines = freeze(folder, frozen(SOURCES)).lines("1.5.0", provenance(SOURCES, "false"), NOW,
+				new FreezeHost.None());
 
 		assertThat(lines).last().isEqualTo("version 1.5.0 is frozen with these sources (tag engine-1.5.0)");
 	}
@@ -69,7 +93,8 @@ class EngineFreezeTests {
 	// the engine changed after its version was frozen: the entry is not to be overwritten
 	@Test
 	void lines_aVersionFrozenWithOtherSources_sayAFreezeIsNeverEdited(@TempDir Path folder) throws IOException {
-		List<String> lines = freeze(folder, frozen("b".repeat(64))).lines("1.5.0", provenance(SOURCES, "false"), NOW);
+		List<String> lines = freeze(folder, frozen("b".repeat(64))).lines("1.5.0", provenance(SOURCES, "false"), NOW,
+				new FreezeHost.None());
 
 		assertThat(lines).last()
 			.asString()

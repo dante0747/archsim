@@ -8,6 +8,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -23,6 +24,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 class BenchmarksTests {
 
 	private static final Clock NOON = Clock.fixed(Instant.parse("2026-11-13T12:34:56Z"), ZoneOffset.UTC);
+
+	// the designs on no host machine: these tests' repositories have no contention check,
+	// and HarnessSetupTests covers the line the setup logs for that
+	private static final Map<String, String> NO_HOST_MACHINE = Map.of("BENCH_HOST", "off");
 
 	/** cache-aside's kept runs: run-1/ to run-10/ and the latest. */
 	private static final int CACHE_ASIDE_RUNS = 11;
@@ -131,7 +136,9 @@ class BenchmarksTests {
 
 	private static CommandLine commandLine(Path root, StringWriter out) {
 		PrintWriter writer = new PrintWriter(out, true);
-		return Benchmarks.commandLine(Setups.onThisMachine(new RepositoryLayout(root), new HarnessLog(writer, NOON)))
+		return Benchmarks
+			.commandLine(
+					Setups.onThisMachine(new RepositoryLayout(root), new HarnessLog(writer, NOON), NO_HOST_MACHINE))
 			.setOut(writer)
 			.setErr(writer);
 	}

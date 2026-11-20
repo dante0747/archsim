@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -43,7 +44,16 @@ public final class MachineName {
 	 * @return the name
 	 */
 	public static String current() {
-		return id(System.getenv(), cpu());
+		return of(System.getenv());
+	}
+
+	/**
+	 * A machine's name from an environment: the one it names, else this machine's CPU's.
+	 * @param environment the environment, which may name the machine
+	 * @return the name ({@link #id})
+	 */
+	public static String of(Map<String, String> environment) {
+		return named(environment).orElseGet(() -> id(environment, cpu()));
 	}
 
 	/**
@@ -54,13 +64,16 @@ public final class MachineName {
 	 * vendor's words, its words joined by hyphens; {@code unknown} when nothing is left
 	 */
 	public static String id(Map<String, String> environment, String cpu) {
-		String named = environment.get(VARIABLE);
-		if (named != null && !named.isEmpty()) {
-			return named;
-		}
-		String model = VENDOR_WORDS.matcher(cpu.toLowerCase(Locale.ROOT)).replaceAll(" ");
-		String words = WORD.matcher(model).results().map(MatchResult::group).collect(Collectors.joining("-"));
-		return words.isEmpty() ? "unknown" : words;
+		return named(environment).orElseGet(() -> {
+			String model = VENDOR_WORDS.matcher(cpu.toLowerCase(Locale.ROOT)).replaceAll(" ");
+			String words = WORD.matcher(model).results().map(MatchResult::group).collect(Collectors.joining("-"));
+			return words.isEmpty() ? "unknown" : words;
+		});
+	}
+
+	// the name BENCH_MACHINE gives, when it gives one
+	private static Optional<String> named(Map<String, String> environment) {
+		return Optional.ofNullable(environment.get(VARIABLE)).filter((name) -> !name.isEmpty());
 	}
 
 	/**

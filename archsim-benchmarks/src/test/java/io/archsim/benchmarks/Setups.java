@@ -8,10 +8,16 @@ import io.archsim.benchmarks.docker.Ticker;
 
 /**
  * What a test's commands work with: this machine's Docker, services and clock, but an
- * empty environment, so that a variable left in a developer's shell cannot change them,
- * and the range fit's cache in the repository the test made.
+ * environment of their own, so that a variable left in a developer's shell cannot change
+ * them, and the range fit's cache in the repository the test made. By default the
+ * environment names the machine the committed contention checks measured
+ * ({@code BENCH_MACHINE}), so that the designs' host machine does not depend on the CPU
+ * the tests run on.
  */
 public final class Setups {
+
+	/** The laptop the committed contention checks measured. */
+	public static final String CHECKED_MACHINE = "i7-1165g7";
 
 	private Setups() {
 	}
@@ -23,7 +29,7 @@ public final class Setups {
 	 * @return the setup
 	 */
 	public static HarnessSetup onThisMachine(RepositoryLayout layout, HarnessLog log) {
-		return onThisMachine(layout, log, Map.of());
+		return onThisMachine(layout, log, Map.of("BENCH_MACHINE", CHECKED_MACHINE));
 	}
 
 	/**

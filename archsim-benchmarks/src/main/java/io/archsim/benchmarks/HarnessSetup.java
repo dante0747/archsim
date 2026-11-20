@@ -63,7 +63,8 @@ public record HarnessSetup(RepositoryLayout layout, HarnessLog log, Path rangeFi
 
 	/**
 	 * The model inputs' derivation on the engine's simulations: for designs on the host
-	 * machine {@code BENCH_HOST=on} switches on ({@link HostSwitch}), or on none.
+	 * machine the contention checks fit, or on none with {@code BENCH_HOST=off}
+	 * ({@link HostSwitch}).
 	 * @param simulations the simulations
 	 * @return the derivation
 	 */
@@ -72,15 +73,15 @@ public record HarnessSetup(RepositoryLayout layout, HarnessLog log, Path rangeFi
 	}
 
 	/**
-	 * The machine the benchmark designs run on, when {@code BENCH_HOST=on} asks for one
-	 * ({@link HostSwitch}); the log says so when it asks for one but none can be had.
+	 * The machine the benchmark designs run on, unless {@code BENCH_HOST=off}
+	 * ({@link HostSwitch}); the log says so when none can be had.
 	 * @return the machine's fit; empty for designs with no host machine
 	 */
 	public Optional<MachineFit> machine() {
 		Optional<MachineFit> machine = HostSwitch.fit(this.environment, this.layout.results());
 		if (machine.isEmpty() && HostSwitch.isOn(this.environment)) {
-			this.log.line(HostSwitch.VARIABLE + "=on, but no machine to put the designs on (no quiet contention check, "
-					+ "or no fit where " + HostSwitch.VARIABLE + "_FIT points): the designs have none");
+			this.log.line("no host machine to put the designs on (no quiet contention check, or no fit where "
+					+ HostSwitch.VARIABLE + "_FIT points): the designs have none");
 		}
 		return machine;
 	}

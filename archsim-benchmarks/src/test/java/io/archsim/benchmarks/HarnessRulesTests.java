@@ -62,6 +62,19 @@ class HarnessRulesTests {
 		assertThat(err.toString()).startsWith("BENCH_ENGINE='python': the harness runs the Java engine only");
 	}
 
+	// a value the switch does not know is refused rather than read as on (ADR-0095)
+	@ParameterizedTest
+	@ValueSource(strings = { "0", "false", "of" })
+	void execute_benchHostNeitherOnNorOff_isRefused(String host, @TempDir Path root) throws IOException {
+		FakeMachine machine = FakeMachine.smoking(root, Map.of("BENCH_HOST", host), 200);
+		StringWriter err = new StringWriter();
+
+		int exitCode = machine.commandLine(root, new StringWriter(), err).execute("compare");
+
+		assertThat(exitCode).isEqualTo(2);
+		assertThat(err.toString()).startsWith("BENCH_HOST='" + host + "': on or off");
+	}
+
 	// report.py and java_parity_report.py never looked at the variable, nor does tree-ids
 	@Test
 	void execute_benchEngineNamingAnotherEngine_letsTheReportRun(@TempDir Path root) throws IOException {

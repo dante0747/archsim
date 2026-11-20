@@ -569,9 +569,10 @@ The accuracy benchmarks can set the host from a contention check of the machine 
 `contention`, [validation.md](validation.md)): a fixed unit of V8 work timed with its
 hyperthread sibling, other cores or every CPU busy, Windows' own frequency and logical-processor
 counters meanwhile, and k6's CPU per request; each calibration pass's CPU per request is then
-divided out by the machine's speed during that pass (the harness's machine inputs). They do so only
-with `BENCH_HOST=on`: on in-sample re-simulation it did not yet clear the accuracy gate
-(IMPLEMENTATION_STATUS.md, W27).
+divided out by the machine's speed during that pass (the harness's machine inputs). Since
+20 Nov 2026 they do so from the checks of the machine they run on, unless `BENCH_HOST=off`
+([ADR-0095](adr/0095-run-the-benchmark-designs-on-the-laptops-fitted-host-machine-and-let-a-freeze-name-it.md)): with it, in-sample, the model promises
+capacity the stack does not have in 4 of the 37 counted v6 runs, where without it it did in 25.
 
 **Auto-sizing.** An empty spec is *Auto*: before a run the engine (`AutoSizer`) gives the part
 the size it needs for the design's own peak load, so the CLI, the API and the web app simulate

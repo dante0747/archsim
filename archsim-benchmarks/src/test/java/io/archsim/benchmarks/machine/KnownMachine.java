@@ -18,6 +18,9 @@ public final class KnownMachine {
 	/** The machine the checks follow. */
 	public static final HostMachine TRUTH = new HostMachine(4, 2, 0.5, 0.75, 0, 0);
 
+	/** The machine its checks name ({@code environment.machineId}). */
+	public static final String ID = "known-machine";
+
 	private static final JsonNodeFactory NODES = JsonNodeFactory.instance;
 
 	private static final List<Double> BUSY = List.of(1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.0);
@@ -43,6 +46,7 @@ public final class KnownMachine {
 	 */
 	public static ObjectNode check(double rest, double k6Cores) {
 		ObjectNode check = NODES.objectNode().put("at", "2026-11-01T03:00:00Z");
+		check.putObject("environment").put("machineId", ID);
 		ObjectNode siblings = check.putObject("topology").putObject("siblings");
 		for (int cpu = 0; cpu < 8; cpu++) {
 			siblings.putArray(String.valueOf(cpu)).add(cpu - cpu % 2).add(cpu - cpu % 2 + 1);

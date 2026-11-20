@@ -73,13 +73,12 @@ public final class Benchmarks implements Runnable {
 	 */
 	static CommandLine commandLine(HarnessSetup setup) {
 		RepositoryLayout layout = setup.layout();
-		HarnessLog log = setup.log();
 		CommandLine commandLine = ResultsCommands.addTo(new CommandLine(new Benchmarks()), setup)
 			.addSubcommand(new SmokeCommand(setup))
 			.addSubcommand(new ReportCommand(layout))
 			.addSubcommand(new JavaParityCommand(layout))
 			.addSubcommand(new TreeIdsCommand(layout))
-			.addSubcommand(new EngineIdCommand(layout, log))
+			.addSubcommand(new EngineIdCommand(setup))
 			.setColorScheme(Help.defaultColorScheme(Help.Ansi.OFF));
 		MachineCommands.addTo(commandLine, setup);
 		Experiments.standard()

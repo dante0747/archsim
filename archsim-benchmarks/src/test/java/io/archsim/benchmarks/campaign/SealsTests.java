@@ -24,8 +24,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The held-out experiments' seal: only the Java engine as frozen in {@code engines.json},
- * its tag holding the sources the entry names, with nothing uncommitted and no host
- * machine of this machine's fitting, may calibrate or measure them.
+ * its tag holding the sources the entry names, with nothing uncommitted and the designs
+ * on the host machine the freeze names (or on none when it names none), may calibrate or
+ * measure them.
  */
 class SealsTests {
 
@@ -38,6 +39,11 @@ class SealsTests {
 			  "frozenAt": "2026-11-20", "tag": "engine-1.5.0"}]""".formatted(SOURCES);
 
 	private static final Experiment JAVA_MIXED = Experiments.standard().get("java-mixed");
+
+	/** A host machine's fit, as its digest names it. */
+	private static final String HOST = "0123456789abcdef";
+
+	private static final String FROZEN_ON_HOST = frozenNaming("\"" + HOST + "\"");
 
 	@Test
 	void of_aHeldOutExperimentNoEngineIsFrozenFor_isSealedAndSaysHowToSmokeIt(@TempDir Path folder) throws IOException {
@@ -75,7 +81,7 @@ class SealsTests {
 	void of_theCommittedEngines_sealsTheSecondSet(String experiment) {
 		RepositoryLayout layout = RepositoryLayout.current();
 
-		Seals seals = Seals.of(layout.engines(), new GitRepository(layout.root()), false);
+		Seals seals = Seals.of(layout.engines(), new GitRepository(layout.root()), null);
 
 		assertThat(seals.of(Experiments.standard().get(experiment), CLEAN)).isPresent();
 	}
@@ -104,7 +110,7 @@ class SealsTests {
 	// an entry alone, written into engines.json without its tag, opens nothing
 	@Test
 	void of_aFreezeWhoseTagIsNotInTheClone_isSealedAndSaysToFetchIt(@TempDir Path folder) throws IOException {
-		Seals seals = Seals.of(engines(folder, FROZEN), (tag) -> Optional.empty(), false);
+		Seals seals = Seals.of(engines(folder, FROZEN), (tag) -> Optional.empty(), null);
 
 		assertThat(seals.of(JAVA_MIXED, CLEAN)).hasValueSatisfying((why) -> assertThat(why)
 			.contains("its freeze names tag engine-1.5.0, which is not in this clone or holds other sources")
@@ -127,13 +133,51 @@ class SealsTests {
 			.hasValueSatisfying((why) -> assertThat(why).contains("uncommitted"));
 	}
 
-	// BENCH_HOST=on: the designs' host machine comes from this machine's checks
+	// a freeze that names no host machine: its designs ran on none
 	@Test
-	void of_theFrozenEngineOnAHostMachine_isSealedAndSaysToUnsetIt(@TempDir Path folder) throws IOException {
-		Seals onHostMachine = Seals.of(engines(folder, FROZEN), (tag) -> Optional.of(SOURCES), true);
+	void of_theFrozenEngineOnAHostItsFreezeDoesNotName_isSealedAndNamesBoth(@TempDir Path folder) throws IOException {
+		Seals onHostMachine = Seals.of(engines(folder, FROZEN), (tag) -> Optional.of(SOURCES), HOST);
 
-		assertThat(onHostMachine.of(JAVA_MIXED, CLEAN))
-			.hasValueSatisfying((why) -> assertThat(why).contains("BENCH_HOST=on").contains("Unset it."));
+		assertThat(onHostMachine.of(JAVA_MIXED, CLEAN)).hasValueSatisfying((why) -> assertThat(why)
+			.contains("its freeze names no host machine, and the designs would run on host machine " + HOST)
+			.contains("`BENCH_HOST=off` puts them on none"));
+	}
+
+	@Test
+	void of_theFrozenEngineOnTheHostItsFreezeNames_isNotSealed(@TempDir Path folder) throws IOException {
+		Seals seals = Seals.of(engines(folder, FROZEN_ON_HOST), (tag) -> Optional.of(SOURCES), HOST);
+
+		assertThat(seals.of(JAVA_MIXED, CLEAN)).isEmpty();
+	}
+
+	// a contention check committed since, or a what-if fit, gives another digest
+	@Test
+	void of_theFrozenEngineOnAnotherHost_isSealedAndNamesBoth(@TempDir Path folder) throws IOException {
+		Seals seals = Seals.of(engines(folder, FROZEN_ON_HOST), (tag) -> Optional.of(SOURCES), "fedcba9876543210");
+
+		assertThat(seals.of(JAVA_MIXED, CLEAN)).hasValueSatisfying((why) -> assertThat(why)
+			.contains("its freeze names host machine " + HOST
+					+ " (`hostFit`), and the designs would run on host machine fedcba9876543210")
+			.contains("BENCH_HOST_FIT"));
+	}
+
+	// BENCH_HOST=off
+	@Test
+	void of_theFrozenEngineOnNoHostWhereItsFreezeNamesOne_isSealed(@TempDir Path folder) throws IOException {
+		Seals seals = Seals.of(engines(folder, FROZEN_ON_HOST), (tag) -> Optional.of(SOURCES), null);
+
+		assertThat(seals.of(JAVA_MIXED, CLEAN))
+			.hasValueSatisfying((why) -> assertThat(why).contains("its freeze names host machine " + HOST
+					+ " (`hostFit`), and the designs would run on no " + "host machine"));
+	}
+
+	// a hostFit that is no digest cannot be checked, so it opens nothing
+	@Test
+	void of_aFreezeWhoseHostFitIsNoDigest_isSealed(@TempDir Path folder) throws IOException {
+		Seals seals = Seals.of(engines(folder, frozenNaming("42")), (tag) -> Optional.of(SOURCES), null);
+
+		assertThat(seals.of(JAVA_MIXED, CLEAN))
+			.hasValueSatisfying((why) -> assertThat(why).contains("its freeze's hostFit is not a fit's digest"));
 	}
 
 	@ParameterizedTest
@@ -155,7 +199,7 @@ class SealsTests {
 		String sources = Provenance.engineSources(git, "refs/tags/engine-1.5.0").orElseThrow();
 		JsonNode provenance = JsonText.read("{\"engineSources\": \"" + sources + "\", \"dirty\": false}");
 
-		Seals seals = Seals.of(engines(folder, FROZEN.replace(SOURCES, sources)), git, false);
+		Seals seals = Seals.of(engines(folder, FROZEN.replace(SOURCES, sources)), git, null);
 
 		assertThat(seals.of(JAVA_MIXED, provenance)).isEmpty();
 	}
@@ -171,7 +215,7 @@ class SealsTests {
 		String sources = Provenance.engineSources(git, "engine-1.5.0").orElseThrow();
 		JsonNode provenance = JsonText.read("{\"engineSources\": \"" + sources + "\", \"dirty\": false}");
 
-		Seals seals = Seals.of(engines(folder, FROZEN.replace(SOURCES, sources)), git, false);
+		Seals seals = Seals.of(engines(folder, FROZEN.replace(SOURCES, sources)), git, null);
 
 		assertThat(seals.of(JAVA_MIXED, provenance))
 			.hasValueSatisfying((why) -> assertThat(why).contains("which is not in this clone"));
@@ -182,18 +226,26 @@ class SealsTests {
 	void of_theCommittedEngines_sealsTheHeldOutExperiments() {
 		RepositoryLayout layout = RepositoryLayout.current();
 
-		Seals seals = Seals.of(layout.engines(), new GitRepository(layout.root()), false);
+		Seals seals = Seals.of(layout.engines(), new GitRepository(layout.root()), null);
 
 		assertThat(seals.of(JAVA_MIXED, CLEAN)).isPresent();
 	}
 
 	// seals whose every tag holds these sources
 	private static Seals seals(Path folder, String engines, String atEveryTag) throws IOException {
-		return Seals.of(engines(folder, engines), (tag) -> Optional.of(atEveryTag), false);
+		return Seals.of(engines(folder, engines), (tag) -> Optional.of(atEveryTag), null);
 	}
 
 	private static Path engines(Path folder, String engines) throws IOException {
 		return Files.writeString(folder.resolve("engines.json"), engines);
+	}
+
+	// engines.json with engine 1.5.0 frozen, its freeze naming a host machine's fit: the
+	// value as JSON
+	private static String frozenNaming(String hostFit) {
+		return """
+				[{"version": "1.5.0", "engine": "java", "engineTree": null, "engineSources": "%s",
+				  "frozenAt": "2026-11-20", "tag": "engine-1.5.0", "hostFit": %s}]""".formatted(SOURCES, hostFit);
 	}
 
 }

@@ -75,6 +75,15 @@ class DevChecksPageTests {
 					+ "experiment, 19% over all 31 counted runs.");
 	}
 
+	// the host machine is the designs' default since ADR-0095, not a switch to name
+	@Test
+	void text_anEngineOnAHostMachine_saysHowTheMachineWasFitted() {
+		String page = DevChecksPage.text(RESULTS);
+
+		assertThat(page).contains("- Engine 1.6.0-law-host-refit ran the designs on a host machine: contention check "
+				+ "2026-11-20T17:00:31Z: 4 physical cores of 8 threads");
+	}
+
 	@Test
 	void text_noChecks_saysSo(@TempDir Path empty) {
 		assertThat(DevChecksPage.text(empty)).contains("_No development checks yet._");

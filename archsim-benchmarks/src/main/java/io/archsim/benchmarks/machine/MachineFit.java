@@ -30,13 +30,15 @@ public record MachineFit(int physicalCores, int threadsPerCore, double siblingSp
 
 	private static final int DIGEST_DIGITS = 16;
 
+	private static final String HOW = "how";
+
 	/**
 	 * A fit as {@link #json()} writes it, or as a what-if file gives it.
 	 * @param fit the fit's keys
 	 * @return the fit
 	 */
 	public static MachineFit of(JsonNode fit) {
-		JsonNode how = fit.path("how");
+		JsonNode how = fit.path(HOW);
 		if (!how.isString()) {
 			throw new IllegalArgumentException("a machine's fit needs its how, in words");
 		}
@@ -47,14 +49,19 @@ public record MachineFit(int physicalCores, int threadsPerCore, double siblingSp
 	}
 
 	/**
-	 * A digest of the fit's keys, which tells the work done on one machine from the work
-	 * done on another.
-	 * @return the SHA-256 of the fit's JSON, its first 16 hexadecimal digits
+	 * A digest of the fit's numbers, which tells the work done on one machine from the
+	 * work done on another. How the fit came about is left out: two fits that simulate
+	 * alike share it, and a freeze that names it (ADR-0095) outlives a harness that words
+	 * it otherwise.
+	 * @return the SHA-256 of the fit's JSON without its how, its first 16 hexadecimal
+	 * digits
 	 */
 	public String digest() {
+		ObjectNode numbers = json();
+		numbers.remove(HOW);
 		try {
 			byte[] digest = MessageDigest.getInstance("SHA-256")
-				.digest(json().toString().getBytes(StandardCharsets.UTF_8));
+				.digest(numbers.toString().getBytes(StandardCharsets.UTF_8));
 			return HexFormat.of().formatHex(digest).substring(0, DIGEST_DIGITS);
 		}
 		catch (NoSuchAlgorithmException ex) {
@@ -74,7 +81,7 @@ public record MachineFit(int physicalCores, int threadsPerCore, double siblingSp
 			.put("allCoreClock", this.allCoreClock)
 			.put("backgroundThreads", this.backgroundThreads)
 			.put("k6CpuMsPerRequest", this.k6CpuMsPerRequest)
-			.put("how", this.how);
+			.put(HOW, this.how);
 	}
 
 	/**

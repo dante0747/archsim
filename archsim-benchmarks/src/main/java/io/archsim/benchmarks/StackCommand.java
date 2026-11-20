@@ -2,6 +2,7 @@ package io.archsim.benchmarks;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 
 import org.jspecify.annotations.Nullable;
@@ -20,7 +21,8 @@ import io.archsim.benchmarks.designs.Simulations;
 import io.archsim.benchmarks.experiments.Experiment;
 import io.archsim.benchmarks.experiments.Experiments;
 import io.archsim.benchmarks.history.GitRepository;
-import io.archsim.benchmarks.machine.HostSwitch;
+import io.archsim.benchmarks.inputs.ModelInputs;
+import io.archsim.benchmarks.machine.MachineFit;
 import io.archsim.benchmarks.provenance.EngineBuild;
 import io.archsim.benchmarks.provenance.MachineName;
 import io.archsim.benchmarks.provenance.Provenance;
@@ -102,14 +104,16 @@ final class StackCommand implements Callable<Integer>, HarnessRules.JavaEngineOn
 
 	private Campaign campaign() {
 		RepositoryLayout layout = this.setup.layout();
-		Provenance provenance = new Provenance(new GitRepository(layout.root()),
-				MachineName.id(this.setup.environment(), MachineName.cpu()), EngineBuild.current().orElse(null));
+		GitRepository git = new GitRepository(layout.root());
+		Provenance provenance = new Provenance(git, MachineName.of(this.setup.environment()),
+				EngineBuild.current().orElse(null));
 		Simulations simulations = Simulations.onTheEngine();
-		CampaignTools tools = new CampaignTools(this.setup.modelInputs(simulations),
+		// one host machine for the predictions and the seal that checks it
+		Optional<MachineFit> machine = this.setup.machine();
+		CampaignTools tools = new CampaignTools(new ModelInputs(simulations, machine.orElse(null)),
 				new Prediction(simulations, layout.kneeRange(), provenance::of, this.setup.log()), layout.k6Summaries(),
 				this.setup.log());
-		Seals seals = Seals.of(layout.engines(), new GitRepository(layout.root()),
-				HostSwitch.isOn(this.setup.environment()));
+		Seals seals = Seals.of(layout.engines(), git, machine.map(MachineFit::digest).orElse(null));
 		// each check reads the provenance afresh, as run.py did:
 		// a campaign runs for hours
 		return new Campaign(this.setup.instruments(), tools, (experiment) -> seals.of(experiment, provenance.of()),

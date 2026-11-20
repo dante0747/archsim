@@ -26,6 +26,9 @@ public final class Engines {
 	 */
 	public static final String SOURCES_KEY = "engineSources";
 
+	/** The key a freeze names the host machine its designs run on by (ADR-0095). */
+	public static final String HOST_FIT_KEY = "hostFit";
+
 	private final List<JsonNode> entries;
 
 	private Engines(List<JsonNode> entries) {

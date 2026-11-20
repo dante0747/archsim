@@ -149,3 +149,10 @@ Chosen option: (a).
 - Bad, because any later commit, a documentation fix included, would unfreeze the engine, so a
   campaign could only ever run from the freeze's own commit, with whatever harness fix it then
   lacks.
+
+## More Information
+
+- [ADR-0095](0095-run-the-benchmark-designs-on-the-laptops-fitted-host-machine-and-let-a-freeze-name-it.md) amends the seal: the
+  benchmark designs run on the laptop's fitted host machine unless `BENCH_HOST=off`, a freeze
+  names that fit by its digest (`hostFit`), and a held-out experiment runs only on the fit its
+  freeze names.
