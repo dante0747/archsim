@@ -67,13 +67,54 @@ class ProvenanceTests {
 		assertThat(Provenance.engineSources(new GitRepository(folder), "engine-9.9.9")).isEmpty();
 	}
 
-	// skipped while engines.json freezes no Java engine, and for a tag this clone lacks
-	// (CI's checkout fetches none)
+	// skipped for a tag this clone lacks (CI's checkout fetches none)
 	@Test
 	void engineSources_eachFrozenJavaEngine_isTheHashOverItsTagsTrees() {
-		RepositoryLayout layout = RepositoryLayout.current();
-		GitRepository git = new GitRepository(layout.root());
-		List<JsonNode> frozen = Engines.read(layout.engines())
+		GitRepository git = new GitRepository(RepositoryLayout.current().root());
+
+		List<JsonNode> frozen = frozenJavaEnginesWithTheirTags(git);
+
+		assertThat(frozen).allSatisfy((engine) -> assertThat(Provenance.engineSources(git, tagOf(engine)))
+			.contains(engine.get("engineSources").stringValue()));
+	}
+
+	// what a freeze records for the harness is what a run from that commit records
+	@Test
+	void harnessHash_aCommit_isTheHashAProvenanceThereRecords(@TempDir Path folder) throws IOException {
+		GitFixture fixture = GitFixture.init(folder);
+		String commit = fixture.commit(
+				Map.of("archsim-benchmarks/Harness.java", "class Harness {}\n", "benchmarks/knee-range.json", "{}\n"));
+		GitRepository git = new GitRepository(folder);
+
+		Optional<String> harness = Provenance.harnessHash(git, commit);
+
+		assertThat(harness).contains(new Provenance(git, MACHINE, null).of().get("harnessHash").stringValue());
+	}
+
+	@Test
+	void harnessHash_aRevisionGitCannotName_isEmpty(@TempDir Path folder) throws IOException {
+		GitFixture fixture = GitFixture.init(folder);
+		fixture.commit(Map.of("archsim-benchmarks/Harness.java", "class Harness {}\n"));
+
+		assertThat(Provenance.harnessHash(new GitRepository(folder), "engine-9.9.9")).isEmpty();
+	}
+
+	// the harness a freeze names is its tag's, so a reader can tell whether it has moved
+	// since; skipped for a tag this clone lacks
+	@Test
+	void harnessHash_eachFrozenJavaEngine_isTheHashOverItsTagsHarness() {
+		GitRepository git = new GitRepository(RepositoryLayout.current().root());
+
+		List<JsonNode> frozen = frozenJavaEnginesWithTheirTags(git);
+
+		assertThat(frozen).allSatisfy((engine) -> assertThat(Provenance.harnessHash(git, tagOf(engine)))
+			.contains(engine.get("harnessHash").stringValue()));
+	}
+
+	// the Java engines that engines.json freezes; skipped while there is none, or while
+	// this clone lacks a freeze's tag
+	private static List<JsonNode> frozenJavaEnginesWithTheirTags(GitRepository git) {
+		List<JsonNode> frozen = Engines.read(RepositoryLayout.current().engines())
 			.frozen()
 			.stream()
 			.filter((engine) -> engine.path("engineSources").isString())
@@ -81,9 +122,7 @@ class ProvenanceTests {
 		assumeThat(frozen).as("a Java engine is frozen in engines.json").isNotEmpty();
 		assumeThat(frozen).as("the frozen engines' tags are in this clone")
 			.allSatisfy((engine) -> assertThat(git.revision(tagOf(engine))).isPresent());
-
-		assertThat(frozen).allSatisfy((engine) -> assertThat(Provenance.engineSources(git, tagOf(engine)))
-			.contains(engine.get("engineSources").stringValue()));
+		return frozen;
 	}
 
 	// a freeze's tag, which a branch of the same name must not stand in for

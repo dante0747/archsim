@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class StackCommandTests {
 
-	// the Java engine is not frozen yet: go-mixed stays sealed
+	// the test's repository freezes no engine: go-mixed stays sealed
 	@Test
 	void execute_aSealedExperimentsStack_stopsBeforeDockerSayingWhy(@TempDir Path root) throws IOException {
 		FakeMachine machine = FakeMachine.smoking(root, Map.of(), 200);

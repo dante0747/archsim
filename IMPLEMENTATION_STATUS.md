@@ -11,7 +11,8 @@ wait, not database CPU, ADR-0089, 1.5.2 its count of a cache's commands over its
 with a read-through cache's fills, ADR-0092, and 1.6.0 a vCPU counted as a hyperthread unless
 the design, its instance family or its platform says otherwise, ADR-0091, with the benchmark
 harness fitting a service's falling CPU per request as a law of its rate, ADR-0093, and running
-its designs on the laptop's fitted host machine, ADR-0095; schema 1.11, report
+its designs on the laptop's fitted host machine, ADR-0095, frozen on 2026-11-20 for the second
+held-out set's campaign, tag `engine-1.6.0`; schema 1.11, report
 1.21; the API, the engine, the
 CLI, the MCP server, the benchmark harness and the repository's tooling in Java, and no Python
 left but the benchmarked stacks and three trial records). This file separates what is

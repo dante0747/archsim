@@ -15,6 +15,9 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.StringNode;
 
 import io.archsim.benchmarks.RepositoryLayout;
+import io.archsim.benchmarks.Setups;
+import io.archsim.benchmarks.machine.HostSwitch;
+import io.archsim.benchmarks.machine.MachineFit;
 import io.archsim.engine.version.EngineVersions;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,6 +29,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class EnginesTests {
 
 	private static final Engines COMMITTED = Engines.read(RepositoryLayout.current().engines());
+
+	/** The Java engine frozen for the second held-out set (ADR-0088, ADR-0090). */
+	private static final String FROZEN_JAVA = "1.6.0";
 
 	@Test
 	void engineTrees_theEngines_areKeyedByVersionInTheFilesOrder(@TempDir Path folder) throws IOException {
@@ -137,26 +143,38 @@ class EnginesTests {
 				"pg-hot-row", "cache-aside", "kafka", "java-mixed", "go-mixed", "python-mixed", "chain", "cache-ttl");
 	}
 
-	// ADR-0017: frozen for the held-out campaign and as the port's parity reference
+	// 0.16.0 for the first held-out campaign and as the port's parity reference
+	// (ADR-0017), the Java engine 1.6.0 for the second held-out set's (ADR-0088)
 	@Test
-	void frozen_theCommittedEngines_isEngine0160ItsTagNamesIt() {
+	void frozen_theCommittedEngines_areEngine0160AndJavaEngine160ByTheirTags() {
 		List<JsonNode> frozen = COMMITTED.frozen();
 
-		assertThat(frozen).singleElement()
-			.satisfies((engine) -> assertThat(engine.get("version").stringValue()).isEqualTo("0.16.0"))
-			.satisfies((engine) -> assertThat(engine.get("tag").stringValue()).isEqualTo("engine-0.16.0"));
+		assertThat(frozen)
+			.extracting((engine) -> engine.get("version").stringValue() + " " + engine.get("tag").stringValue())
+			.containsExactly("0.16.0 engine-0.16.0", "1.6.0 engine-1.6.0");
 	}
 
-	// its source trees are pinned when it is frozen, before the next held-out campaign
+	// its sources and the harness then, by the hashes a run's provenance records
 	@Test
-	void entries_theCommittedEnginesLast_isTheJavaEngineNotFrozenYet() {
-		JsonNode last = COMMITTED.entries().getLast();
+	void entries_javaEngine160_isFrozenByItsSourcesAndHarness() {
+		JsonNode frozen = entry(FROZEN_JAVA);
 
-		assertThat(last.get("version").stringValue()).isEqualTo(EngineVersions.ENGINE);
-		assertThat(last.get("engine").stringValue()).isEqualTo("java");
-		assertThat(List.of("engineTree", "frozenAt", "tag")).allSatisfy(
-				(key) -> assertThat(last.path(key).isNull() || last.path(key).isMissingNode()).as(key).isTrue());
-		assertThat(COMMITTED.frozen()).doesNotContain(last);
+		assertThat(frozen.get("engine").stringValue()).isEqualTo("java");
+		assertThat(List.of(Engines.SOURCES_KEY, "harnessHash"))
+			.allSatisfy((key) -> assertThat(frozen.path(key).stringValue("")).as(key).matches("[0-9a-f]{64}"));
+		assertThat(COMMITTED.frozen()).contains(frozen);
+	}
+
+	// the designs' host machine the committed contention checks fit (ADR-0095). Should it
+	// fail, a check committed since the freeze changed the fit: revert it before the
+	// campaign, or run the campaign on the frozen fit through BENCH_HOST_FIT
+	@Test
+	void entries_javaEngine160_namesTheHostMachineTheCommittedChecksFit() {
+		MachineFit fit = HostSwitch
+			.fit(Map.of("BENCH_MACHINE", Setups.CHECKED_MACHINE), RepositoryLayout.current().results())
+			.orElseThrow();
+
+		assertThat(entry(FROZEN_JAVA).path(Engines.HOST_FIT_KEY).stringValue("")).isEqualTo(fit.digest());
 	}
 
 	@Test
@@ -180,6 +198,15 @@ class EnginesTests {
 		Path file = folder.resolve("engines.json");
 		Files.writeString(file, text, StandardCharsets.UTF_8);
 		return file;
+	}
+
+	// a version's entry in the committed engines.json
+	private static JsonNode entry(String version) {
+		return COMMITTED.entries()
+			.stream()
+			.filter((engine) -> version.equals(engine.path("version").stringValue("")))
+			.findFirst()
+			.orElseThrow();
 	}
 
 }

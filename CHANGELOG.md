@@ -10,6 +10,14 @@ for when that version changes.
 
 ### Changed
 
+- **Engine 1.6.0 is frozen to predict the second held-out set
+  ([ADR-0088](docs/adr/0088-freeze-the-java-engine-by-its-sources-and-fix-the-criteria-before-a-campaign.md)).**
+  Its entry in `benchmarks/engines.json` names the hash over its source trees, the harness's
+  trees then, the tag `engine-1.6.0` and the host machine its designs run on (`hostFit`,
+  ADR-0095). The held-out experiments, the five ADR-0090 registered among them, may now be
+  calibrated and measured, by this engine alone: from its tag's sources, with nothing
+  uncommitted, on the host machine its freeze names. Every other engine, and this one on other
+  sources or another fit, still only smoke-tests them.
 - **The accuracy benchmarks' designs run on the laptop's fitted host machine, and a freeze names
   it ([ADR-0095](docs/adr/0095-run-the-benchmark-designs-on-the-laptops-fitted-host-machine-and-let-a-freeze-name-it.md)).**
   Every benchmark stack shares the laptop's 4 cores of 8 threads with k6, and with the law of

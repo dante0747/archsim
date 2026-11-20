@@ -14,6 +14,7 @@ import tools.jackson.databind.JsonNode;
 
 import io.archsim.benchmarks.JsonText;
 import io.archsim.benchmarks.RepositoryLayout;
+import io.archsim.benchmarks.experiments.Engines;
 import io.archsim.benchmarks.experiments.Experiment;
 import io.archsim.benchmarks.experiments.Experiments;
 import io.archsim.benchmarks.history.GitFixture;
@@ -75,15 +76,39 @@ class SealsTests {
 		assertThat(seals(folder, FROZEN, SOURCES).of(Experiments.standard().get(experiment), CLEAN)).isEmpty();
 	}
 
-	// engines.json today: no Java engine is frozen
+	// engines.json today freezes engine 1.6.0, whose sources are not these
 	@ParameterizedTest
 	@ValueSource(strings = { "python-cores", "python-wide", "java-hot-row", "go-pool", "cache-miss" })
-	void of_theCommittedEngines_sealsTheSecondSet(String experiment) {
+	void of_theCommittedEnginesOnOtherSources_sealsTheSecondSet(String experiment) {
 		RepositoryLayout layout = RepositoryLayout.current();
 
 		Seals seals = Seals.of(layout.engines(), new GitRepository(layout.root()), null);
 
 		assertThat(seals.of(Experiments.standard().get(experiment), CLEAN)).isPresent();
+	}
+
+	// the committed freeze, its tag holding its sources, on the host machine it names
+	@ParameterizedTest
+	@ValueSource(strings = { "python-cores", "python-wide", "java-hot-row", "go-pool", "cache-miss" })
+	void of_theCommittedFreezeOnItsSourcesAndHost_opensTheSecondSet(String experiment) {
+		JsonNode freeze = committedFreeze();
+		String sources = freeze.get("engineSources").stringValue();
+
+		Seals seals = Seals.of(RepositoryLayout.current().engines(), (tag) -> Optional.of(sources),
+				freeze.get("hostFit").stringValue());
+
+		assertThat(seals.of(Experiments.standard().get(experiment), clean(sources))).isEmpty();
+	}
+
+	@Test
+	void of_theCommittedFreezeOnNoHostMachine_sealsTheSecondSet() {
+		JsonNode freeze = committedFreeze();
+		String sources = freeze.get("engineSources").stringValue();
+
+		Seals seals = Seals.of(RepositoryLayout.current().engines(), (tag) -> Optional.of(sources), null);
+
+		assertThat(seals.of(Experiments.standard().get("python-cores"), clean(sources)))
+			.hasValueSatisfying((why) -> assertThat(why).contains("and the designs would run on no host machine"));
 	}
 
 	@Test
@@ -221,9 +246,9 @@ class SealsTests {
 			.hasValueSatisfying((why) -> assertThat(why).contains("which is not in this clone"));
 	}
 
-	// engines.json today: no Java engine is frozen
+	// engines.json today freezes engine 1.6.0, whose sources are not these
 	@Test
-	void of_theCommittedEngines_sealsTheHeldOutExperiments() {
+	void of_theCommittedEnginesOnOtherSources_sealsTheHeldOutExperiments() {
 		RepositoryLayout layout = RepositoryLayout.current();
 
 		Seals seals = Seals.of(layout.engines(), new GitRepository(layout.root()), null);
@@ -246,6 +271,21 @@ class SealsTests {
 		return """
 				[{"version": "1.5.0", "engine": "java", "engineTree": null, "engineSources": "%s",
 				  "frozenAt": "2026-11-20", "tag": "engine-1.5.0", "hostFit": %s}]""".formatted(SOURCES, hostFit);
+	}
+
+	// the Java engine 1.6.0's freeze in the committed engines.json
+	private static JsonNode committedFreeze() {
+		return Engines.read(RepositoryLayout.current().engines())
+			.frozen()
+			.stream()
+			.filter((engine) -> "1.6.0".equals(engine.path("version").stringValue("")))
+			.findFirst()
+			.orElseThrow();
+	}
+
+	// the provenance of sources with nothing uncommitted
+	private static JsonNode clean(String sources) {
+		return JsonText.read("{\"engineSources\": \"" + sources + "\", \"dirty\": false}");
 	}
 
 }

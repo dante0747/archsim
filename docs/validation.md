@@ -752,9 +752,9 @@ results, misses included, lead the [headline](#headline):
   `engine-id` prints what a freeze records). The seal also wants the entry's tag in the clone,
   holding those very sources, and the designs on the host machine the freeze names by its fit's
   digest (`hostFit`), or on none when it names none (ADR-0095): the host machine is part of the
-  model. A freeze is never edited: an engine that
-  changed gets a new version. None is frozen yet, so the held-out experiments stay sealed
-  until the engine that predicts the next campaign is.
+  model. A freeze is never edited: an engine that changed gets a new version. Engine 1.6.0
+  was frozen on 20 Nov 2026 (tag `engine-1.6.0`, its designs on the laptop's host machine
+  `2385cd88d3042c1e`) to predict the second set.
 - Before the freeze, `smoke <experiment>` was the only way to start their stacks: 20
   req/s for 10 s, checking that every request succeeded and that the services counted it. It
   keeps no latency and no results.
@@ -819,10 +819,12 @@ of 18 Nov 2026 read their results, and that change is made with them in view
 ([ADR-0088](adr/0088-freeze-the-java-engine-by-its-sources-and-fix-the-criteria-before-a-campaign.md)).
 [ADR-0090](adr/0090-register-a-second-held-out-set-before-the-next-model-change.md)
 therefore registers five more, on 19 Nov 2026, before the change,
-so that it can be judged on results nobody has seen. They are **sealed and not yet measured**:
-nothing has calibrated, predicted or measured them, and until an engine frozen in
-`benchmarks/engines.json` predicts them the harness only smoke-tests them (`smoke <experiment>`:
-20 req/s for 10 s, nothing kept). Each one's registration, its date and the commit that
+so that it can be judged on results nobody has seen. They are **not yet measured**:
+nothing has calibrated, predicted or measured them. Engine 1.6.0, frozen for them on
+20 Nov 2026 (tag `engine-1.6.0`), is the only engine that may, from its tag's sources with
+nothing uncommitted and its designs on the host machine its freeze names (`hostFit`);
+otherwise the harness only smoke-tests them (`smoke <experiment>`: 20 req/s for 10 s,
+nothing kept). Each one's registration, its date and the commit that
 registered its stack, workload and model, is recorded in the harness's `experiments.json`
 (`heldOut`). The report lists the experiments that are registered and have no kept run:
 

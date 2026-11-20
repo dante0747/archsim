@@ -92,6 +92,19 @@ public final class Provenance {
 		return git.revision(revision).map((commit) -> treesHash(git, revision, ENGINE_SOURCES));
 	}
 
+	/**
+	 * What identifies the harness at a commit: the hash over its trees there, which a
+	 * freeze records beside the engine's sources so that a reader can see whether the
+	 * harness has moved since.
+	 * @param git the repository
+	 * @param revision the commit: {@code HEAD}, or a freeze's tag
+	 * @return the hash; empty when git cannot name the revision, a tag this clone lacks
+	 * for one
+	 */
+	static Optional<String> harnessHash(GitRepository git, String revision) {
+		return git.revision(revision).map((commit) -> treesHash(git, revision, HARNESS));
+	}
+
 	// a SHA-256 over "<path> <tree>" lines, a path the commit lacks named None as the
 	// Python harness's f-string named it
 	private static String treesHash(GitRepository git, String revision, List<String> paths) {
