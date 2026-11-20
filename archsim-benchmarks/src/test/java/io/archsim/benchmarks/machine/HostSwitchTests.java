@@ -16,8 +16,9 @@ import io.archsim.benchmarks.results.ResultFiles;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The benchmark designs' host machine is opt-in ({@code BENCH_HOST=on}): from the latest
- * quiet contention check, or from a fit a what-if names, its clock set when one is given.
+ * The benchmark designs' host machine is opt-in ({@code BENCH_HOST=on}): the probe of the
+ * latest contention check with one and the machine at rest and k6 of the latest quiet
+ * one, or a fit a what-if names, its clock set when one is given.
  */
 class HostSwitchTests {
 
@@ -67,10 +68,21 @@ class HostSwitchTests {
 		assertThat(HostSwitch.fit(Map.of("BENCH_HOST", "on"), results)).contains(FIT);
 	}
 
-	// the committed check's service part never ran quiet: no machine
+	// the checks of 20 Nov ran their service part only, so the probe is 1 Nov's, whose
+	// own service part has no machine at rest; the latest of 20 Nov ran quiet
 	@Test
-	void fit_switchedOnWithTheCommittedChecks_isNone() {
-		assertThat(HostSwitch.fit(Map.of("BENCH_HOST", "on"), RepositoryLayout.current().results())).isEmpty();
+	void fit_switchedOnWithTheCommittedChecks_namesTheProbeAndTheQuietChecksServicePart() {
+		MachineFit fit = HostSwitch.fit(Map.of("BENCH_HOST", "on"), RepositoryLayout.current().results()).orElseThrow();
+
+		assertThat(fit.how()).startsWith("contention check 2026-11-01T00:48:59Z (service part 2026-11-20T15:49:06Z)");
+	}
+
+	@Test
+	void fit_switchedOnWithTheCommittedChecks_takesTheQuietChecksMachineAtRestAndK6() {
+		MachineFit fit = HostSwitch.fit(Map.of("BENCH_HOST", "on"), RepositoryLayout.current().results()).orElseThrow();
+
+		assertThat(fit).extracting(MachineFit::backgroundThreads, MachineFit::k6CpuMsPerRequest)
+			.containsExactly(0.95, 0.3207);
 	}
 
 	private static Path fitFile(Path folder) throws IOException {

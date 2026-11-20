@@ -1,9 +1,11 @@
 package io.archsim.benchmarks.machine;
 
 import java.nio.file.Path;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.benchmarks.RepositoryLayout;
@@ -22,10 +24,11 @@ class ContentionChecksTests {
 			.allSatisfy((path) -> assertThat(machineId(path)).isEqualTo("i7-1165g7"));
 	}
 
+	// a check runs its probe, its service part or both (ContentionCheck.Parts)
 	@Test
-	void in_theCommittedResults_hasProbeRoundsEachTime() {
-		assertThat(ContentionChecks.in(RepositoryLayout.current().results()))
-			.allSatisfy((path) -> assertThat(ResultFiles.read(path).orElseThrow().get("probeRounds")).isNotEmpty());
+	void in_theCommittedResults_hasProbeRoundsOrAServicePartEachTime() {
+		assertThat(ContentionChecks.in(RepositoryLayout.current().results())).isNotEmpty()
+			.allSatisfy((path) -> assertThat(parts(path)).anySatisfy((part) -> assertThat(part).isNotEmpty()));
 	}
 
 	@Test
@@ -92,6 +95,12 @@ class ContentionChecksTests {
 
 	private static String machineId(Path check) {
 		return ResultFiles.read(check).orElseThrow().at("/environment/machineId").stringValue();
+	}
+
+	// a check's probe rounds and its service part
+	private static List<JsonNode> parts(Path check) {
+		JsonNode json = ResultFiles.read(check).orElseThrow();
+		return List.of(json.path("probeRounds"), json.path("service"));
 	}
 
 }
