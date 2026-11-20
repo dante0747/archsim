@@ -159,6 +159,23 @@ class EnginesTests {
 		assertThat(COMMITTED.frozen()).doesNotContain(last);
 	}
 
+	@Test
+	void tunedOn_anEngine_isTheExperimentsItLists(@TempDir Path folder) throws IOException {
+		Path file = write(folder, """
+				[{"version": "1.0.0", "tunedOn": ["pg-mixed", "kafka"]},
+				 {"version": "2.0.0", "tunedOn": ["pg-mixed", "kafka", "chain"]}]""");
+
+		assertThat(Engines.read(file).tunedOn("2.0.0")).containsExactly("pg-mixed", "kafka", "chain");
+	}
+
+	@Test
+	void tunedOn_anEngineNotListed_isNone(@TempDir Path folder) throws IOException {
+		Path file = write(folder, """
+				[{"version": "1.0.0", "tunedOn": ["pg-mixed"]}]""");
+
+		assertThat(Engines.read(file).tunedOn("9.9.9")).isEmpty();
+	}
+
 	private static Path write(Path folder, String text) throws IOException {
 		Path file = folder.resolve("engines.json");
 		Files.writeString(file, text, StandardCharsets.UTF_8);

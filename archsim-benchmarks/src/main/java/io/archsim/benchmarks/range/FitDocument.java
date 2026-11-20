@@ -2,6 +2,9 @@ package io.archsim.benchmarks.range;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
@@ -21,14 +24,15 @@ import io.archsim.model.text.PythonText;
 final class FitDocument {
 
 	/** How the fit was made, in its own words. */
-	static final String HOW = "Fitted on the in-sample experiments only. Variation: each input's log standard "
-			+ "deviation between calibrations of the same experiment (kept runs from protocol v5 on and "
-			+ "calibration-only trials, under the latest kept run's conditions), pooled over experiments, and one "
-			+ "common correlation between inputs. Model error: the log standard deviation of measured over predicted "
-			+ "knee in the counted kept runs, by maximum likelihood after each run's calibration spread (its "
-			+ "sensitivity to each input times that input's variation). The knees and inputs are today's harness and "
-			+ "engine on each run's calibration (the development checks), so the model error is in-sample: fitted on "
-			+ "runs the model was tuned on.";
+	static final String HOW = "Fitted on the experiments the engine is tuned on (benchmarks/engines.json). "
+			+ "Variation: each input's log standard deviation between calibrations of the same experiment (kept runs "
+			+ "from protocol v5 on and calibration-only trials, under the latest kept run's conditions), pooled over "
+			+ "experiments, and one common correlation between inputs. Model error: measured over predicted knee in "
+			+ "the counted kept runs as an error each experiment's runs share and one each run has, both lognormal "
+			+ "with a median of 1, by maximum likelihood after each run's calibration spread (its sensitivity to each "
+			+ "input times that input's variation); a run of an experiment the fit has not seen takes both. The knees "
+			+ "and inputs are today's harness and engine on each run's calibration (the development checks), so the "
+			+ "model error is in-sample: fitted on runs the model was tuned on.";
 
 	private static final int DECIMALS = 4;
 
@@ -60,24 +64,31 @@ final class FitDocument {
 	}
 
 	/**
-	 * The check of the range's coverage, and how the runs were predicted before (protocol
-	 * v5: the replicate sets' knees).
+	 * The check of the range's coverage, and how the ranges the runs were predicted with
+	 * held their measured knees, each nominal coverage on its own (protocol v5's
+	 * replicate sets' knees at 50%, the range fitted here at 80%); a range that records
+	 * no nominal coverage is left out.
 	 * @param check the check
 	 * @param runs the runs checked
-	 * @return {@code folds}, {@code counts} and {@code before}
+	 * @return {@code folds}, {@code counts} and {@code before}: per nominal coverage, by
+	 * rising coverage, the runs whose range held their knee and the runs with a range
 	 */
 	static ObjectNode check(RangeCheck.Result check, List<CountedRun> runs) {
 		ObjectNode out = NODES.objectNode();
 		ObjectNode folds = out.putObject("folds");
 		RangeCheck.FOLDS.forEach(folds::put);
 		out.set("counts", check.counts());
-		List<JsonNode> before = runs.stream().map(CountedRun::before).filter(PythonText::truthy).toList();
-		ObjectNode earlier = out.putObject("before");
-		earlier.put("inRange",
-				before.stream().filter((range) -> PythonText.truthy(range.path("containsMeasured"))).count());
-		earlier.put("withRange", before.size());
-		earlier.set("nominalCoverage",
-				before.isEmpty() ? PythonValues.none() : PythonValues.get(before.getLast(), "nominalCoverage"));
+		Map<Double, List<JsonNode>> byCoverage = runs.stream()
+			.map(CountedRun::before)
+			.filter((range) -> PythonText.truthy(range) && range.path("nominalCoverage").isNumber())
+			.collect(Collectors.groupingBy((range) -> range.get("nominalCoverage").doubleValue(), TreeMap::new,
+					Collectors.toList()));
+		ArrayNode earlier = out.putArray("before");
+		byCoverage.forEach((coverage, ranges) -> earlier.addObject()
+			.put("nominalCoverage", coverage)
+			.put("inRange", Math.toIntExact(
+					ranges.stream().filter((range) -> PythonText.truthy(range.path("containsMeasured"))).count()))
+			.put("withRange", ranges.size()));
 		return out;
 	}
 

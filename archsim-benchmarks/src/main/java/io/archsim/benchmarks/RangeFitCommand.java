@@ -1,6 +1,7 @@
 package io.archsim.benchmarks;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 
@@ -11,6 +12,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.benchmarks.designs.Simulations;
+import io.archsim.benchmarks.experiments.Engines;
 import io.archsim.benchmarks.inputs.ModelInputs;
 import io.archsim.benchmarks.machine.MachineFit;
 import io.archsim.benchmarks.range.KneeRanges;
@@ -20,11 +22,13 @@ import io.archsim.engine.version.EngineVersions;
 import io.archsim.model.text.PythonFormat;
 
 /**
- * {@code range-fit}: fits the predicted range of the knee from the in-sample runs and
- * checks its coverage, and writes {@code benchmarks/knee-range.json}, without Docker.
+ * {@code range-fit}: fits the predicted range of the knee from the runs of the
+ * experiments the engine is tuned on and checks its coverage, and writes
+ * {@code benchmarks/knee-range.json}, without Docker.
  */
 @Command(name = "range-fit",
-		description = "fit the predicted range of the knee from the in-sample runs and check its coverage (writes "
+		description = "fit the predicted range of the knee from the runs of the experiments the engine is tuned on "
+				+ "and check its coverage (writes "
 				+ "benchmarks/knee-range.json; run resimulate first to reuse its inputs and knees)",
 		mixinStandardHelpOptions = true, version = Benchmarks.VERSION)
 final class RangeFitCommand implements Callable<Integer>, HarnessRules.JavaEngineOnly {
@@ -55,8 +59,9 @@ final class RangeFitCommand implements Callable<Integer>, HarnessRules.JavaEngin
 		Optional<MachineFit> machine = this.setup.machine();
 		ModelInputs inputs = new ModelInputs(Simulations.onTheEngine(), machine.orElse(null));
 		Path cacheFile = machine.map((host) -> RangeFit.cachePath(this.cache, host)).orElse(this.cache);
+		List<String> tunedOn = Engines.read(this.layout.engines()).tunedOn(EngineVersions.ENGINE);
 		ObjectNode fit = new RangeFit(this.layout.results(), inputs, stamp, this.log).fit(this.layout.kneeRange(),
-				this.reuse, cacheFile);
+				this.reuse, cacheFile, tunedOn);
 		String level = PythonFormat.format(KneeRanges.COVERAGE, "g");
 		fit.get("check").get("counts").properties().forEach((fold) -> {
 			JsonNode counts = fold.getValue().get(level);

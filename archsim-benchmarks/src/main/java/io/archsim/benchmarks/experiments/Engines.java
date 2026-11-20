@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.JsonNodeFactory;
 
 import io.archsim.benchmarks.results.ResultFiles;
 import io.archsim.benchmarks.values.PythonValues;
@@ -77,6 +78,16 @@ public final class Engines {
 	}
 
 	/**
+	 * The experiments an engine was tuned on.
+	 * @param version the engine's version
+	 * @return its {@code tunedOn}, in the file's order; none when the file does not list
+	 * it
+	 */
+	public List<String> tunedOn(String version) {
+		return entry(JsonNodeFactory.instance.stringNode(version)).map(Engines::tunedOnOf).orElse(List.of());
+	}
+
+	/**
 	 * Whether an engine's predictions of an experiment are out of sample:
 	 * {@code held-out} for a held-out experiment predicted by an engine frozen here
 	 * ({@code frozenAt} and {@code tag} set) that does not list it in {@code tunedOn},
@@ -91,17 +102,21 @@ public final class Engines {
 		if (!experiment.isHeldOut()) {
 			return "tuned-on";
 		}
-		Optional<JsonNode> engine = this.entries.stream()
-			.filter((entry) -> PythonValues.get(entry, "version").equals(engineVersion))
-			.findFirst();
+		Optional<JsonNode> engine = entry(engineVersion);
 		if (engine.isEmpty() || !isFrozen(engine.get())) {
 			return "tuned-on";
 		}
-		boolean tunedOn = engine.get()
-			.path("tunedOn")
-			.valueStream()
-			.anyMatch((name) -> name.stringValue("").equals(experiment.id()));
-		return tunedOn ? "tuned-on" : "held-out";
+		return tunedOnOf(engine.get()).contains(experiment.id()) ? "tuned-on" : "held-out";
+	}
+
+	// the entry of an engine version, the first if it is listed twice
+	private Optional<JsonNode> entry(JsonNode version) {
+		return this.entries.stream().filter((entry) -> PythonValues.get(entry, "version").equals(version)).findFirst();
+	}
+
+	// the experiments an entry lists as tuned on
+	private static List<String> tunedOnOf(JsonNode entry) {
+		return entry.path("tunedOn").valueStream().map((name) -> name.stringValue("")).toList();
 	}
 
 	private static boolean isFrozen(JsonNode engine) {

@@ -2240,13 +2240,10 @@ After the Java port (ADR 0017), so that none of it is written twice:
      machine: with it every experiment is within 20% in-sample (median 11.9%), but its fit
      assumes k6's CPU per request and the machine's background, which a quiet contention check
      (`contention --service-only`, about 4 minutes on an idle laptop) would measure first;
-   - refitting the predicted range with the v6 runs, and ranking replicates by mean. A trial
-     refit by the Java harness (13 Nov 2026, not committed) on the 49 calibrations and 34 counted
-     runs the results hold gave a model error of 0.1535, a correlation of 0.2643 and a fallback
-     of 0.1363 (the committed fit, on 12 runs: 0.1495, 0.4893 and 0.1414). Its 80% range held 28
-     of 34 runs in sample, 28 leaving out each run and 27 leaving out each experiment, both
-     cross-validated; the ranges the runs were predicted with held 21 of 34. A refit changes a
-     published model input, so it is the accuracy protocol's decision, with an engine version;
+   - the predicted range: refitted on 20 Nov 2026 on all nine experiments engine 1.6.0 is
+     tuned on, with an error each experiment's runs share (ADR-0094; leaving out each
+     experiment it holds 41 of 49 runs, all eight misses below it). Still open: ranking
+     replicates by mean, and an ensemble of simulations for the calibration part;
    - a CPU model for the Kafka broker and consumers.
 6. Right-size from a run (sizing plan W15): suggest cheaper instance types from the measured CPU
    and memory, apply with one click, and verify over 5 seeds.

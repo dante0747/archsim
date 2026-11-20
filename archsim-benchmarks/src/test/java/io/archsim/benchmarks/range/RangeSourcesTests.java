@@ -12,8 +12,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.archsim.benchmarks.JsonText;
 import io.archsim.benchmarks.RepositoryLayout;
+import io.archsim.benchmarks.experiments.Engines;
 import io.archsim.benchmarks.experiments.Experiment;
 import io.archsim.benchmarks.experiments.Experiments;
+import io.archsim.engine.version.EngineVersions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -29,7 +31,7 @@ class RangeSourcesTests {
 	// W26's throttled cache-aside trial (1 Nov) carries a DISCARDED file
 	@Test
 	void of_theCommittedResults_leavesOutTheDiscardedTrial() {
-		Set<String> sources = RangeSources.of(RESULTS)
+		Set<String> sources = RangeSources.of(RESULTS, Set.of())
 			.stream()
 			.map(RangeSources.Source::source)
 			.collect(Collectors.toSet());
@@ -39,10 +41,45 @@ class RangeSourcesTests {
 			.anyMatch((source) -> source.startsWith("trials/"));
 	}
 
+	// an experiment registered as held out joins the fit once the engine is tuned on it
+	@Test
+	void of_aHeldOutExperimentTheEngineIsTunedOn_isFittedOn(@TempDir Path results) throws IOException {
+		write(results.resolve("java-mixed"), "v6", "{\"cpu\": \"x\"}");
+
+		List<String> sources = RangeSources.of(results, Set.of("java-mixed"))
+			.stream()
+			.map(RangeSources.Source::source)
+			.toList();
+
+		assertThat(sources).containsExactly("java-mixed");
+	}
+
+	@Test
+	void of_aHeldOutExperimentTheEngineIsNotTunedOn_isLeftOut(@TempDir Path results) throws IOException {
+		write(results.resolve("java-mixed"), "v6", "{\"cpu\": \"x\"}");
+
+		assertThat(RangeSources.of(results, Set.of("pg-mixed"))).isEmpty();
+	}
+
+	// engine 1.6.0 is tuned on the nine experiments measured so far; the second held-out
+	// set, registered before it, has no kept run
+	@Test
+	void of_theCommittedResultsForTheEngine_areTheNineMeasuredExperiments() {
+		List<String> tunedOn = Engines.read(RepositoryLayout.current().engines()).tunedOn(EngineVersions.ENGINE);
+
+		Set<String> experiments = RangeSources.of(RESULTS, tunedOn)
+			.stream()
+			.map(RangeSources.Source::experiment)
+			.collect(Collectors.toSet());
+
+		assertThat(experiments).containsExactlyInAnyOrder("pg-mixed", "pg-hot-row", "cache-aside", "kafka",
+				"java-mixed", "go-mixed", "python-mixed", "chain", "cache-ttl");
+	}
+
 	// they are sealed
 	@Test
-	void of_theCommittedResults_hasNoHeldOutExperiment() {
-		Set<String> experiments = RangeSources.of(RESULTS)
+	void of_theCommittedResultsForAnEngineTunedOnNone_hasNoHeldOutExperiment() {
+		Set<String> experiments = RangeSources.of(RESULTS, Set.of())
 			.stream()
 			.map(RangeSources.Source::experiment)
 			.collect(Collectors.toSet());
@@ -60,7 +97,7 @@ class RangeSourcesTests {
 		write(results.resolve("pg-mixed/run-1"), "v5", "{\"cpu\": \"x\", \"os\": \"old\"}");
 		write(results.resolve("pg-mixed"), "v5", "{\"cpu\": \"x\", \"os\": \"new\"}");
 
-		List<String> sources = RangeSources.of(results).stream().map(RangeSources.Source::source).toList();
+		List<String> sources = RangeSources.of(results, Set.of()).stream().map(RangeSources.Source::source).toList();
 
 		assertThat(sources).containsExactly("pg-mixed");
 	}
@@ -70,7 +107,7 @@ class RangeSourcesTests {
 		write(results.resolve("pg-mixed/run-1"), "v4", "{\"cpu\": \"x\"}");
 		write(results.resolve("pg-mixed"), "v5", "{\"cpu\": \"x\"}");
 
-		List<String> sources = RangeSources.of(results).stream().map(RangeSources.Source::source).toList();
+		List<String> sources = RangeSources.of(results, Set.of()).stream().map(RangeSources.Source::source).toList();
 
 		assertThat(sources).containsExactly("pg-mixed");
 	}

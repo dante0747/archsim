@@ -10,6 +10,17 @@ for when that version changes.
 
 ### Changed
 
+- **The accuracy benchmarks' predicted range is fitted on all nine measured experiments, with an
+  error each experiment's runs share ([ADR-0094](docs/adr/0094-fit-the-knees-range-on-every-experiment-the-engine-is-tuned-on-with-an-error-each-experiment-shares.md)).**
+  The 80% range around a predicted knee took the model's own error from the four tuned-on
+  experiments alone, as one error per run (0.15), and on the held-out campaign it held 9 of 15
+  runs, every miss below it. `range-fit` now fits on every experiment the engine is tuned on
+  (`engines.json`), all nine for engine 1.6.0, and splits the model's error into one each
+  experiment's runs share and one each run has, by maximum likelihood: 0.32 and 0. Leaving out
+  each run's experiment, the range holds 41 of 49 runs (84%), where the earlier error held 32;
+  it is wider, about x0.64 to x1.56 of the predicted knee where it was about x0.75 to x1.33 (at
+  each fit's runs' median calibration spread), and its eight misses are all below it. The fit's
+  `check.before` now counts the ranges the runs were predicted with by nominal coverage.
 - **The accuracy benchmarks fit a service's falling CPU per request as a law of its rate
   ([ADR-0093](docs/adr/0093-fit-a-services-falling-cpu-per-request-as-a-law-of-its-rate.md)).** The benchmark harness charged a service the CPU per
   request of its calibration staircase's top rate at every rate above it, while the measured cost

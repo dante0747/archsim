@@ -1,82 +1,100 @@
 {
-  "at": "2026-11-01T15:31:14Z",
-  "engineVersion": "0.16.0",
-  "inputsAndKneesFrom": "0.16.0",
-  "commit": "c4bb64f579c1dcdea121f2402bb52d32f38585fe",
+  "at": "2026-11-20T13:51:51Z",
+  "engineVersion": "1.6.0",
+  "inputsAndKneesFrom": "1.6.0-law",
+  "commit": "3fa2e2e2a08a782164d9855c6534c22489ac1bde",
   "provenance": {
-    "commit": "c4bb64f579c1dcdea121f2402bb52d32f38585fe",
-    "engineTree": "4da78ff6f72e91d3224a3a3eb5c70a1588074e36",
-    "harnessHash": "41e5d41d8cedd01c888413dfa5316081e497ae7fb7056f6e439058ed5f21824d",
-    "dirty": false,
+    "commit": "3fa2e2e2a08a782164d9855c6534c22489ac1bde",
+    "engineSources": "03f8df10ab2698a7a5ed6f5ad8721667636eedc4df5fa594f3c832fb0c0b72fb",
+    "javaBuild": "48de60120dd5433fdfb3795b34f52c8a43489534b41727afcdbd4698611c39ee",
+    "harnessHash": "39039e4b54d5a06377c294ef68b66e8f335d80780bd797b21c355b4f5b50641b",
+    "dirty": true,
     "machineId": "i7-1165g7"
   },
-  "how": "Fitted on the in-sample experiments only. Variation: each input's log standard deviation between calibrations of the same experiment (kept runs from protocol v5 on and calibration-only trials, under the latest kept run's conditions), pooled over experiments, and one common correlation between inputs. Model error: the log standard deviation of measured over predicted knee in the counted kept runs, by maximum likelihood after each run's calibration spread (its sensitivity to each input times that input's variation). The knees and inputs are today's run.py and engine on each run's calibration (the development checks), so the model error is in-sample: fitted on runs the model was tuned on.",
+  "how": "Fitted on the experiments the engine is tuned on (benchmarks/engines.json). Variation: each input's log standard deviation between calibrations of the same experiment (kept runs from protocol v5 on and calibration-only trials, under the latest kept run's conditions), pooled over experiments, and one common correlation between inputs. Model error: measured over predicted knee in the counted kept runs as an error each experiment's runs share and one each run has, both lognormal with a median of 1, by maximum likelihood after each run's calibration spread (its sensitivity to each input times that input's variation); a run of an experiment the fit has not seen takes both. The knees and inputs are today's harness and engine on each run's calibration (the development checks), so the model error is in-sample: fitted on runs the model was tuned on.",
   "nominalCoverage": 0.8,
   "step": 0.2,
   "sensitivitySimulatedS": [
     2,
     8
   ],
-  "runs": 12,
-  "experiments": 4,
+  "runs": 49,
+  "experiments": 9,
   "inputs": {
     "serviceTimeMs": {
-      "sigma": 0.1672,
-      "calibrations": 25,
-      "experiments": 4
+      "sigma": 0.1247,
+      "calibrations": 64,
+      "experiments": 9
+    },
+    "apiServiceTimeMs": {
+      "sigma": 0.0053,
+      "calibrations": 3,
+      "experiments": 1
     },
     "clientLinkLatencyMs": {
-      "sigma": 0.3604,
-      "calibrations": 12,
-      "experiments": 2
-    },
-    "readServiceTimeMs": {
-      "sigma": 0.1746,
-      "calibrations": 13,
-      "experiments": 2
-    },
-    "writeServiceTimeMs": {
-      "sigma": 0.1776,
-      "calibrations": 20,
-      "experiments": 3
-    },
-    "commitFlushMs": {
-      "sigma": 0.0911,
-      "calibrations": 20,
-      "experiments": 3
-    },
-    "dbLinkLatencyMs": {
-      "sigma": 0.218,
-      "calibrations": 25,
+      "sigma": 0.6261,
+      "calibrations": 21,
       "experiments": 4
     },
-    "cacheServiceTimeMs": {
-      "sigma": 0.1155,
-      "calibrations": 5,
+    "apiLinkLatencyMs": {
+      "sigma": 0.0294,
+      "calibrations": 3,
       "experiments": 1
+    },
+    "readServiceTimeMs": {
+      "sigma": 0.1152,
+      "calibrations": 40,
+      "experiments": 7
+    },
+    "writeServiceTimeMs": {
+      "sigma": 0.1231,
+      "calibrations": 50,
+      "experiments": 7
+    },
+    "commitFlushMs": {
+      "sigma": 0.0612,
+      "calibrations": 50,
+      "experiments": 7
+    },
+    "dbLinkLatencyMs": {
+      "sigma": 0.2232,
+      "calibrations": 64,
+      "experiments": 9
+    },
+    "cacheServiceTimeMs": {
+      "sigma": 0.0837,
+      "calibrations": 14,
+      "experiments": 2
     },
     "cacheLinkLatencyMs": {
-      "sigma": 0.0411,
-      "calibrations": 5,
-      "experiments": 1
+      "sigma": 0.0599,
+      "calibrations": 14,
+      "experiments": 2
     },
     "publishTimeMs": {
-      "sigma": 0.105,
-      "calibrations": 6,
+      "sigma": 0.2384,
+      "calibrations": 12,
       "experiments": 1
     },
     "consumerTimeMs": {
-      "sigma": 0.1041,
-      "calibrations": 6,
+      "sigma": 0.1071,
+      "calibrations": 12,
+      "experiments": 1
+    },
+    "fetchOverheadMs": {
+      "sigma": 0.2612,
+      "calibrations": 12,
       "experiments": 1
     }
   },
-  "fallbackSigma": 0.1414,
-  "correlation": 0.4893,
+  "fallbackSigma": 0.1152,
+  "correlation": 0.2528,
   "model": {
-    "sigma": 0.1495,
-    "runs": 12,
-    "experiments": 4
+    "sigma": 0.3235,
+    "between": 0.3235,
+    "within": 0.0,
+    "runs": 49,
+    "experiments": 9
   },
   "check": {
     "folds": {
@@ -87,52 +105,59 @@
     "counts": {
       "inSample": {
         "0.5": [
-          5,
-          12
+          30,
+          49
         ],
         "0.8": [
-          9,
-          12
+          41,
+          49
         ],
         "0.9": [
-          10,
-          12
+          45,
+          49
         ]
       },
       "leaveRunOut": {
         "0.5": [
-          5,
-          12
+          30,
+          49
         ],
         "0.8": [
-          9,
-          12
+          41,
+          49
         ],
         "0.9": [
-          10,
-          12
+          45,
+          49
         ]
       },
       "leaveExperimentOut": {
         "0.5": [
-          5,
-          12
+          30,
+          49
         ],
         "0.8": [
-          9,
-          12
+          41,
+          49
         ],
         "0.9": [
-          10,
-          12
+          43,
+          49
         ]
       }
     },
-    "before": {
-      "inRange": 1,
-      "withRange": 12,
-      "nominalCoverage": 0.5
-    }
+    "before": [
+      {
+        "nominalCoverage": 0.5,
+        "inRange": 1,
+        "withRange": 12
+      },
+      {
+        "nominalCoverage": 0.8,
+        "inRange": 29,
+        "withRange": 37
+      }
+    ]
   },
   "calibrations": [
     {
@@ -193,7 +218,7 @@
     },
     {
       "experiment": "pg-mixed",
-      "source": "pg-mixed",
+      "source": "pg-mixed/run-10",
       "calibratedAt": "2026-10-31T04:34:12Z",
       "scales": {
         "serviceTimeMs": 0.201346,
@@ -203,6 +228,87 @@
         "commitFlushMs": 0.968275,
         "dbCpuShare": 0.9999,
         "dbLinkLatencyMs": 0.051651
+      }
+    },
+    {
+      "experiment": "pg-mixed",
+      "source": "pg-mixed/run-11",
+      "calibratedAt": "2026-11-01T22:53:59Z",
+      "scales": {
+        "serviceTimeMs": 0.208111,
+        "readServiceTimeMs": 0.194846,
+        "writeServiceTimeMs": 0.2399,
+        "commitFlushMs": 1.032219,
+        "dbCpuShare": 0.9999,
+        "dbLinkLatencyMs": 0.099619
+      }
+    },
+    {
+      "experiment": "pg-mixed",
+      "source": "pg-mixed/run-12",
+      "calibratedAt": "2026-11-02T01:02:03Z",
+      "scales": {
+        "serviceTimeMs": 0.205346,
+        "clientLinkLatencyMs": 0.0011,
+        "readServiceTimeMs": 0.194355,
+        "writeServiceTimeMs": 0.208496,
+        "commitFlushMs": 0.983911,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.068372
+      }
+    },
+    {
+      "experiment": "pg-mixed",
+      "source": "pg-mixed/run-13",
+      "calibratedAt": "2026-11-02T03:15:28Z",
+      "scales": {
+        "serviceTimeMs": 0.197665,
+        "readServiceTimeMs": 0.189569,
+        "writeServiceTimeMs": 0.205765,
+        "commitFlushMs": 0.994618,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.11332
+      }
+    },
+    {
+      "experiment": "pg-mixed",
+      "source": "pg-mixed/run-14",
+      "calibratedAt": "2026-11-04T07:15:57Z",
+      "scales": {
+        "serviceTimeMs": 0.185246,
+        "readServiceTimeMs": 0.185916,
+        "writeServiceTimeMs": 0.19873,
+        "commitFlushMs": 0.994347,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.0895
+      }
+    },
+    {
+      "experiment": "pg-mixed",
+      "source": "pg-mixed/run-15",
+      "calibratedAt": "2026-11-04T09:35:52Z",
+      "scales": {
+        "serviceTimeMs": 0.196206,
+        "clientLinkLatencyMs": 0.0036,
+        "readServiceTimeMs": 0.175517,
+        "writeServiceTimeMs": 0.194951,
+        "commitFlushMs": 1.015391,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.07219
+      }
+    },
+    {
+      "experiment": "pg-mixed",
+      "source": "pg-mixed",
+      "calibratedAt": "2026-11-04T11:52:16Z",
+      "scales": {
+        "serviceTimeMs": 0.192129,
+        "clientLinkLatencyMs": 0.001,
+        "readServiceTimeMs": 0.182549,
+        "writeServiceTimeMs": 0.197594,
+        "commitFlushMs": 1.009318,
+        "dbCpuShare": 0.9999,
+        "dbLinkLatencyMs": 0.10294
       }
     },
     {
@@ -272,7 +378,7 @@
     },
     {
       "experiment": "pg-hot-row",
-      "source": "pg-hot-row",
+      "source": "pg-hot-row/run-8",
       "calibratedAt": "2026-10-31T02:21:39Z",
       "scales": {
         "serviceTimeMs": 0.345131,
@@ -280,6 +386,78 @@
         "commitFlushMs": 0.87974,
         "dbCpuShare": 1.0,
         "dbLinkLatencyMs": 0.063429
+      }
+    },
+    {
+      "experiment": "pg-hot-row",
+      "source": "pg-hot-row/run-9",
+      "calibratedAt": "2026-11-01T23:24:56Z",
+      "scales": {
+        "serviceTimeMs": 0.321278,
+        "writeServiceTimeMs": 0.289122,
+        "commitFlushMs": 0.867931,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.053864
+      }
+    },
+    {
+      "experiment": "pg-hot-row",
+      "source": "pg-hot-row/run-10",
+      "calibratedAt": "2026-11-02T01:33:51Z",
+      "scales": {
+        "serviceTimeMs": 0.335908,
+        "writeServiceTimeMs": 0.285668,
+        "commitFlushMs": 0.880949,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.055853
+      }
+    },
+    {
+      "experiment": "pg-hot-row",
+      "source": "pg-hot-row/run-11",
+      "calibratedAt": "2026-11-02T03:46:41Z",
+      "scales": {
+        "serviceTimeMs": 0.330478,
+        "writeServiceTimeMs": 0.292041,
+        "commitFlushMs": 0.876288,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.054471
+      }
+    },
+    {
+      "experiment": "pg-hot-row",
+      "source": "pg-hot-row/run-12",
+      "calibratedAt": "2026-11-04T07:49:19Z",
+      "scales": {
+        "serviceTimeMs": 0.332778,
+        "writeServiceTimeMs": 0.307566,
+        "commitFlushMs": 0.899883,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.058171
+      }
+    },
+    {
+      "experiment": "pg-hot-row",
+      "source": "pg-hot-row/run-13",
+      "calibratedAt": "2026-11-04T10:07:36Z",
+      "scales": {
+        "serviceTimeMs": 0.319743,
+        "writeServiceTimeMs": 0.273546,
+        "commitFlushMs": 0.880799,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.057483
+      }
+    },
+    {
+      "experiment": "pg-hot-row",
+      "source": "pg-hot-row",
+      "calibratedAt": "2026-11-04T12:24:30Z",
+      "scales": {
+        "serviceTimeMs": 0.325828,
+        "writeServiceTimeMs": 0.279549,
+        "commitFlushMs": 0.886223,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.059676
       }
     },
     {
@@ -323,8 +501,8 @@
       "source": "cache-aside/run-3",
       "calibratedAt": "2026-10-30T22:22:04Z",
       "scales": {
-        "serviceTimeMs": 0.185511,
-        "clientLinkLatencyMs": 0.0146,
+        "serviceTimeMs": 0.18703,
+        "clientLinkLatencyMs": 0.008,
         "readServiceTimeMs": 0.156026,
         "dbCpuShare": 1.0,
         "dbLinkLatencyMs": 0.053958,
@@ -337,8 +515,8 @@
       "source": "cache-aside/run-4",
       "calibratedAt": "2026-10-31T00:38:29Z",
       "scales": {
-        "serviceTimeMs": 0.233172,
-        "clientLinkLatencyMs": 0.0155,
+        "serviceTimeMs": 0.233187,
+        "clientLinkLatencyMs": 0.0078,
         "readServiceTimeMs": 0.212397,
         "dbCpuShare": 0.9999,
         "dbLinkLatencyMs": 0.062108,
@@ -348,11 +526,11 @@
     },
     {
       "experiment": "cache-aside",
-      "source": "cache-aside",
+      "source": "cache-aside/run-5",
       "calibratedAt": "2026-10-31T02:44:32Z",
       "scales": {
-        "serviceTimeMs": 0.204634,
-        "clientLinkLatencyMs": 0.0231,
+        "serviceTimeMs": 0.207738,
+        "clientLinkLatencyMs": 0.0167,
         "readServiceTimeMs": 0.200644,
         "dbCpuShare": 1.0,
         "dbLinkLatencyMs": 0.058032,
@@ -362,11 +540,89 @@
     },
     {
       "experiment": "cache-aside",
+      "source": "cache-aside/run-6",
+      "calibratedAt": "2026-11-01T23:49:28Z",
+      "scales": {
+        "serviceTimeMs": 0.199236,
+        "readServiceTimeMs": 0.233181,
+        "dbCpuShare": 0.9999,
+        "dbLinkLatencyMs": 0.088897,
+        "cacheServiceTimeMs": 0.03665,
+        "cacheLinkLatencyMs": 0.0578
+      }
+    },
+    {
+      "experiment": "cache-aside",
+      "source": "cache-aside/run-7",
+      "calibratedAt": "2026-11-02T01:58:24Z",
+      "scales": {
+        "serviceTimeMs": 0.177255,
+        "readServiceTimeMs": 0.234875,
+        "dbCpuShare": 0.9999,
+        "dbLinkLatencyMs": 0.085383,
+        "cacheServiceTimeMs": 0.0355,
+        "cacheLinkLatencyMs": 0.056
+      }
+    },
+    {
+      "experiment": "cache-aside",
+      "source": "cache-aside/run-8",
+      "calibratedAt": "2026-11-02T04:11:08Z",
+      "scales": {
+        "serviceTimeMs": 0.18187,
+        "readServiceTimeMs": 0.231277,
+        "dbCpuShare": 0.9999,
+        "dbLinkLatencyMs": 0.087486,
+        "cacheServiceTimeMs": 0.03587,
+        "cacheLinkLatencyMs": 0.0564
+      }
+    },
+    {
+      "experiment": "cache-aside",
+      "source": "cache-aside/run-9",
+      "calibratedAt": "2026-11-04T08:18:36Z",
+      "scales": {
+        "serviceTimeMs": 0.163527,
+        "readServiceTimeMs": 0.171729,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.078145,
+        "cacheServiceTimeMs": 0.03175,
+        "cacheLinkLatencyMs": 0.0554
+      }
+    },
+    {
+      "experiment": "cache-aside",
+      "source": "cache-aside/run-10",
+      "calibratedAt": "2026-11-04T10:33:51Z",
+      "scales": {
+        "serviceTimeMs": 0.181628,
+        "readServiceTimeMs": 0.216477,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.080741,
+        "cacheServiceTimeMs": 0.036,
+        "cacheLinkLatencyMs": 0.0538
+      }
+    },
+    {
+      "experiment": "cache-aside",
+      "source": "cache-aside",
+      "calibratedAt": "2026-11-04T12:50:54Z",
+      "scales": {
+        "serviceTimeMs": 0.17542,
+        "readServiceTimeMs": 0.209647,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.08297,
+        "cacheServiceTimeMs": 0.03452,
+        "cacheLinkLatencyMs": 0.0536
+      }
+    },
+    {
+      "experiment": "cache-aside",
       "source": "trials/2026-10-31-cache-aside-w21",
       "calibratedAt": "2026-10-31T14:31:09Z",
       "scales": {
-        "serviceTimeMs": 0.243974,
-        "clientLinkLatencyMs": 0.0084,
+        "serviceTimeMs": 0.215205,
+        "clientLinkLatencyMs": 0.0043,
         "readServiceTimeMs": 0.219036,
         "dbCpuShare": 1.0,
         "dbLinkLatencyMs": 0.066504,
@@ -379,8 +635,8 @@
       "source": "trials/2026-10-31-cache-aside-w24",
       "calibratedAt": "2026-10-31T13:39:44Z",
       "scales": {
-        "serviceTimeMs": 0.250644,
-        "clientLinkLatencyMs": 0.0196,
+        "serviceTimeMs": 0.250636,
+        "clientLinkLatencyMs": 0.0132,
         "readServiceTimeMs": 0.261961,
         "dbCpuShare": 0.9999,
         "dbLinkLatencyMs": 0.060149,
@@ -420,7 +676,7 @@
     },
     {
       "experiment": "kafka",
-      "source": "kafka",
+      "source": "kafka/run-5",
       "calibratedAt": "2026-10-31T03:26:27Z",
       "scales": {
         "serviceTimeMs": 0.473835,
@@ -431,6 +687,96 @@
         "publishTimeMs": 0.869821,
         "consumerTimeMs": 0.009669,
         "fetchOverheadMs": 1.355942
+      }
+    },
+    {
+      "experiment": "kafka",
+      "source": "kafka/run-6",
+      "calibratedAt": "2026-11-02T00:26:56Z",
+      "scales": {
+        "serviceTimeMs": 0.39128,
+        "writeServiceTimeMs": 0.325936,
+        "commitFlushMs": 0.922341,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.396956,
+        "publishTimeMs": 0.588593,
+        "consumerTimeMs": 0.009057,
+        "fetchOverheadMs": 1.922938
+      }
+    },
+    {
+      "experiment": "kafka",
+      "source": "kafka/run-7",
+      "calibratedAt": "2026-11-02T02:36:13Z",
+      "scales": {
+        "serviceTimeMs": 0.383897,
+        "writeServiceTimeMs": 0.327483,
+        "commitFlushMs": 0.925423,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.273247,
+        "publishTimeMs": 0.619576,
+        "consumerTimeMs": 0.009567,
+        "fetchOverheadMs": 2.384044
+      }
+    },
+    {
+      "experiment": "kafka",
+      "source": "kafka/run-8",
+      "calibratedAt": "2026-11-02T04:48:49Z",
+      "scales": {
+        "serviceTimeMs": 0.391396,
+        "writeServiceTimeMs": 0.322225,
+        "commitFlushMs": 0.914555,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.268776,
+        "publishTimeMs": 0.606902,
+        "consumerTimeMs": 0.009177,
+        "fetchOverheadMs": 2.375722
+      }
+    },
+    {
+      "experiment": "kafka",
+      "source": "kafka/run-9",
+      "calibratedAt": "2026-11-04T08:59:13Z",
+      "scales": {
+        "serviceTimeMs": 0.373228,
+        "writeServiceTimeMs": 0.301027,
+        "commitFlushMs": 0.91677,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.280115,
+        "publishTimeMs": 0.569454,
+        "consumerTimeMs": 0.009096,
+        "fetchOverheadMs": 2.114359
+      }
+    },
+    {
+      "experiment": "kafka",
+      "source": "kafka/run-10",
+      "calibratedAt": "2026-11-04T11:12:22Z",
+      "scales": {
+        "serviceTimeMs": 0.363391,
+        "writeServiceTimeMs": 0.292295,
+        "commitFlushMs": 0.927198,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.258938,
+        "publishTimeMs": 0.617172,
+        "consumerTimeMs": 0.009068,
+        "fetchOverheadMs": 2.045231
+      }
+    },
+    {
+      "experiment": "kafka",
+      "source": "kafka",
+      "calibratedAt": "2026-11-04T13:27:44Z",
+      "scales": {
+        "serviceTimeMs": 0.473816,
+        "writeServiceTimeMs": 0.310684,
+        "commitFlushMs": 0.930006,
+        "dbCpuShare": 0.9999,
+        "dbLinkLatencyMs": 0.139554,
+        "publishTimeMs": 0.565582,
+        "consumerTimeMs": 0.011581,
+        "fetchOverheadMs": 1.162576
       }
     },
     {
@@ -477,6 +823,213 @@
         "consumerTimeMs": 0.011666,
         "fetchOverheadMs": 1.355942
       }
+    },
+    {
+      "experiment": "java-mixed",
+      "source": "java-mixed/run-1",
+      "calibratedAt": "2026-11-03T21:34:40Z",
+      "scales": {
+        "serviceTimeMs": 0.252436,
+        "clientLinkLatencyMs": 0.0162,
+        "readServiceTimeMs": 0.163445,
+        "writeServiceTimeMs": 0.15725,
+        "commitFlushMs": 1.00343,
+        "dbCpuShare": 0.9999,
+        "dbLinkLatencyMs": 0.047578
+      }
+    },
+    {
+      "experiment": "java-mixed",
+      "source": "java-mixed/run-2",
+      "calibratedAt": "2026-11-04T00:33:23Z",
+      "scales": {
+        "serviceTimeMs": 0.253734,
+        "clientLinkLatencyMs": 0.0206,
+        "readServiceTimeMs": 0.144842,
+        "writeServiceTimeMs": 0.158986,
+        "commitFlushMs": 0.995212,
+        "dbCpuShare": 0.9999,
+        "dbLinkLatencyMs": 0.035302
+      }
+    },
+    {
+      "experiment": "java-mixed",
+      "source": "java-mixed",
+      "calibratedAt": "2026-11-04T03:38:18Z",
+      "scales": {
+        "serviceTimeMs": 0.253083,
+        "clientLinkLatencyMs": 0.0242,
+        "readServiceTimeMs": 0.148618,
+        "writeServiceTimeMs": 0.162365,
+        "commitFlushMs": 1.032864,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.043726
+      }
+    },
+    {
+      "experiment": "go-mixed",
+      "source": "go-mixed/run-1",
+      "calibratedAt": "2026-11-03T22:16:39Z",
+      "scales": {
+        "serviceTimeMs": 0.20963,
+        "clientLinkLatencyMs": 0.0113,
+        "readServiceTimeMs": 0.131093,
+        "writeServiceTimeMs": 0.152589,
+        "commitFlushMs": 0.979872,
+        "dbCpuShare": 0.9999,
+        "dbLinkLatencyMs": 0.044891
+      }
+    },
+    {
+      "experiment": "go-mixed",
+      "source": "go-mixed/run-2",
+      "calibratedAt": "2026-11-04T01:13:30Z",
+      "scales": {
+        "serviceTimeMs": 0.204173,
+        "clientLinkLatencyMs": 0.0161,
+        "readServiceTimeMs": 0.136725,
+        "writeServiceTimeMs": 0.152995,
+        "commitFlushMs": 1.001819,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.051004
+      }
+    },
+    {
+      "experiment": "go-mixed",
+      "source": "go-mixed",
+      "calibratedAt": "2026-11-04T04:19:22Z",
+      "scales": {
+        "serviceTimeMs": 0.201399,
+        "clientLinkLatencyMs": 0.0131,
+        "readServiceTimeMs": 0.129143,
+        "writeServiceTimeMs": 0.152796,
+        "commitFlushMs": 0.990118,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.056048
+      }
+    },
+    {
+      "experiment": "python-mixed",
+      "source": "python-mixed/run-1",
+      "calibratedAt": "2026-11-03T22:58:02Z",
+      "scales": {
+        "serviceTimeMs": 1.069974,
+        "readServiceTimeMs": 0.160937,
+        "writeServiceTimeMs": 0.215068,
+        "commitFlushMs": 1.08822,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.401623
+      }
+    },
+    {
+      "experiment": "python-mixed",
+      "source": "python-mixed/run-2",
+      "calibratedAt": "2026-11-04T01:55:30Z",
+      "scales": {
+        "serviceTimeMs": 1.107883,
+        "readServiceTimeMs": 0.173386,
+        "writeServiceTimeMs": 0.215887,
+        "commitFlushMs": 1.060919,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.375963
+      }
+    },
+    {
+      "experiment": "python-mixed",
+      "source": "python-mixed",
+      "calibratedAt": "2026-11-04T05:00:48Z",
+      "scales": {
+        "serviceTimeMs": 1.120211,
+        "readServiceTimeMs": 0.175334,
+        "writeServiceTimeMs": 0.224463,
+        "commitFlushMs": 1.09032,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.451346
+      }
+    },
+    {
+      "experiment": "chain",
+      "source": "chain/run-1",
+      "calibratedAt": "2026-11-03T23:27:46Z",
+      "scales": {
+        "serviceTimeMs": 0.229774,
+        "apiServiceTimeMs": 0.183974,
+        "apiLinkLatencyMs": 0.1515,
+        "readServiceTimeMs": 0.199074,
+        "writeServiceTimeMs": 0.216137,
+        "commitFlushMs": 1.08503,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.099163
+      }
+    },
+    {
+      "experiment": "chain",
+      "source": "chain/run-2",
+      "calibratedAt": "2026-11-04T02:28:58Z",
+      "scales": {
+        "serviceTimeMs": 0.220552,
+        "apiServiceTimeMs": 0.182368,
+        "apiLinkLatencyMs": 0.1471,
+        "readServiceTimeMs": 0.198027,
+        "writeServiceTimeMs": 0.215443,
+        "commitFlushMs": 1.07502,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.11035
+      }
+    },
+    {
+      "experiment": "chain",
+      "source": "chain",
+      "calibratedAt": "2026-11-04T05:34:15Z",
+      "scales": {
+        "serviceTimeMs": 0.223999,
+        "apiServiceTimeMs": 0.184113,
+        "apiLinkLatencyMs": 0.156,
+        "readServiceTimeMs": 0.196581,
+        "writeServiceTimeMs": 0.209659,
+        "commitFlushMs": 1.08062,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.127425
+      }
+    },
+    {
+      "experiment": "cache-ttl",
+      "source": "cache-ttl/run-1",
+      "calibratedAt": "2026-11-04T00:02:42Z",
+      "scales": {
+        "serviceTimeMs": 0.186288,
+        "readServiceTimeMs": 0.19774,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.103515,
+        "cacheServiceTimeMs": 0.03561,
+        "cacheLinkLatencyMs": 0.0534
+      }
+    },
+    {
+      "experiment": "cache-ttl",
+      "source": "cache-ttl/run-2",
+      "calibratedAt": "2026-11-04T03:05:38Z",
+      "scales": {
+        "serviceTimeMs": 0.181343,
+        "readServiceTimeMs": 0.197368,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.098068,
+        "cacheServiceTimeMs": 0.03459,
+        "cacheLinkLatencyMs": 0.0541
+      }
+    },
+    {
+      "experiment": "cache-ttl",
+      "source": "cache-ttl",
+      "calibratedAt": "2026-11-04T06:11:13Z",
+      "scales": {
+        "serviceTimeMs": 0.191873,
+        "readServiceTimeMs": 0.197488,
+        "dbCpuShare": 1.0,
+        "dbLinkLatencyMs": 0.109304,
+        "cacheServiceTimeMs": 0.03477,
+        "cacheLinkLatencyMs": 0.0574
+      }
     }
   ],
   "checked": [
@@ -492,9 +1045,9 @@
           4500
         ]
       },
-      "knee": 5000,
+      "knee": 6000,
       "sensitivity": {
-        "serviceTimeMs": -1.0,
+        "serviceTimeMs": -1.001,
         "clientLinkLatencyMs": 0.0,
         "readServiceTimeMs": 0.0,
         "writeServiceTimeMs": 0.0,
@@ -502,28 +1055,28 @@
         "dbCpuShare": 0.0,
         "dbLinkLatencyMs": 0.0
       },
-      "error": -0.184,
-      "calibrationSigma": 0.1672,
+      "error": -0.3663,
+      "calibrationSigma": 0.1248,
       "ranges": {
         "inSample": {
-          "lowRps": 3751,
-          "highRps": 6665,
-          "calibrationSigma": 0.1672,
-          "modelSigma": 0.1495,
+          "lowRps": 3847,
+          "highRps": 9357,
+          "calibrationSigma": 0.1248,
+          "modelSigma": 0.3235,
           "holds": true
         },
         "leaveRunOut": {
-          "lowRps": 3737,
-          "highRps": 6690,
-          "calibrationSigma": 0.1702,
-          "modelSigma": 0.1505,
+          "lowRps": 3847,
+          "highRps": 9357,
+          "calibrationSigma": 0.1258,
+          "modelSigma": 0.3231,
           "holds": true
         },
         "leaveExperimentOut": {
-          "lowRps": 3748,
-          "highRps": 6671,
-          "calibrationSigma": 0.1822,
-          "modelSigma": 0.132,
+          "lowRps": 3852,
+          "highRps": 9345,
+          "calibrationSigma": 0.1285,
+          "modelSigma": 0.321,
           "holds": true
         }
       }
@@ -540,7 +1093,7 @@
           4252
         ]
       },
-      "knee": 4725,
+      "knee": 6050,
       "sensitivity": {
         "serviceTimeMs": -1.001,
         "clientLinkLatencyMs": 0.0,
@@ -550,35 +1103,35 @@
         "dbCpuShare": 0.0,
         "dbLinkLatencyMs": 0.0
       },
-      "error": -0.2222,
-      "calibrationSigma": 0.1674,
+      "error": -0.4694,
+      "calibrationSigma": 0.1248,
       "ranges": {
         "inSample": {
-          "lowRps": 3544,
-          "highRps": 6299,
-          "calibrationSigma": 0.1674,
-          "modelSigma": 0.1495,
-          "holds": true
+          "lowRps": 3879,
+          "highRps": 9435,
+          "calibrationSigma": 0.1248,
+          "modelSigma": 0.3235,
+          "holds": false
         },
         "leaveRunOut": {
-          "lowRps": 3547,
-          "highRps": 6295,
-          "calibrationSigma": 0.1714,
-          "modelSigma": 0.144,
-          "holds": true
+          "lowRps": 3887,
+          "highRps": 9417,
+          "calibrationSigma": 0.1259,
+          "modelSigma": 0.3215,
+          "holds": false
         },
         "leaveExperimentOut": {
-          "lowRps": 3541,
-          "highRps": 6305,
-          "calibrationSigma": 0.1824,
-          "modelSigma": 0.132,
-          "holds": true
+          "lowRps": 3884,
+          "highRps": 9423,
+          "calibrationSigma": 0.1285,
+          "modelSigma": 0.321,
+          "holds": false
         }
       }
     },
     {
       "experiment": "pg-mixed",
-      "source": "pg-mixed",
+      "source": "pg-mixed/run-10",
       "calibratedAt": "2026-10-31T04:34:12Z",
       "measuredKnee": {
         "kneeRps": 4005.6,
@@ -588,7 +1141,7 @@
           4455
         ]
       },
-      "knee": 4950,
+      "knee": 5950,
       "sensitivity": {
         "serviceTimeMs": -1.0,
         "clientLinkLatencyMs": 0.0,
@@ -598,28 +1151,313 @@
         "dbCpuShare": 0.0,
         "dbLinkLatencyMs": 0.0
       },
-      "error": -0.2117,
-      "calibrationSigma": 0.1672,
+      "error": -0.3957,
+      "calibrationSigma": 0.1247,
       "ranges": {
         "inSample": {
-          "lowRps": 3713,
-          "highRps": 6598,
-          "calibrationSigma": 0.1672,
-          "modelSigma": 0.1495,
+          "lowRps": 3816,
+          "highRps": 9279,
+          "calibrationSigma": 0.1247,
+          "modelSigma": 0.3235,
           "holds": true
         },
         "leaveRunOut": {
-          "lowRps": 3710,
-          "highRps": 6604,
-          "calibrationSigma": 0.1703,
-          "modelSigma": 0.147,
+          "lowRps": 3818,
+          "highRps": 9272,
+          "calibrationSigma": 0.1257,
+          "modelSigma": 0.3225,
           "holds": true
         },
         "leaveExperimentOut": {
-          "lowRps": 3710,
-          "highRps": 6604,
-          "calibrationSigma": 0.1822,
-          "modelSigma": 0.132,
+          "lowRps": 3820,
+          "highRps": 9267,
+          "calibrationSigma": 0.1284,
+          "modelSigma": 0.321,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "pg-mixed",
+      "source": "pg-mixed/run-11",
+      "calibratedAt": "2026-11-01T22:53:59Z",
+      "measuredKnee": {
+        "kneeRps": 4494.8,
+        "bound": "interpolated",
+        "between": [
+          4298,
+          4775
+        ]
+      },
+      "knee": 5900,
+      "sensitivity": {
+        "serviceTimeMs": -1.038,
+        "readServiceTimeMs": 0.0,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": -0.272,
+      "calibrationSigma": 0.1294,
+      "ranges": {
+        "inSample": {
+          "lowRps": 3775,
+          "highRps": 9221,
+          "calibrationSigma": 0.1294,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 3769,
+          "highRps": 9237,
+          "calibrationSigma": 0.1306,
+          "modelSigma": 0.3245,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 3779,
+          "highRps": 9211,
+          "calibrationSigma": 0.1333,
+          "modelSigma": 0.321,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "pg-mixed",
+      "source": "pg-mixed/run-12",
+      "calibratedAt": "2026-11-02T01:02:03Z",
+      "measuredKnee": {
+        "kneeRps": 4364.4,
+        "bound": "interpolated",
+        "between": [
+          3638,
+          4365
+        ]
+      },
+      "knee": 5250,
+      "sensitivity": {
+        "serviceTimeMs": -1.077,
+        "clientLinkLatencyMs": 0.0,
+        "readServiceTimeMs": 0.0,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": -0.1847,
+      "calibrationSigma": 0.1343,
+      "ranges": {
+        "inSample": {
+          "lowRps": 3351,
+          "highRps": 8224,
+          "calibrationSigma": 0.1343,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 3339,
+          "highRps": 8254,
+          "calibrationSigma": 0.1355,
+          "modelSigma": 0.326,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 3354,
+          "highRps": 8217,
+          "calibrationSigma": 0.1383,
+          "modelSigma": 0.321,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "pg-mixed",
+      "source": "pg-mixed/run-13",
+      "calibratedAt": "2026-11-02T03:15:28Z",
+      "measuredKnee": {
+        "kneeRps": 4237.0,
+        "bound": "interpolated",
+        "between": [
+          3788,
+          4545
+        ]
+      },
+      "knee": 5450,
+      "sensitivity": {
+        "serviceTimeMs": -1.154,
+        "readServiceTimeMs": 0.0,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": -0.2518,
+      "calibrationSigma": 0.1439,
+      "ranges": {
+        "inSample": {
+          "lowRps": 3462,
+          "highRps": 8579,
+          "calibrationSigma": 0.1439,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 3456,
+          "highRps": 8594,
+          "calibrationSigma": 0.1449,
+          "modelSigma": 0.3245,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 3464,
+          "highRps": 8574,
+          "calibrationSigma": 0.1482,
+          "modelSigma": 0.321,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "pg-mixed",
+      "source": "pg-mixed/run-14",
+      "calibratedAt": "2026-11-04T07:15:57Z",
+      "measuredKnee": {
+        "kneeRps": 2874.8,
+        "bound": "interpolated",
+        "between": [
+          2700,
+          4050
+        ]
+      },
+      "knee": 5450,
+      "sensitivity": {
+        "serviceTimeMs": -1.0,
+        "readServiceTimeMs": 0.0,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": -0.6396,
+      "calibrationSigma": 0.1247,
+      "ranges": {
+        "inSample": {
+          "lowRps": 3495,
+          "highRps": 8499,
+          "calibrationSigma": 0.1247,
+          "modelSigma": 0.3235,
+          "holds": false
+        },
+        "leaveRunOut": {
+          "lowRps": 3514,
+          "highRps": 8453,
+          "calibrationSigma": 0.1247,
+          "modelSigma": 0.319,
+          "holds": false
+        },
+        "leaveExperimentOut": {
+          "lowRps": 3499,
+          "highRps": 8488,
+          "calibrationSigma": 0.1284,
+          "modelSigma": 0.321,
+          "holds": false
+        }
+      }
+    },
+    {
+      "experiment": "pg-mixed",
+      "source": "pg-mixed/run-15",
+      "calibratedAt": "2026-11-04T09:35:52Z",
+      "measuredKnee": {
+        "kneeRps": 4371.1,
+        "bound": "interpolated",
+        "between": [
+          3788,
+          4545
+        ]
+      },
+      "knee": 5400,
+      "sensitivity": {
+        "serviceTimeMs": -1.077,
+        "clientLinkLatencyMs": 0.0,
+        "readServiceTimeMs": 0.0,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": -0.2114,
+      "calibrationSigma": 0.1343,
+      "ranges": {
+        "inSample": {
+          "lowRps": 3447,
+          "highRps": 8459,
+          "calibrationSigma": 0.1343,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 3437,
+          "highRps": 8483,
+          "calibrationSigma": 0.1352,
+          "modelSigma": 0.3255,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 3450,
+          "highRps": 8451,
+          "calibrationSigma": 0.1383,
+          "modelSigma": 0.321,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "pg-mixed",
+      "source": "pg-mixed",
+      "calibratedAt": "2026-11-04T11:52:16Z",
+      "measuredKnee": {
+        "kneeRps": 4482.9,
+        "bound": "interpolated",
+        "between": [
+          3900,
+          4680
+        ]
+      },
+      "knee": 5500,
+      "sensitivity": {
+        "serviceTimeMs": -1.116,
+        "clientLinkLatencyMs": 0.0,
+        "readServiceTimeMs": 0.0,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": -0.2045,
+      "calibrationSigma": 0.1392,
+      "ranges": {
+        "inSample": {
+          "lowRps": 3502,
+          "highRps": 8637,
+          "calibrationSigma": 0.1392,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 3493,
+          "highRps": 8660,
+          "calibrationSigma": 0.1398,
+          "modelSigma": 0.3255,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 3505,
+          "highRps": 8630,
+          "calibrationSigma": 0.1433,
+          "modelSigma": 0.321,
           "holds": true
         }
       }
@@ -645,27 +1483,27 @@
         "dbLinkLatencyMs": 0.0
       },
       "error": 0.0958,
-      "calibrationSigma": 0.1067,
+      "calibrationSigma": 0.0667,
       "ranges": {
         "inSample": {
-          "lowRps": 588,
-          "highRps": 941,
-          "calibrationSigma": 0.1067,
-          "modelSigma": 0.1495,
+          "lowRps": 487,
+          "highRps": 1136,
+          "calibrationSigma": 0.0667,
+          "modelSigma": 0.3235,
           "holds": true
         },
         "leaveRunOut": {
-          "lowRps": 571,
-          "highRps": 969,
-          "calibrationSigma": 0.0983,
-          "modelSigma": 0.181,
+          "lowRps": 487,
+          "highRps": 1138,
+          "calibrationSigma": 0.0629,
+          "modelSigma": 0.3253,
           "holds": true
         },
         "leaveExperimentOut": {
-          "lowRps": 542,
-          "highRps": 1022,
-          "calibrationSigma": 0.0957,
-          "modelSigma": 0.2285,
+          "lowRps": 474,
+          "highRps": 1167,
+          "calibrationSigma": 0.059,
+          "modelSigma": 0.346,
           "holds": true
         }
       }
@@ -691,34 +1529,34 @@
         "dbLinkLatencyMs": 0.0
       },
       "error": -0.1011,
-      "calibrationSigma": 0.1002,
+      "calibrationSigma": 0.0629,
       "ranges": {
         "inSample": {
-          "lowRps": 843,
-          "highRps": 1337,
-          "calibrationSigma": 0.1002,
-          "modelSigma": 0.1495,
+          "lowRps": 696,
+          "highRps": 1620,
+          "calibrationSigma": 0.0629,
+          "modelSigma": 0.3235,
           "holds": true
         },
         "leaveRunOut": {
-          "lowRps": 823,
-          "highRps": 1370,
-          "calibrationSigma": 0.0931,
-          "modelSigma": 0.1755,
+          "lowRps": 695,
+          "highRps": 1622,
+          "calibrationSigma": 0.0575,
+          "modelSigma": 0.3255,
           "holds": true
         },
         "leaveExperimentOut": {
-          "lowRps": 775,
-          "highRps": 1455,
-          "calibrationSigma": 0.0897,
-          "modelSigma": 0.2285,
+          "lowRps": 678,
+          "highRps": 1664,
+          "calibrationSigma": 0.0558,
+          "modelSigma": 0.346,
           "holds": true
         }
       }
     },
     {
       "experiment": "pg-hot-row",
-      "source": "pg-hot-row",
+      "source": "pg-hot-row/run-8",
       "calibratedAt": "2026-10-31T02:21:39Z",
       "measuredKnee": {
         "kneeRps": 926.5,
@@ -737,27 +1575,257 @@
         "dbLinkLatencyMs": 0.0
       },
       "error": 0.0652,
-      "calibrationSigma": 0.1051,
+      "calibrationSigma": 0.0658,
       "ranges": {
         "inSample": {
-          "lowRps": 687,
-          "highRps": 1097,
-          "calibrationSigma": 0.1051,
-          "modelSigma": 0.1495,
+          "lowRps": 569,
+          "highRps": 1325,
+          "calibrationSigma": 0.0658,
+          "modelSigma": 0.3235,
           "holds": true
         },
         "leaveRunOut": {
-          "lowRps": 675,
-          "highRps": 1117,
-          "calibrationSigma": 0.108,
-          "modelSigma": 0.1645,
+          "lowRps": 568,
+          "highRps": 1326,
+          "calibrationSigma": 0.0666,
+          "modelSigma": 0.3238,
           "holds": true
         },
         "leaveExperimentOut": {
-          "lowRps": 632,
-          "highRps": 1191,
-          "calibrationSigma": 0.0942,
-          "modelSigma": 0.2285,
+          "lowRps": 554,
+          "highRps": 1361,
+          "calibrationSigma": 0.0583,
+          "modelSigma": 0.346,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "pg-hot-row",
+      "source": "pg-hot-row/run-9",
+      "calibratedAt": "2026-11-01T23:24:56Z",
+      "measuredKnee": {
+        "kneeRps": 953.3,
+        "bound": "interpolated",
+        "between": [
+          948,
+          1078
+        ]
+      },
+      "knee": 862,
+      "sensitivity": {
+        "serviceTimeMs": 0.0,
+        "writeServiceTimeMs": -0.266,
+        "commitFlushMs": -0.777,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": 0.1007,
+      "calibrationSigma": 0.0642,
+      "ranges": {
+        "inSample": {
+          "lowRps": 565,
+          "highRps": 1315,
+          "calibrationSigma": 0.0642,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 565,
+          "highRps": 1316,
+          "calibrationSigma": 0.0649,
+          "modelSigma": 0.3237,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 550,
+          "highRps": 1351,
+          "calibrationSigma": 0.0568,
+          "modelSigma": 0.346,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "pg-hot-row",
+      "source": "pg-hot-row/run-10",
+      "calibratedAt": "2026-11-02T01:33:51Z",
+      "measuredKnee": {
+        "kneeRps": 939.2,
+        "bound": "interpolated",
+        "between": [
+          935,
+          1062
+        ]
+      },
+      "knee": 856,
+      "sensitivity": {
+        "serviceTimeMs": 0.0,
+        "writeServiceTimeMs": -0.268,
+        "commitFlushMs": -0.782,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": 0.0928,
+      "calibrationSigma": 0.0646,
+      "ranges": {
+        "inSample": {
+          "lowRps": 561,
+          "highRps": 1306,
+          "calibrationSigma": 0.0646,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 561,
+          "highRps": 1307,
+          "calibrationSigma": 0.0653,
+          "modelSigma": 0.3238,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 546,
+          "highRps": 1342,
+          "calibrationSigma": 0.0572,
+          "modelSigma": 0.346,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "pg-hot-row",
+      "source": "pg-hot-row/run-11",
+      "calibratedAt": "2026-11-02T03:46:41Z",
+      "measuredKnee": {
+        "kneeRps": 941.7,
+        "bound": "interpolated",
+        "between": [
+          935,
+          1062
+        ]
+      },
+      "knee": 850,
+      "sensitivity": {
+        "serviceTimeMs": 0.0,
+        "writeServiceTimeMs": -0.258,
+        "commitFlushMs": -0.742,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": 0.1025,
+      "calibrationSigma": 0.0616,
+      "ranges": {
+        "inSample": {
+          "lowRps": 557,
+          "highRps": 1296,
+          "calibrationSigma": 0.0616,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 557,
+          "highRps": 1297,
+          "calibrationSigma": 0.0622,
+          "modelSigma": 0.3237,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 543,
+          "highRps": 1332,
+          "calibrationSigma": 0.0546,
+          "modelSigma": 0.346,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "pg-hot-row",
+      "source": "pg-hot-row/run-13",
+      "calibratedAt": "2026-11-04T10:07:36Z",
+      "measuredKnee": {
+        "kneeRps": 947.1,
+        "bound": "interpolated",
+        "between": [
+          862,
+          948
+        ]
+      },
+      "knee": 862,
+      "sensitivity": {
+        "serviceTimeMs": 0.0,
+        "writeServiceTimeMs": -0.266,
+        "commitFlushMs": -0.777,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": 0.0941,
+      "calibrationSigma": 0.0642,
+      "ranges": {
+        "inSample": {
+          "lowRps": 565,
+          "highRps": 1315,
+          "calibrationSigma": 0.0642,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 565,
+          "highRps": 1316,
+          "calibrationSigma": 0.0649,
+          "modelSigma": 0.3237,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 550,
+          "highRps": 1351,
+          "calibrationSigma": 0.0568,
+          "modelSigma": 0.346,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "pg-hot-row",
+      "source": "pg-hot-row",
+      "calibratedAt": "2026-11-04T12:24:30Z",
+      "measuredKnee": {
+        "kneeRps": 946.8,
+        "bound": "interpolated",
+        "between": [
+          942,
+          1070
+        ]
+      },
+      "knee": 856,
+      "sensitivity": {
+        "serviceTimeMs": 0.0,
+        "writeServiceTimeMs": -0.268,
+        "commitFlushMs": -0.782,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": 0.1008,
+      "calibrationSigma": 0.0646,
+      "ranges": {
+        "inSample": {
+          "lowRps": 561,
+          "highRps": 1306,
+          "calibrationSigma": 0.0646,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 561,
+          "highRps": 1307,
+          "calibrationSigma": 0.0653,
+          "modelSigma": 0.3237,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 546,
+          "highRps": 1342,
+          "calibrationSigma": 0.0572,
+          "modelSigma": 0.346,
           "holds": true
         }
       }
@@ -774,9 +1842,9 @@
           7950
         ]
       },
-      "knee": 5300,
+      "knee": 7400,
       "sensitivity": {
-        "serviceTimeMs": -1.038,
+        "serviceTimeMs": -1.001,
         "clientLinkLatencyMs": 0.0,
         "readServiceTimeMs": 0.0,
         "dbCpuShare": 0.0,
@@ -784,29 +1852,29 @@
         "cacheServiceTimeMs": 0.0,
         "cacheLinkLatencyMs": 0.0
       },
-      "error": 0.2977,
-      "calibrationSigma": 0.1736,
+      "error": -0.0361,
+      "calibrationSigma": 0.1248,
       "ranges": {
         "inSample": {
-          "lowRps": 3952,
-          "highRps": 7108,
-          "calibrationSigma": 0.1736,
-          "modelSigma": 0.1495,
-          "holds": false
+          "lowRps": 4745,
+          "highRps": 11540,
+          "calibrationSigma": 0.1248,
+          "modelSigma": 0.3235,
+          "holds": true
         },
         "leaveRunOut": {
-          "lowRps": 3984,
-          "highRps": 7051,
-          "calibrationSigma": 0.1716,
-          "modelSigma": 0.142,
-          "holds": false
+          "lowRps": 4740,
+          "highRps": 11553,
+          "calibrationSigma": 0.1257,
+          "modelSigma": 0.3241,
+          "holds": true
         },
         "leaveExperimentOut": {
-          "lowRps": 4198,
-          "highRps": 6691,
-          "calibrationSigma": 0.1819,
-          "modelSigma": 0.0,
-          "holds": false
+          "lowRps": 4627,
+          "highRps": 11836,
+          "calibrationSigma": 0.1233,
+          "modelSigma": 0.3451,
+          "holds": true
         }
       }
     },
@@ -822,9 +1890,9 @@
           8239
         ]
       },
-      "knee": 4250,
+      "knee": 5800,
       "sensitivity": {
-        "serviceTimeMs": -1.015,
+        "serviceTimeMs": -1.039,
         "clientLinkLatencyMs": 0.0,
         "readServiceTimeMs": 0.0,
         "dbCpuShare": 0.0,
@@ -832,35 +1900,35 @@
         "cacheServiceTimeMs": 0.0,
         "cacheLinkLatencyMs": 0.0
       },
-      "error": 0.4144,
-      "calibrationSigma": 0.1697,
+      "error": 0.1034,
+      "calibrationSigma": 0.1296,
       "ranges": {
         "inSample": {
-          "lowRps": 3181,
-          "highRps": 5679,
-          "calibrationSigma": 0.1697,
-          "modelSigma": 0.1495,
-          "holds": false
+          "lowRps": 3711,
+          "highRps": 9065,
+          "calibrationSigma": 0.1296,
+          "modelSigma": 0.3235,
+          "holds": true
         },
         "leaveRunOut": {
-          "lowRps": 3283,
-          "highRps": 5502,
-          "calibrationSigma": 0.1735,
-          "modelSigma": 0.1025,
-          "holds": false
+          "lowRps": 3711,
+          "highRps": 9066,
+          "calibrationSigma": 0.1281,
+          "modelSigma": 0.3241,
+          "holds": true
         },
         "leaveExperimentOut": {
-          "lowRps": 3384,
-          "highRps": 5338,
-          "calibrationSigma": 0.1778,
-          "modelSigma": 0.0,
-          "holds": false
+          "lowRps": 3619,
+          "highRps": 9296,
+          "calibrationSigma": 0.128,
+          "modelSigma": 0.3451,
+          "holds": true
         }
       }
     },
     {
       "experiment": "cache-aside",
-      "source": "cache-aside",
+      "source": "cache-aside/run-5",
       "calibratedAt": "2026-10-31T02:44:32Z",
       "measuredKnee": {
         "kneeRps": 7323.9,
@@ -870,9 +1938,9 @@
           9458
         ]
       },
-      "knee": 4850,
+      "knee": 6550,
       "sensitivity": {
-        "serviceTimeMs": -1.008,
+        "serviceTimeMs": -1.0,
         "clientLinkLatencyMs": 0.0,
         "readServiceTimeMs": 0.0,
         "dbCpuShare": 0.0,
@@ -880,29 +1948,311 @@
         "cacheServiceTimeMs": 0.0,
         "cacheLinkLatencyMs": 0.0
       },
-      "error": 0.4122,
-      "calibrationSigma": 0.1685,
+      "error": 0.1117,
+      "calibrationSigma": 0.1247,
       "ranges": {
         "inSample": {
-          "lowRps": 3634,
-          "highRps": 6473,
-          "calibrationSigma": 0.1685,
-          "modelSigma": 0.1495,
-          "holds": false
+          "lowRps": 4200,
+          "highRps": 10214,
+          "calibrationSigma": 0.1247,
+          "modelSigma": 0.3235,
+          "holds": true
         },
         "leaveRunOut": {
-          "lowRps": 3752,
-          "highRps": 6269,
-          "calibrationSigma": 0.1715,
-          "modelSigma": 0.1035,
-          "holds": false
+          "lowRps": 4199,
+          "highRps": 10218,
+          "calibrationSigma": 0.1255,
+          "modelSigma": 0.3235,
+          "holds": true
         },
         "leaveExperimentOut": {
-          "lowRps": 3868,
-          "highRps": 6082,
-          "calibrationSigma": 0.1766,
-          "modelSigma": 0.0,
-          "holds": false
+          "lowRps": 4095,
+          "highRps": 10476,
+          "calibrationSigma": 0.1232,
+          "modelSigma": 0.3451,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "cache-aside",
+      "source": "cache-aside/run-6",
+      "calibratedAt": "2026-11-01T23:49:28Z",
+      "measuredKnee": {
+        "kneeRps": 6702.3,
+        "bound": "interpolated",
+        "between": [
+          6156,
+          7388
+        ]
+      },
+      "knee": 5900,
+      "sensitivity": {
+        "serviceTimeMs": -1.358,
+        "readServiceTimeMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0,
+        "cacheServiceTimeMs": 0.0,
+        "cacheLinkLatencyMs": 0.0
+      },
+      "error": 0.1275,
+      "calibrationSigma": 0.1693,
+      "ranges": {
+        "inSample": {
+          "lowRps": 3695,
+          "highRps": 9421,
+          "calibrationSigma": 0.1693,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 3692,
+          "highRps": 9429,
+          "calibrationSigma": 0.1708,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 3609,
+          "highRps": 9645,
+          "calibrationSigma": 0.1673,
+          "modelSigma": 0.3451,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "cache-aside",
+      "source": "cache-aside/run-7",
+      "calibratedAt": "2026-11-02T01:58:24Z",
+      "measuredKnee": {
+        "kneeRps": 7010.2,
+        "bound": "interpolated",
+        "between": [
+          6625,
+          7950
+        ]
+      },
+      "knee": 6650,
+      "sensitivity": {
+        "serviceTimeMs": -1.32,
+        "readServiceTimeMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0,
+        "cacheServiceTimeMs": 0.0,
+        "cacheLinkLatencyMs": 0.0
+      },
+      "error": 0.0527,
+      "calibrationSigma": 0.1646,
+      "ranges": {
+        "inSample": {
+          "lowRps": 4176,
+          "highRps": 10589,
+          "calibrationSigma": 0.1646,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 4175,
+          "highRps": 10591,
+          "calibrationSigma": 0.165,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 4078,
+          "highRps": 10843,
+          "calibrationSigma": 0.1626,
+          "modelSigma": 0.3451,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "cache-aside",
+      "source": "cache-aside/run-8",
+      "calibratedAt": "2026-11-02T04:11:08Z",
+      "measuredKnee": {
+        "kneeRps": 6917.7,
+        "bound": "interpolated",
+        "between": [
+          6500,
+          7800
+        ]
+      },
+      "knee": 6450,
+      "sensitivity": {
+        "serviceTimeMs": -1.287,
+        "readServiceTimeMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0,
+        "cacheServiceTimeMs": 0.0,
+        "cacheLinkLatencyMs": 0.0
+      },
+      "error": 0.07,
+      "calibrationSigma": 0.1605,
+      "ranges": {
+        "inSample": {
+          "lowRps": 4060,
+          "highRps": 10246,
+          "calibrationSigma": 0.1605,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 4058,
+          "highRps": 10251,
+          "calibrationSigma": 0.1614,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 3964,
+          "highRps": 10494,
+          "calibrationSigma": 0.1586,
+          "modelSigma": 0.3451,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "cache-aside",
+      "source": "cache-aside/run-9",
+      "calibratedAt": "2026-11-04T08:18:36Z",
+      "measuredKnee": {
+        "kneeRps": 6086.4,
+        "bound": "interpolated",
+        "between": [
+          6000,
+          6600
+        ]
+      },
+      "knee": 6550,
+      "sensitivity": {
+        "serviceTimeMs": -1.154,
+        "readServiceTimeMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0,
+        "cacheServiceTimeMs": 0.0,
+        "cacheLinkLatencyMs": 0.0
+      },
+      "error": -0.0734,
+      "calibrationSigma": 0.1439,
+      "ranges": {
+        "inSample": {
+          "lowRps": 4161,
+          "highRps": 10311,
+          "calibrationSigma": 0.1439,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 4160,
+          "highRps": 10313,
+          "calibrationSigma": 0.1421,
+          "modelSigma": 0.3245,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 4060,
+          "highRps": 10568,
+          "calibrationSigma": 0.1422,
+          "modelSigma": 0.3451,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "cache-aside",
+      "source": "cache-aside/run-10",
+      "calibratedAt": "2026-11-04T10:33:51Z",
+      "measuredKnee": {
+        "kneeRps": 6874.1,
+        "bound": "interpolated",
+        "between": [
+          6812,
+          8175
+        ]
+      },
+      "knee": 6500,
+      "sensitivity": {
+        "serviceTimeMs": -1.32,
+        "readServiceTimeMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0,
+        "cacheServiceTimeMs": 0.0,
+        "cacheLinkLatencyMs": 0.0
+      },
+      "error": 0.056,
+      "calibrationSigma": 0.1646,
+      "ranges": {
+        "inSample": {
+          "lowRps": 4082,
+          "highRps": 10350,
+          "calibrationSigma": 0.1646,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 4080,
+          "highRps": 10355,
+          "calibrationSigma": 0.1655,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 3986,
+          "highRps": 10598,
+          "calibrationSigma": 0.1626,
+          "modelSigma": 0.3451,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "cache-aside",
+      "source": "cache-aside",
+      "calibratedAt": "2026-11-04T12:50:54Z",
+      "measuredKnee": {
+        "kneeRps": 6752.4,
+        "bound": "interpolated",
+        "between": [
+          6215,
+          7062
+        ]
+      },
+      "knee": 6700,
+      "sensitivity": {
+        "serviceTimeMs": -1.353,
+        "readServiceTimeMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0,
+        "cacheServiceTimeMs": 0.0,
+        "cacheLinkLatencyMs": 0.0
+      },
+      "error": 0.0078,
+      "calibrationSigma": 0.1687,
+      "ranges": {
+        "inSample": {
+          "lowRps": 4198,
+          "highRps": 10694,
+          "calibrationSigma": 0.1687,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 4195,
+          "highRps": 10701,
+          "calibrationSigma": 0.1689,
+          "modelSigma": 0.324,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 4100,
+          "highRps": 10949,
+          "calibrationSigma": 0.1667,
+          "modelSigma": 0.3451,
+          "holds": true
         }
       }
     },
@@ -918,7 +2268,7 @@
           2542
         ]
       },
-      "knee": 2825,
+      "knee": 2925,
       "sensitivity": {
         "serviceTimeMs": -1.002,
         "writeServiceTimeMs": 0.0,
@@ -929,28 +2279,28 @@
         "consumerTimeMs": 0.0,
         "fetchOverheadMs": 0.0
       },
-      "error": -0.2814,
-      "calibrationSigma": 0.1675,
+      "error": -0.3161,
+      "calibrationSigma": 0.1249,
       "ranges": {
         "inSample": {
-          "lowRps": 2119,
-          "highRps": 3767,
-          "calibrationSigma": 0.1675,
-          "modelSigma": 0.1495,
+          "lowRps": 1875,
+          "highRps": 4562,
+          "calibrationSigma": 0.1249,
+          "modelSigma": 0.3235,
           "holds": true
         },
         "leaveRunOut": {
-          "lowRps": 2130,
-          "highRps": 3746,
-          "calibrationSigma": 0.1588,
-          "modelSigma": 0.1525,
+          "lowRps": 1877,
+          "highRps": 4558,
+          "calibrationSigma": 0.1231,
+          "modelSigma": 0.3235,
           "holds": true
         },
         "leaveExperimentOut": {
-          "lowRps": 2076,
-          "highRps": 3844,
-          "calibrationSigma": 0.1742,
-          "modelSigma": 0.1655,
+          "lowRps": 1834,
+          "highRps": 4664,
+          "calibrationSigma": 0.1206,
+          "modelSigma": 0.3435,
           "holds": true
         }
       }
@@ -967,9 +2317,9 @@
           2138
         ]
       },
-      "knee": 2138,
+      "knee": 2375,
       "sensitivity": {
-        "serviceTimeMs": -1.001,
+        "serviceTimeMs": -0.999,
         "writeServiceTimeMs": 0.0,
         "commitFlushMs": 0.0,
         "dbCpuShare": 0.0,
@@ -978,35 +2328,35 @@
         "consumerTimeMs": 0.0,
         "fetchOverheadMs": 0.0
       },
-      "error": -0.024,
-      "calibrationSigma": 0.1674,
+      "error": -0.1292,
+      "calibrationSigma": 0.1246,
       "ranges": {
         "inSample": {
-          "lowRps": 1604,
-          "highRps": 2850,
-          "calibrationSigma": 0.1674,
-          "modelSigma": 0.1495,
+          "lowRps": 1523,
+          "highRps": 3703,
+          "calibrationSigma": 0.1246,
+          "modelSigma": 0.3235,
           "holds": true
         },
         "leaveRunOut": {
-          "lowRps": 1585,
-          "highRps": 2884,
-          "calibrationSigma": 0.1715,
-          "modelSigma": 0.1585,
+          "lowRps": 1523,
+          "highRps": 3704,
+          "calibrationSigma": 0.1251,
+          "modelSigma": 0.3235,
           "holds": true
         },
         "leaveExperimentOut": {
-          "lowRps": 1572,
-          "highRps": 2909,
-          "calibrationSigma": 0.1741,
-          "modelSigma": 0.1655,
+          "lowRps": 1490,
+          "highRps": 3786,
+          "calibrationSigma": 0.1203,
+          "modelSigma": 0.3435,
           "holds": true
         }
       }
     },
     {
       "experiment": "kafka",
-      "source": "kafka",
+      "source": "kafka/run-5",
       "calibratedAt": "2026-10-31T03:26:27Z",
       "measuredKnee": {
         "kneeRps": 2027.5,
@@ -1016,7 +2366,252 @@
           2100
         ]
       },
-      "knee": 2100,
+      "knee": 2350,
+      "sensitivity": {
+        "serviceTimeMs": -1.0,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0,
+        "publishTimeMs": 0.0,
+        "consumerTimeMs": 0.0,
+        "fetchOverheadMs": 0.0
+      },
+      "error": -0.1476,
+      "calibrationSigma": 0.1247,
+      "ranges": {
+        "inSample": {
+          "lowRps": 1507,
+          "highRps": 3665,
+          "calibrationSigma": 0.1247,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 1507,
+          "highRps": 3665,
+          "calibrationSigma": 0.1249,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 1474,
+          "highRps": 3747,
+          "calibrationSigma": 0.1204,
+          "modelSigma": 0.3435,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "kafka",
+      "source": "kafka/run-6",
+      "calibratedAt": "2026-11-02T00:26:56Z",
+      "measuredKnee": {
+        "kneeRps": 2614.3,
+        "bound": "interpolated",
+        "between": [
+          2550,
+          2805
+        ]
+      },
+      "knee": 2825,
+      "sensitivity": {
+        "serviceTimeMs": -1.002,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0,
+        "publishTimeMs": 0.0,
+        "consumerTimeMs": 0.0,
+        "fetchOverheadMs": 0.0
+      },
+      "error": -0.0775,
+      "calibrationSigma": 0.1249,
+      "ranges": {
+        "inSample": {
+          "lowRps": 1811,
+          "highRps": 4406,
+          "calibrationSigma": 0.1249,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 1810,
+          "highRps": 4410,
+          "calibrationSigma": 0.1255,
+          "modelSigma": 0.324,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 1772,
+          "highRps": 4505,
+          "calibrationSigma": 0.1206,
+          "modelSigma": 0.3435,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "kafka",
+      "source": "kafka/run-7",
+      "calibratedAt": "2026-11-02T02:36:13Z",
+      "measuredKnee": {
+        "kneeRps": 2659.0,
+        "bound": "interpolated",
+        "between": [
+          2575,
+          2833
+        ]
+      },
+      "knee": 2875,
+      "sensitivity": {
+        "serviceTimeMs": -1.0,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0,
+        "publishTimeMs": 0.0,
+        "consumerTimeMs": 0.0,
+        "fetchOverheadMs": 0.0
+      },
+      "error": -0.0781,
+      "calibrationSigma": 0.1247,
+      "ranges": {
+        "inSample": {
+          "lowRps": 1844,
+          "highRps": 4483,
+          "calibrationSigma": 0.1247,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 1842,
+          "highRps": 4487,
+          "calibrationSigma": 0.125,
+          "modelSigma": 0.324,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 1803,
+          "highRps": 4584,
+          "calibrationSigma": 0.1204,
+          "modelSigma": 0.3435,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "kafka",
+      "source": "kafka/run-8",
+      "calibratedAt": "2026-11-02T04:48:49Z",
+      "measuredKnee": {
+        "kneeRps": 2802.4,
+        "bound": "interpolated",
+        "between": [
+          2778,
+          3156
+        ]
+      },
+      "knee": 2775,
+      "sensitivity": {
+        "serviceTimeMs": -1.0,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0,
+        "publishTimeMs": 0.0,
+        "consumerTimeMs": 0.0,
+        "fetchOverheadMs": 0.0
+      },
+      "error": 0.0098,
+      "calibrationSigma": 0.1247,
+      "ranges": {
+        "inSample": {
+          "lowRps": 1780,
+          "highRps": 4327,
+          "calibrationSigma": 0.1247,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 1777,
+          "highRps": 4334,
+          "calibrationSigma": 0.1252,
+          "modelSigma": 0.3245,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 1741,
+          "highRps": 4424,
+          "calibrationSigma": 0.1204,
+          "modelSigma": 0.3435,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "kafka",
+      "source": "kafka/run-10",
+      "calibratedAt": "2026-11-04T11:12:22Z",
+      "measuredKnee": {
+        "kneeRps": 2486.7,
+        "bound": "interpolated",
+        "between": [
+          2452,
+          2725
+        ]
+      },
+      "knee": 2950,
+      "sensitivity": {
+        "serviceTimeMs": -0.998,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0,
+        "publishTimeMs": 0.0,
+        "consumerTimeMs": 0.0,
+        "fetchOverheadMs": 0.0
+      },
+      "error": -0.1708,
+      "calibrationSigma": 0.1245,
+      "ranges": {
+        "inSample": {
+          "lowRps": 1892,
+          "highRps": 4600,
+          "calibrationSigma": 0.1245,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 1893,
+          "highRps": 4598,
+          "calibrationSigma": 0.1236,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 1850,
+          "highRps": 4703,
+          "calibrationSigma": 0.1202,
+          "modelSigma": 0.3435,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "kafka",
+      "source": "kafka",
+      "calibratedAt": "2026-11-04T13:27:44Z",
+      "measuredKnee": {
+        "kneeRps": 2387.2,
+        "bound": "interpolated",
+        "between": [
+          2297,
+          2610
+        ]
+      },
+      "knee": 2088,
       "sensitivity": {
         "serviceTimeMs": -1.001,
         "writeServiceTimeMs": 0.0,
@@ -1027,28 +2622,745 @@
         "consumerTimeMs": 0.0,
         "fetchOverheadMs": 0.0
       },
-      "error": -0.0351,
-      "calibrationSigma": 0.1674,
+      "error": 0.1339,
+      "calibrationSigma": 0.1248,
       "ranges": {
         "inSample": {
-          "lowRps": 1575,
-          "highRps": 2800,
-          "calibrationSigma": 0.1674,
-          "modelSigma": 0.1495,
+          "lowRps": 1339,
+          "highRps": 3256,
+          "calibrationSigma": 0.1248,
+          "modelSigma": 0.3235,
           "holds": true
         },
         "leaveRunOut": {
-          "lowRps": 1557,
-          "highRps": 2832,
-          "calibrationSigma": 0.1713,
-          "modelSigma": 0.1585,
+          "lowRps": 1336,
+          "highRps": 3262,
+          "calibrationSigma": 0.125,
+          "modelSigma": 0.325,
           "holds": true
         },
         "leaveExperimentOut": {
-          "lowRps": 1544,
-          "highRps": 2857,
-          "calibrationSigma": 0.1741,
-          "modelSigma": 0.1655,
+          "lowRps": 1310,
+          "highRps": 3329,
+          "calibrationSigma": 0.1205,
+          "modelSigma": 0.3435,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "java-mixed",
+      "source": "java-mixed/run-1",
+      "calibratedAt": "2026-11-03T21:34:40Z",
+      "measuredKnee": {
+        "kneeRps": 4197.5,
+        "bound": "interpolated",
+        "between": [
+          3950,
+          5925
+        ]
+      },
+      "knee": 8150,
+      "sensitivity": {
+        "serviceTimeMs": -1.0,
+        "clientLinkLatencyMs": 0.0,
+        "readServiceTimeMs": 0.0,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": -0.6635,
+      "calibrationSigma": 0.1247,
+      "ranges": {
+        "inSample": {
+          "lowRps": 5226,
+          "highRps": 12709,
+          "calibrationSigma": 0.1247,
+          "modelSigma": 0.3235,
+          "holds": false
+        },
+        "leaveRunOut": {
+          "lowRps": 5280,
+          "highRps": 12580,
+          "calibrationSigma": 0.1258,
+          "modelSigma": 0.3145,
+          "holds": false
+        },
+        "leaveExperimentOut": {
+          "lowRps": 5557,
+          "highRps": 11953,
+          "calibrationSigma": 0.127,
+          "modelSigma": 0.2705,
+          "holds": false
+        }
+      }
+    },
+    {
+      "experiment": "java-mixed",
+      "source": "java-mixed/run-2",
+      "calibratedAt": "2026-11-04T00:33:23Z",
+      "measuredKnee": {
+        "kneeRps": 4798.6,
+        "bound": "interpolated",
+        "between": [
+          3925,
+          5888
+        ]
+      },
+      "knee": 8250,
+      "sensitivity": {
+        "serviceTimeMs": -1.0,
+        "clientLinkLatencyMs": 0.0,
+        "readServiceTimeMs": 0.0,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": -0.5419,
+      "calibrationSigma": 0.1247,
+      "ranges": {
+        "inSample": {
+          "lowRps": 5290,
+          "highRps": 12865,
+          "calibrationSigma": 0.1247,
+          "modelSigma": 0.3235,
+          "holds": false
+        },
+        "leaveRunOut": {
+          "lowRps": 5262,
+          "highRps": 12933,
+          "calibrationSigma": 0.1258,
+          "modelSigma": 0.3275,
+          "holds": false
+        },
+        "leaveExperimentOut": {
+          "lowRps": 5625,
+          "highRps": 12100,
+          "calibrationSigma": 0.127,
+          "modelSigma": 0.2705,
+          "holds": false
+        }
+      }
+    },
+    {
+      "experiment": "java-mixed",
+      "source": "java-mixed",
+      "calibratedAt": "2026-11-04T03:38:18Z",
+      "measuredKnee": {
+        "kneeRps": 4650.5,
+        "bound": "interpolated",
+        "between": [
+          3950,
+          5925
+        ]
+      },
+      "knee": 8500,
+      "sensitivity": {
+        "serviceTimeMs": -1.039,
+        "clientLinkLatencyMs": 0.0,
+        "readServiceTimeMs": 0.0,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": -0.6031,
+      "calibrationSigma": 0.1296,
+      "ranges": {
+        "inSample": {
+          "lowRps": 5438,
+          "highRps": 13285,
+          "calibrationSigma": 0.1296,
+          "modelSigma": 0.3235,
+          "holds": false
+        },
+        "leaveRunOut": {
+          "lowRps": 5452,
+          "highRps": 13253,
+          "calibrationSigma": 0.1307,
+          "modelSigma": 0.321,
+          "holds": false
+        },
+        "leaveExperimentOut": {
+          "lowRps": 5780,
+          "highRps": 12501,
+          "calibrationSigma": 0.132,
+          "modelSigma": 0.2705,
+          "holds": false
+        }
+      }
+    },
+    {
+      "experiment": "go-mixed",
+      "source": "go-mixed/run-1",
+      "calibratedAt": "2026-11-03T22:16:39Z",
+      "measuredKnee": {
+        "kneeRps": 5508.3,
+        "bound": "interpolated",
+        "between": [
+          4750,
+          7125
+        ]
+      },
+      "knee": 9900,
+      "sensitivity": {
+        "serviceTimeMs": -1.001,
+        "clientLinkLatencyMs": 0.0,
+        "readServiceTimeMs": 0.0,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": -0.5863,
+      "calibrationSigma": 0.1248,
+      "ranges": {
+        "inSample": {
+          "lowRps": 6348,
+          "highRps": 15439,
+          "calibrationSigma": 0.1248,
+          "modelSigma": 0.3235,
+          "holds": false
+        },
+        "leaveRunOut": {
+          "lowRps": 6390,
+          "highRps": 15337,
+          "calibrationSigma": 0.1259,
+          "modelSigma": 0.3175,
+          "holds": false
+        },
+        "leaveExperimentOut": {
+          "lowRps": 6621,
+          "highRps": 14802,
+          "calibrationSigma": 0.127,
+          "modelSigma": 0.287,
+          "holds": false
+        }
+      }
+    },
+    {
+      "experiment": "go-mixed",
+      "source": "go-mixed/run-2",
+      "calibratedAt": "2026-11-04T01:13:30Z",
+      "measuredKnee": {
+        "kneeRps": 6204.4,
+        "bound": "interpolated",
+        "between": [
+          4900,
+          7350
+        ]
+      },
+      "knee": 10000,
+      "sensitivity": {
+        "serviceTimeMs": -1.001,
+        "clientLinkLatencyMs": 0.0,
+        "readServiceTimeMs": 0.0,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": -0.4773,
+      "calibrationSigma": 0.1248,
+      "ranges": {
+        "inSample": {
+          "lowRps": 6412,
+          "highRps": 15595,
+          "calibrationSigma": 0.1248,
+          "modelSigma": 0.3235,
+          "holds": false
+        },
+        "leaveRunOut": {
+          "lowRps": 6382,
+          "highRps": 15668,
+          "calibrationSigma": 0.1259,
+          "modelSigma": 0.327,
+          "holds": false
+        },
+        "leaveExperimentOut": {
+          "lowRps": 6688,
+          "highRps": 14951,
+          "calibrationSigma": 0.127,
+          "modelSigma": 0.287,
+          "holds": false
+        }
+      }
+    },
+    {
+      "experiment": "go-mixed",
+      "source": "go-mixed",
+      "calibratedAt": "2026-11-04T04:19:22Z",
+      "measuredKnee": {
+        "kneeRps": 5949.5,
+        "bound": "interpolated",
+        "between": [
+          4950,
+          7425
+        ]
+      },
+      "knee": 10300,
+      "sensitivity": {
+        "serviceTimeMs": -0.999,
+        "clientLinkLatencyMs": 0.0,
+        "readServiceTimeMs": 0.0,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": -0.5488,
+      "calibrationSigma": 0.1246,
+      "ranges": {
+        "inSample": {
+          "lowRps": 6605,
+          "highRps": 16061,
+          "calibrationSigma": 0.1246,
+          "modelSigma": 0.3235,
+          "holds": false
+        },
+        "leaveRunOut": {
+          "lowRps": 6626,
+          "highRps": 16012,
+          "calibrationSigma": 0.1257,
+          "modelSigma": 0.3205,
+          "holds": false
+        },
+        "leaveExperimentOut": {
+          "lowRps": 6890,
+          "highRps": 15398,
+          "calibrationSigma": 0.1268,
+          "modelSigma": 0.287,
+          "holds": false
+        }
+      }
+    },
+    {
+      "experiment": "python-mixed",
+      "source": "python-mixed/run-1",
+      "calibratedAt": "2026-11-03T22:58:02Z",
+      "measuredKnee": {
+        "kneeRps": 1427.6,
+        "bound": "interpolated",
+        "between": [
+          1388,
+          1665
+        ]
+      },
+      "knee": 1862,
+      "sensitivity": {
+        "serviceTimeMs": -1.074,
+        "readServiceTimeMs": 0.0,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": -0.2657,
+      "calibrationSigma": 0.1339,
+      "ranges": {
+        "inSample": {
+          "lowRps": 1189,
+          "highRps": 2916,
+          "calibrationSigma": 0.1339,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 1189,
+          "highRps": 2916,
+          "calibrationSigma": 0.135,
+          "modelSigma": 0.323,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 1176,
+          "highRps": 2948,
+          "calibrationSigma": 0.1363,
+          "modelSigma": 0.3315,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "python-mixed",
+      "source": "python-mixed/run-2",
+      "calibratedAt": "2026-11-04T01:55:30Z",
+      "measuredKnee": {
+        "kneeRps": 1385.0,
+        "bound": "interpolated",
+        "between": [
+          1341,
+          1609
+        ]
+      },
+      "knee": 1800,
+      "sensitivity": {
+        "serviceTimeMs": -1.078,
+        "readServiceTimeMs": 0.0,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": -0.2621,
+      "calibrationSigma": 0.1344,
+      "ranges": {
+        "inSample": {
+          "lowRps": 1149,
+          "highRps": 2820,
+          "calibrationSigma": 0.1344,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 1148,
+          "highRps": 2822,
+          "calibrationSigma": 0.1356,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 1137,
+          "highRps": 2850,
+          "calibrationSigma": 0.1368,
+          "modelSigma": 0.3315,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "python-mixed",
+      "source": "python-mixed",
+      "calibratedAt": "2026-11-04T05:00:48Z",
+      "measuredKnee": {
+        "kneeRps": 1388.4,
+        "bound": "interpolated",
+        "between": [
+          1322,
+          1586
+        ]
+      },
+      "knee": 1775,
+      "sensitivity": {
+        "serviceTimeMs": -1.077,
+        "readServiceTimeMs": 0.0,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": -0.2456,
+      "calibrationSigma": 0.1343,
+      "ranges": {
+        "inSample": {
+          "lowRps": 1133,
+          "highRps": 2781,
+          "calibrationSigma": 0.1343,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 1132,
+          "highRps": 2784,
+          "calibrationSigma": 0.1355,
+          "modelSigma": 0.324,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 1121,
+          "highRps": 2810,
+          "calibrationSigma": 0.1367,
+          "modelSigma": 0.3315,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "chain",
+      "source": "chain/run-1",
+      "calibratedAt": "2026-11-03T23:27:46Z",
+      "measuredKnee": {
+        "kneeRps": 3503.1,
+        "bound": "interpolated",
+        "between": [
+          3262,
+          3915
+        ]
+      },
+      "knee": 4950,
+      "sensitivity": {
+        "serviceTimeMs": -1.21,
+        "apiServiceTimeMs": -0.527,
+        "apiLinkLatencyMs": 0.0,
+        "readServiceTimeMs": 0.0,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": -0.3457,
+      "calibrationSigma": 0.1516,
+      "ranges": {
+        "inSample": {
+          "lowRps": 3132,
+          "highRps": 7824,
+          "calibrationSigma": 0.1516,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 3129,
+          "highRps": 7831,
+          "calibrationSigma": 0.1532,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 3084,
+          "highRps": 7945,
+          "calibrationSigma": 0.1823,
+          "modelSigma": 0.321,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "chain",
+      "source": "chain/run-2",
+      "calibratedAt": "2026-11-04T02:28:58Z",
+      "measuredKnee": {
+        "kneeRps": 3474.6,
+        "bound": "interpolated",
+        "between": [
+          3394,
+          4072
+        ]
+      },
+      "knee": 4950,
+      "sensitivity": {
+        "serviceTimeMs": -1.187,
+        "apiServiceTimeMs": -0.531,
+        "apiLinkLatencyMs": 0.0,
+        "readServiceTimeMs": 0.0,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": -0.3539,
+      "calibrationSigma": 0.1488,
+      "ranges": {
+        "inSample": {
+          "lowRps": 3136,
+          "highRps": 7812,
+          "calibrationSigma": 0.1488,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 3091,
+          "highRps": 7926,
+          "calibrationSigma": 0.1768,
+          "modelSigma": 0.322,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 3089,
+          "highRps": 7932,
+          "calibrationSigma": 0.1799,
+          "modelSigma": 0.321,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "chain",
+      "source": "chain",
+      "calibratedAt": "2026-11-04T05:34:15Z",
+      "measuredKnee": {
+        "kneeRps": 3387.9,
+        "bound": "interpolated",
+        "between": [
+          3338,
+          4005
+        ]
+      },
+      "knee": 4850,
+      "sensitivity": {
+        "serviceTimeMs": -1.178,
+        "apiServiceTimeMs": -0.424,
+        "apiLinkLatencyMs": 0.0,
+        "readServiceTimeMs": 0.0,
+        "writeServiceTimeMs": 0.0,
+        "commitFlushMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0
+      },
+      "error": -0.3588,
+      "calibrationSigma": 0.1475,
+      "ranges": {
+        "inSample": {
+          "lowRps": 3075,
+          "highRps": 7649,
+          "calibrationSigma": 0.1475,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 3076,
+          "highRps": 7646,
+          "calibrationSigma": 0.1489,
+          "modelSigma": 0.3225,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 3043,
+          "highRps": 7731,
+          "calibrationSigma": 0.1712,
+          "modelSigma": 0.321,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "cache-ttl",
+      "source": "cache-ttl/run-1",
+      "calibratedAt": "2026-11-04T00:02:42Z",
+      "measuredKnee": {
+        "kneeRps": 5747.0,
+        "bound": "interpolated",
+        "between": [
+          5300,
+          5830
+        ]
+      },
+      "knee": 6350,
+      "sensitivity": {
+        "serviceTimeMs": -1.351,
+        "readServiceTimeMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0,
+        "cacheServiceTimeMs": 0.0,
+        "cacheLinkLatencyMs": 0.0
+      },
+      "error": -0.0998,
+      "calibrationSigma": 0.1685,
+      "ranges": {
+        "inSample": {
+          "lowRps": 3979,
+          "highRps": 10134,
+          "calibrationSigma": 0.1685,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 3969,
+          "highRps": 10160,
+          "calibrationSigma": 0.17,
+          "modelSigma": 0.325,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 3898,
+          "highRps": 10344,
+          "calibrationSigma": 0.1714,
+          "modelSigma": 0.34,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "cache-ttl",
+      "source": "cache-ttl/run-2",
+      "calibratedAt": "2026-11-04T03:05:38Z",
+      "measuredKnee": {
+        "kneeRps": 5336.3,
+        "bound": "interpolated",
+        "between": [
+          4860,
+          5400
+        ]
+      },
+      "knee": 6350,
+      "sensitivity": {
+        "serviceTimeMs": -1.422,
+        "readServiceTimeMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0,
+        "cacheServiceTimeMs": 0.0,
+        "cacheLinkLatencyMs": 0.0
+      },
+      "error": -0.1739,
+      "calibrationSigma": 0.1773,
+      "ranges": {
+        "inSample": {
+          "lowRps": 3958,
+          "highRps": 10188,
+          "calibrationSigma": 0.1773,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 3954,
+          "highRps": 10197,
+          "calibrationSigma": 0.1787,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 3877,
+          "highRps": 10399,
+          "calibrationSigma": 0.1805,
+          "modelSigma": 0.34,
+          "holds": true
+        }
+      }
+    },
+    {
+      "experiment": "cache-ttl",
+      "source": "cache-ttl",
+      "calibratedAt": "2026-11-04T06:11:13Z",
+      "measuredKnee": {
+        "kneeRps": 5419.7,
+        "bound": "interpolated",
+        "between": [
+          5100,
+          5610
+        ]
+      },
+      "knee": 6250,
+      "sensitivity": {
+        "serviceTimeMs": -1.488,
+        "readServiceTimeMs": 0.0,
+        "dbCpuShare": 0.0,
+        "dbLinkLatencyMs": 0.0,
+        "cacheServiceTimeMs": 0.0,
+        "cacheLinkLatencyMs": 0.0
+      },
+      "error": -0.1425,
+      "calibrationSigma": 0.1856,
+      "ranges": {
+        "inSample": {
+          "lowRps": 3875,
+          "highRps": 10080,
+          "calibrationSigma": 0.1856,
+          "modelSigma": 0.3235,
+          "holds": true
+        },
+        "leaveRunOut": {
+          "lowRps": 3870,
+          "highRps": 10095,
+          "calibrationSigma": 0.187,
+          "modelSigma": 0.324,
+          "holds": true
+        },
+        "leaveExperimentOut": {
+          "lowRps": 3797,
+          "highRps": 10288,
+          "calibrationSigma": 0.1888,
+          "modelSigma": 0.34,
           "holds": true
         }
       }

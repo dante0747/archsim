@@ -97,8 +97,10 @@ Read these numbers as runs on one laptop, three to six per experiment:
   Every miss is java-mixed's or go-mixed's: in all six of their runs the measured knee fell below
   the range's low end (java-mixed's latest: 4,650 req/s against a range from 5,926). Fifteen runs
   are too few for the coverage check to reject 80% at 5%, but misses gathered in two experiments
-  are a bias, not bad luck. On the tuned-on experiments the range held 20 of 22 runs. It is
-  wide, about x0.75 to x1.33 of the predicted knee.
+  are a bias, not bad luck. On the tuned-on experiments the range held 20 of 22 runs. It was
+  about x0.75 to x1.33 of the predicted knee; refitted on all nine experiments on 20 Nov 2026
+  (ADR-0094) it is wider, about x0.64 to x1.56, and holds 41 of the 49 counted runs leaving
+  out each experiment.
 - **cache-ttl meets criteria 1, 2 and 3a**: median -6%, every step's p95 within a factor of two or
   3 ms at or below the knee, and no unstable step. Only criterion 3b, a second machine, is missing:
   it is the first experiment to pass everything one machine can show.
@@ -403,8 +405,9 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
    each knee to 1%, so a spread it records under about 1% is at their resolution. Since W28
    (1 Nov 2026) it also predicts an **80% range** for the knee: the measured knee should fall
    inside it in about four runs of five. The range is a lognormal around the
-   predicted knee whose spread adds two parts, both fitted on the four in-sample experiments
-   only (`benchmarks/knee-range.json`, written by `range-fit`; the fit and its check:
+   predicted knee whose spread adds two parts, both fitted on the experiments the engine is
+   tuned on: the four in-sample ones until 20 Nov 2026, all nine measured since (below;
+   `benchmarks/knee-range.json`, written by `range-fit`; the fit and its check:
    [`docs/validation/knee-range.md`](validation/knee-range.md)):
    - **What a fresh calibration on another day would give.** The inputs move between
      calibrations of the same stack: the service's CPU per request by about 17% (one standard
@@ -439,6 +442,26 @@ like ArchSim's clients). Every container is pinned to its own CPUs.
    end (Kafka's run 3 inside, cache-aside's run 3 outside), and 12 runs of four experiments are
    a weak check: these are runs the model was tuned on, and the held-out campaign is the test
    on data the range was not fitted to.
+
+   **Refitted on 20 Nov 2026** ([ADR-0094](adr/0094-fit-the-knees-range-on-every-experiment-the-engine-is-tuned-on-with-an-error-each-experiment-shares.md)), with the
+   service's cost a law of its rate (ADR-0093), on all nine experiments engine 1.6.0 is tuned
+   on: 64 calibrations and 49 counted runs from protocol v5 on. The held-out campaign had shown
+   what the fit on four could not: the model's misses are shared by an experiment's runs
+   (java-mixed's three runs 42% to 48% below the prediction), so the model's error is now an
+   error each experiment's runs share and one each run has. By maximum likelihood the shared
+   one is 0.32 (log standard deviation) and the run's own 0: the calibration spread accounts
+   for how an experiment's runs differ. A prediction for an experiment the fit has not seen
+   takes both, so the 80% range is about x0.64 to x1.56 of the predicted knee at the median
+   calibration spread of the runs it is fitted on (0.125), where W28's was about x0.75 to x1.33
+   at its runs' (0.167). Leaving out each run's whole experiment, the check nearest to a new
+   one, the range holds 41 of the 49 runs (84%; at 50% and 90% nominal, 30 and 43); the model
+   error fitted on the four, on the same runs and spreads, held 32. All eight misses are below
+   the range, where the stack held less than promised: java-mixed's and go-mixed's three runs
+   each and two of pg-mixed's. The same model with a bias fitted as well did worse leaving out
+   each experiment (31 of 49, 6 below the range and 12 above it; ADR-0094's option (e)), since
+   the bias moves with the experiment left out, so the range stays centred on the predicted
+   knee. The second held-out set, which no engine is tuned on yet, is its first test out of
+   sample.
 
    `predictions.json` is written before the first measured step, with its provenance:
    the commit, the engine's and the harness's git object ids, whether either had uncommitted
@@ -1473,6 +1496,8 @@ From the baseline campaign (run 7: protocol v5, engine 0.14.0, three counted run
   was 663, 958 and 783 req/s, Kafka's 2,829, 2,140 and 2,102), and the model misses on the same
   side in every run of an experiment. The W28 range carries both, in about equal parts, so it
   narrows as calibrations repeat more closely and as the model improves (after a refit).
+  Refitted on all nine experiments on 20 Nov 2026 with an error each experiment's runs share
+  (ADR-0094), it is wider, and holds 41 of 49 runs leaving out each experiment.
 
 p95 at the ladder's low steps (at most half the predicted knee):
 
@@ -1551,7 +1576,9 @@ What would make it better next, in order:
    is where the staircase stopped (W26 calibrates closer to the knee). The predicted range (W28)
    now carries that variation and the model's error; it holds 9 of the 12 runs in-sample and
    9 leaving out each experiment. On the held-out campaign it held 9 of 15 (nominal 80%), every
-   miss java-mixed's or go-mixed's, whose measured knees fell below the range.
+   miss java-mixed's or go-mixed's, whose measured knees fell below the range. Refitted on all
+   nine on 20 Nov 2026 with an error each experiment's runs share (ADR-0094), it holds 41 of 49
+   leaving out each experiment, every miss still below the range.
 4. Memory near the knee (a Node.js heap grows faster than linearly with load), a flush and a CPU
    per query that fall with load, and Kafka's rare consumer stalls (message age at mid load).
 

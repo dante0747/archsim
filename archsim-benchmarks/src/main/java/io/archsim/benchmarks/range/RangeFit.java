@@ -69,12 +69,13 @@ public final class RangeFit {
 	 * @param reuse the label of the development checks to take the inputs and knees from;
 	 * {@code null} for this engine's
 	 * @param cacheFile the file that keeps the finished work ({@link #cachePath})
+	 * @param tunedOn the experiments the engine is tuned on, whose runs it is fitted on
 	 * @return the fit, as written
 	 */
-	public ObjectNode fit(Path out, @Nullable String reuse, Path cacheFile) {
+	public ObjectNode fit(Path out, @Nullable String reuse, Path cacheFile, List<String> tunedOn) {
 		String label = (reuse != null) ? reuse : this.stamp.label();
 		RangeCache cache = RangeCache.in(cacheFile, this.log);
-		Sources sources = Sources.of(this.results, label);
+		Sources sources = Sources.of(this.results, label, tunedOn);
 		this.log.line("range fit, engine " + this.stamp.label() + ": " + sources.all().size() + " calibrations, "
 				+ sources.checked() + " with engine " + label + "'s development checks, "
 				+ (sources.all().size() - sources.checked()) + " to derive (or in the cache)");
@@ -174,8 +175,8 @@ public final class RangeFit {
 	 */
 	record Sources(List<RangeSources.Source> all, List<JsonNode> checks, long checked) {
 
-		static Sources of(Path results, String label) {
-			List<RangeSources.Source> all = RangeSources.of(results);
+		static Sources of(Path results, String label, List<String> tunedOn) {
+			List<RangeSources.Source> all = RangeSources.of(results, tunedOn);
 			List<JsonNode> checks = new ArrayList<>();
 			for (RangeSources.Source source : all) {
 				ObjectNode named = NODES.objectNode().put("results", source.source());

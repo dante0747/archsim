@@ -13,6 +13,16 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class KneeRangePageTests {
 
+	@Test
+	void text_noRunPredictedWithARange_saysSo() {
+		ObjectNode fit = (ObjectNode) ResultFiles.read(RepositoryLayout.current().kneeRange()).orElseThrow().deepCopy();
+		((ObjectNode) fit.get("check")).putArray("before");
+
+		String text = KneeRangePage.text(fit);
+
+		assertThat(text.lines()).contains("No run was predicted with a range.");
+	}
+
 	// a fold whose fit had too few runs gives the run no range in it
 	@Test
 	void text_aRunWithoutAFoldsRange_showsADash() {

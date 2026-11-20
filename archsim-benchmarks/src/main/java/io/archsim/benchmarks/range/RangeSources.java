@@ -5,6 +5,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -23,12 +24,14 @@ import io.archsim.benchmarks.values.PythonValues;
 import io.archsim.model.text.PythonText;
 
 /**
- * The calibrations the range is fitted on: for each in-sample experiment, its kept runs
- * from protocol v5 on and its calibration-only trials ({@code results/trials/}), each
- * under the same conditions as the experiment's latest kept run. Held-out experiments
- * have none (they are sealed). A trial folder with a {@code DISCARDED} file is left out:
- * its calibration was taken under conditions it cannot stand for (W26's cache-aside trial
- * of 1 Nov ran with the CPUs at about half their usual clock).
+ * The calibrations the range is fitted on: for each experiment the engine is tuned on,
+ * its kept runs from protocol v5 on and its calibration-only trials
+ * ({@code results/trials/}), each under the same conditions as the experiment's latest
+ * kept run. An experiment registered as held out joins once the engine lists it as tuned
+ * on (ADR-0094); until then it has none (it is sealed). A trial folder with a
+ * {@code DISCARDED} file is left out: its calibration was taken under conditions it
+ * cannot stand for (W26's cache-aside trial of 1 Nov ran with the CPUs at about half
+ * their usual clock).
  */
 final class RangeSources {
 
@@ -50,16 +53,18 @@ final class RangeSources {
 	/**
 	 * The sources under a results folder.
 	 * @param results the results folder
+	 * @param tunedOn the experiments the engine is tuned on ({@code engines.json}), which
+	 * a held-out one must be among to be fitted on
 	 * @return the calibrations, experiment by experiment, each one's kept runs before its
 	 * trials
 	 */
-	static List<Source> of(Path results) {
+	static List<Source> of(Path results, Collection<String> tunedOn) {
 		List<Path> trials = trials(results);
 		List<KeptRun> kept = KeptRuns.of(results);
 		List<Source> sources = new ArrayList<>();
 		for (Experiment experiment : Experiments.standard().all()) {
 			List<KeptRun> runs = kept.stream().filter((run) -> run.experiment().equals(experiment.id())).toList();
-			if (experiment.isHeldOut() || runs.isEmpty()) {
+			if (isSealed(experiment, tunedOn) || runs.isEmpty()) {
 				continue;
 			}
 			List<Source> found = new ArrayList<>();
@@ -112,6 +117,11 @@ final class RangeSources {
 			}
 		}
 		return true;
+	}
+
+	// held out, and not yet among the experiments the engine is tuned on
+	private static boolean isSealed(Experiment experiment, Collection<String> tunedOn) {
+		return experiment.isHeldOut() && !tunedOn.contains(experiment.id());
 	}
 
 	// the calibration-only trials that are not discarded, in their folders' order

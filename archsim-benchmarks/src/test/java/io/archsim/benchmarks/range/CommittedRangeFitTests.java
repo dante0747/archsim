@@ -11,6 +11,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.benchmarks.JsonText;
 import io.archsim.benchmarks.RepositoryLayout;
 import io.archsim.benchmarks.resimulation.CheckStamp;
 import io.archsim.benchmarks.results.KeptRun;
@@ -22,13 +23,13 @@ import io.archsim.model.text.PythonJson;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * {@code benchmarks/knee-range.json}, fitted on 1 Nov 2026 by the Python harness on the
- * frozen engine, refitted here from what it records itself: the calibrations' scales and
- * each checked run's knees and sensitivity, with the range each run's comparison records.
- * The variation, the model's error, the counts, every run's ranges and the whole file but
- * for what names it come out the same. (Its knees and sensitivities were simulated on the
- * frozen engine and its inputs derived by the harness of that day, so no harness of today
- * regenerates the file from the calibrations themselves.)
+ * {@code benchmarks/knee-range.json}, fitted on 20 Nov 2026 by {@code range-fit} with
+ * engine 1.6.0 from {@code 1.6.0-law}'s development checks (ADR-0094), refitted here from
+ * what it records itself: the calibrations' scales and each checked run's knees and
+ * sensitivity, with the range each run's comparison records. The variation, the model's
+ * error, the counts, every run's ranges and the whole file but for what names it come out
+ * the same. (Its knees and sensitivities are simulated and its inputs derived again from
+ * the calibrations, which takes minutes; the test refits from them.)
  */
 class CommittedRangeFitTests {
 
@@ -57,10 +58,10 @@ class CommittedRangeFitTests {
 
 	@Test
 	void document_theCommittedCalibrationsAndRuns_isTheCommittedFileButForWhatNamesIt() {
-		CheckStamp stamp = new CheckStamp("0.16.0", JsonNodeFactory.instance.objectNode(),
-				Clock.fixed(Instant.parse("2026-11-13T12:00:00Z"), ZoneOffset.UTC));
+		CheckStamp stamp = new CheckStamp("1.6.0", JsonNodeFactory.instance.objectNode(),
+				Clock.fixed(Instant.parse("2026-11-20T12:00:00Z"), ZoneOffset.UTC));
 
-		ObjectNode document = RangeFit.document(new RangeFit.Fitted(CALIBRATIONS, RUNS), stamp, "0.16.0");
+		ObjectNode document = RangeFit.document(new RangeFit.Fitted(CALIBRATIONS, RUNS), stamp, "1.6.0-law");
 
 		ObjectNode committed = ((ObjectNode) FIT).deepCopy();
 		NAMES.forEach((name) -> {
@@ -75,21 +76,23 @@ class CommittedRangeFitTests {
 		assertThat(FIT.get("nominalCoverage").doubleValue()).isEqualTo(KneeRanges.COVERAGE);
 	}
 
-	// the four in-sample experiments' counted v5 runs
+	// the counted runs from protocol v5 on of the nine experiments engine 1.6.0 is tuned
+	// on
 	@Test
-	void committedFit_runs_areTwelve() {
-		assertThat(FIT.get("runs").intValue()).isEqualTo(12);
+	void committedFit_runs_areFortyNine() {
+		assertThat(FIT.get("runs").intValue()).isEqualTo(49);
 	}
 
 	@Test
-	void committedFit_experiments_areFour() {
-		assertThat(FIT.get("experiments").intValue()).isEqualTo(4);
+	void committedFit_experiments_areNine() {
+		assertThat(FIT.get("experiments").intValue()).isEqualTo(9);
 	}
 
 	@Test
-	void committedFit_calibrations_areTheFourInSampleExperiments() {
+	void committedFit_calibrations_areTheNineMeasuredExperiments() {
 		assertThat(CALIBRATIONS.stream().map((row) -> row.get("experiment").stringValue()).distinct())
-			.containsExactlyInAnyOrder("pg-mixed", "pg-hot-row", "cache-aside", "kafka");
+			.containsExactlyInAnyOrder("pg-mixed", "pg-hot-row", "cache-aside", "kafka", "java-mixed", "go-mixed",
+					"python-mixed", "chain", "cache-ttl");
 	}
 
 	@Test
@@ -113,13 +116,20 @@ class CommittedRangeFitTests {
 		assertThat(FIT.get("correlation").doubleValue()).isBetween(0.0, 1.0);
 	}
 
-	// the range the runs were predicted with: the replicate sets' knees held 1 of 12
+	// the ranges the runs were predicted with: protocol v5's replicate sets' knees held 1
+	// of 12, W28's range 29 of 37
 	@Test
-	void committedFit_theRangesTheRunsWerePredictedWith_heldOneOfTwelve() {
-		assertThat(FIT.at("/check/before")).isEqualTo(JsonNodeFactory.instance.objectNode()
-			.put("inRange", 1)
-			.put("withRange", 12)
-			.put("nominalCoverage", 0.5));
+	void committedFit_theRangesTheRunsWerePredictedWith_heldOneOfTwelveAndTwentyNineOfThirtySeven() {
+		assertThat(FIT.at("/check/before")).isEqualTo(JsonText.read("""
+				[{"nominalCoverage": 0.5, "inRange": 1, "withRange": 12},
+				 {"nominalCoverage": 0.8, "inRange": 29, "withRange": 37}]"""));
+	}
+
+	// leaving out each run's experiment: 41 of 49 (84%) inside the 80% range, where the
+	// model error fitted on the four tuned-on experiments held 32
+	@Test
+	void committedFit_leavingOutEachExperiment_holdsFortyOneOfFortyNine() {
+		assertThat(FIT.at("/check/counts/leaveExperimentOut/0.8")).isEqualTo(JsonText.read("[41, 49]"));
 	}
 
 	@Test

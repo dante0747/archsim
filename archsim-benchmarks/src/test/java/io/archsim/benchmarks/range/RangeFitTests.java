@@ -140,7 +140,7 @@ class RangeFitTests {
 		Path results = keptRun(root, MEASURED);
 		check(results, LABEL, LABEL);
 
-		RangeFit.Sources sources = RangeFit.Sources.of(results, LABEL);
+		RangeFit.Sources sources = RangeFit.Sources.of(results, LABEL, List.of());
 
 		assertThat(sources.checked()).isOne();
 	}
@@ -150,7 +150,7 @@ class RangeFitTests {
 		Path results = keptRun(root, MEASURED);
 		check(results, "1.0.0", LABEL);
 
-		RangeFit.Sources sources = RangeFit.Sources.of(results, "1.0.0");
+		RangeFit.Sources sources = RangeFit.Sources.of(results, "1.0.0", List.of());
 
 		assertThat(sources.checked()).isZero();
 	}
@@ -159,7 +159,7 @@ class RangeFitTests {
 		CheckStamp stamp = new CheckStamp(LABEL, JsonText.read("{\"commit\": \"abc\"}"), NOON);
 		return new RangeFit(results, new ModelInputs(Simulations.onTheEngine()), stamp,
 				new HarnessLog(new PrintWriter(log), NOON))
-			.fit(results.resolveSibling("knee-range.json"), null, cache);
+			.fit(results.resolveSibling("knee-range.json"), null, cache, List.of());
 	}
 
 	// pg-mixed's one kept run, calibrated under protocol v5, and its comparison

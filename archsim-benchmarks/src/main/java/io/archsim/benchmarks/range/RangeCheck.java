@@ -45,8 +45,8 @@ final class RangeCheck {
 
 	/**
 	 * A range fit: the variation of some calibrations ({@link VariationFit}) and the
-	 * model's error over some runs ({@link ModelError}), each run's calibration spread
-	 * from that variation.
+	 * model's error over some runs ({@link ModelError}: between experiments and within
+	 * them, and the two together), each run's calibration spread from that variation.
 	 * @param calibrations one row per calibration: its experiment, source and scales
 	 * @param runs the runs
 	 * @return the fit: the variation's fields and {@code model}
@@ -55,10 +55,14 @@ final class RangeCheck {
 		ObjectNode fit = VariationFit.of(calibrations);
 		List<Double> spreads = runs.stream().map((run) -> KneeRanges.calibrationSigma(run.sensitivity(), fit)).toList();
 		List<Double> errors = runs.stream().map(CountedRun::error).toList();
+		List<String> experiments = runs.stream().map(CountedRun::experiment).toList();
+		ModelError.Fit model = ModelError.of(errors, spreads, experiments);
 		fit.putObject("model")
-			.put("sigma", PythonRound.round(ModelError.sigma(errors, spreads), DECIMALS))
+			.put("sigma", PythonRound.round(model.sigma(), DECIMALS))
+			.put("between", PythonRound.round(model.between(), DECIMALS))
+			.put("within", PythonRound.round(model.within(), DECIMALS))
 			.put("runs", runs.size())
-			.put("experiments", new HashSet<>(runs.stream().map(CountedRun::experiment).toList()).size());
+			.put("experiments", new HashSet<>(experiments).size());
 		return fit;
 	}
 
