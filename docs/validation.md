@@ -1568,8 +1568,16 @@ What would make it better next, in order:
    37 counted v6 runs' absolute knee errors is 16.2% (`1.6.0-law-host-measured`), and cache-aside
    and Kafka fall to -30% and -27%. The fit's clock comes from the probe of 1 Nov, taken on a
    machine that was throttling: it puts the clock at about 3,600 MHz with 3.8 threads busy, where
-   the check of 20 Nov read 4,040. So the host machine stays off until a full contention check
-   (its probe, about 15 minutes) refits the clock and the sibling speed on a cool, quiet machine.
+   the check of 20 Nov read 4,040. A full contention check the same evening, on a cool, quiet
+   machine (`2026-11-20T17-00-31Z-contention.json`), refitted it: the clock falls from 4,053 MHz
+   with one thread busy to 3,263 with eight (0.805 of the first, where 1 Nov's gave 0.729), a
+   thread sharing its core runs at 0.47 of its speed (rms 10.4% over 22 conditions), 0.90 threads
+   are busy at rest and k6 takes 0.33 ms per request. With it (`1.6.0-law-host-refit`) the median
+   is 14.5%, against 12.9% for the law alone: every experiment but python-mixed (+16%) is
+   predicted low, by up to 29% (cache-aside), where the law alone promises up to 72% too much
+   (java-mixed). Whether the benchmark designs run on the host machine is a decision of its own:
+   the frozen engine that predicts the sealed experiments would have to name the fit
+   ([ADR-0088](adr/0088-freeze-the-java-engine-by-its-sources-and-fix-the-criteria-before-a-campaign.md)).
    What follows is the
    history. Protocol v6 (W26) calibrates to about two thirds of the core, which is
    estimated to bring cache-aside to about -20% (protocol history, above). The rest of the fall

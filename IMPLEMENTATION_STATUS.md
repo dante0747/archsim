@@ -2244,8 +2244,11 @@ After the Java port (ADR 0017), so that none of it is written twice:
      `results/dev/1.6.0-law-host-measured/`): the probe of 1 Nov, taken while the laptop
      throttled, gives a clock that falls faster with busy threads than the check of 20 Nov read
      (4,040 MHz with 3.8 threads busy, where its line gives about 3,600). A full contention check
-     (`contention`, about 15 minutes on a cool, idle laptop) would refit the clock and the sibling
-     speed;
+     the same evening refitted it (clock 0.805 where it was 0.729, sibling 0.47, 0.90 threads at
+     rest, k6 0.33 ms): with it the median is 14.5% (`1.6.0-law-host-refit`), every experiment but
+     python-mixed (+16%) predicted low, by up to 29%, where the law alone over-promises by up to
+     72%. Running the benchmark designs on it is a decision still to make (a freeze must name the
+     fit);
    - the predicted range: refitted on 20 Nov 2026 on all nine experiments engine 1.6.0 is
      tuned on, with an error each experiment's runs share (ADR-0094; leaving out each
      experiment it holds 41 of 49 runs, all eight misses below it). Still open: ranking

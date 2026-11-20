@@ -68,21 +68,21 @@ class HostSwitchTests {
 		assertThat(HostSwitch.fit(Map.of("BENCH_HOST", "on"), results)).contains(FIT);
 	}
 
-	// the checks of 20 Nov ran their service part only, so the probe is 1 Nov's, whose
-	// own service part has no machine at rest; the latest of 20 Nov ran quiet
+	// the latest check with a probe, the full one of 20 Nov 2026, ran quiet: it gives the
+	// machine at rest and k6 as well
 	@Test
-	void fit_switchedOnWithTheCommittedChecks_namesTheProbeAndTheQuietChecksServicePart() {
+	void fit_switchedOnWithTheCommittedChecks_namesTheLatestFullCheckAlone() {
 		MachineFit fit = HostSwitch.fit(Map.of("BENCH_HOST", "on"), RepositoryLayout.current().results()).orElseThrow();
 
-		assertThat(fit.how()).startsWith("contention check 2026-11-01T00:48:59Z (service part 2026-11-20T15:49:06Z)");
+		assertThat(fit.how()).startsWith("contention check 2026-11-20T17:00:31Z: ");
 	}
 
 	@Test
-	void fit_switchedOnWithTheCommittedChecks_takesTheQuietChecksMachineAtRestAndK6() {
+	void fit_switchedOnWithTheCommittedChecks_takesTheLatestFullChecksMachineAtRestAndK6() {
 		MachineFit fit = HostSwitch.fit(Map.of("BENCH_HOST", "on"), RepositoryLayout.current().results()).orElseThrow();
 
 		assertThat(fit).extracting(MachineFit::backgroundThreads, MachineFit::k6CpuMsPerRequest)
-			.containsExactly(0.95, 0.3207);
+			.containsExactly(0.9, 0.3326);
 	}
 
 	private static Path fitFile(Path folder) throws IOException {
