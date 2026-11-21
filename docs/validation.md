@@ -824,7 +824,12 @@ nothing has calibrated, predicted or measured them. Engine 1.6.0, frozen for the
 20 Nov 2026 (tag `engine-1.6.0`), is the only engine that may, from its tag's sources with
 nothing uncommitted and its designs on the host machine its freeze names (`hostFit`);
 otherwise the harness only smoke-tests them (`smoke <experiment>`: 20 req/s for 10 s,
-nothing kept). Each one's registration, its date and the commit that
+nothing kept). Before their campaign's first calibration k6 was checked at the rates
+python-wide and cache-miss reach (ADR-0090), on cache-ttl's stack, which gives it the same
+CPUs (6 and 7) and, unlike chain's, holds 5,000 req/s: from 3,000 to 5,000 req/s it used 0.9
+to 1.2 of its two CPUs and dropped no request once the stack was warm
+([the check](../benchmarks/results/trials/2026-11-21-k6-check/README.md)), so both run as
+registered. Each one's registration, its date and the commit that
 registered its stack, workload and model, is recorded in the harness's `experiments.json`
 (`heldOut`). The report lists the experiments that are registered and have no kept run:
 
