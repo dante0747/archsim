@@ -10,6 +10,16 @@ for when that version changes.
 
 ### Changed
 
+- **The second held-out campaign is published
+  ([ADR-0090](docs/adr/0090-register-a-second-held-out-set-before-the-next-model-change.md)).**
+  The frozen engine 1.6.0 predicted all fourteen experiments before they were measured, three
+  rounds each on 21-23 Nov 2026. The five held-out ones have median knee errors from
+  -24.5% to +15.1%, all within ±25%, and the predicted range held 12 of their 15 runs
+  (python-wide 1 of 3). Over those runs ArchSim's median error (16.5%) ties bottleneck arithmetic's
+  (16.2%); its worst run is -27% against +79%, and none over-predicted capacity by more than 25%
+  against the arithmetic's 7. Only go-pool also meets the latency and stability criteria, and
+  nothing is validated without a second machine. `docs/validation.md`, `/accuracy` and the README
+  lead with these results, misses included, and the report lists the newest held-out set first.
 - **Engine 1.6.0 is frozen to predict the second held-out set
   ([ADR-0088](docs/adr/0088-freeze-the-java-engine-by-its-sources-and-fix-the-criteria-before-a-campaign.md)).**
   Its entry in `benchmarks/engines.json` names the hash over its source trees, the harness's

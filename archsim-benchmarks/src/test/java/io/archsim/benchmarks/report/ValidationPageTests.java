@@ -32,7 +32,7 @@ class ValidationPageTests {
 	private static final List<String> SECOND_SET = List.of("python-cores", "python-wide", "java-hot-row", "go-pool",
 			"cache-miss");
 
-	// the committed page lists the second set only: the list is written from the results
+	// the list is written from the results: the committed page's is empty
 	@Test
 	void render_noResults_listsEveryHeldOutExperimentAsRegistered(@TempDir Path results) throws IOException {
 		Reports.Page page = ValidationPage.render(committedPage(), sources(results));
@@ -43,13 +43,12 @@ class ValidationPageTests {
 	}
 
 	@Test
-	void render_theCommittedResults_listTheSecondSetAndGiveItNoSection() throws IOException {
+	void render_theCommittedResults_giveTheSecondSetASectionEach() throws IOException {
 		Reports.Page page = ValidationPage.render(committedPage(), sources(LAYOUT.results()));
 
+		assertThat(page.text()).contains(RegisteredBlock.ALL_MEASURED);
 		assertThat(SECOND_SET).allSatisfy((experiment) -> assertThat(page.text())
-			.contains(
-					"\n| " + experiment + " | " + Experiments.standard().get(experiment).title() + " | 2026-11-19 |\n")
-			.doesNotContain("<!-- BEGIN GENERATED: " + experiment + " -->"));
+			.contains("## " + experiment + "\n\n<!-- BEGIN GENERATED: " + experiment + " -->\n**"));
 	}
 
 	// a section the page has is always rewritten: it never keeps figures the results lack
@@ -65,7 +64,8 @@ class ValidationPageTests {
 	@Test
 	void render_aMeasuredExperimentWithoutASection_isRefused(@TempDir Path results) throws IOException {
 		Runs.keep(results, "cache-miss");
-		String page = committedPage();
+		String page = committedPage()
+			.replaceAll("(?s)<!-- BEGIN GENERATED: cache-miss -->.*?<!-- END GENERATED: cache-miss -->\n", "");
 
 		assertThatIllegalStateException().isThrownBy(() -> ValidationPage.render(page, sources(results)))
 			.withMessage("docs/validation.md has no generated block 'cache-miss'");

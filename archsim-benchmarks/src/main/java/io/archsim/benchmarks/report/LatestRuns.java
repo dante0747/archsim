@@ -2,7 +2,9 @@ package io.archsim.benchmarks.report;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -16,9 +18,9 @@ import io.archsim.benchmarks.results.KeptRuns;
 import io.archsim.benchmarks.results.ResultFiles;
 
 /**
- * Each experiment's latest run, in the page's order: the held-out experiments first,
- * which test ArchSim on stacks it was not tuned on, then the four it was built with; and
- * the held-out experiments that have no run yet.
+ * Each experiment's latest run, in the page's order: the held-out experiments first, the
+ * newest set leading because no engine has been tuned on it, then the four ArchSim was
+ * built with; and the held-out experiments that have no run yet.
  */
 final class LatestRuns {
 
@@ -27,13 +29,24 @@ final class LatestRuns {
 
 	/**
 	 * The experiments in the page's order.
-	 * @return the held-out experiments, then the tuned-on ones
+	 * @return the held-out experiments, the latest registered first, then the tuned-on
+	 * ones
 	 */
 	static List<Experiment> inPageOrder() {
 		List<Experiment> order = new ArrayList<>();
-		Experiments.standard().all().stream().filter(Experiment::isHeldOut).forEach(order::add);
+		Experiments.standard()
+			.all()
+			.stream()
+			.filter(Experiment::isHeldOut)
+			.sorted(Comparator.comparing(LatestRuns::registered).reversed())
+			.forEach(order::add);
 		Experiments.standard().all().stream().filter((experiment) -> !experiment.isHeldOut()).forEach(order::add);
 		return order;
+	}
+
+	// an ISO date, so its text sorts as the date does
+	private static String registered(Experiment experiment) {
+		return Objects.requireNonNull(experiment.heldOut(), experiment.id()).registered();
 	}
 
 	/**

@@ -16,10 +16,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 /**
- * The tier criteria on the committed results: the held-out campaign of 3-4 Nov 2026,
- * three runs each under protocol v6 and the frozen engine 0.16.0, and the four tuned-on
- * experiments with a repeat of 4 Nov added to the v6 campaign's three, in which hot-row's
- * and Kafka's first runs were disturbed.
+ * The tier criteria on the committed results: the second held-out campaign of 21-23 Nov
+ * 2026, three runs of all fourteen experiments under protocol v7 and the frozen engine
+ * 1.6.0, in which Kafka's third run was disturbed.
  */
 class CommittedCriteriaTests {
 
@@ -31,11 +30,14 @@ class CommittedCriteriaTests {
 		CRITERIA.forEach((experiment, criteria) -> misses.put(experiment,
 				criteria.at("/p95/misses").valueStream().map(JsonNode::intValue).toList()));
 
-		assertThat(misses).containsExactly(Map.entry("java-mixed", List.of()), Map.entry("go-mixed", List.of()),
-				Map.entry("python-mixed", List.of(440)), Map.entry("chain", List.of(3338)),
-				Map.entry("cache-ttl", List.of()), Map.entry("pg-mixed", List.of(3900)),
-				Map.entry("pg-hot-row", List.of(856, 942)), Map.entry("cache-aside", List.of(5650, 6215)),
-				Map.entry("kafka", List.of(1566, 1879, 2297)));
+		assertThat(misses).containsExactly(Map.entry("python-cores", List.of(1631)),
+				Map.entry("python-wide", List.of(1862, 2048, 2328)), Map.entry("java-hot-row", List.of(871, 968)),
+				Map.entry("go-pool", List.of()), Map.entry("cache-miss", List.of(4180)),
+				Map.entry("java-mixed", List.of(4590, 5100)), Map.entry("go-mixed", List.of(5535)),
+				Map.entry("python-mixed", List.of()), Map.entry("chain", List.of(2569, 3082)),
+				Map.entry("cache-ttl", List.of(5200, 5720)), Map.entry("pg-mixed", List.of(3400, 3740, 4250)),
+				Map.entry("pg-hot-row", List.of(940)), Map.entry("cache-aside", List.of(5450, 5995)),
+				Map.entry("kafka", List.of(1772, 2126)));
 	}
 
 	@Test
@@ -44,43 +46,50 @@ class CommittedCriteriaTests {
 		CRITERIA.forEach((experiment, criteria) -> runs.put(experiment,
 				List.of(criteria.at("/knee/runs").intValue(), criteria.at("/knee/disturbedRuns").intValue())));
 
-		assertThat(runs).containsExactly(Map.entry("java-mixed", List.of(3, 0)), Map.entry("go-mixed", List.of(3, 0)),
+		assertThat(runs).containsExactly(Map.entry("python-cores", List.of(3, 0)),
+				Map.entry("python-wide", List.of(3, 0)), Map.entry("java-hot-row", List.of(3, 0)),
+				Map.entry("go-pool", List.of(3, 0)), Map.entry("cache-miss", List.of(3, 0)),
+				Map.entry("java-mixed", List.of(3, 0)), Map.entry("go-mixed", List.of(3, 0)),
 				Map.entry("python-mixed", List.of(3, 0)), Map.entry("chain", List.of(3, 0)),
-				Map.entry("cache-ttl", List.of(3, 0)), Map.entry("pg-mixed", List.of(6, 0)),
-				Map.entry("pg-hot-row", List.of(5, 1)), Map.entry("cache-aside", List.of(6, 0)),
-				Map.entry("kafka", List.of(5, 1)));
+				Map.entry("cache-ttl", List.of(3, 0)), Map.entry("pg-mixed", List.of(3, 0)),
+				Map.entry("pg-hot-row", List.of(3, 0)), Map.entry("cache-aside", List.of(3, 0)),
+				Map.entry("kafka", List.of(2, 1)));
 	}
 
 	@Test
 	void criteria_theCommittedResults_judgeTheseMedianKneeErrors() {
-		Map<String, Double> errors = Map.of("java-mixed", 0.7002, "go-mixed", 0.6666, "python-mixed", 0.2910, "chain",
-				0.3039, "cache-ttl", -0.0582, "pg-mixed", 0.1591, "pg-hot-row", -0.0953, "cache-aside", -0.2253,
-				"kafka", -0.0303);
+		Map<String, Double> errors = Map.ofEntries(Map.entry("python-cores", -0.0009),
+				Map.entry("python-wide", -0.2455), Map.entry("java-hot-row", -0.0330), Map.entry("go-pool", 0.1515),
+				Map.entry("cache-miss", -0.1888), Map.entry("java-mixed", -0.0780), Map.entry("go-mixed", -0.0370),
+				Map.entry("python-mixed", 0.1100), Map.entry("chain", -0.0008), Map.entry("cache-ttl", -0.1773),
+				Map.entry("pg-mixed", 0.1090), Map.entry("pg-hot-row", 0.0398), Map.entry("cache-aside", -0.1823),
+				Map.entry("kafka", -0.1785));
 
 		assertThat(CRITERIA).containsOnlyKeys(errors.keySet())
 			.allSatisfy((experiment, criteria) -> assertThat(criteria.at("/knee/error").doubleValue())
 				.isCloseTo(errors.get(experiment), within(1e-4)));
 	}
 
+	// Kafka's disturbed third run leaves it two counted runs, and the criterion needs
+	// three
 	@Test
-	void criteria_theCommittedResults_meetCriterionOneForCacheTtlAndTheTunedOnFour() {
-		assertThat(passing("knee")).containsExactly("cache-ttl", "pg-mixed", "pg-hot-row", "cache-aside", "kafka");
-	}
-
-	// a factor of two either way: java-mixed and go-mixed pass on the
-	// two light steps below their early knees, cache-ttl on all five
-	@Test
-	void criteria_theCommittedResults_meetCriterionTwoForThree() {
-		assertThat(passing("p95")).containsExactly("java-mixed", "go-mixed", "cache-ttl");
+	void criteria_theCommittedResults_meetCriterionOneForAllButKafka() {
+		assertThat(CRITERIA.keySet()).filteredOn((experiment) -> !passing("knee").contains(experiment))
+			.containsExactly("kafka");
 	}
 
 	@Test
-	void criteria_theCommittedResults_meetCriterionThreeAForAllButTwo() {
-		assertThat(CRITERIA.keySet()).filteredOn((experiment) -> !passing("stable").contains(experiment))
-			.containsExactly("pg-mixed", "pg-hot-row");
+	void criteria_theCommittedResults_meetCriterionTwoForGoPoolAlone() {
+		assertThat(passing("p95")).containsExactly("go-pool");
 	}
 
-	// every run under v6 was on the same laptop: a second machine is needed
+	@Test
+	void criteria_theCommittedResults_meetCriterionThreeAForSix() {
+		assertThat(passing("stable")).containsExactly("go-pool", "cache-miss", "python-mixed", "cache-ttl",
+				"pg-hot-row", "cache-aside");
+	}
+
+	// every run under v7 was on the same laptop: a second machine is needed
 	@Test
 	void criteria_theCommittedResults_areNotReproducedOnASecondMachine() {
 		assertThat(CRITERIA.values()).allMatch((criteria) -> criteria.at("/reproduced/machines").intValue() == 1)
@@ -89,20 +98,14 @@ class CommittedCriteriaTests {
 	}
 
 	@Test
-	void criteria_theCommittedResults_lookAtSixRunsOfTheTunedOnAndThreeOfTheHeldOut() {
-		Map<String, Integer> runs = new LinkedHashMap<>();
-		CRITERIA.forEach((experiment, criteria) -> runs.put(experiment, criteria.at("/reproduced/runs").intValue()));
-
-		assertThat(runs).containsExactly(Map.entry("java-mixed", 3), Map.entry("go-mixed", 3),
-				Map.entry("python-mixed", 3), Map.entry("chain", 3), Map.entry("cache-ttl", 3),
-				Map.entry("pg-mixed", 6), Map.entry("pg-hot-row", 6), Map.entry("cache-aside", 6),
-				Map.entry("kafka", 6));
+	void criteria_theCommittedResults_lookAtThreeRunsOfEachExperiment() {
+		assertThat(CRITERIA.values()).allMatch((criteria) -> criteria.at("/reproduced/runs").intValue() == 3);
 	}
 
 	@Test
-	void stable_pgHotRow_isUnstableAtItsHighestStepBelowTheKnee() {
-		assertThat(Objects.requireNonNull(CRITERIA.get("pg-hot-row")).at("/stable/unstable"))
-			.isEqualTo(Runs.rates(942));
+	void stable_javaHotRow_isUnstableAtItsHighestStepBelowTheKnee() {
+		assertThat(Objects.requireNonNull(CRITERIA.get("java-hot-row")).at("/stable/unstable"))
+			.isEqualTo(Runs.rates(968));
 	}
 
 	private static List<String> passing(String criterion) {

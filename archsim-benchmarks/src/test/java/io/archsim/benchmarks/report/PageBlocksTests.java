@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -14,6 +15,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import io.archsim.benchmarks.JsonText;
+import io.archsim.benchmarks.ProtocolV6Runs;
 import io.archsim.benchmarks.RepositoryLayout;
 import io.archsim.benchmarks.ResultCopies;
 import io.archsim.benchmarks.docker.Cpusets;
@@ -34,8 +36,8 @@ class PageBlocksTests {
 	private static final Cpusets CPUSETS = Cpusets.declaredIn(LAYOUT.compose());
 
 	@Test
-	void resources_theCommittedResults_showEachPartAtTheTopStepBelowBothKnees() {
-		String block = ResourcesBlock.of(latestComparisons());
+	void resources_theLastV6Runs_showEachPartAtTheTopStepBelowBothKnees() {
+		String block = ResourcesBlock.of(lastV6Comparisons());
 
 		assertThat(block)
 			.contains("| [pg-mixed](#pg-mixed) | Node.js service | 3,900 | 0.79 | 0.75 | -5% | 4% (3) | "
@@ -48,7 +50,7 @@ class PageBlocksTests {
 	// memory is shown only where it was measured, never a prediction alone
 	@Test
 	void resources_aPartNotModelled_saysSoAndShowsNoPredictedMemory() {
-		String block = ResourcesBlock.of(latestComparisons());
+		String block = ResourcesBlock.of(lastV6Comparisons());
 
 		assertThat(block)
 			.contains("| [kafka](#kafka) | Node.js consumer | 2,088 | 0.30 | not modelled | - | - | 182 MiB | - | - |");
@@ -96,8 +98,9 @@ class PageBlocksTests {
 		String block = EnvironmentBlock.of(environments, CPUSETS);
 
 		assertThat(block).contains("- CPU for pg-mixed: 11th Gen Intel(R) Core(TM) i7-1165G7")
-			.contains("- CPU for java-mixed, go-mixed, python-mixed, chain, cache-ttl, pg-hot-row, cache-aside and "
-					+ "kafka: 11th Gen Intel(R) Core(TM) i7-1165G7");
+			.contains("- CPU for python-cores, python-wide, java-hot-row, go-pool, cache-miss, java-mixed, go-mixed, "
+					+ "python-mixed, chain, cache-ttl, pg-hot-row, cache-aside and kafka: 11th Gen Intel(R) Core(TM) "
+					+ "i7-1165G7");
 	}
 
 	@Test
@@ -132,8 +135,8 @@ class PageBlocksTests {
 	}
 
 	@Test
-	void experiment_pgMixed_namesItsRealCalibrationRates() {
-		String block = ExperimentBlock.of(Experiments.standard().get("pg-mixed"), LAYOUT.results());
+	void experiment_pgMixed_namesItsRealCalibrationRates(@TempDir Path results) throws IOException {
+		String block = lastV6Block("pg-mixed", results);
 
 		assertThat(block).contains("calibration passes at 50, 793, 2,610 and 3,262 req/s")
 			.contains("Measured in the calibration pass at 3,262 req/s")
@@ -141,11 +144,11 @@ class PageBlocksTests {
 			.doesNotContain("(50 req/s):");
 	}
 
-	// its last staircase stopped at its second pass: half the
+	// its last v6 staircase stopped at its second pass: half the
 	// consumers' capacity that pass implied was below the next step
 	@Test
-	void experiment_kafka_namesTheTwoPassesItsStaircaseClimbed() {
-		String block = ExperimentBlock.of(Experiments.standard().get("kafka"), LAYOUT.results());
+	void experiment_kafka_namesTheTwoPassesItsStaircaseClimbed(@TempDir Path results) throws IOException {
+		String block = lastV6Block("kafka", results);
 
 		assertThat(block).contains("calibration passes at 50 and 406 req/s");
 	}
@@ -160,25 +163,26 @@ class PageBlocksTests {
 			.contains("Measured in the calibration pass at 346 req/s");
 	}
 
-	// java-mixed's latest run: its repeats at 5,925 req/s dropped 7.7%, 2.8% and 2.6%
+	// java-mixed's last v6 run: its repeats at 5,925 req/s dropped 7.7%, 2.8% and 2.6%
 	@Test
-	void experiment_aStepK6DroppedRequestsIn_showsTheMedianShareOfItsRepeats() {
-		String block = ExperimentBlock.of(Experiments.standard().get("java-mixed"), LAYOUT.results());
+	void experiment_aStepK6DroppedRequestsIn_showsTheMedianShareOfItsRepeats(@TempDir Path results) throws IOException {
+		String block = lastV6Block("java-mixed", results);
 
 		assertThat(block).contains("| 97% / 100% | 2.8% | 5,758 / 5,925 |");
 	}
 
 	// 43% at 11,850 req/s: no decimal from 10% on
 	@Test
-	void experiment_aStepK6DroppedATenthOrMoreOf_showsAWholePercent() {
-		String block = ExperimentBlock.of(Experiments.standard().get("java-mixed"), LAYOUT.results());
+	void experiment_aStepK6DroppedATenthOrMoreOf_showsAWholePercent(@TempDir Path results) throws IOException {
+		String block = lastV6Block("java-mixed", results);
 
 		assertThat(block).contains("| 57% / 0% | 43% | 6,778 / 394 |");
 	}
 
 	@Test
-	void experiment_aRunBeforeProtocolV7ThatDroppedRequests_saysHowK6AddedItsVirtualUsers() {
-		String block = ExperimentBlock.of(Experiments.standard().get("java-mixed"), LAYOUT.results());
+	void experiment_aRunBeforeProtocolV7ThatDroppedRequests_saysHowK6AddedItsVirtualUsers(@TempDir Path results)
+			throws IOException {
+		String block = lastV6Block("java-mixed", results);
 
 		assertThat(block).contains("Dropped: the share of the step's requests k6 never sent")
 			.contains("added more one at a time, up to 3,000, dropping requests meanwhile")
@@ -186,8 +190,8 @@ class PageBlocksTests {
 	}
 
 	@Test
-	void experiment_aStepEveryRequestWasSentIn_showsNone() {
-		String block = ExperimentBlock.of(Experiments.standard().get("java-mixed"), LAYOUT.results());
+	void experiment_aStepEveryRequestWasSentIn_showsNone(@TempDir Path results) throws IOException {
+		String block = lastV6Block("java-mixed", results);
 
 		assertThat(block).contains("| 100% / 100% | - | 3,950 / 3,950 |");
 	}
@@ -195,8 +199,9 @@ class PageBlocksTests {
 	// hot-row's 856 req/s step: one repeat dropped 0.01%, the others nothing, so the
 	// median is none
 	@Test
-	void experiment_aStepOneRepeatDroppedAFewRequestsIn_showsTheMedianOfItsRepeats() {
-		String block = ExperimentBlock.of(Experiments.standard().get("pg-hot-row"), LAYOUT.results());
+	void experiment_aStepOneRepeatDroppedAFewRequestsIn_showsTheMedianOfItsRepeats(@TempDir Path results)
+			throws IOException {
+		String block = lastV6Block("pg-hot-row", results);
 
 		assertThat(block).contains("| 100% / 100% | - | 856 / 854 |");
 	}
@@ -205,7 +210,7 @@ class PageBlocksTests {
 	@Test
 	void experiment_aRunThatRecordsItsGenerator_saysHowManyArrivalsK6CouldHold(@TempDir Path results)
 			throws IOException {
-		ResultCopies.copy(LAYOUT.results().resolve("java-mixed"), results.resolve("java-mixed"));
+		ResultCopies.copy(ProtocolV6Runs.of("java-mixed"), results.resolve("java-mixed"));
 		Path file = results.resolve("java-mixed/measured.json");
 		ObjectNode measured = (ObjectNode) ResultFiles.read(file).orElseThrow();
 		((ObjectNode) measured.get("steps").get(0)).putObject("generator").put("virtualUsers", 1038).put("coverS", 0.5);
@@ -237,7 +242,7 @@ class PageBlocksTests {
 	@Test
 	void experiment_aKneePredictedAtSeveralSeeds_saysWhichIsThePredictionAndHowFarApartTheyLay(@TempDir Path results)
 			throws IOException {
-		ResultCopies.copy(LAYOUT.results().resolve("java-mixed"), results.resolve("java-mixed"));
+		ResultCopies.copy(ProtocolV6Runs.of("java-mixed"), results.resolve("java-mixed"));
 		Path file = results.resolve("java-mixed/comparison.json");
 		ObjectNode comparison = (ObjectNode) ResultFiles.read(file).orElseThrow();
 		comparison.set("predictedKneeBySeed", JsonText.read("""
@@ -251,8 +256,8 @@ class PageBlocksTests {
 	}
 
 	@Test
-	void experiment_aKneeBetweenTwoSteps_namesThem() {
-		String block = ExperimentBlock.of(Experiments.standard().get("java-mixed"), LAYOUT.results());
+	void experiment_aKneeBetweenTwoSteps_namesThem(@TempDir Path results) throws IOException {
+		String block = lastV6Block("java-mixed", results);
 
 		assertThat(block).contains("Knee: measured 4,650 req/s (between the steps at 3,950 and 5,925 req/s), "
 				+ "predicted 7,907 req/s on the same steps (+70%)");
@@ -270,15 +275,28 @@ class PageBlocksTests {
 			.doesNotContain("0.00");
 	}
 
-	// java-mixed's latest run with a knee-search step at 4,444 req/s in its comparison
+	// java-mixed's last v6 run with a knee-search step at 4,444 req/s in its comparison
 	private static Path withAKneeSearchStep(Path results) throws IOException {
-		ResultCopies.copy(LAYOUT.results().resolve("java-mixed"), results.resolve("java-mixed"));
+		ResultCopies.copy(ProtocolV6Runs.of("java-mixed"), results.resolve("java-mixed"));
 		Path file = results.resolve("java-mixed/comparison.json");
 		ObjectNode comparison = (ObjectNode) ResultFiles.read(file).orElseThrow();
 		comparison.putArray("kneeSearchRows")
 			.add(((ObjectNode) comparison.get("rows").get(1).deepCopy()).put("offeredRps", 4444));
 		ResultFiles.write(file, comparison);
 		return results;
+	}
+
+	// an experiment's section as its last run under protocol v6 shows it
+	private static String lastV6Block(String experiment, Path results) throws IOException {
+		ResultCopies.copy(ProtocolV6Runs.of(experiment), results.resolve(experiment));
+		return ExperimentBlock.of(Experiments.standard().get(experiment), results);
+	}
+
+	private static List<JsonNode> lastV6Comparisons() {
+		return Stream.of("pg-mixed", "cache-aside", "kafka")
+			.map((experiment) -> ResultFiles.read(ProtocolV6Runs.of(experiment).resolve("comparison.json"))
+				.orElseThrow())
+			.toList();
 	}
 
 	private static List<JsonNode> latestComparisons() {

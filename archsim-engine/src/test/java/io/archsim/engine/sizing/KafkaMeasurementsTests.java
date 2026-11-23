@@ -74,11 +74,12 @@ class KafkaMeasurementsTests {
 		return Math.round(value * scale) / scale;
 	}
 
-	// the steps the broker kept up with: nothing left in its backlog at the end
+	// the steps the broker kept up with in the run the sizer's figures were fitted on:
+	// nothing left in its backlog at the end
 	private static List<JsonNode> keptUp() {
 		try {
 			JsonNode measured = JSON
-				.readTree(Files.readString(Repository.root().resolve("benchmarks/results/kafka/measured.json")));
+				.readTree(Files.readString(Repository.root().resolve("benchmarks/results/kafka/run-11/measured.json")));
 			return measured.path("steps")
 				.valueStream()
 				.filter((step) -> step.path("queue").path("backlogAtEnd").asLong(-1) == 0)

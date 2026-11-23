@@ -8,7 +8,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
-import io.archsim.benchmarks.RepositoryLayout;
+import io.archsim.benchmarks.ProtocolV6Runs;
 import io.archsim.benchmarks.designs.Simulations;
 import io.archsim.benchmarks.experiments.Experiment;
 import io.archsim.benchmarks.experiments.Experiments;
@@ -30,8 +30,7 @@ class SeedKneesTests {
 
 	@BeforeAll
 	static void search() {
-		JsonNode calibration = ResultFiles
-			.read(RepositoryLayout.current().results().resolve("pg-hot-row/calibration.json"))
+		JsonNode calibration = ResultFiles.read(ProtocolV6Runs.of("pg-hot-row").resolve("calibration.json"))
 			.orElseThrow();
 		bySeed = new SeedKnees(Simulations.onTheEngine(), List.of(1, 2)).of(HOT_ROW, calibration.get("inputs"), KNEE);
 	}

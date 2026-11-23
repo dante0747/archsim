@@ -553,7 +553,7 @@ export function AccuracyPage({ data, header = <AppHeader />, footer = <AppFooter
             <dl className="mt-8 grid grid-cols-2 gap-x-8 gap-y-6 sm:flex sm:flex-wrap sm:gap-x-12">
               {[
                 held.length
-                  ? [`${heldWithin} of ${held.length}`, `held-out knees predicted within ±${Math.round(t.kneeError * 100)}%`]
+                  ? [`${heldWithin} of ${held.length}`, `held-out knees predicted within ±${Math.round(t.kneeError * 100)}%, latest run of each`]
                   : [`${s.kneeWithinTolerance.length} of ${n}`, `capacity knees predicted within ±${Math.round(t.kneeError * 100)}%`],
                 [minus(s.kneeErrorRangeText), "range of the knee errors"],
                 [`${s.validated.length} of ${n}`, "experiments meet every proposed threshold"],

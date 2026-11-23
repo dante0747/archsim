@@ -2,6 +2,8 @@ package io.archsim.benchmarks.results;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 /**
  * One kept run of an experiment: its results folder, {@code run-N/} for an older run or
@@ -55,6 +57,17 @@ public record KeptRun(String experiment, Path directory) {
 	 */
 	public Path file(String name) {
 		return this.directory.resolve(name + ".json");
+	}
+
+	/**
+	 * The run's folder as a development check names it.
+	 * @param results the results folder
+	 * @return its path under that folder, with forward slashes
+	 */
+	public String folderUnder(Path results) {
+		return StreamSupport.stream(results.relativize(this.directory).spliterator(), false)
+			.map(Path::toString)
+			.collect(Collectors.joining("/"));
 	}
 
 	/**

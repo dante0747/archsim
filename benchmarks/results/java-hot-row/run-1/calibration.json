@@ -1,0 +1,3989 @@
+{
+  "experiment": "java-hot-row",
+  "at": "2026-11-21T02:50:31Z",
+  "protocol": "v7",
+  "method": "staircase up and down, CPU per request net of idle at the top rate, median of 3 replicates, anchored at the top rate, settled first (v7)",
+  "settle": {
+    "at": "2026-11-21T02:39:20Z",
+    "seconds": 32.1,
+    "steps": [
+      "VACUUM ANALYZE",
+      "CHECKPOINT",
+      "30 s warm-up at 50 req/s"
+    ]
+  },
+  "idle": {
+    "seconds": 20,
+    "containerCpuMsPerSecond": {
+      "api-java": 3.0338,
+      "postgres": 12.3384
+    },
+    "serviceCpuMsPerSecond": 3.0,
+    "workingSetMiB": {
+      "api-java": 938.7,
+      "postgres": 109.3
+    }
+  },
+  "staircaseRule": {
+    "cpuCap": 0.65,
+    "boundShare": 0.5,
+    "p95CapMs": 10.0,
+    "maxRises": 5,
+    "minRise": 1.1
+  },
+  "staircaseRps": [
+    50,
+    231.0,
+    386.0,
+    447.0
+  ],
+  "capacityBoundRps": 461.1,
+  "passes": {
+    "low": {
+      "mix": "hot:1",
+      "rateRps": 50,
+      "k6": {
+        "p50": 3.056544,
+        "p95": 4.267453,
+        "p99": 4.628696,
+        "mean": 3.0953862331778836,
+        "sent": 1501,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 1501,
+        "successRate": 1.0,
+        "throughputRps": 50.03333333333333
+      },
+      "service": {
+        "role": "api",
+        "runtime": "java 21.0.13.1",
+        "requests": 1501,
+        "wallMs": 37252.914007,
+        "cpuMs": 1310.0,
+        "cpuMsPerRequest": 0.8727514990006662,
+        "gc": {
+          "collections": 0,
+          "pauseMs": 0.0,
+          "collectors": [
+            "G1 Young Generation",
+            "G1 Concurrent GC",
+            "G1 Old Generation"
+          ]
+        },
+        "counters": {},
+        "timings": {
+          "handler": {
+            "count": 1501,
+            "mean": 2.481550617588273,
+            "median": 2.45983,
+            "p95": 3.402561,
+            "p99": 3.755448
+          },
+          "own": {
+            "count": 1501,
+            "mean": 0.31273367488341075,
+            "median": 0.2996629999999998,
+            "p95": 0.4554100000000001,
+            "p99": 0.5558880000000002
+          },
+          "db_write": {
+            "count": 1501,
+            "mean": 2.168816942704863,
+            "median": 2.152107,
+            "p95": 2.996774,
+            "p99": 3.328274
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api-java": 1441.94,
+        "postgres": 1306.686
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 28.98,
+        "readings": 7,
+        "containers": {
+          "api-java": {
+            "cores": 0.0459,
+            "maxCores": 0.0485,
+            "workingSetMiB": 942.0,
+            "anonMiB": 908.8
+          },
+          "postgres": {
+            "cores": 0.0394,
+            "maxCores": 0.0449,
+            "workingSetMiB": 109.3,
+            "anonMiB": 20.1
+          }
+        }
+      },
+      "postgres": {
+        "statements": [
+          {
+            "kind": "write",
+            "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+            "calls": 1501,
+            "rows": 1501,
+            "meanExecMs": 0.09260596868754166,
+            "stddevExecMs": 0.03317328659255992,
+            "minExecMs": 0.041607000000000005,
+            "maxExecMs": 0.648025
+          }
+        ],
+        "wal": {
+          "records": 4595,
+          "bytes": 254252,
+          "buffersFull": 0,
+          "writes": 1533,
+          "syncs": 1533,
+          "writeMs": 43.664,
+          "syncMs": 2379.568
+        },
+        "database": {
+          "commits": 1640,
+          "rollbacks": 0,
+          "activeMs": 2740.284,
+          "sessionMs": 256850.5
+        },
+        "cpuMsByProcess": {
+          "backends": 230.0,
+          "background": 10.0,
+          "walWriter": 10.0
+        }
+      },
+      "label": "up 1"
+    },
+    "high": {
+      "mix": "hot:1",
+      "rateRps": 447.0,
+      "k6": {
+        "p50": 1.274149,
+        "p95": 2.482548,
+        "p99": 3.8455484999999885,
+        "mean": 1.5451760044739389,
+        "sent": 13411,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 13411,
+        "successRate": 1.0,
+        "throughputRps": 447.03333333333336
+      },
+      "service": {
+        "role": "api",
+        "runtime": "java 21.0.13.1",
+        "requests": 13411,
+        "wallMs": 37218.978598,
+        "cpuMs": 5260.0,
+        "cpuMsPerRequest": 0.3922153456118112,
+        "gc": {
+          "collections": 1,
+          "pauseMs": 25.0,
+          "collectors": [
+            "G1 Young Generation",
+            "G1 Concurrent GC",
+            "G1 Old Generation"
+          ]
+        },
+        "counters": {},
+        "timings": {
+          "handler": {
+            "count": 13411,
+            "mean": 1.3033086754157028,
+            "median": 1.086355,
+            "p95": 2.131489,
+            "p99": 3.209569
+          },
+          "own": {
+            "count": 13411,
+            "mean": 0.16575758362538165,
+            "median": 0.12884600000000013,
+            "p95": 0.348217,
+            "p99": 0.513698
+          },
+          "db_write": {
+            "count": 13411,
+            "mean": 1.1375510917903198,
+            "median": 0.95695,
+            "p95": 1.771469,
+            "p99": 2.833223
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api-java": 5405.108,
+        "postgres": 3627.443
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 29.0,
+        "readings": 7,
+        "containers": {
+          "api-java": {
+            "cores": 0.177,
+            "maxCores": 0.2041,
+            "workingSetMiB": 954.0,
+            "anonMiB": 918.1
+          },
+          "postgres": {
+            "cores": 0.1174,
+            "maxCores": 0.1394,
+            "workingSetMiB": 111.1,
+            "anonMiB": 20.8
+          }
+        }
+      },
+      "postgres": {
+        "statements": [
+          {
+            "kind": "write",
+            "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+            "calls": 13411,
+            "rows": 13411,
+            "meanExecMs": 0.08911136238908364,
+            "stddevExecMs": 0.5528420446712977,
+            "minExecMs": 0.021403000000000002,
+            "maxExecMs": 17.813955999999997
+          }
+        ],
+        "wal": {
+          "records": 27561,
+          "bytes": 1476165,
+          "buffersFull": 0,
+          "writes": 13488,
+          "syncs": 13488,
+          "writeMs": 153.541,
+          "syncMs": 11027.475
+        },
+        "database": {
+          "commits": 13520,
+          "rollbacks": 0,
+          "activeMs": 13136.276,
+          "sessionMs": 347493.103
+        },
+        "cpuMsByProcess": {
+          "backends": 3030.0,
+          "background": 10.0,
+          "walWriter": 0.0
+        }
+      },
+      "label": "up 4"
+    },
+    "idle": {
+      "seconds": 20,
+      "containerCpuMsPerSecond": {
+        "api-java": 3.0338,
+        "postgres": 12.3384
+      },
+      "serviceCpuMsPerSecond": 3.0,
+      "workingSetMiB": {
+        "api-java": 938.7,
+        "postgres": 109.3
+      }
+    },
+    "staircase": [
+      {
+        "mix": "hot:1",
+        "rateRps": 50,
+        "k6": {
+          "p50": 3.056544,
+          "p95": 4.267453,
+          "p99": 4.628696,
+          "mean": 3.0953862331778836,
+          "sent": 1501,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 1501,
+          "successRate": 1.0,
+          "throughputRps": 50.03333333333333
+        },
+        "service": {
+          "role": "api",
+          "runtime": "java 21.0.13.1",
+          "requests": 1501,
+          "wallMs": 37252.914007,
+          "cpuMs": 1310.0,
+          "cpuMsPerRequest": 0.8727514990006662,
+          "gc": {
+            "collections": 0,
+            "pauseMs": 0.0,
+            "collectors": [
+              "G1 Young Generation",
+              "G1 Concurrent GC",
+              "G1 Old Generation"
+            ]
+          },
+          "counters": {},
+          "timings": {
+            "handler": {
+              "count": 1501,
+              "mean": 2.481550617588273,
+              "median": 2.45983,
+              "p95": 3.402561,
+              "p99": 3.755448
+            },
+            "own": {
+              "count": 1501,
+              "mean": 0.31273367488341075,
+              "median": 0.2996629999999998,
+              "p95": 0.4554100000000001,
+              "p99": 0.5558880000000002
+            },
+            "db_write": {
+              "count": 1501,
+              "mean": 2.168816942704863,
+              "median": 2.152107,
+              "p95": 2.996774,
+              "p99": 3.328274
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api-java": 1441.94,
+          "postgres": 1306.686
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 28.98,
+          "readings": 7,
+          "containers": {
+            "api-java": {
+              "cores": 0.0459,
+              "maxCores": 0.0485,
+              "workingSetMiB": 942.0,
+              "anonMiB": 908.8
+            },
+            "postgres": {
+              "cores": 0.0394,
+              "maxCores": 0.0449,
+              "workingSetMiB": 109.3,
+              "anonMiB": 20.1
+            }
+          }
+        },
+        "postgres": {
+          "statements": [
+            {
+              "kind": "write",
+              "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+              "calls": 1501,
+              "rows": 1501,
+              "meanExecMs": 0.09260596868754166,
+              "stddevExecMs": 0.03317328659255992,
+              "minExecMs": 0.041607000000000005,
+              "maxExecMs": 0.648025
+            }
+          ],
+          "wal": {
+            "records": 4595,
+            "bytes": 254252,
+            "buffersFull": 0,
+            "writes": 1533,
+            "syncs": 1533,
+            "writeMs": 43.664,
+            "syncMs": 2379.568
+          },
+          "database": {
+            "commits": 1640,
+            "rollbacks": 0,
+            "activeMs": 2740.284,
+            "sessionMs": 256850.5
+          },
+          "cpuMsByProcess": {
+            "backends": 230.0,
+            "background": 10.0,
+            "walWriter": 10.0
+          }
+        },
+        "label": "up 1"
+      },
+      {
+        "mix": "hot:1",
+        "rateRps": 231.0,
+        "k6": {
+          "p50": 1.569979,
+          "p95": 2.8274345,
+          "p99": 3.4135039999999983,
+          "mean": 1.7641205101716955,
+          "sent": 6931,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 6931,
+          "successRate": 1.0,
+          "throughputRps": 231.03333333333333
+        },
+        "service": {
+          "role": "api",
+          "runtime": "java 21.0.13.1",
+          "requests": 6931,
+          "wallMs": 37148.09855,
+          "cpuMs": 3050.0,
+          "cpuMsPerRequest": 0.4400519405569182,
+          "gc": {
+            "collections": 0,
+            "pauseMs": 0.0,
+            "collectors": [
+              "G1 Young Generation",
+              "G1 Concurrent GC",
+              "G1 Old Generation"
+            ]
+          },
+          "counters": {},
+          "timings": {
+            "handler": {
+              "count": 6931,
+              "mean": 1.471505511758769,
+              "median": 1.326692,
+              "p95": 2.299261,
+              "p99": 2.819827
+            },
+            "own": {
+              "count": 6931,
+              "mean": 0.17472913706535792,
+              "median": 0.13731499999999985,
+              "p95": 0.352422,
+              "p99": 0.4905290000000002
+            },
+            "db_write": {
+              "count": 6931,
+              "mean": 1.2967763746934067,
+              "median": 1.188102,
+              "p95": 1.950865,
+              "p99": 2.404153
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api-java": 3188.907,
+          "postgres": 2337.84
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 28.99,
+          "readings": 7,
+          "containers": {
+            "api-java": {
+              "cores": 0.1034,
+              "maxCores": 0.1122,
+              "workingSetMiB": 947.7,
+              "anonMiB": 913.2
+            },
+            "postgres": {
+              "cores": 0.0753,
+              "maxCores": 0.0809,
+              "workingSetMiB": 111.0,
+              "anonMiB": 21.2
+            }
+          }
+        },
+        "postgres": {
+          "statements": [
+            {
+              "kind": "write",
+              "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+              "calls": 6931,
+              "rows": 6931,
+              "meanExecMs": 0.07229164464002304,
+              "stddevExecMs": 0.46385465002864323,
+              "minExecMs": 0.022802999999999997,
+              "maxExecMs": 18.966760999999998
+            }
+          ],
+          "wal": {
+            "records": 20988,
+            "bytes": 1594419,
+            "buffersFull": 0,
+            "writes": 6933,
+            "syncs": 6933,
+            "writeMs": 99.988,
+            "syncMs": 6661.356
+          },
+          "database": {
+            "commits": 7068,
+            "rollbacks": 0,
+            "activeMs": 7690.398,
+            "sessionMs": 544540.908
+          },
+          "cpuMsByProcess": {
+            "backends": 1750.0,
+            "background": 10.0,
+            "walWriter": 0.0
+          }
+        },
+        "label": "up 2"
+      },
+      {
+        "mix": "hot:1",
+        "rateRps": 386.0,
+        "k6": {
+          "p50": 1.246374,
+          "p95": 2.434993,
+          "p99": 3.3225144000000006,
+          "mean": 1.4933194165443373,
+          "sent": 11581,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 11581,
+          "successRate": 1.0,
+          "throughputRps": 386.03333333333336
+        },
+        "service": {
+          "role": "api",
+          "runtime": "java 21.0.13.1",
+          "requests": 11581,
+          "wallMs": 37194.00276,
+          "cpuMs": 4290.0,
+          "cpuMsPerRequest": 0.37043433209567395,
+          "gc": {
+            "collections": 0,
+            "pauseMs": 0.0,
+            "collectors": [
+              "G1 Young Generation",
+              "G1 Concurrent GC",
+              "G1 Old Generation"
+            ]
+          },
+          "counters": {},
+          "timings": {
+            "handler": {
+              "count": 11581,
+              "mean": 1.266658357913825,
+              "median": 1.059992,
+              "p95": 2.062504,
+              "p99": 2.746697
+            },
+            "own": {
+              "count": 11581,
+              "mean": 0.1483131052586132,
+              "median": 0.10808099999999998,
+              "p95": 0.32333999999999996,
+              "p99": 0.483336
+            },
+            "db_write": {
+              "count": 11581,
+              "mean": 1.1183452526552136,
+              "median": 0.948901,
+              "p95": 1.736792,
+              "p99": 2.39183
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api-java": 4445.565,
+          "postgres": 3183.867
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 29.0,
+          "readings": 7,
+          "containers": {
+            "api-java": {
+              "cores": 0.1446,
+              "maxCores": 0.1538,
+              "workingSetMiB": 953.2,
+              "anonMiB": 917.3
+            },
+            "postgres": {
+              "cores": 0.1015,
+              "maxCores": 0.1079,
+              "workingSetMiB": 111.2,
+              "anonMiB": 21.5
+            }
+          }
+        },
+        "postgres": {
+          "statements": [
+            {
+              "kind": "write",
+              "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+              "calls": 11581,
+              "rows": 11581,
+              "meanExecMs": 0.07877178464726672,
+              "stddevExecMs": 0.48515952208734026,
+              "minExecMs": 0.022581,
+              "maxExecMs": 18.363984
+            }
+          ],
+          "wal": {
+            "records": 35638,
+            "bytes": 3036915,
+            "buffersFull": 0,
+            "writes": 11599,
+            "syncs": 11598,
+            "writeMs": 132.373,
+            "syncMs": 9453.936
+          },
+          "database": {
+            "commits": 11690,
+            "rollbacks": 0,
+            "activeMs": 11128.99,
+            "sessionMs": 339251.975
+          },
+          "cpuMsByProcess": {
+            "backends": 2620.0,
+            "background": 10.0,
+            "walWriter": 0.0
+          }
+        },
+        "label": "up 3"
+      },
+      {
+        "mix": "hot:1",
+        "rateRps": 447.0,
+        "k6": {
+          "p50": 1.274149,
+          "p95": 2.482548,
+          "p99": 3.8455484999999885,
+          "mean": 1.5451760044739389,
+          "sent": 13411,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 13411,
+          "successRate": 1.0,
+          "throughputRps": 447.03333333333336
+        },
+        "service": {
+          "role": "api",
+          "runtime": "java 21.0.13.1",
+          "requests": 13411,
+          "wallMs": 37218.978598,
+          "cpuMs": 5260.0,
+          "cpuMsPerRequest": 0.3922153456118112,
+          "gc": {
+            "collections": 1,
+            "pauseMs": 25.0,
+            "collectors": [
+              "G1 Young Generation",
+              "G1 Concurrent GC",
+              "G1 Old Generation"
+            ]
+          },
+          "counters": {},
+          "timings": {
+            "handler": {
+              "count": 13411,
+              "mean": 1.3033086754157028,
+              "median": 1.086355,
+              "p95": 2.131489,
+              "p99": 3.209569
+            },
+            "own": {
+              "count": 13411,
+              "mean": 0.16575758362538165,
+              "median": 0.12884600000000013,
+              "p95": 0.348217,
+              "p99": 0.513698
+            },
+            "db_write": {
+              "count": 13411,
+              "mean": 1.1375510917903198,
+              "median": 0.95695,
+              "p95": 1.771469,
+              "p99": 2.833223
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api-java": 5405.108,
+          "postgres": 3627.443
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 29.0,
+          "readings": 7,
+          "containers": {
+            "api-java": {
+              "cores": 0.177,
+              "maxCores": 0.2041,
+              "workingSetMiB": 954.0,
+              "anonMiB": 918.1
+            },
+            "postgres": {
+              "cores": 0.1174,
+              "maxCores": 0.1394,
+              "workingSetMiB": 111.1,
+              "anonMiB": 20.8
+            }
+          }
+        },
+        "postgres": {
+          "statements": [
+            {
+              "kind": "write",
+              "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+              "calls": 13411,
+              "rows": 13411,
+              "meanExecMs": 0.08911136238908364,
+              "stddevExecMs": 0.5528420446712977,
+              "minExecMs": 0.021403000000000002,
+              "maxExecMs": 17.813955999999997
+            }
+          ],
+          "wal": {
+            "records": 27561,
+            "bytes": 1476165,
+            "buffersFull": 0,
+            "writes": 13488,
+            "syncs": 13488,
+            "writeMs": 153.541,
+            "syncMs": 11027.475
+          },
+          "database": {
+            "commits": 13520,
+            "rollbacks": 0,
+            "activeMs": 13136.276,
+            "sessionMs": 347493.103
+          },
+          "cpuMsByProcess": {
+            "backends": 3030.0,
+            "background": 10.0,
+            "walWriter": 0.0
+          }
+        },
+        "label": "up 4"
+      },
+      {
+        "mix": "hot:1",
+        "rateRps": 447.0,
+        "k6": {
+          "p50": 1.26832,
+          "p95": 2.4988095,
+          "p99": 4.539688,
+          "mean": 1.5711411584520198,
+          "sent": 13411,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 13411,
+          "successRate": 1.0,
+          "throughputRps": 447.03333333333336
+        },
+        "service": {
+          "role": "api",
+          "runtime": "java 21.0.13.1",
+          "requests": 13411,
+          "wallMs": 37263.56325,
+          "cpuMs": 5170.0,
+          "cpuMsPerRequest": 0.38550443665647605,
+          "gc": {
+            "collections": 1,
+            "pauseMs": 19.0,
+            "collectors": [
+              "G1 Young Generation",
+              "G1 Concurrent GC",
+              "G1 Old Generation"
+            ]
+          },
+          "counters": {},
+          "timings": {
+            "handler": {
+              "count": 13411,
+              "mean": 1.321198887629567,
+              "median": 1.079971,
+              "p95": 2.155788,
+              "p99": 3.638433
+            },
+            "own": {
+              "count": 13411,
+              "mean": 0.15938237193348698,
+              "median": 0.11704900000000007,
+              "p95": 0.3355870000000001,
+              "p99": 0.4984090000000001
+            },
+            "db_write": {
+              "count": 13411,
+              "mean": 1.1618165156960754,
+              "median": 0.960766,
+              "p95": 1.809926,
+              "p99": 3.258224
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api-java": 5308.239,
+          "postgres": 3724.774
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 28.98,
+          "readings": 7,
+          "containers": {
+            "api-java": {
+              "cores": 0.1723,
+              "maxCores": 0.1994,
+              "workingSetMiB": 954.7,
+              "anonMiB": 918.4
+            },
+            "postgres": {
+              "cores": 0.1201,
+              "maxCores": 0.1289,
+              "workingSetMiB": 115.4,
+              "anonMiB": 24.5
+            }
+          }
+        },
+        "postgres": {
+          "statements": [
+            {
+              "kind": "write",
+              "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+              "calls": 13411,
+              "rows": 13411,
+              "meanExecMs": 0.10330006703452357,
+              "stddevExecMs": 0.6680333893884612,
+              "minExecMs": 0.021962000000000002,
+              "maxExecMs": 19.001558000000003
+            }
+          ],
+          "wal": {
+            "records": 27678,
+            "bytes": 1484056,
+            "buffersFull": 0,
+            "writes": 13530,
+            "syncs": 13530,
+            "writeMs": 162.638,
+            "syncMs": 11159.795
+          },
+          "database": {
+            "commits": 13564,
+            "rollbacks": 0,
+            "activeMs": 13489.015,
+            "sessionMs": 345041.856
+          },
+          "cpuMsByProcess": {
+            "backends": 3140.0,
+            "background": 10.0,
+            "walWriter": 0.0
+          }
+        },
+        "label": "down 4"
+      },
+      {
+        "mix": "hot:1",
+        "rateRps": 386.0,
+        "k6": {
+          "p50": 1.250486,
+          "p95": 2.449052,
+          "p99": 3.6013830000000087,
+          "mean": 1.510449346947593,
+          "sent": 11581,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 11581,
+          "successRate": 1.0,
+          "throughputRps": 386.03333333333336
+        },
+        "service": {
+          "role": "api",
+          "runtime": "java 21.0.13.1",
+          "requests": 11581,
+          "wallMs": 37254.628043,
+          "cpuMs": 4330.0,
+          "cpuMsPerRequest": 0.3738882652620672,
+          "gc": {
+            "collections": 0,
+            "pauseMs": 0.0,
+            "collectors": [
+              "G1 Young Generation",
+              "G1 Concurrent GC",
+              "G1 Old Generation"
+            ]
+          },
+          "counters": {},
+          "timings": {
+            "handler": {
+              "count": 11581,
+              "mean": 1.2790195956307704,
+              "median": 1.063062,
+              "p95": 2.08305,
+              "p99": 2.911808
+            },
+            "own": {
+              "count": 11581,
+              "mean": 0.15063371850444673,
+              "median": 0.10876399999999997,
+              "p95": 0.3256929999999998,
+              "p99": 0.48350899999999997
+            },
+            "db_write": {
+              "count": 11581,
+              "mean": 1.1283858771263318,
+              "median": 0.951655,
+              "p95": 1.7504,
+              "p99": 2.488042
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api-java": 4478.694,
+          "postgres": 3239.111
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 29.0,
+          "readings": 7,
+          "containers": {
+            "api-java": {
+              "cores": 0.1447,
+              "maxCores": 0.1554,
+              "workingSetMiB": 954.0,
+              "anonMiB": 918.3
+            },
+            "postgres": {
+              "cores": 0.1021,
+              "maxCores": 0.1034,
+              "workingSetMiB": 114.9,
+              "anonMiB": 23.9
+            }
+          }
+        },
+        "postgres": {
+          "statements": [
+            {
+              "kind": "write",
+              "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+              "calls": 11581,
+              "rows": 11581,
+              "meanExecMs": 0.08030054157672087,
+              "stddevExecMs": 0.49882223804808895,
+              "minExecMs": 0.021866999999999998,
+              "maxExecMs": 15.436800999999999
+            }
+          ],
+          "wal": {
+            "records": 23633,
+            "bytes": 1266833,
+            "buffersFull": 0,
+            "writes": 11629,
+            "syncs": 11629,
+            "writeMs": 146.934,
+            "syncMs": 9537.64
+          },
+          "database": {
+            "commits": 11662,
+            "rollbacks": 0,
+            "activeMs": 11275.868,
+            "sessionMs": 341088.637
+          },
+          "cpuMsByProcess": {
+            "backends": 2620.0,
+            "background": 20.0,
+            "walWriter": 0.0
+          }
+        },
+        "label": "down 3"
+      },
+      {
+        "mix": "hot:1",
+        "rateRps": 231.0,
+        "k6": {
+          "p50": 1.596435,
+          "p95": 2.8201085,
+          "p99": 3.3308136999999998,
+          "mean": 1.775388679988462,
+          "sent": 6931,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 6931,
+          "successRate": 1.0,
+          "throughputRps": 231.03333333333333
+        },
+        "service": {
+          "role": "api",
+          "runtime": "java 21.0.13.1",
+          "requests": 6931,
+          "wallMs": 37515.070524,
+          "cpuMs": 3150.0,
+          "cpuMsPerRequest": 0.4544798730341942,
+          "gc": {
+            "collections": 0,
+            "pauseMs": 0.0,
+            "collectors": [
+              "G1 Young Generation",
+              "G1 Concurrent GC",
+              "G1 Old Generation"
+            ]
+          },
+          "counters": {},
+          "timings": {
+            "handler": {
+              "count": 6931,
+              "mean": 1.4820898955417718,
+              "median": 1.347095,
+              "p95": 2.322629,
+              "p99": 2.785961
+            },
+            "own": {
+              "count": 6931,
+              "mean": 0.18139743341509176,
+              "median": 0.14744599999999997,
+              "p95": 0.35902199999999995,
+              "p99": 0.5349540000000002
+            },
+            "db_write": {
+              "count": 6931,
+              "mean": 1.3006924621266756,
+              "median": 1.198198,
+              "p95": 1.959004,
+              "p99": 2.415151
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api-java": 3285.706,
+          "postgres": 2371.705
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 29.0,
+          "readings": 7,
+          "containers": {
+            "api-java": {
+              "cores": 0.1068,
+              "maxCores": 0.1125,
+              "workingSetMiB": 952.2,
+              "anonMiB": 917.5
+            },
+            "postgres": {
+              "cores": 0.0765,
+              "maxCores": 0.0808,
+              "workingSetMiB": 117.8,
+              "anonMiB": 26.9
+            }
+          }
+        },
+        "postgres": {
+          "statements": [
+            {
+              "kind": "write",
+              "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+              "calls": 6931,
+              "rows": 6931,
+              "meanExecMs": 0.06516527182224813,
+              "stddevExecMs": 0.2773633052199218,
+              "minExecMs": 0.023561,
+              "maxExecMs": 9.893159
+            }
+          ],
+          "wal": {
+            "records": 14040,
+            "bytes": 751808,
+            "buffersFull": 0,
+            "writes": 6934,
+            "syncs": 6934,
+            "writeMs": 114.467,
+            "syncMs": 6656.522
+          },
+          "database": {
+            "commits": 6967,
+            "rollbacks": 0,
+            "activeMs": 7682.353,
+            "sessionMs": 338595.224
+          },
+          "cpuMsByProcess": {
+            "backends": 1870.0,
+            "background": 10.0,
+            "walWriter": 0.0
+          }
+        },
+        "label": "down 2"
+      },
+      {
+        "mix": "hot:1",
+        "rateRps": 50,
+        "k6": {
+          "p50": 3.220271,
+          "p95": 4.311234,
+          "p99": 4.747835,
+          "mean": 3.2083233217854703,
+          "sent": 1501,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 1501,
+          "successRate": 1.0,
+          "throughputRps": 50.03333333333333
+        },
+        "service": {
+          "role": "api",
+          "runtime": "java 21.0.13.1",
+          "requests": 1501,
+          "wallMs": 37026.836465,
+          "cpuMs": 1350.0,
+          "cpuMsPerRequest": 0.899400399733511,
+          "gc": {
+            "collections": 0,
+            "pauseMs": 0.0,
+            "collectors": [
+              "G1 Young Generation",
+              "G1 Concurrent GC",
+              "G1 Old Generation"
+            ]
+          },
+          "counters": {},
+          "timings": {
+            "handler": {
+              "count": 1501,
+              "mean": 2.56975682611592,
+              "median": 2.580797,
+              "p95": 3.442474,
+              "p99": 3.811539
+            },
+            "own": {
+              "count": 1501,
+              "mean": 0.32872953097934693,
+              "median": 0.3139569999999998,
+              "p95": 0.485347,
+              "p99": 0.5760960000000002
+            },
+            "db_write": {
+              "count": 1501,
+              "mean": 2.241027295136579,
+              "median": 2.248385,
+              "p95": 3.015984,
+              "p99": 3.320181
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api-java": 1484.455,
+          "postgres": 1289.59
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 28.99,
+          "readings": 7,
+          "containers": {
+            "api-java": {
+              "cores": 0.0478,
+              "maxCores": 0.0501,
+              "workingSetMiB": 950.7,
+              "anonMiB": 917.5
+            },
+            "postgres": {
+              "cores": 0.0406,
+              "maxCores": 0.0437,
+              "workingSetMiB": 119.2,
+              "anonMiB": 27.7
+            }
+          }
+        },
+        "postgres": {
+          "statements": [
+            {
+              "kind": "write",
+              "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+              "calls": 1501,
+              "rows": 1501,
+              "meanExecMs": 0.09063512058627575,
+              "stddevExecMs": 0.029593560839637663,
+              "minExecMs": 0.047247,
+              "maxExecMs": 0.341068
+            }
+          ],
+          "wal": {
+            "records": 3015,
+            "bytes": 161528,
+            "buffersFull": 0,
+            "writes": 1493,
+            "syncs": 1493,
+            "writeMs": 44.799,
+            "syncMs": 2380.086
+          },
+          "database": {
+            "commits": 1611,
+            "rollbacks": 0,
+            "activeMs": 2731.882,
+            "sessionMs": 335776.148
+          },
+          "cpuMsByProcess": {
+            "backends": 770.0,
+            "background": 10.0,
+            "walWriter": 0.0
+          }
+        },
+        "label": "down 1"
+      },
+      {
+        "mix": "hot:1",
+        "rateRps": 447.0,
+        "k6": {
+          "p50": 1.22947,
+          "p95": 2.3879064999999993,
+          "p99": 3.842195169999999,
+          "mean": 1.500099983445193,
+          "sent": 13410,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 13410,
+          "successRate": 1.0,
+          "throughputRps": 447.0
+        },
+        "service": {
+          "role": "api",
+          "runtime": "java 21.0.13.1",
+          "requests": 13410,
+          "wallMs": 37248.939258,
+          "cpuMs": 4850.0,
+          "cpuMsPerRequest": 0.3616703952274422,
+          "gc": {
+            "collections": 0,
+            "pauseMs": 0.0,
+            "collectors": [
+              "G1 Young Generation",
+              "G1 Concurrent GC",
+              "G1 Old Generation"
+            ]
+          },
+          "counters": {},
+          "timings": {
+            "handler": {
+              "count": 13410,
+              "mean": 1.2683265427293018,
+              "median": 1.04939,
+              "p95": 2.03827,
+              "p99": 3.186659
+            },
+            "own": {
+              "count": 13410,
+              "mean": 0.14506082311707688,
+              "median": 0.10669600000000001,
+              "p95": 0.31461099999999975,
+              "p99": 0.45794900000000016
+            },
+            "db_write": {
+              "count": 13410,
+              "mean": 1.1232657196122287,
+              "median": 0.940958,
+              "p95": 1.724147,
+              "p99": 2.804733
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api-java": 4989.097,
+          "postgres": 3591.707
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 29.0,
+          "readings": 7,
+          "containers": {
+            "api-java": {
+              "cores": 0.1625,
+              "maxCores": 0.174,
+              "workingSetMiB": 953.8,
+              "anonMiB": 917.5
+            },
+            "postgres": {
+              "cores": 0.1162,
+              "maxCores": 0.1282,
+              "workingSetMiB": 114.7,
+              "anonMiB": 23.7
+            }
+          }
+        },
+        "postgres": {
+          "statements": [
+            {
+              "kind": "write",
+              "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+              "calls": 13410,
+              "rows": 13410,
+              "meanExecMs": 0.09056895540641305,
+              "stddevExecMs": 0.602463442250938,
+              "minExecMs": 0.021375,
+              "maxExecMs": 19.825749000000002
+            }
+          ],
+          "wal": {
+            "records": 27536,
+            "bytes": 1476156,
+            "buffersFull": 0,
+            "writes": 13489,
+            "syncs": 13489,
+            "writeMs": 157.914,
+            "syncMs": 10873.985
+          },
+          "database": {
+            "commits": 13525,
+            "rollbacks": 0,
+            "activeMs": 13001.565,
+            "sessionMs": 343939.84
+          },
+          "cpuMsByProcess": {
+            "backends": 2980.0,
+            "background": 20.0,
+            "walWriter": 0.0
+          }
+        },
+        "label": "top 3"
+      }
+    ],
+    "write_async:1": {
+      "mix": "write_async:1",
+      "rateRps": 447.0,
+      "k6": {
+        "p50": 0.547734,
+        "p95": 1.259903,
+        "p99": 1.7640145999999985,
+        "mean": 0.6799916649765143,
+        "sent": 13411,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 13411,
+        "successRate": 1.0,
+        "throughputRps": 447.03333333333336
+      },
+      "service": {
+        "role": "api",
+        "runtime": "java 21.0.13.1",
+        "requests": 13411,
+        "wallMs": 37238.046252,
+        "cpuMs": 5080.0,
+        "cpuMsPerRequest": 0.37879352770114083,
+        "gc": {
+          "collections": 0,
+          "pauseMs": 0.0,
+          "collectors": [
+            "G1 Young Generation",
+            "G1 Concurrent GC",
+            "G1 Old Generation"
+          ]
+        },
+        "counters": {},
+        "timings": {
+          "handler": {
+            "count": 13411,
+            "mean": 0.4149548748788318,
+            "median": 0.326991,
+            "p95": 0.816311,
+            "p99": 1.139034
+          },
+          "own": {
+            "count": 13411,
+            "mean": 0.15784373178733913,
+            "median": 0.12296900000000002,
+            "p95": 0.33603400000000005,
+            "p99": 0.4862859999999999
+          },
+          "db_write_async": {
+            "count": 13411,
+            "mean": 0.2571111430914913,
+            "median": 0.208715,
+            "p95": 0.480861,
+            "p99": 0.73878
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api-java": 5221.794,
+        "postgres": 2993.857
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 29.0,
+        "readings": 7,
+        "containers": {
+          "api-java": {
+            "cores": 0.1698,
+            "maxCores": 0.1852,
+            "workingSetMiB": 954.0,
+            "anonMiB": 917.8
+          },
+          "postgres": {
+            "cores": 0.0945,
+            "maxCores": 0.1028,
+            "workingSetMiB": 114.6,
+            "anonMiB": 24.0
+          }
+        }
+      },
+      "postgres": {
+        "statements": [
+          {
+            "kind": "write",
+            "query": "UPDATE items SET value = value + $2 WHERE id = $1",
+            "calls": 13411,
+            "rows": 13411,
+            "meanExecMs": 0.04466078308850935,
+            "stddevExecMs": 0.03644146529788198,
+            "minExecMs": 0.020739,
+            "maxExecMs": 2.355826
+          }
+        ],
+        "wal": {
+          "records": 27174,
+          "bytes": 1456509,
+          "buffersFull": 0,
+          "writes": 285,
+          "syncs": 152,
+          "writeMs": 8.363,
+          "syncMs": 361.55
+        },
+        "database": {
+          "commits": 13462,
+          "rollbacks": 0,
+          "activeMs": 1332.585,
+          "sessionMs": 67771.493
+        },
+        "cpuMsByProcess": {
+          "backends": 2230.0,
+          "background": 10.0,
+          "walWriter": 160.0
+        }
+      }
+    }
+  },
+  "staircase": [
+    {
+      "mix": "hot:1",
+      "rateRps": 50,
+      "k6": {
+        "p50": 3.056544,
+        "p95": 4.267453,
+        "p99": 4.628696,
+        "mean": 3.0953862331778836,
+        "sent": 1501,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 1501,
+        "successRate": 1.0,
+        "throughputRps": 50.03333333333333
+      },
+      "service": {
+        "role": "api",
+        "runtime": "java 21.0.13.1",
+        "requests": 1501,
+        "wallMs": 37252.914007,
+        "cpuMs": 1310.0,
+        "cpuMsPerRequest": 0.8727514990006662,
+        "gc": {
+          "collections": 0,
+          "pauseMs": 0.0,
+          "collectors": [
+            "G1 Young Generation",
+            "G1 Concurrent GC",
+            "G1 Old Generation"
+          ]
+        },
+        "counters": {},
+        "timings": {
+          "handler": {
+            "count": 1501,
+            "mean": 2.481550617588273,
+            "median": 2.45983,
+            "p95": 3.402561,
+            "p99": 3.755448
+          },
+          "own": {
+            "count": 1501,
+            "mean": 0.31273367488341075,
+            "median": 0.2996629999999998,
+            "p95": 0.4554100000000001,
+            "p99": 0.5558880000000002
+          },
+          "db_write": {
+            "count": 1501,
+            "mean": 2.168816942704863,
+            "median": 2.152107,
+            "p95": 2.996774,
+            "p99": 3.328274
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api-java": 1441.94,
+        "postgres": 1306.686
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 28.98,
+        "readings": 7,
+        "containers": {
+          "api-java": {
+            "cores": 0.0459,
+            "maxCores": 0.0485,
+            "workingSetMiB": 942.0,
+            "anonMiB": 908.8
+          },
+          "postgres": {
+            "cores": 0.0394,
+            "maxCores": 0.0449,
+            "workingSetMiB": 109.3,
+            "anonMiB": 20.1
+          }
+        }
+      },
+      "postgres": {
+        "statements": [
+          {
+            "kind": "write",
+            "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+            "calls": 1501,
+            "rows": 1501,
+            "meanExecMs": 0.09260596868754166,
+            "stddevExecMs": 0.03317328659255992,
+            "minExecMs": 0.041607000000000005,
+            "maxExecMs": 0.648025
+          }
+        ],
+        "wal": {
+          "records": 4595,
+          "bytes": 254252,
+          "buffersFull": 0,
+          "writes": 1533,
+          "syncs": 1533,
+          "writeMs": 43.664,
+          "syncMs": 2379.568
+        },
+        "database": {
+          "commits": 1640,
+          "rollbacks": 0,
+          "activeMs": 2740.284,
+          "sessionMs": 256850.5
+        },
+        "cpuMsByProcess": {
+          "backends": 230.0,
+          "background": 10.0,
+          "walWriter": 10.0
+        }
+      },
+      "label": "up 1"
+    },
+    {
+      "mix": "hot:1",
+      "rateRps": 231.0,
+      "k6": {
+        "p50": 1.569979,
+        "p95": 2.8274345,
+        "p99": 3.4135039999999983,
+        "mean": 1.7641205101716955,
+        "sent": 6931,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 6931,
+        "successRate": 1.0,
+        "throughputRps": 231.03333333333333
+      },
+      "service": {
+        "role": "api",
+        "runtime": "java 21.0.13.1",
+        "requests": 6931,
+        "wallMs": 37148.09855,
+        "cpuMs": 3050.0,
+        "cpuMsPerRequest": 0.4400519405569182,
+        "gc": {
+          "collections": 0,
+          "pauseMs": 0.0,
+          "collectors": [
+            "G1 Young Generation",
+            "G1 Concurrent GC",
+            "G1 Old Generation"
+          ]
+        },
+        "counters": {},
+        "timings": {
+          "handler": {
+            "count": 6931,
+            "mean": 1.471505511758769,
+            "median": 1.326692,
+            "p95": 2.299261,
+            "p99": 2.819827
+          },
+          "own": {
+            "count": 6931,
+            "mean": 0.17472913706535792,
+            "median": 0.13731499999999985,
+            "p95": 0.352422,
+            "p99": 0.4905290000000002
+          },
+          "db_write": {
+            "count": 6931,
+            "mean": 1.2967763746934067,
+            "median": 1.188102,
+            "p95": 1.950865,
+            "p99": 2.404153
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api-java": 3188.907,
+        "postgres": 2337.84
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 28.99,
+        "readings": 7,
+        "containers": {
+          "api-java": {
+            "cores": 0.1034,
+            "maxCores": 0.1122,
+            "workingSetMiB": 947.7,
+            "anonMiB": 913.2
+          },
+          "postgres": {
+            "cores": 0.0753,
+            "maxCores": 0.0809,
+            "workingSetMiB": 111.0,
+            "anonMiB": 21.2
+          }
+        }
+      },
+      "postgres": {
+        "statements": [
+          {
+            "kind": "write",
+            "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+            "calls": 6931,
+            "rows": 6931,
+            "meanExecMs": 0.07229164464002304,
+            "stddevExecMs": 0.46385465002864323,
+            "minExecMs": 0.022802999999999997,
+            "maxExecMs": 18.966760999999998
+          }
+        ],
+        "wal": {
+          "records": 20988,
+          "bytes": 1594419,
+          "buffersFull": 0,
+          "writes": 6933,
+          "syncs": 6933,
+          "writeMs": 99.988,
+          "syncMs": 6661.356
+        },
+        "database": {
+          "commits": 7068,
+          "rollbacks": 0,
+          "activeMs": 7690.398,
+          "sessionMs": 544540.908
+        },
+        "cpuMsByProcess": {
+          "backends": 1750.0,
+          "background": 10.0,
+          "walWriter": 0.0
+        }
+      },
+      "label": "up 2"
+    },
+    {
+      "mix": "hot:1",
+      "rateRps": 386.0,
+      "k6": {
+        "p50": 1.246374,
+        "p95": 2.434993,
+        "p99": 3.3225144000000006,
+        "mean": 1.4933194165443373,
+        "sent": 11581,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 11581,
+        "successRate": 1.0,
+        "throughputRps": 386.03333333333336
+      },
+      "service": {
+        "role": "api",
+        "runtime": "java 21.0.13.1",
+        "requests": 11581,
+        "wallMs": 37194.00276,
+        "cpuMs": 4290.0,
+        "cpuMsPerRequest": 0.37043433209567395,
+        "gc": {
+          "collections": 0,
+          "pauseMs": 0.0,
+          "collectors": [
+            "G1 Young Generation",
+            "G1 Concurrent GC",
+            "G1 Old Generation"
+          ]
+        },
+        "counters": {},
+        "timings": {
+          "handler": {
+            "count": 11581,
+            "mean": 1.266658357913825,
+            "median": 1.059992,
+            "p95": 2.062504,
+            "p99": 2.746697
+          },
+          "own": {
+            "count": 11581,
+            "mean": 0.1483131052586132,
+            "median": 0.10808099999999998,
+            "p95": 0.32333999999999996,
+            "p99": 0.483336
+          },
+          "db_write": {
+            "count": 11581,
+            "mean": 1.1183452526552136,
+            "median": 0.948901,
+            "p95": 1.736792,
+            "p99": 2.39183
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api-java": 4445.565,
+        "postgres": 3183.867
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 29.0,
+        "readings": 7,
+        "containers": {
+          "api-java": {
+            "cores": 0.1446,
+            "maxCores": 0.1538,
+            "workingSetMiB": 953.2,
+            "anonMiB": 917.3
+          },
+          "postgres": {
+            "cores": 0.1015,
+            "maxCores": 0.1079,
+            "workingSetMiB": 111.2,
+            "anonMiB": 21.5
+          }
+        }
+      },
+      "postgres": {
+        "statements": [
+          {
+            "kind": "write",
+            "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+            "calls": 11581,
+            "rows": 11581,
+            "meanExecMs": 0.07877178464726672,
+            "stddevExecMs": 0.48515952208734026,
+            "minExecMs": 0.022581,
+            "maxExecMs": 18.363984
+          }
+        ],
+        "wal": {
+          "records": 35638,
+          "bytes": 3036915,
+          "buffersFull": 0,
+          "writes": 11599,
+          "syncs": 11598,
+          "writeMs": 132.373,
+          "syncMs": 9453.936
+        },
+        "database": {
+          "commits": 11690,
+          "rollbacks": 0,
+          "activeMs": 11128.99,
+          "sessionMs": 339251.975
+        },
+        "cpuMsByProcess": {
+          "backends": 2620.0,
+          "background": 10.0,
+          "walWriter": 0.0
+        }
+      },
+      "label": "up 3"
+    },
+    {
+      "mix": "hot:1",
+      "rateRps": 447.0,
+      "k6": {
+        "p50": 1.274149,
+        "p95": 2.482548,
+        "p99": 3.8455484999999885,
+        "mean": 1.5451760044739389,
+        "sent": 13411,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 13411,
+        "successRate": 1.0,
+        "throughputRps": 447.03333333333336
+      },
+      "service": {
+        "role": "api",
+        "runtime": "java 21.0.13.1",
+        "requests": 13411,
+        "wallMs": 37218.978598,
+        "cpuMs": 5260.0,
+        "cpuMsPerRequest": 0.3922153456118112,
+        "gc": {
+          "collections": 1,
+          "pauseMs": 25.0,
+          "collectors": [
+            "G1 Young Generation",
+            "G1 Concurrent GC",
+            "G1 Old Generation"
+          ]
+        },
+        "counters": {},
+        "timings": {
+          "handler": {
+            "count": 13411,
+            "mean": 1.3033086754157028,
+            "median": 1.086355,
+            "p95": 2.131489,
+            "p99": 3.209569
+          },
+          "own": {
+            "count": 13411,
+            "mean": 0.16575758362538165,
+            "median": 0.12884600000000013,
+            "p95": 0.348217,
+            "p99": 0.513698
+          },
+          "db_write": {
+            "count": 13411,
+            "mean": 1.1375510917903198,
+            "median": 0.95695,
+            "p95": 1.771469,
+            "p99": 2.833223
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api-java": 5405.108,
+        "postgres": 3627.443
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 29.0,
+        "readings": 7,
+        "containers": {
+          "api-java": {
+            "cores": 0.177,
+            "maxCores": 0.2041,
+            "workingSetMiB": 954.0,
+            "anonMiB": 918.1
+          },
+          "postgres": {
+            "cores": 0.1174,
+            "maxCores": 0.1394,
+            "workingSetMiB": 111.1,
+            "anonMiB": 20.8
+          }
+        }
+      },
+      "postgres": {
+        "statements": [
+          {
+            "kind": "write",
+            "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+            "calls": 13411,
+            "rows": 13411,
+            "meanExecMs": 0.08911136238908364,
+            "stddevExecMs": 0.5528420446712977,
+            "minExecMs": 0.021403000000000002,
+            "maxExecMs": 17.813955999999997
+          }
+        ],
+        "wal": {
+          "records": 27561,
+          "bytes": 1476165,
+          "buffersFull": 0,
+          "writes": 13488,
+          "syncs": 13488,
+          "writeMs": 153.541,
+          "syncMs": 11027.475
+        },
+        "database": {
+          "commits": 13520,
+          "rollbacks": 0,
+          "activeMs": 13136.276,
+          "sessionMs": 347493.103
+        },
+        "cpuMsByProcess": {
+          "backends": 3030.0,
+          "background": 10.0,
+          "walWriter": 0.0
+        }
+      },
+      "label": "up 4"
+    },
+    {
+      "mix": "hot:1",
+      "rateRps": 447.0,
+      "k6": {
+        "p50": 1.26832,
+        "p95": 2.4988095,
+        "p99": 4.539688,
+        "mean": 1.5711411584520198,
+        "sent": 13411,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 13411,
+        "successRate": 1.0,
+        "throughputRps": 447.03333333333336
+      },
+      "service": {
+        "role": "api",
+        "runtime": "java 21.0.13.1",
+        "requests": 13411,
+        "wallMs": 37263.56325,
+        "cpuMs": 5170.0,
+        "cpuMsPerRequest": 0.38550443665647605,
+        "gc": {
+          "collections": 1,
+          "pauseMs": 19.0,
+          "collectors": [
+            "G1 Young Generation",
+            "G1 Concurrent GC",
+            "G1 Old Generation"
+          ]
+        },
+        "counters": {},
+        "timings": {
+          "handler": {
+            "count": 13411,
+            "mean": 1.321198887629567,
+            "median": 1.079971,
+            "p95": 2.155788,
+            "p99": 3.638433
+          },
+          "own": {
+            "count": 13411,
+            "mean": 0.15938237193348698,
+            "median": 0.11704900000000007,
+            "p95": 0.3355870000000001,
+            "p99": 0.4984090000000001
+          },
+          "db_write": {
+            "count": 13411,
+            "mean": 1.1618165156960754,
+            "median": 0.960766,
+            "p95": 1.809926,
+            "p99": 3.258224
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api-java": 5308.239,
+        "postgres": 3724.774
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 28.98,
+        "readings": 7,
+        "containers": {
+          "api-java": {
+            "cores": 0.1723,
+            "maxCores": 0.1994,
+            "workingSetMiB": 954.7,
+            "anonMiB": 918.4
+          },
+          "postgres": {
+            "cores": 0.1201,
+            "maxCores": 0.1289,
+            "workingSetMiB": 115.4,
+            "anonMiB": 24.5
+          }
+        }
+      },
+      "postgres": {
+        "statements": [
+          {
+            "kind": "write",
+            "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+            "calls": 13411,
+            "rows": 13411,
+            "meanExecMs": 0.10330006703452357,
+            "stddevExecMs": 0.6680333893884612,
+            "minExecMs": 0.021962000000000002,
+            "maxExecMs": 19.001558000000003
+          }
+        ],
+        "wal": {
+          "records": 27678,
+          "bytes": 1484056,
+          "buffersFull": 0,
+          "writes": 13530,
+          "syncs": 13530,
+          "writeMs": 162.638,
+          "syncMs": 11159.795
+        },
+        "database": {
+          "commits": 13564,
+          "rollbacks": 0,
+          "activeMs": 13489.015,
+          "sessionMs": 345041.856
+        },
+        "cpuMsByProcess": {
+          "backends": 3140.0,
+          "background": 10.0,
+          "walWriter": 0.0
+        }
+      },
+      "label": "down 4"
+    },
+    {
+      "mix": "hot:1",
+      "rateRps": 386.0,
+      "k6": {
+        "p50": 1.250486,
+        "p95": 2.449052,
+        "p99": 3.6013830000000087,
+        "mean": 1.510449346947593,
+        "sent": 11581,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 11581,
+        "successRate": 1.0,
+        "throughputRps": 386.03333333333336
+      },
+      "service": {
+        "role": "api",
+        "runtime": "java 21.0.13.1",
+        "requests": 11581,
+        "wallMs": 37254.628043,
+        "cpuMs": 4330.0,
+        "cpuMsPerRequest": 0.3738882652620672,
+        "gc": {
+          "collections": 0,
+          "pauseMs": 0.0,
+          "collectors": [
+            "G1 Young Generation",
+            "G1 Concurrent GC",
+            "G1 Old Generation"
+          ]
+        },
+        "counters": {},
+        "timings": {
+          "handler": {
+            "count": 11581,
+            "mean": 1.2790195956307704,
+            "median": 1.063062,
+            "p95": 2.08305,
+            "p99": 2.911808
+          },
+          "own": {
+            "count": 11581,
+            "mean": 0.15063371850444673,
+            "median": 0.10876399999999997,
+            "p95": 0.3256929999999998,
+            "p99": 0.48350899999999997
+          },
+          "db_write": {
+            "count": 11581,
+            "mean": 1.1283858771263318,
+            "median": 0.951655,
+            "p95": 1.7504,
+            "p99": 2.488042
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api-java": 4478.694,
+        "postgres": 3239.111
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 29.0,
+        "readings": 7,
+        "containers": {
+          "api-java": {
+            "cores": 0.1447,
+            "maxCores": 0.1554,
+            "workingSetMiB": 954.0,
+            "anonMiB": 918.3
+          },
+          "postgres": {
+            "cores": 0.1021,
+            "maxCores": 0.1034,
+            "workingSetMiB": 114.9,
+            "anonMiB": 23.9
+          }
+        }
+      },
+      "postgres": {
+        "statements": [
+          {
+            "kind": "write",
+            "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+            "calls": 11581,
+            "rows": 11581,
+            "meanExecMs": 0.08030054157672087,
+            "stddevExecMs": 0.49882223804808895,
+            "minExecMs": 0.021866999999999998,
+            "maxExecMs": 15.436800999999999
+          }
+        ],
+        "wal": {
+          "records": 23633,
+          "bytes": 1266833,
+          "buffersFull": 0,
+          "writes": 11629,
+          "syncs": 11629,
+          "writeMs": 146.934,
+          "syncMs": 9537.64
+        },
+        "database": {
+          "commits": 11662,
+          "rollbacks": 0,
+          "activeMs": 11275.868,
+          "sessionMs": 341088.637
+        },
+        "cpuMsByProcess": {
+          "backends": 2620.0,
+          "background": 20.0,
+          "walWriter": 0.0
+        }
+      },
+      "label": "down 3"
+    },
+    {
+      "mix": "hot:1",
+      "rateRps": 231.0,
+      "k6": {
+        "p50": 1.596435,
+        "p95": 2.8201085,
+        "p99": 3.3308136999999998,
+        "mean": 1.775388679988462,
+        "sent": 6931,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 6931,
+        "successRate": 1.0,
+        "throughputRps": 231.03333333333333
+      },
+      "service": {
+        "role": "api",
+        "runtime": "java 21.0.13.1",
+        "requests": 6931,
+        "wallMs": 37515.070524,
+        "cpuMs": 3150.0,
+        "cpuMsPerRequest": 0.4544798730341942,
+        "gc": {
+          "collections": 0,
+          "pauseMs": 0.0,
+          "collectors": [
+            "G1 Young Generation",
+            "G1 Concurrent GC",
+            "G1 Old Generation"
+          ]
+        },
+        "counters": {},
+        "timings": {
+          "handler": {
+            "count": 6931,
+            "mean": 1.4820898955417718,
+            "median": 1.347095,
+            "p95": 2.322629,
+            "p99": 2.785961
+          },
+          "own": {
+            "count": 6931,
+            "mean": 0.18139743341509176,
+            "median": 0.14744599999999997,
+            "p95": 0.35902199999999995,
+            "p99": 0.5349540000000002
+          },
+          "db_write": {
+            "count": 6931,
+            "mean": 1.3006924621266756,
+            "median": 1.198198,
+            "p95": 1.959004,
+            "p99": 2.415151
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api-java": 3285.706,
+        "postgres": 2371.705
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 29.0,
+        "readings": 7,
+        "containers": {
+          "api-java": {
+            "cores": 0.1068,
+            "maxCores": 0.1125,
+            "workingSetMiB": 952.2,
+            "anonMiB": 917.5
+          },
+          "postgres": {
+            "cores": 0.0765,
+            "maxCores": 0.0808,
+            "workingSetMiB": 117.8,
+            "anonMiB": 26.9
+          }
+        }
+      },
+      "postgres": {
+        "statements": [
+          {
+            "kind": "write",
+            "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+            "calls": 6931,
+            "rows": 6931,
+            "meanExecMs": 0.06516527182224813,
+            "stddevExecMs": 0.2773633052199218,
+            "minExecMs": 0.023561,
+            "maxExecMs": 9.893159
+          }
+        ],
+        "wal": {
+          "records": 14040,
+          "bytes": 751808,
+          "buffersFull": 0,
+          "writes": 6934,
+          "syncs": 6934,
+          "writeMs": 114.467,
+          "syncMs": 6656.522
+        },
+        "database": {
+          "commits": 6967,
+          "rollbacks": 0,
+          "activeMs": 7682.353,
+          "sessionMs": 338595.224
+        },
+        "cpuMsByProcess": {
+          "backends": 1870.0,
+          "background": 10.0,
+          "walWriter": 0.0
+        }
+      },
+      "label": "down 2"
+    },
+    {
+      "mix": "hot:1",
+      "rateRps": 50,
+      "k6": {
+        "p50": 3.220271,
+        "p95": 4.311234,
+        "p99": 4.747835,
+        "mean": 3.2083233217854703,
+        "sent": 1501,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 1501,
+        "successRate": 1.0,
+        "throughputRps": 50.03333333333333
+      },
+      "service": {
+        "role": "api",
+        "runtime": "java 21.0.13.1",
+        "requests": 1501,
+        "wallMs": 37026.836465,
+        "cpuMs": 1350.0,
+        "cpuMsPerRequest": 0.899400399733511,
+        "gc": {
+          "collections": 0,
+          "pauseMs": 0.0,
+          "collectors": [
+            "G1 Young Generation",
+            "G1 Concurrent GC",
+            "G1 Old Generation"
+          ]
+        },
+        "counters": {},
+        "timings": {
+          "handler": {
+            "count": 1501,
+            "mean": 2.56975682611592,
+            "median": 2.580797,
+            "p95": 3.442474,
+            "p99": 3.811539
+          },
+          "own": {
+            "count": 1501,
+            "mean": 0.32872953097934693,
+            "median": 0.3139569999999998,
+            "p95": 0.485347,
+            "p99": 0.5760960000000002
+          },
+          "db_write": {
+            "count": 1501,
+            "mean": 2.241027295136579,
+            "median": 2.248385,
+            "p95": 3.015984,
+            "p99": 3.320181
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api-java": 1484.455,
+        "postgres": 1289.59
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 28.99,
+        "readings": 7,
+        "containers": {
+          "api-java": {
+            "cores": 0.0478,
+            "maxCores": 0.0501,
+            "workingSetMiB": 950.7,
+            "anonMiB": 917.5
+          },
+          "postgres": {
+            "cores": 0.0406,
+            "maxCores": 0.0437,
+            "workingSetMiB": 119.2,
+            "anonMiB": 27.7
+          }
+        }
+      },
+      "postgres": {
+        "statements": [
+          {
+            "kind": "write",
+            "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+            "calls": 1501,
+            "rows": 1501,
+            "meanExecMs": 0.09063512058627575,
+            "stddevExecMs": 0.029593560839637663,
+            "minExecMs": 0.047247,
+            "maxExecMs": 0.341068
+          }
+        ],
+        "wal": {
+          "records": 3015,
+          "bytes": 161528,
+          "buffersFull": 0,
+          "writes": 1493,
+          "syncs": 1493,
+          "writeMs": 44.799,
+          "syncMs": 2380.086
+        },
+        "database": {
+          "commits": 1611,
+          "rollbacks": 0,
+          "activeMs": 2731.882,
+          "sessionMs": 335776.148
+        },
+        "cpuMsByProcess": {
+          "backends": 770.0,
+          "background": 10.0,
+          "walWriter": 0.0
+        }
+      },
+      "label": "down 1"
+    },
+    {
+      "mix": "hot:1",
+      "rateRps": 447.0,
+      "k6": {
+        "p50": 1.22947,
+        "p95": 2.3879064999999993,
+        "p99": 3.842195169999999,
+        "mean": 1.500099983445193,
+        "sent": 13410,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 13410,
+        "successRate": 1.0,
+        "throughputRps": 447.0
+      },
+      "service": {
+        "role": "api",
+        "runtime": "java 21.0.13.1",
+        "requests": 13410,
+        "wallMs": 37248.939258,
+        "cpuMs": 4850.0,
+        "cpuMsPerRequest": 0.3616703952274422,
+        "gc": {
+          "collections": 0,
+          "pauseMs": 0.0,
+          "collectors": [
+            "G1 Young Generation",
+            "G1 Concurrent GC",
+            "G1 Old Generation"
+          ]
+        },
+        "counters": {},
+        "timings": {
+          "handler": {
+            "count": 13410,
+            "mean": 1.2683265427293018,
+            "median": 1.04939,
+            "p95": 2.03827,
+            "p99": 3.186659
+          },
+          "own": {
+            "count": 13410,
+            "mean": 0.14506082311707688,
+            "median": 0.10669600000000001,
+            "p95": 0.31461099999999975,
+            "p99": 0.45794900000000016
+          },
+          "db_write": {
+            "count": 13410,
+            "mean": 1.1232657196122287,
+            "median": 0.940958,
+            "p95": 1.724147,
+            "p99": 2.804733
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api-java": 4989.097,
+        "postgres": 3591.707
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 29.0,
+        "readings": 7,
+        "containers": {
+          "api-java": {
+            "cores": 0.1625,
+            "maxCores": 0.174,
+            "workingSetMiB": 953.8,
+            "anonMiB": 917.5
+          },
+          "postgres": {
+            "cores": 0.1162,
+            "maxCores": 0.1282,
+            "workingSetMiB": 114.7,
+            "anonMiB": 23.7
+          }
+        }
+      },
+      "postgres": {
+        "statements": [
+          {
+            "kind": "write",
+            "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+            "calls": 13410,
+            "rows": 13410,
+            "meanExecMs": 0.09056895540641305,
+            "stddevExecMs": 0.602463442250938,
+            "minExecMs": 0.021375,
+            "maxExecMs": 19.825749000000002
+          }
+        ],
+        "wal": {
+          "records": 27536,
+          "bytes": 1476156,
+          "buffersFull": 0,
+          "writes": 13489,
+          "syncs": 13489,
+          "writeMs": 157.914,
+          "syncMs": 10873.985
+        },
+        "database": {
+          "commits": 13525,
+          "rollbacks": 0,
+          "activeMs": 13001.565,
+          "sessionMs": 343939.84
+        },
+        "cpuMsByProcess": {
+          "backends": 2980.0,
+          "background": 20.0,
+          "walWriter": 0.0
+        }
+      },
+      "label": "top 3"
+    }
+  ],
+  "replicates": [
+    {
+      "high": {
+        "mix": "hot:1",
+        "rateRps": 447.0,
+        "k6": {
+          "p50": 1.274149,
+          "p95": 2.482548,
+          "p99": 3.8455484999999885,
+          "mean": 1.5451760044739389,
+          "sent": 13411,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 13411,
+          "successRate": 1.0,
+          "throughputRps": 447.03333333333336
+        },
+        "service": {
+          "role": "api",
+          "runtime": "java 21.0.13.1",
+          "requests": 13411,
+          "wallMs": 37218.978598,
+          "cpuMs": 5260.0,
+          "cpuMsPerRequest": 0.3922153456118112,
+          "gc": {
+            "collections": 1,
+            "pauseMs": 25.0,
+            "collectors": [
+              "G1 Young Generation",
+              "G1 Concurrent GC",
+              "G1 Old Generation"
+            ]
+          },
+          "counters": {},
+          "timings": {
+            "handler": {
+              "count": 13411,
+              "mean": 1.3033086754157028,
+              "median": 1.086355,
+              "p95": 2.131489,
+              "p99": 3.209569
+            },
+            "own": {
+              "count": 13411,
+              "mean": 0.16575758362538165,
+              "median": 0.12884600000000013,
+              "p95": 0.348217,
+              "p99": 0.513698
+            },
+            "db_write": {
+              "count": 13411,
+              "mean": 1.1375510917903198,
+              "median": 0.95695,
+              "p95": 1.771469,
+              "p99": 2.833223
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api-java": 5405.108,
+          "postgres": 3627.443
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 29.0,
+          "readings": 7,
+          "containers": {
+            "api-java": {
+              "cores": 0.177,
+              "maxCores": 0.2041,
+              "workingSetMiB": 954.0,
+              "anonMiB": 918.1
+            },
+            "postgres": {
+              "cores": 0.1174,
+              "maxCores": 0.1394,
+              "workingSetMiB": 111.1,
+              "anonMiB": 20.8
+            }
+          }
+        },
+        "postgres": {
+          "statements": [
+            {
+              "kind": "write",
+              "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+              "calls": 13411,
+              "rows": 13411,
+              "meanExecMs": 0.08911136238908364,
+              "stddevExecMs": 0.5528420446712977,
+              "minExecMs": 0.021403000000000002,
+              "maxExecMs": 17.813955999999997
+            }
+          ],
+          "wal": {
+            "records": 27561,
+            "bytes": 1476165,
+            "buffersFull": 0,
+            "writes": 13488,
+            "syncs": 13488,
+            "writeMs": 153.541,
+            "syncMs": 11027.475
+          },
+          "database": {
+            "commits": 13520,
+            "rollbacks": 0,
+            "activeMs": 13136.276,
+            "sessionMs": 347493.103
+          },
+          "cpuMsByProcess": {
+            "backends": 3030.0,
+            "background": 10.0,
+            "walWriter": 0.0
+          }
+        },
+        "label": "up 4"
+      },
+      "write_async:1": {
+        "mix": "write_async:1",
+        "rateRps": 447.0,
+        "k6": {
+          "p50": 0.547734,
+          "p95": 1.259903,
+          "p99": 1.7640145999999985,
+          "mean": 0.6799916649765143,
+          "sent": 13411,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 13411,
+          "successRate": 1.0,
+          "throughputRps": 447.03333333333336
+        },
+        "service": {
+          "role": "api",
+          "runtime": "java 21.0.13.1",
+          "requests": 13411,
+          "wallMs": 37238.046252,
+          "cpuMs": 5080.0,
+          "cpuMsPerRequest": 0.37879352770114083,
+          "gc": {
+            "collections": 0,
+            "pauseMs": 0.0,
+            "collectors": [
+              "G1 Young Generation",
+              "G1 Concurrent GC",
+              "G1 Old Generation"
+            ]
+          },
+          "counters": {},
+          "timings": {
+            "handler": {
+              "count": 13411,
+              "mean": 0.4149548748788318,
+              "median": 0.326991,
+              "p95": 0.816311,
+              "p99": 1.139034
+            },
+            "own": {
+              "count": 13411,
+              "mean": 0.15784373178733913,
+              "median": 0.12296900000000002,
+              "p95": 0.33603400000000005,
+              "p99": 0.4862859999999999
+            },
+            "db_write_async": {
+              "count": 13411,
+              "mean": 0.2571111430914913,
+              "median": 0.208715,
+              "p95": 0.480861,
+              "p99": 0.73878
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api-java": 5221.794,
+          "postgres": 2993.857
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 29.0,
+          "readings": 7,
+          "containers": {
+            "api-java": {
+              "cores": 0.1698,
+              "maxCores": 0.1852,
+              "workingSetMiB": 954.0,
+              "anonMiB": 917.8
+            },
+            "postgres": {
+              "cores": 0.0945,
+              "maxCores": 0.1028,
+              "workingSetMiB": 114.6,
+              "anonMiB": 24.0
+            }
+          }
+        },
+        "postgres": {
+          "statements": [
+            {
+              "kind": "write",
+              "query": "UPDATE items SET value = value + $2 WHERE id = $1",
+              "calls": 13411,
+              "rows": 13411,
+              "meanExecMs": 0.04466078308850935,
+              "stddevExecMs": 0.03644146529788198,
+              "minExecMs": 0.020739,
+              "maxExecMs": 2.355826
+            }
+          ],
+          "wal": {
+            "records": 27174,
+            "bytes": 1456509,
+            "buffersFull": 0,
+            "writes": 285,
+            "syncs": 152,
+            "writeMs": 8.363,
+            "syncMs": 361.55
+          },
+          "database": {
+            "commits": 13462,
+            "rollbacks": 0,
+            "activeMs": 1332.585,
+            "sessionMs": 67771.493
+          },
+          "cpuMsByProcess": {
+            "backends": 2230.0,
+            "background": 10.0,
+            "walWriter": 160.0
+          }
+        }
+      }
+    },
+    {
+      "high": {
+        "mix": "hot:1",
+        "rateRps": 447.0,
+        "k6": {
+          "p50": 1.26832,
+          "p95": 2.4988095,
+          "p99": 4.539688,
+          "mean": 1.5711411584520198,
+          "sent": 13411,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 13411,
+          "successRate": 1.0,
+          "throughputRps": 447.03333333333336
+        },
+        "service": {
+          "role": "api",
+          "runtime": "java 21.0.13.1",
+          "requests": 13411,
+          "wallMs": 37263.56325,
+          "cpuMs": 5170.0,
+          "cpuMsPerRequest": 0.38550443665647605,
+          "gc": {
+            "collections": 1,
+            "pauseMs": 19.0,
+            "collectors": [
+              "G1 Young Generation",
+              "G1 Concurrent GC",
+              "G1 Old Generation"
+            ]
+          },
+          "counters": {},
+          "timings": {
+            "handler": {
+              "count": 13411,
+              "mean": 1.321198887629567,
+              "median": 1.079971,
+              "p95": 2.155788,
+              "p99": 3.638433
+            },
+            "own": {
+              "count": 13411,
+              "mean": 0.15938237193348698,
+              "median": 0.11704900000000007,
+              "p95": 0.3355870000000001,
+              "p99": 0.4984090000000001
+            },
+            "db_write": {
+              "count": 13411,
+              "mean": 1.1618165156960754,
+              "median": 0.960766,
+              "p95": 1.809926,
+              "p99": 3.258224
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api-java": 5308.239,
+          "postgres": 3724.774
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 28.98,
+          "readings": 7,
+          "containers": {
+            "api-java": {
+              "cores": 0.1723,
+              "maxCores": 0.1994,
+              "workingSetMiB": 954.7,
+              "anonMiB": 918.4
+            },
+            "postgres": {
+              "cores": 0.1201,
+              "maxCores": 0.1289,
+              "workingSetMiB": 115.4,
+              "anonMiB": 24.5
+            }
+          }
+        },
+        "postgres": {
+          "statements": [
+            {
+              "kind": "write",
+              "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+              "calls": 13411,
+              "rows": 13411,
+              "meanExecMs": 0.10330006703452357,
+              "stddevExecMs": 0.6680333893884612,
+              "minExecMs": 0.021962000000000002,
+              "maxExecMs": 19.001558000000003
+            }
+          ],
+          "wal": {
+            "records": 27678,
+            "bytes": 1484056,
+            "buffersFull": 0,
+            "writes": 13530,
+            "syncs": 13530,
+            "writeMs": 162.638,
+            "syncMs": 11159.795
+          },
+          "database": {
+            "commits": 13564,
+            "rollbacks": 0,
+            "activeMs": 13489.015,
+            "sessionMs": 345041.856
+          },
+          "cpuMsByProcess": {
+            "backends": 3140.0,
+            "background": 10.0,
+            "walWriter": 0.0
+          }
+        }
+      },
+      "write_async:1": {
+        "mix": "write_async:1",
+        "rateRps": 447.0,
+        "k6": {
+          "p50": 0.53192,
+          "p95": 1.2364039999999998,
+          "p99": 1.6281239,
+          "mean": 0.6462558517634789,
+          "sent": 13411,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 13411,
+          "successRate": 1.0,
+          "throughputRps": 447.03333333333336
+        },
+        "service": {
+          "role": "api",
+          "runtime": "java 21.0.13.1",
+          "requests": 13411,
+          "wallMs": 37358.329723,
+          "cpuMs": 4830.0,
+          "cpuMsPerRequest": 0.3601521139363209,
+          "gc": {
+            "collections": 0,
+            "pauseMs": 0.0,
+            "collectors": [
+              "G1 Young Generation",
+              "G1 Concurrent GC",
+              "G1 Old Generation"
+            ]
+          },
+          "counters": {},
+          "timings": {
+            "handler": {
+              "count": 13411,
+              "mean": 0.39139219536201686,
+              "median": 0.312136,
+              "p95": 0.789569,
+              "p99": 1.107491
+            },
+            "own": {
+              "count": 13411,
+              "mean": 0.14363041167698148,
+              "median": 0.107207,
+              "p95": 0.314815,
+              "p99": 0.4725750000000001
+            },
+            "db_write_async": {
+              "count": 13411,
+              "mean": 0.2477617836850337,
+              "median": 0.20557,
+              "p95": 0.47506,
+              "p99": 0.702283
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api-java": 4964.008,
+          "postgres": 2975.583
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 29.0,
+          "readings": 7,
+          "containers": {
+            "api-java": {
+              "cores": 0.1616,
+              "maxCores": 0.1721,
+              "workingSetMiB": 954.0,
+              "anonMiB": 917.6
+            },
+            "postgres": {
+              "cores": 0.0953,
+              "maxCores": 0.1001,
+              "workingSetMiB": 114.7,
+              "anonMiB": 23.8
+            }
+          }
+        },
+        "postgres": {
+          "statements": [
+            {
+              "kind": "write",
+              "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+              "calls": 13411,
+              "rows": 13411,
+              "meanExecMs": 0.04361610737454324,
+              "stddevExecMs": 0.027418420604007628,
+              "minExecMs": 0.019857,
+              "maxExecMs": 0.41381799999999996
+            }
+          ],
+          "wal": {
+            "records": 27161,
+            "bytes": 1455827,
+            "buffersFull": 0,
+            "writes": 276,
+            "syncs": 153,
+            "writeMs": 22.628,
+            "syncMs": 353.058
+          },
+          "database": {
+            "commits": 13456,
+            "rollbacks": 0,
+            "activeMs": 1313.222,
+            "sessionMs": 68564.531
+          },
+          "cpuMsByProcess": {
+            "backends": 2210.0,
+            "background": 10.0,
+            "walWriter": 170.0
+          }
+        }
+      }
+    },
+    {
+      "high": {
+        "mix": "hot:1",
+        "rateRps": 447.0,
+        "k6": {
+          "p50": 1.22947,
+          "p95": 2.3879064999999993,
+          "p99": 3.842195169999999,
+          "mean": 1.500099983445193,
+          "sent": 13410,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 13410,
+          "successRate": 1.0,
+          "throughputRps": 447.0
+        },
+        "service": {
+          "role": "api",
+          "runtime": "java 21.0.13.1",
+          "requests": 13410,
+          "wallMs": 37248.939258,
+          "cpuMs": 4850.0,
+          "cpuMsPerRequest": 0.3616703952274422,
+          "gc": {
+            "collections": 0,
+            "pauseMs": 0.0,
+            "collectors": [
+              "G1 Young Generation",
+              "G1 Concurrent GC",
+              "G1 Old Generation"
+            ]
+          },
+          "counters": {},
+          "timings": {
+            "handler": {
+              "count": 13410,
+              "mean": 1.2683265427293018,
+              "median": 1.04939,
+              "p95": 2.03827,
+              "p99": 3.186659
+            },
+            "own": {
+              "count": 13410,
+              "mean": 0.14506082311707688,
+              "median": 0.10669600000000001,
+              "p95": 0.31461099999999975,
+              "p99": 0.45794900000000016
+            },
+            "db_write": {
+              "count": 13410,
+              "mean": 1.1232657196122287,
+              "median": 0.940958,
+              "p95": 1.724147,
+              "p99": 2.804733
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api-java": 4989.097,
+          "postgres": 3591.707
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 29.0,
+          "readings": 7,
+          "containers": {
+            "api-java": {
+              "cores": 0.1625,
+              "maxCores": 0.174,
+              "workingSetMiB": 953.8,
+              "anonMiB": 917.5
+            },
+            "postgres": {
+              "cores": 0.1162,
+              "maxCores": 0.1282,
+              "workingSetMiB": 114.7,
+              "anonMiB": 23.7
+            }
+          }
+        },
+        "postgres": {
+          "statements": [
+            {
+              "kind": "write",
+              "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+              "calls": 13410,
+              "rows": 13410,
+              "meanExecMs": 0.09056895540641305,
+              "stddevExecMs": 0.602463442250938,
+              "minExecMs": 0.021375,
+              "maxExecMs": 19.825749000000002
+            }
+          ],
+          "wal": {
+            "records": 27536,
+            "bytes": 1476156,
+            "buffersFull": 0,
+            "writes": 13489,
+            "syncs": 13489,
+            "writeMs": 157.914,
+            "syncMs": 10873.985
+          },
+          "database": {
+            "commits": 13525,
+            "rollbacks": 0,
+            "activeMs": 13001.565,
+            "sessionMs": 343939.84
+          },
+          "cpuMsByProcess": {
+            "backends": 2980.0,
+            "background": 20.0,
+            "walWriter": 0.0
+          }
+        }
+      },
+      "write_async:1": {
+        "mix": "write_async:1",
+        "rateRps": 447.0,
+        "k6": {
+          "p50": 0.525414,
+          "p95": 1.2394315,
+          "p99": 1.6983707999999997,
+          "mean": 0.6513650517485658,
+          "sent": 13411,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 13411,
+          "successRate": 1.0,
+          "throughputRps": 447.03333333333336
+        },
+        "service": {
+          "role": "api",
+          "runtime": "java 21.0.13.1",
+          "requests": 13411,
+          "wallMs": 37280.991608,
+          "cpuMs": 4800.0,
+          "cpuMsPerRequest": 0.3579151442845425,
+          "gc": {
+            "collections": 1,
+            "pauseMs": 7.0,
+            "collectors": [
+              "G1 Young Generation",
+              "G1 Concurrent GC",
+              "G1 Old Generation"
+            ]
+          },
+          "counters": {},
+          "timings": {
+            "handler": {
+              "count": 13411,
+              "mean": 0.39324517634777684,
+              "median": 0.308136,
+              "p95": 0.792902,
+              "p99": 1.114747
+            },
+            "own": {
+              "count": 13411,
+              "mean": 0.14169763969875454,
+              "median": 0.10193599999999997,
+              "p95": 0.30926499999999996,
+              "p99": 0.45634700000000006
+            },
+            "db_write_async": {
+              "count": 13411,
+              "mean": 0.2515475366490188,
+              "median": 0.205146,
+              "p95": 0.486681,
+              "p99": 0.732551
+            }
+          }
+        },
+        "containerCpuMs": {
+          "api-java": 4929.948,
+          "postgres": 2962.502
+        },
+        "resources": {
+          "method": "window",
+          "seconds": 29.0,
+          "readings": 7,
+          "containers": {
+            "api-java": {
+              "cores": 0.1595,
+              "maxCores": 0.1704,
+              "workingSetMiB": 954.0,
+              "anonMiB": 917.6
+            },
+            "postgres": {
+              "cores": 0.0959,
+              "maxCores": 0.1057,
+              "workingSetMiB": 114.5,
+              "anonMiB": 23.7
+            }
+          }
+        },
+        "postgres": {
+          "statements": [
+            {
+              "kind": "write",
+              "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+              "calls": 13411,
+              "rows": 13411,
+              "meanExecMs": 0.04386892513608207,
+              "stddevExecMs": 0.02930987229302331,
+              "minExecMs": 0.020968,
+              "maxExecMs": 0.587093
+            }
+          ],
+          "wal": {
+            "records": 27192,
+            "bytes": 1457244,
+            "buffersFull": 0,
+            "writes": 286,
+            "syncs": 151,
+            "writeMs": 29.143,
+            "syncMs": 360.56
+          },
+          "database": {
+            "commits": 13471,
+            "rollbacks": 0,
+            "activeMs": 1311.426,
+            "sessionMs": 68254.918
+          },
+          "cpuMsByProcess": {
+            "backends": 2200.0,
+            "background": 10.0,
+            "walWriter": 170.0
+          }
+        }
+      }
+    }
+  ],
+  "disturbedReplicates": [],
+  "discardedPasses": [
+    {
+      "mix": "hot:1",
+      "rateRps": 447.0,
+      "k6": {
+        "p50": 29.289157,
+        "p95": 1803.9510025,
+        "p99": 1959.7419128000004,
+        "mean": 533.3716668636665,
+        "sent": 13411,
+        "dropped": 0,
+        "failed": 9340,
+        "succeeded": 4071,
+        "successRate": 0.30355678174632766,
+        "throughputRps": 135.7
+      },
+      "service": {
+        "role": "api",
+        "runtime": "java 21.0.13.1",
+        "requests": 13610,
+        "wallMs": 37621.752763,
+        "cpuMs": 6630.0,
+        "cpuMsPerRequest": 0.4871418074944893,
+        "gc": {
+          "collections": 0,
+          "pauseMs": 0.0,
+          "collectors": [
+            "G1 Young Generation",
+            "G1 Concurrent GC",
+            "G1 Old Generation"
+          ]
+        },
+        "counters": {},
+        "timings": {
+          "handler": {
+            "count": 13610,
+            "mean": 378.8682348364435,
+            "median": 195.091633,
+            "p95": 1209.964932,
+            "p99": 2186.929163
+          },
+          "own": {
+            "count": 13610,
+            "mean": 0.1526756504041143,
+            "median": 0.12627600000001848,
+            "p95": 0.30208700000002864,
+            "p99": 0.44118599999998764
+          },
+          "db_write": {
+            "count": 13610,
+            "mean": 378.71555918603946,
+            "median": 194.952213,
+            "p95": 1209.721489,
+            "p99": 2186.566594
+          }
+        }
+      },
+      "containerCpuMs": {
+        "api-java": 6712.316,
+        "postgres": 7066.805
+      },
+      "resources": {
+        "method": "window",
+        "seconds": 28.99,
+        "readings": 7,
+        "containers": {
+          "api-java": {
+            "cores": 0.2225,
+            "maxCores": 0.4137,
+            "workingSetMiB": 980.7,
+            "anonMiB": 918.2
+          },
+          "postgres": {
+            "cores": 0.2362,
+            "maxCores": 0.5218,
+            "workingSetMiB": 111.6,
+            "anonMiB": 21.6
+          }
+        }
+      },
+      "postgres": {
+        "statements": [
+          {
+            "kind": "write",
+            "query": "UPDATE items SET value = value + 1 WHERE id = $1",
+            "calls": 13529,
+            "rows": 13529,
+            "meanExecMs": 17.029434888387932,
+            "stddevExecMs": 31.701281618507604,
+            "minExecMs": 0.021322,
+            "maxExecMs": 505.331891
+          }
+        ],
+        "wal": {
+          "records": 39372,
+          "bytes": 2186251,
+          "buffersFull": 0,
+          "writes": 13292,
+          "syncs": 13291,
+          "writeMs": 131.68,
+          "syncMs": 25031.587
+        },
+        "database": {
+          "commits": 13325,
+          "rollbacks": 0,
+          "activeMs": 257629.316,
+          "sessionMs": 329702.681
+        },
+        "cpuMsByProcess": {
+          "backends": 6490.0,
+          "background": 10.0,
+          "walWriter": 0.0
+        }
+      },
+      "label": "up 4",
+      "reason": "p95 above 10x the median"
+    }
+  ],
+  "cpuByLoad": [
+    {
+      "rateRps": 50,
+      "passes": 2,
+      "serviceCpuMsPerRequest": 0.8261,
+      "containerCpuMsPerRequest": {
+        "api-java": 0.9142,
+        "postgres": 0.6182
+      }
+    },
+    {
+      "rateRps": 231.0,
+      "passes": 2,
+      "serviceCpuMsPerRequest": 0.4343,
+      "containerCpuMsPerRequest": {
+        "api-java": 0.4539,
+        "postgres": 0.2863
+      }
+    },
+    {
+      "rateRps": 386.0,
+      "passes": 2,
+      "serviceCpuMsPerRequest": 0.3644,
+      "containerCpuMsPerRequest": {
+        "api-java": 0.3774,
+        "postgres": 0.2453
+      }
+    },
+    {
+      "rateRps": 447.0,
+      "passes": 3,
+      "serviceCpuMsPerRequest": 0.3788,
+      "containerCpuMsPerRequest": {
+        "api-java": 0.389,
+        "postgres": 0.2429
+      }
+    }
+  ],
+  "inputReplicates": [
+    {
+      "serviceTimeMs": {
+        "value": {
+          "kind": "lognormal",
+          "median": 0.318494,
+          "p95": 0.860856
+        },
+        "how": "mean = the Spring Boot service's CPU per request at 447 req/s net of idle: (5260 - 90 ms at rest) / 13411 requests = 0.3855 ms; shape (p95/median 0.3482/0.1288 ms) from the handler's own time; x 0.9919, the machine's thread speed at the pass (1.29 busy threads: the containers 0.24, k6 0.15, at rest 0.90)"
+      },
+      "clientLinkLatencyMs": {
+        "value": 0.0,
+        "how": "anchored: (measured median 1.274 ms - the model's median without it 1.419 ms at 447 req/s) / 2, one way, at least 0"
+      },
+      "measuredLowLoad": {
+        "rateRps": 447.0,
+        "p50": 1.274149,
+        "p95": 2.482548,
+        "p99": 3.8455484999999885,
+        "mean": 1.5451760044739389,
+        "sent": 13411,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 13411,
+        "successRate": 1.0,
+        "throughputRps": 447.03333333333336
+      },
+      "serviceTimeByLoad": {
+        "value": [
+          {
+            "rps": 50.0,
+            "factor": 2.269
+          },
+          {
+            "rps": 60.0,
+            "factor": 2.0534
+          },
+          {
+            "rps": 75.0,
+            "factor": 1.8311
+          },
+          {
+            "rps": 93.7,
+            "factor": 1.6472
+          },
+          {
+            "rps": 117.2,
+            "factor": 1.495
+          },
+          {
+            "rps": 146.5,
+            "factor": 1.3692
+          },
+          {
+            "rps": 183.1,
+            "factor": 1.2651
+          },
+          {
+            "rps": 228.9,
+            "factor": 1.1789
+          },
+          {
+            "rps": 286.1,
+            "factor": 1.1077
+          },
+          {
+            "rps": 357.6,
+            "factor": 1.0488
+          },
+          {
+            "rps": 447.0,
+            "factor": 1.0
+          },
+          {
+            "rps": 558.8,
+            "factor": 0.9597
+          },
+          {
+            "rps": 698.4,
+            "factor": 0.9263
+          },
+          {
+            "rps": 894.0,
+            "factor": 0.8961
+          }
+        ],
+        "how": "the staircase's work per request, its CPU per request net of idle times the machine's thread speed during the pass (0.8261 ms at 50, 0.4327 ms at 231, 0.3620 ms at 386, 0.3757 ms at 447 req/s), fitted as a law of the rate, 0.2793 + 15.22 \u00d7 rate^-0.85 ms, over the top rate's (0.3643 ms); carried to 894 req/s, 2 times the top rate, then flat"
+      },
+      "gcPauseMs": {
+        "value": 21.4069,
+        "how": "the runtime's stop-the-world pauses in the pass: 25.00 ms over 1 collections, a mean of 25.0000 ms (the model's median: mean / 1.17)"
+      },
+      "gcEveryRequests": {
+        "value": 13411,
+        "how": "13411 requests / 1 collections in the pass"
+      },
+      "writeServiceTimeMs": {
+        "value": {
+          "kind": "lognormal",
+          "median": 0.172,
+          "p95": 0.3963
+        },
+        "how": "PostgreSQL's CPU per UPDATE with synchronous_commit off (0.1956 ms), shaped like its round trip (median 0.209, p95 0.481 ms)",
+        "postgres": {
+          "executorMs": 0.0447
+        }
+      },
+      "dbLinkLatencyMs": {
+        "value": {
+          "kind": "lognormal",
+          "median": 0.0078,
+          "p95": 0.0784
+        },
+        "how": "each way: the round trip the service measured less PostgreSQL's time, in two legs that keep its mean and variance (median 0.0078, p95 0.0784 ms)"
+      },
+      "dbCpuShare": {
+        "value": 0.9919,
+        "how": "PostgreSQL CPU per query at the top pass net of idle (0.2429 ms) / the model's mean time per query (13411 writes without their flush at 0.196 ms: 0.196 ms); x 0.9919, the machine's thread speed at the pass (1.29 busy threads: the containers 0.24, k6 0.15, at rest 0.90)"
+      },
+      "commitFlushMs": {
+        "value": {
+          "kind": "lognormal",
+          "median": 0.7847,
+          "p95": 1.3534
+        },
+        "how": "PostgreSQL's own WAL flushes at 447 req/s (pg_stat_wal): 13488 flushes of 0.829 ms on average, 0.99 commits per flush (the model: 1.00); shaped like the commit wait the service measured (p95/median 1.72, mean 0.790 ms)",
+        "model": {
+          "meanLockWaitMs": 0.0006,
+          "meanCommitWaitMs": 0.8271,
+          "commitsPerFlush": 1.0
+        },
+        "postgres": {
+          "syncs": 13488,
+          "flushMs": 0.829,
+          "syncMs": 0.8176,
+          "commitsPerFlush": 0.9943
+        }
+      },
+      "serviceMemoryBaselineMb": {
+        "value": 943.073,
+        "how": "at idle: the api-java container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 447 req/s), by non-negative least squares: 943.1 MiB + 0.0263 MiB per req/s, largest error at and above the median rate 0%"
+      },
+      "serviceMemoryPerRpsMb": {
+        "value": 0.026266,
+        "how": "per req/s: the api-java container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 447 req/s), by non-negative least squares: 943.1 MiB + 0.0263 MiB per req/s, largest error at and above the median rate 0%"
+      },
+      "serviceMemoryPerRequestMb": {
+        "value": 0.01,
+        "how": "per request held: the floor, since the fit against req/s explains the whole working set (held requests' memory would count twice otherwise)"
+      },
+      "host": {
+        "value": {
+          "physicalCores": 4,
+          "threadsPerCore": 2,
+          "siblingSpeed": 0.47,
+          "allCoreClock": 0.805,
+          "otherBusyThreads": 0.9,
+          "clientCpuMs": 0.3326
+        },
+        "how": "contention check 2026-11-20T17:00:31Z: 4 physical cores of 8 threads (the VM's topology); clock 4,053 MHz with 1 busy thread, 3,263 with 8 (a line through 24 probe conditions) = 0.805; a thread sharing its core at 0.47 of its speed alone (the probe's CPU per unit of work against the busy threads, 22 conditions, rms 10.4% in log); 0.90 threads busy at rest; k6 0.3326 ms of CPU per request (median of 5 steps); other load: the background, k6"
+      },
+      "anchor": {
+        "rateRps": 447.0,
+        "measuredP50": 1.274149,
+        "modelP50WithoutClientLatency": 1.4189,
+        "residualMs": 0.1448
+      }
+    },
+    {
+      "serviceTimeMs": {
+        "value": {
+          "kind": "lognormal",
+          "median": 0.306098,
+          "p95": 0.877526
+        },
+        "how": "mean = the Spring Boot service's CPU per request at 447 req/s net of idle: (5170 - 90 ms at rest) / 13411 requests = 0.3788 ms; shape (p95/median 0.3356/0.1170 ms) from the handler's own time; x 0.9919, the machine's thread speed at the pass (1.29 busy threads: the containers 0.24, k6 0.15, at rest 0.90)"
+      },
+      "clientLinkLatencyMs": {
+        "value": 0.0,
+        "how": "anchored: (measured median 1.268 ms - the model's median without it 1.391 ms at 447 req/s) / 2, one way, at least 0"
+      },
+      "measuredLowLoad": {
+        "rateRps": 447.0,
+        "p50": 1.26832,
+        "p95": 2.4988095,
+        "p99": 4.539688,
+        "mean": 1.5711411584520198,
+        "sent": 13411,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 13411,
+        "successRate": 1.0,
+        "throughputRps": 447.03333333333336
+      },
+      "serviceTimeByLoad": {
+        "value": [
+          {
+            "rps": 50.0,
+            "factor": 2.269
+          },
+          {
+            "rps": 60.0,
+            "factor": 2.0534
+          },
+          {
+            "rps": 75.0,
+            "factor": 1.8311
+          },
+          {
+            "rps": 93.7,
+            "factor": 1.6472
+          },
+          {
+            "rps": 117.2,
+            "factor": 1.495
+          },
+          {
+            "rps": 146.5,
+            "factor": 1.3692
+          },
+          {
+            "rps": 183.1,
+            "factor": 1.2651
+          },
+          {
+            "rps": 228.9,
+            "factor": 1.1789
+          },
+          {
+            "rps": 286.1,
+            "factor": 1.1077
+          },
+          {
+            "rps": 357.6,
+            "factor": 1.0488
+          },
+          {
+            "rps": 447.0,
+            "factor": 1.0
+          },
+          {
+            "rps": 558.8,
+            "factor": 0.9597
+          },
+          {
+            "rps": 698.4,
+            "factor": 0.9263
+          },
+          {
+            "rps": 894.0,
+            "factor": 0.8961
+          }
+        ],
+        "how": "the staircase's work per request, its CPU per request net of idle times the machine's thread speed during the pass (0.8261 ms at 50, 0.4327 ms at 231, 0.3620 ms at 386, 0.3757 ms at 447 req/s), fitted as a law of the rate, 0.2793 + 15.22 \u00d7 rate^-0.85 ms, over the top rate's (0.3643 ms); carried to 894 req/s, 2 times the top rate, then flat"
+      },
+      "gcPauseMs": {
+        "value": 16.2693,
+        "how": "the runtime's stop-the-world pauses in the pass: 19.00 ms over 1 collections, a mean of 19.0000 ms (the model's median: mean / 1.17)"
+      },
+      "gcEveryRequests": {
+        "value": 13411,
+        "how": "13411 requests / 1 collections in the pass"
+      },
+      "writeServiceTimeMs": {
+        "value": {
+          "kind": "lognormal",
+          "median": 0.1706,
+          "p95": 0.3944
+        },
+        "how": "PostgreSQL's CPU per UPDATE with synchronous_commit off (0.1943 ms), shaped like its round trip (median 0.206, p95 0.475 ms)",
+        "postgres": {
+          "executorMs": 0.0436
+        }
+      },
+      "dbLinkLatencyMs": {
+        "value": {
+          "kind": "lognormal",
+          "median": 0.0073,
+          "p95": 0.075
+        },
+        "how": "each way: the round trip the service measured less PostgreSQL's time, in two legs that keep its mean and variance (median 0.0073, p95 0.0750 ms)"
+      },
+      "dbCpuShare": {
+        "value": 0.9919,
+        "how": "PostgreSQL CPU per query at the top pass net of idle (0.2501 ms) / the model's mean time per query (13411 writes without their flush at 0.194 ms: 0.194 ms); x 0.9919, the machine's thread speed at the pass (1.29 busy threads: the containers 0.24, k6 0.15, at rest 0.90)"
+      },
+      "commitFlushMs": {
+        "value": {
+          "kind": "lognormal",
+          "median": 0.7881,
+          "p95": 1.3931
+        },
+        "how": "PostgreSQL's own WAL flushes at 447 req/s (pg_stat_wal): 13530 flushes of 0.837 ms on average, 0.99 commits per flush (the model: 1.00); shaped like the commit wait the service measured (p95/median 1.77, mean 0.802 ms)",
+        "model": {
+          "meanLockWaitMs": 0.001,
+          "meanCommitWaitMs": 0.8348,
+          "commitsPerFlush": 1.0
+        },
+        "postgres": {
+          "syncs": 13530,
+          "flushMs": 0.8368,
+          "syncMs": 0.8248,
+          "commitsPerFlush": 0.9912
+        }
+      },
+      "serviceMemoryBaselineMb": {
+        "value": 943.073,
+        "how": "at idle: the api-java container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 447 req/s), by non-negative least squares: 943.1 MiB + 0.0263 MiB per req/s, largest error at and above the median rate 0%"
+      },
+      "serviceMemoryPerRpsMb": {
+        "value": 0.026266,
+        "how": "per req/s: the api-java container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 447 req/s), by non-negative least squares: 943.1 MiB + 0.0263 MiB per req/s, largest error at and above the median rate 0%"
+      },
+      "serviceMemoryPerRequestMb": {
+        "value": 0.01,
+        "how": "per request held: the floor, since the fit against req/s explains the whole working set (held requests' memory would count twice otherwise)"
+      },
+      "host": {
+        "value": {
+          "physicalCores": 4,
+          "threadsPerCore": 2,
+          "siblingSpeed": 0.47,
+          "allCoreClock": 0.805,
+          "otherBusyThreads": 0.9,
+          "clientCpuMs": 0.3326
+        },
+        "how": "contention check 2026-11-20T17:00:31Z: 4 physical cores of 8 threads (the VM's topology); clock 4,053 MHz with 1 busy thread, 3,263 with 8 (a line through 24 probe conditions) = 0.805; a thread sharing its core at 0.47 of its speed alone (the probe's CPU per unit of work against the busy threads, 22 conditions, rms 10.4% in log); 0.90 threads busy at rest; k6 0.3326 ms of CPU per request (median of 5 steps); other load: the background, k6"
+      },
+      "anchor": {
+        "rateRps": 447.0,
+        "measuredP50": 1.26832,
+        "modelP50WithoutClientLatency": 1.3911,
+        "residualMs": 0.1228
+      }
+    },
+    {
+      "serviceTimeMs": {
+        "value": {
+          "kind": "lognormal",
+          "median": 0.283777,
+          "p95": 0.836646
+        },
+        "how": "mean = the Spring Boot service's CPU per request at 447 req/s net of idle: (4850 - 90 ms at rest) / 13410 requests = 0.3550 ms; shape (p95/median 0.3146/0.1067 ms) from the handler's own time; x 0.9922, the machine's thread speed at the pass (1.28 busy threads: the containers 0.23, k6 0.15, at rest 0.90)"
+      },
+      "clientLinkLatencyMs": {
+        "value": 0.0,
+        "how": "anchored: (measured median 1.229 ms - the model's median without it 1.364 ms at 447 req/s) / 2, one way, at least 0"
+      },
+      "measuredLowLoad": {
+        "rateRps": 447.0,
+        "p50": 1.22947,
+        "p95": 2.3879064999999993,
+        "p99": 3.842195169999999,
+        "mean": 1.500099983445193,
+        "sent": 13410,
+        "dropped": 0,
+        "failed": 0,
+        "succeeded": 13410,
+        "successRate": 1.0,
+        "throughputRps": 447.0
+      },
+      "serviceTimeByLoad": {
+        "value": [
+          {
+            "rps": 50.0,
+            "factor": 2.269
+          },
+          {
+            "rps": 60.0,
+            "factor": 2.0534
+          },
+          {
+            "rps": 75.0,
+            "factor": 1.8311
+          },
+          {
+            "rps": 93.7,
+            "factor": 1.6472
+          },
+          {
+            "rps": 117.2,
+            "factor": 1.495
+          },
+          {
+            "rps": 146.5,
+            "factor": 1.3692
+          },
+          {
+            "rps": 183.1,
+            "factor": 1.2651
+          },
+          {
+            "rps": 228.9,
+            "factor": 1.1789
+          },
+          {
+            "rps": 286.1,
+            "factor": 1.1077
+          },
+          {
+            "rps": 357.6,
+            "factor": 1.0488
+          },
+          {
+            "rps": 447.0,
+            "factor": 1.0
+          },
+          {
+            "rps": 558.8,
+            "factor": 0.9597
+          },
+          {
+            "rps": 698.4,
+            "factor": 0.9263
+          },
+          {
+            "rps": 894.0,
+            "factor": 0.8961
+          }
+        ],
+        "how": "the staircase's work per request, its CPU per request net of idle times the machine's thread speed during the pass (0.8261 ms at 50, 0.4327 ms at 231, 0.3620 ms at 386, 0.3757 ms at 447 req/s), fitted as a law of the rate, 0.2793 + 15.22 \u00d7 rate^-0.85 ms, over the top rate's (0.3643 ms); carried to 894 req/s, 2 times the top rate, then flat"
+      },
+      "gcPauseMs": {
+        "value": 0,
+        "how": "no stop-the-world pause in the pass (0 collections, 0 ms)"
+      },
+      "writeServiceTimeMs": {
+        "value": {
+          "kind": "lognormal",
+          "median": 0.1684,
+          "p95": 0.3995
+        },
+        "how": "PostgreSQL's CPU per UPDATE with synchronous_commit off (0.1933 ms), shaped like its round trip (median 0.205, p95 0.487 ms)",
+        "postgres": {
+          "executorMs": 0.0439
+        }
+      },
+      "dbLinkLatencyMs": {
+        "value": {
+          "kind": "lognormal",
+          "median": 0.0077,
+          "p95": 0.0795
+        },
+        "how": "each way: the round trip the service measured less PostgreSQL's time, in two legs that keep its mean and variance (median 0.0077, p95 0.0795 ms)"
+      },
+      "dbCpuShare": {
+        "value": 0.9922,
+        "how": "PostgreSQL CPU per query at the top pass net of idle (0.2402 ms) / the model's mean time per query (13410 writes without their flush at 0.193 ms: 0.193 ms); x 0.9922, the machine's thread speed at the pass (1.28 busy threads: the containers 0.23, k6 0.15, at rest 0.90)"
+      },
+      "commitFlushMs": {
+        "value": {
+          "kind": "lognormal",
+          "median": 0.778,
+          "p95": 1.3084
+        },
+        "how": "PostgreSQL's own WAL flushes at 447 req/s (pg_stat_wal): 13489 flushes of 0.818 ms on average, 0.99 commits per flush (the model: 1.00); shaped like the commit wait the service measured (p95/median 1.68, mean 0.773 ms)",
+        "model": {
+          "meanLockWaitMs": 0.0003,
+          "meanCommitWaitMs": 0.816,
+          "commitsPerFlush": 1.0
+        },
+        "postgres": {
+          "syncs": 13489,
+          "flushMs": 0.8178,
+          "syncMs": 0.8061,
+          "commitsPerFlush": 0.9941
+        }
+      },
+      "serviceMemoryBaselineMb": {
+        "value": 943.073,
+        "how": "at idle: the api-java container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 447 req/s), by non-negative least squares: 943.1 MiB + 0.0263 MiB per req/s, largest error at and above the median rate 0%"
+      },
+      "serviceMemoryPerRpsMb": {
+        "value": 0.026266,
+        "how": "per req/s: the api-java container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 447 req/s), by non-negative least squares: 943.1 MiB + 0.0263 MiB per req/s, largest error at and above the median rate 0%"
+      },
+      "serviceMemoryPerRequestMb": {
+        "value": 0.01,
+        "how": "per request held: the floor, since the fit against req/s explains the whole working set (held requests' memory would count twice otherwise)"
+      },
+      "host": {
+        "value": {
+          "physicalCores": 4,
+          "threadsPerCore": 2,
+          "siblingSpeed": 0.47,
+          "allCoreClock": 0.805,
+          "otherBusyThreads": 0.9,
+          "clientCpuMs": 0.3326
+        },
+        "how": "contention check 2026-11-20T17:00:31Z: 4 physical cores of 8 threads (the VM's topology); clock 4,053 MHz with 1 busy thread, 3,263 with 8 (a line through 24 probe conditions) = 0.805; a thread sharing its core at 0.47 of its speed alone (the probe's CPU per unit of work against the busy threads, 22 conditions, rms 10.4% in log); 0.90 threads busy at rest; k6 0.3326 ms of CPU per request (median of 5 steps); other load: the background, k6"
+      },
+      "anchor": {
+        "rateRps": 447.0,
+        "measuredP50": 1.22947,
+        "modelP50WithoutClientLatency": 1.3638,
+        "residualMs": 0.1343
+      }
+    }
+  ],
+  "inputs": {
+    "serviceTimeMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.306098,
+        "p95": 0.877526
+      },
+      "how": "the median of 3 replicates (second): mean = the Spring Boot service's CPU per request at 447 req/s net of idle: (5170 - 90 ms at rest) / 13411 requests = 0.3788 ms; shape (p95/median 0.3356/0.1170 ms) from the handler's own time; x 0.9919, the machine's thread speed at the pass (1.29 busy threads: the containers 0.24, k6 0.15, at rest 0.90)"
+    },
+    "clientLinkLatencyMs": {
+      "value": 0.0,
+      "how": "the median of 3 replicates (second): anchored: (measured median 1.268 ms - the model's median without it 1.391 ms at 447 req/s) / 2, one way, at least 0"
+    },
+    "measuredLowLoad": {
+      "rateRps": 447.0,
+      "p50": 1.2683,
+      "p95": 2.4825,
+      "p99": 3.8455,
+      "mean": 1.5452,
+      "sent": 13411,
+      "dropped": 0,
+      "failed": 0,
+      "succeeded": 13411,
+      "successRate": 1.0,
+      "throughputRps": 447.0333
+    },
+    "serviceTimeByLoad": {
+      "value": [
+        {
+          "rps": 50.0,
+          "factor": 2.269
+        },
+        {
+          "rps": 60.0,
+          "factor": 2.0534
+        },
+        {
+          "rps": 75.0,
+          "factor": 1.8311
+        },
+        {
+          "rps": 93.7,
+          "factor": 1.6472
+        },
+        {
+          "rps": 117.2,
+          "factor": 1.495
+        },
+        {
+          "rps": 146.5,
+          "factor": 1.3692
+        },
+        {
+          "rps": 183.1,
+          "factor": 1.2651
+        },
+        {
+          "rps": 228.9,
+          "factor": 1.1789
+        },
+        {
+          "rps": 286.1,
+          "factor": 1.1077
+        },
+        {
+          "rps": 357.6,
+          "factor": 1.0488
+        },
+        {
+          "rps": 447.0,
+          "factor": 1.0
+        },
+        {
+          "rps": 558.8,
+          "factor": 0.9597
+        },
+        {
+          "rps": 698.4,
+          "factor": 0.9263
+        },
+        {
+          "rps": 894.0,
+          "factor": 0.8961
+        }
+      ],
+      "how": "the median of 3 replicates (first): the staircase's work per request, its CPU per request net of idle times the machine's thread speed during the pass (0.8261 ms at 50, 0.4327 ms at 231, 0.3620 ms at 386, 0.3757 ms at 447 req/s), fitted as a law of the rate, 0.2793 + 15.22 \u00d7 rate^-0.85 ms, over the top rate's (0.3643 ms); carried to 894 req/s, 2 times the top rate, then flat"
+    },
+    "gcPauseMs": {
+      "value": 16.2693,
+      "how": "the median of 3 replicates (second): the runtime's stop-the-world pauses in the pass: 19.00 ms over 1 collections, a mean of 19.0000 ms (the model's median: mean / 1.17)"
+    },
+    "gcEveryRequests": {
+      "value": 13411,
+      "how": "the median of the 2 of 3 replicates with it (first): 13411 requests / 1 collections in the pass"
+    },
+    "writeServiceTimeMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.1706,
+        "p95": 0.3944
+      },
+      "how": "the median of 3 replicates (second): PostgreSQL's CPU per UPDATE with synchronous_commit off (0.1943 ms), shaped like its round trip (median 0.206, p95 0.475 ms)",
+      "postgres": {
+        "executorMs": 0.0436
+      }
+    },
+    "dbLinkLatencyMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.0077,
+        "p95": 0.0795
+      },
+      "how": "the median of 3 replicates (third): each way: the round trip the service measured less PostgreSQL's time, in two legs that keep its mean and variance (median 0.0077, p95 0.0795 ms)"
+    },
+    "dbCpuShare": {
+      "value": 0.9919,
+      "how": "the median of 3 replicates (second): PostgreSQL CPU per query at the top pass net of idle (0.2501 ms) / the model's mean time per query (13411 writes without their flush at 0.194 ms: 0.194 ms); x 0.9919, the machine's thread speed at the pass (1.29 busy threads: the containers 0.24, k6 0.15, at rest 0.90)"
+    },
+    "commitFlushMs": {
+      "value": {
+        "kind": "lognormal",
+        "median": 0.7847,
+        "p95": 1.3534
+      },
+      "how": "the median of 3 replicates (first): PostgreSQL's own WAL flushes at 447 req/s (pg_stat_wal): 13488 flushes of 0.829 ms on average, 0.99 commits per flush (the model: 1.00); shaped like the commit wait the service measured (p95/median 1.72, mean 0.790 ms)",
+      "model": {
+        "meanLockWaitMs": 0.0006,
+        "meanCommitWaitMs": 0.8271,
+        "commitsPerFlush": 1.0
+      },
+      "postgres": {
+        "syncs": 13488,
+        "flushMs": 0.829,
+        "syncMs": 0.8176,
+        "commitsPerFlush": 0.9943
+      }
+    },
+    "serviceMemoryBaselineMb": {
+      "value": 943.073,
+      "how": "the median of 3 replicates (first): at idle: the api-java container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 447 req/s), by non-negative least squares: 943.1 MiB + 0.0263 MiB per req/s, largest error at and above the median rate 0%"
+    },
+    "serviceMemoryPerRpsMb": {
+      "value": 0.026266,
+      "how": "the median of 3 replicates (first): per req/s: the api-java container's working set (the highest reading in each pass) against req/s over 10 points (at rest and 9 passes, 50 to 447 req/s), by non-negative least squares: 943.1 MiB + 0.0263 MiB per req/s, largest error at and above the median rate 0%"
+    },
+    "serviceMemoryPerRequestMb": {
+      "value": 0.01,
+      "how": "the median of 3 replicates (first): per request held: the floor, since the fit against req/s explains the whole working set (held requests' memory would count twice otherwise)"
+    },
+    "host": {
+      "value": {
+        "physicalCores": 4,
+        "threadsPerCore": 2,
+        "siblingSpeed": 0.47,
+        "allCoreClock": 0.805,
+        "otherBusyThreads": 0.9,
+        "clientCpuMs": 0.3326
+      },
+      "how": "the median of 3 replicates (first): contention check 2026-11-20T17:00:31Z: 4 physical cores of 8 threads (the VM's topology); clock 4,053 MHz with 1 busy thread, 3,263 with 8 (a line through 24 probe conditions) = 0.805; a thread sharing its core at 0.47 of its speed alone (the probe's CPU per unit of work against the busy threads, 22 conditions, rms 10.4% in log); 0.90 threads busy at rest; k6 0.3326 ms of CPU per request (median of 5 steps); other load: the background, k6"
+    },
+    "anchor": {
+      "rateRps": 447.0,
+      "measuredP50": 1.2683,
+      "modelP50WithoutClientLatency": 1.3911,
+      "residualMs": 0.1343
+    }
+  }
+}

@@ -6,7 +6,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
-import io.archsim.benchmarks.RepositoryLayout;
+import io.archsim.benchmarks.ProtocolV6Runs;
 import io.archsim.benchmarks.designs.Simulations;
 import io.archsim.benchmarks.experiments.Experiments;
 import io.archsim.benchmarks.results.ResultFiles;
@@ -14,8 +14,8 @@ import io.archsim.benchmarks.results.ResultFiles;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The latest runs (the held-out campaign and the repeat of 4 Nov 2026) were calibrated
- * under protocol v6 by the code this ports, one part at a time and then anchored: their
+ * The last runs under protocol v6 (the held-out campaign and the repeat of 4 Nov 2026)
+ * were calibrated by the code this ports, one part at a time and then anchored: their
  * inputs derived again are the very inputs each one used.
  */
 class CalibratedInputsTests {
@@ -25,7 +25,7 @@ class CalibratedInputsTests {
 	@ParameterizedTest
 	@ValueSource(strings = { "pg-mixed", "pg-hot-row", "cache-aside", "kafka", "java-mixed", "go-mixed", "python-mixed",
 			"chain", "cache-ttl" })
-	void rederive_aLatestCalibration_isTheInputsItUsed(String experiment) {
+	void rederive_aLastV6Calibration_isTheInputsItUsed(String experiment) {
 		JsonNode calibration = calibration(experiment);
 
 		ObjectNode inputs = INPUTS.rederive(Experiments.standard().get(experiment), calibration);
@@ -36,7 +36,7 @@ class CalibratedInputsTests {
 	@ParameterizedTest
 	@ValueSource(strings = { "pg-mixed", "pg-hot-row", "cache-aside", "kafka", "java-mixed", "go-mixed", "python-mixed",
 			"chain", "cache-ttl" })
-	void recordedCalibration_aLatestRun_wasCalibratedUnderProtocolV6(String experiment) {
+	void recordedCalibration_aLastV6Run_wasCalibratedUnderProtocolV6(String experiment) {
 		assertThat(calibration(experiment).get("protocol").stringValue()).isEqualTo("v6");
 	}
 
@@ -45,14 +45,14 @@ class CalibratedInputsTests {
 	@ParameterizedTest
 	@ValueSource(strings = { "pg-mixed", "pg-hot-row", "cache-aside", "kafka", "java-mixed", "go-mixed", "python-mixed",
 			"chain", "cache-ttl" })
-	void recordedCalibration_aLatestRun_hasPostgresqlsLinkAndCpuShare(String experiment) {
+	void recordedCalibration_aLastV6Run_hasPostgresqlsLinkAndCpuShare(String experiment) {
 		assertThat(calibration(experiment).get("inputs").propertyNames()).contains("dbLinkLatencyMs", "dbCpuShare");
 	}
 
 	// since W29 the service time's spread is anchored at the top pass: narrowed from the
 	// own time's, its mean still a replicate's CPU per request
 	@Test
-	void rederive_cacheAsidesLatestCalibration_anchorsTheServiceTimesSpread() {
+	void rederive_cacheAsidesLastV6Calibration_anchorsTheServiceTimesSpread() {
 		JsonNode calibration = calibration("cache-aside");
 
 		JsonNode serviceTime = INPUTS.rederive(Experiments.standard().get("cache-aside"), calibration)
@@ -72,7 +72,7 @@ class CalibratedInputsTests {
 
 	// the GC's spacing is the median of the replicates that saw a mark-compact
 	@Test
-	void rederive_pgMixedsLatestCalibration_spacesTheGcAsTheReplicatesThatSawIt() {
+	void rederive_pgMixedsLastV6Calibration_spacesTheGcAsTheReplicatesThatSawIt() {
 		JsonNode every = INPUTS.rederive(Experiments.standard().get("pg-mixed"), calibration("pg-mixed"))
 			.get("gcEveryRequests");
 
@@ -81,8 +81,7 @@ class CalibratedInputsTests {
 	}
 
 	private static JsonNode calibration(String experiment) {
-		return ResultFiles.read(RepositoryLayout.current().results().resolve(experiment).resolve("calibration.json"))
-			.orElseThrow();
+		return ResultFiles.read(ProtocolV6Runs.of(experiment).resolve("calibration.json")).orElseThrow();
 	}
 
 }

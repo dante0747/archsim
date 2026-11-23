@@ -17,6 +17,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.benchmarks.ProtocolV6Runs;
 import io.archsim.benchmarks.RepositoryLayout;
 import io.archsim.benchmarks.ResultCopies;
 import io.archsim.benchmarks.designs.Simulations;
@@ -45,16 +46,18 @@ class DevCheckTests {
 			ModelInputs.asRecorded(Simulations.onTheEngine()),
 			new CheckStamp("1.0.0", PROVENANCE, Clock.fixed(Instant.parse("2026-11-13T10:00:00Z"), ZoneOffset.UTC)));
 
-	/** Cache-ttl's latest run checked, once for the tests of what names a check. */
+	/**
+	 * Cache-ttl's last run under v6 checked, once for the tests of what names a check.
+	 */
 	private static ObjectNode cacheTtl = JsonNodeFactory.instance.objectNode();
 
 	@BeforeAll
 	static void checkCacheTtl() {
-		cacheTtl = CHECKS.of(new KeptRun("cache-ttl", LAYOUT.results().resolve("cache-ttl"))).orElseThrow();
+		cacheTtl = CHECKS.of(new KeptRun("cache-ttl", ProtocolV6Runs.of("cache-ttl"))).orElseThrow();
 	}
 
 	@ParameterizedTest(name = "{0} {1}")
-	@CsvSource({ "pg-mixed, pg-mixed/run-5, 2026-10-28T23-21-36Z", "cache-ttl, cache-ttl, 2026-11-04T06-11-13Z" })
+	@CsvSource({ "pg-mixed, pg-mixed/run-5, 2026-10-28T23-21-36Z", "cache-ttl, cache-ttl/run-3, 2026-11-04T06-11-13Z" })
 	void of_aKeptRun_isTheRecordedCheckButForWhatNamesIt(String experiment, String results, String calibratedAt) {
 		JsonNode recorded = ResultFiles
 			.read(LAYOUT.results().resolve("dev/0.16.0-java").resolve(experiment).resolve(calibratedAt + ".json"))
@@ -75,17 +78,22 @@ class DevCheckTests {
 	}
 
 	@Test
+	void of_aKeptRun_namesItsFolder() {
+		assertThat(cacheTtl.get("results").stringValue()).isEqualTo("cache-ttl/run-3");
+	}
+
+	@Test
 	void of_aKeptRun_saysTheHarnessDerivedItsInputsAgain() {
 		assertThat(cacheTtl.get("how").stringValue()).startsWith(
 				"Inputs derived again from this run's calibration passes with today's harness, and its measured");
 	}
 
-	// hot-row's latest run with its 856 req/s step marked as one the run added: the
+	// hot-row's last v6 run with its 856 req/s step marked as one the run added: the
 	// check simulates every measured load afresh, so only the measurement says which
 	@Test
 	void of_aRunThatClosedInOnItsKnee_keepsItsKneeSearchStepsApart(@TempDir Path results) throws IOException {
 		Path folder = results.resolve("pg-hot-row");
-		ResultCopies.copy(LAYOUT.results().resolve("pg-hot-row"), folder);
+		ResultCopies.copy(ProtocolV6Runs.of("pg-hot-row"), folder);
 		ObjectNode measured = (ObjectNode) ResultFiles.read(folder.resolve("measured.json")).orElseThrow();
 		measured.get("steps")
 			.valueStream()
@@ -121,6 +129,7 @@ class DevCheckTests {
 	static ObjectNode withoutWhatNamesIt(JsonNode check) {
 		ObjectNode copy = ((ObjectNode) check).deepCopy();
 		copy.remove("at");
+		copy.remove("results");
 		copy.remove("engineVersion");
 		copy.remove("provenance");
 		copy.remove("how");

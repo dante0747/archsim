@@ -305,7 +305,7 @@ function AccuracySummary({ accuracy: a }: Pick<SiteHomeProps, "accuracy">) {
       h.over ? `${h.over} over-predicted capacity, by ${h.overRange}: the unsafe side.` : "",
       h.under ? `${h.under} under-predicted it, the safe side.` : "",
     ].filter(Boolean);
-    cards.push({ value: `${h.within} of ${h.total}`, label: `held-out knees predicted within ${a.tolerance}`, note: notes.join(" ") || "Predicted before they were measured.", tone: h.within === h.total ? "good" : "warn" });
+    cards.push({ value: `${h.within} of ${h.total}`, label: `held-out knees predicted within ${a.tolerance}`, note: notes.join(" ") || "The latest run of each, predicted before it was measured.", tone: h.within === h.total ? "good" : "warn" });
   }
   if (t) cards.push({ value: `${t.within} of ${t.total}`, label: `tuned-on knees within ${a.tolerance}`, note: `${t.range}, on experiments the model was developed with in view.`, tone: "plain" });
   cards.push({

@@ -19,6 +19,7 @@ import java.util.stream.Stream;
 import tools.jackson.databind.JsonNode;
 
 import io.archsim.benchmarks.experiments.Experiment;
+import io.archsim.benchmarks.results.CalibratedRuns;
 import io.archsim.benchmarks.results.ResultFiles;
 import io.archsim.benchmarks.values.PythonValues;
 import io.archsim.model.text.PythonText;
@@ -65,7 +66,7 @@ final class DevChecksPage {
 		engines.sort(Comparator.comparing(DevChecksPage::versionKey, DevChecksPage::compareVersions));
 		Map<String, String> hosts = new LinkedHashMap<>();
 		engines.forEach((engine) -> hosts.put(engine, host(checks.getOrDefault(engine, Map.of())).orElse("")));
-		DevChecksTable table = new DevChecksTable(checks, engines);
+		DevChecksTable table = new DevChecksTable(checks, engines, results);
 		lines.add(table.head(hosts));
 		lines.add("| --- ".repeat(DevChecksTable.FIXED_COLUMNS + engines.size()) + "|");
 		lines.addAll(table.rows());
@@ -169,9 +170,15 @@ final class DevChecksPage {
 
 		private final List<String> engines;
 
-		DevChecksTable(Map<String, Map<String, Map<String, JsonNode>>> checks, List<String> engines) {
+		private final Path results;
+
+		private final CalibratedRuns calibratedRuns;
+
+		DevChecksTable(Map<String, Map<String, Map<String, JsonNode>>> checks, List<String> engines, Path results) {
 			this.checks = checks;
 			this.engines = List.copyOf(engines);
+			this.results = results;
+			this.calibratedRuns = CalibratedRuns.of(results);
 		}
 
 		String head(Map<String, String> hosts) {
@@ -198,10 +205,17 @@ final class DevChecksPage {
 			JsonNode comparison = any.get("comparison");
 			boolean disturbed = disturbed(experiment, at);
 			List<String> cells = this.engines.stream().map((engine) -> cell(engine, experiment, at)).toList();
-			return "| " + experiment + " | `" + any.get("results").stringValue() + "/` | " + at + " | "
+			return "| " + experiment + " | `" + folder(experiment, at) + "/` | " + at + " | "
 					+ (any.get("inputsAsCalibrated").booleanValue() ? "yes" : "no") + " | "
 					+ Figures.knee(comparison.get("measuredKnee")) + " | " + (disturbed ? "no: disturbed" : "yes")
 					+ " | " + String.join(" | ", cells) + " |";
+		}
+
+		// where the run is kept now: its check names the folder it had then
+		private String folder(String experiment, String at) {
+			return this.calibratedRuns.find(experiment, at)
+				.map((run) -> run.folderUnder(this.results))
+				.orElseThrow(() -> new IllegalStateException("no kept run of " + experiment + " calibrated at " + at));
 		}
 
 		private String cell(String engine, String experiment, String at) {

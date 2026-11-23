@@ -27,8 +27,8 @@ import io.archsim.benchmarks.values.PythonValues;
 public final class KneePairs {
 
 	/**
-	 * The frozen engine the Java engine is checked against, which predicted every latest
-	 * run.
+	 * The frozen engine the Java port was checked against: the Python engine's last
+	 * version.
 	 */
 	public static final String FROZEN_ENGINE = "0.16.0";
 

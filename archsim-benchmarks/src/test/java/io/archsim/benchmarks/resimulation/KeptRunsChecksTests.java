@@ -17,6 +17,7 @@ import tools.jackson.databind.node.ObjectNode;
 import io.archsim.benchmarks.RepositoryLayout;
 import io.archsim.benchmarks.designs.Simulations;
 import io.archsim.benchmarks.inputs.ModelInputs;
+import io.archsim.benchmarks.results.CalibratedRuns;
 import io.archsim.benchmarks.results.KeptRun;
 import io.archsim.benchmarks.results.ResultFiles;
 
@@ -35,6 +36,8 @@ class KeptRunsChecksTests {
 
 	private static final Path RECORDED = RESULTS.resolve("dev/0.16.0-java");
 
+	private static final CalibratedRuns RUNS = CalibratedRuns.of(RESULTS);
+
 	private static final DevCheck CHECKS = new DevCheck(RESULTS, ModelInputs.asRecorded(Simulations.onTheEngine()),
 			new CheckStamp("1.0.0", JsonNodeFactory.instance.objectNode(), Clock.systemUTC()));
 
@@ -42,8 +45,8 @@ class KeptRunsChecksTests {
 	@MethodSource("recorded")
 	void of_everyKeptRun_isTheRecordedCheckButForWhatNamesIt(String name) {
 		JsonNode recorded = ResultFiles.read(RECORDED.resolve(name)).orElseThrow();
-		KeptRun run = new KeptRun(recorded.get("experiment").stringValue(),
-				RESULTS.resolve(recorded.get("results").stringValue()));
+		KeptRun run = RUNS.find(recorded.get("experiment").stringValue(), recorded.get("calibratedAt").stringValue())
+			.orElseThrow();
 
 		ObjectNode check = CHECKS.of(run).orElseThrow();
 

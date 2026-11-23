@@ -13,8 +13,8 @@ class KeptRunsTests {
 
 	private static final Path RESULTS = RepositoryLayout.current().results();
 
-	/** The runs kept when the Python harness was ported (13 Nov 2026). */
-	private static final int KEPT_RUNS = 67;
+	/** The runs kept up to the second held-out campaign's third round (23 Nov 2026). */
+	private static final int KEPT_RUNS = 109;
 
 	@Test
 	void of_theCommittedResults_isEveryKeptRun() {
@@ -39,6 +39,13 @@ class KeptRunsTests {
 		KeptRun run = new KeptRun("pg-mixed", RESULTS.resolve("pg-mixed/run-3"));
 
 		assertThat(run.name()).isEqualTo("pg-mixed (run-3)");
+	}
+
+	@Test
+	void folderUnder_anOlderRun_isItsPathWithForwardSlashes() {
+		KeptRun run = new KeptRun("pg-mixed", RESULTS.resolve("pg-mixed/run-3"));
+
+		assertThat(run.folderUnder(RESULTS)).isEqualTo("pg-mixed/run-3");
 	}
 
 	// the latest run is in the experiment's own folder

@@ -47,7 +47,7 @@ describe("AccuracyPage", () => {
     const held = accuracy.experiments.filter((x) => x.sample === "held-out");
     const tuned = accuracy.experiments.filter((x) => x.sample === "tuned-on");
     if (held.length) {
-      expect(screen.getByText(`held-out knees predicted within ±${Math.round(accuracy.thresholds.kneeError * 100)}%`)).toBeInTheDocument();
+      expect(screen.getByText(`held-out knees predicted within ±${Math.round(accuracy.thresholds.kneeError * 100)}%, latest run of each`)).toBeInTheDocument();
       const at = (x: (typeof held)[number]) => text.indexOf(kneeSentence(x));
       expect(Math.max(...held.map(at))).toBeLessThan(Math.min(...tuned.map(at)));
     }

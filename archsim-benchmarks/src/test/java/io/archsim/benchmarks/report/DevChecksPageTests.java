@@ -1,5 +1,7 @@
 package io.archsim.benchmarks.report;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +13,7 @@ import tools.jackson.databind.JsonNode;
 import io.archsim.benchmarks.RepositoryLayout;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 class DevChecksPageTests {
 
@@ -52,6 +55,26 @@ class DevChecksPageTests {
 
 		assertThat(page)
 			.contains("| pg-hot-row | `pg-hot-row/run-5/` | 2026-10-30T10:32:56Z | yes | 814 | yes | 519 (-36%) |");
+	}
+
+	// its check, made while it was the latest, names the experiment's own folder
+	@Test
+	void text_aRunArchivedSinceItsCheck_namesTheFolderItIsKeptIn() {
+		String page = DevChecksPage.text(RESULTS);
+
+		assertThat(page).contains("| cache-ttl | `cache-ttl/run-3/` | 2026-11-04T06:11:13Z |")
+			.doesNotContain("| cache-ttl | `cache-ttl/` | 2026-11-04T06:11:13Z |");
+	}
+
+	// the folder it once had may hold another run by now, so the page names none
+	@Test
+	void text_aCheckOfARunNoLongerKept_isRefused(@TempDir Path results) throws IOException {
+		Path folder = Files.createDirectories(results.resolve("dev/0.16.0-java/cache-ttl"));
+		Files.copy(RESULTS.resolve("dev/0.16.0-java/cache-ttl/2026-11-04T06-11-13Z.json"),
+				folder.resolve("2026-11-04T06-11-13Z.json"));
+
+		assertThatIllegalStateException().isThrownBy(() -> DevChecksPage.text(results))
+			.withMessage("no kept run of cache-ttl calibrated at 2026-11-04T06:11:13Z");
 	}
 
 	// listed, but left out of the medians: 19 of the 26 count

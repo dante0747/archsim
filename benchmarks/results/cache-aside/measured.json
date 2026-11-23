@@ -1,1551 +1,2235 @@
 {
   "experiment": "cache-aside",
-  "at": "2026-11-04T12:56:53Z",
-  "predictionsSha256": "6c457185a68e73643c6ba11a492de3611e8401ac4fbdf2c6ad10988cd6f1b5b9",
+  "at": "2026-11-23T01:12:30Z",
+  "predictionsSha256": "48147f9612b0e74d04fdd2fc8a9f21a02c0041fa240de779ca914fc075926b6d",
   "steps": [
     {
-      "offeredRps": 1412,
+      "offeredRps": 1362,
       "runs": [
         {
-          "offeredRps": 1412,
-          "p50": 0.40477,
-          "p95": 1.39131,
-          "p99": 3.3964143999999954,
-          "mean": 0.6515309497539076,
-          "sent": 28241,
+          "offeredRps": 1362,
+          "p50": 0.403801,
+          "p95": 1.326272,
+          "p99": 2.3661903999999994,
+          "mean": 0.5865076104768583,
+          "sent": 27241,
           "dropped": 0,
           "failed": 0,
-          "succeeded": 28241,
+          "succeeded": 27241,
           "successRate": 1.0,
-          "throughputRps": 1412.05,
-          "serviceCpuMsPerRequest": 0.21883136932751687,
+          "throughputRps": 1362.05,
+          "serviceCpuMsPerRequest": 0.24284808528133442,
           "containerCpuShare": {
-            "api": 0.249,
-            "postgres": 0.094,
-            "redis": 0.063
+            "api": 0.318,
+            "postgres": 0.108,
+            "redis": 0.074
           },
-          "resources": {
-            "method": "window",
-            "seconds": 19.02,
-            "readings": 5,
-            "containers": {
-              "api": {
-                "cores": 0.2992,
-                "maxCores": 0.3223,
-                "workingSetMiB": 93.8,
-                "anonMiB": 84.9
-              },
-              "postgres": {
-                "cores": 0.1015,
-                "maxCores": 0.1207,
-                "workingSetMiB": 98.7,
-                "anonMiB": 20.5
-              },
-              "redis": {
-                "cores": 0.0761,
-                "maxCores": 0.0802,
-                "workingSetMiB": 9.3,
-                "anonMiB": 5.3
-              }
-            }
-          },
-          "cacheHitRatio": 0.6969654049077583,
-          "drain": {
-            "seconds": 0.5,
-            "healthy": true,
-            "databaseIdle": true
-          },
-          "at": "2026-11-04T12:57:30Z"
-        },
-        {
-          "offeredRps": 1412,
-          "p50": 0.420137,
-          "p95": 1.496565,
-          "p99": 3.2760815999999995,
-          "mean": 0.63650492903934,
-          "sent": 28241,
-          "dropped": 0,
-          "failed": 0,
-          "succeeded": 28241,
-          "successRate": 1.0,
-          "throughputRps": 1412.05,
-          "serviceCpuMsPerRequest": 0.22313344852982833,
-          "containerCpuShare": {
-            "api": 0.255,
-            "postgres": 0.098,
-            "redis": 0.065
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.02,
-            "readings": 5,
-            "containers": {
-              "api": {
-                "cores": 0.3126,
-                "maxCores": 0.3322,
-                "workingSetMiB": 91.7,
-                "anonMiB": 82.9
-              },
-              "postgres": {
-                "cores": 0.111,
-                "maxCores": 0.1239,
-                "workingSetMiB": 99.0,
-                "anonMiB": 20.6
-              },
-              "redis": {
-                "cores": 0.0793,
-                "maxCores": 0.0808,
-                "workingSetMiB": 10.5,
-                "anonMiB": 6.4
-              }
-            }
-          },
-          "cacheHitRatio": 0.6960447576218972,
-          "drain": {
-            "seconds": 0.5,
-            "healthy": true,
-            "databaseIdle": true
-          },
-          "at": "2026-11-04T12:58:09Z"
-        },
-        {
-          "offeredRps": 1412,
-          "p50": 0.41434499999999996,
-          "p95": 1.3696666499999999,
-          "p99": 2.6487783200000004,
-          "mean": 0.6138727912181319,
-          "sent": 28240,
-          "dropped": 0,
-          "failed": 0,
-          "succeeded": 28240,
-          "successRate": 1.0,
-          "throughputRps": 1412.0,
-          "serviceCpuMsPerRequest": 0.21970592901050962,
-          "containerCpuShare": {
-            "api": 0.249,
-            "postgres": 0.094,
-            "redis": 0.063
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.01,
-            "readings": 5,
-            "containers": {
-              "api": {
-                "cores": 0.309,
-                "maxCores": 0.3282,
-                "workingSetMiB": 90.5,
-                "anonMiB": 81.4
-              },
-              "postgres": {
-                "cores": 0.1078,
-                "maxCores": 0.1176,
-                "workingSetMiB": 101.0,
-                "anonMiB": 22.6
-              },
-              "redis": {
-                "cores": 0.0778,
-                "maxCores": 0.0825,
-                "workingSetMiB": 9.9,
-                "anonMiB": 5.8
-              }
-            }
-          },
-          "cacheHitRatio": 0.694900849858357,
-          "drain": {
-            "seconds": 0.5,
-            "healthy": true,
-            "databaseIdle": true
-          },
-          "at": "2026-11-04T12:58:49Z"
-        }
-      ],
-      "at": "2026-11-04T12:58:52Z",
-      "p50": 0.41434499999999996,
-      "p95": 1.39131,
-      "p99": 3.2760815999999995,
-      "mean": 0.63650492903934,
-      "successRate": 1.0,
-      "throughputRps": 1412.05,
-      "cacheHitRatio": 0.6960447576218972,
-      "unstable": false,
-      "repeats": 3,
-      "failedRepeats": 0,
-      "resources": {
-        "method": "window",
-        "repeats": 3,
-        "containers": {
-          "api": {
-            "cores": 0.309,
-            "maxCores": 0.3282,
-            "workingSetMiB": 91.7,
-            "anonMiB": 82.9
-          },
-          "postgres": {
-            "cores": 0.1078,
-            "maxCores": 0.1207,
-            "workingSetMiB": 99.0,
-            "anonMiB": 20.6
-          },
-          "redis": {
-            "cores": 0.0778,
-            "maxCores": 0.0808,
-            "workingSetMiB": 9.9,
-            "anonMiB": 5.8
-          }
-        }
-      }
-    },
-    {
-      "offeredRps": 2825,
-      "runs": [
-        {
-          "offeredRps": 2825,
-          "p50": 0.387863,
-          "p95": 1.379251,
-          "p99": 3.707378,
-          "mean": 0.5983717962336936,
-          "sent": 56501,
-          "dropped": 0,
-          "failed": 0,
-          "succeeded": 56501,
-          "successRate": 1.0,
-          "throughputRps": 2825.05,
-          "serviceCpuMsPerRequest": 0.1875107961544452,
-          "containerCpuShare": {
-            "api": 0.386,
-            "postgres": 0.124,
-            "redis": 0.099
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.02,
-            "readings": 5,
-            "containers": {
-              "api": {
-                "cores": 0.5243,
-                "maxCores": 0.533,
-                "workingSetMiB": 94.8,
-                "anonMiB": 85.6
-              },
-              "postgres": {
-                "cores": 0.1527,
-                "maxCores": 0.169,
-                "workingSetMiB": 98.8,
-                "anonMiB": 20.6
-              },
-              "redis": {
-                "cores": 0.1369,
-                "maxCores": 0.1399,
-                "workingSetMiB": 10.4,
-                "anonMiB": 6.3
-              }
-            }
-          },
-          "cacheHitRatio": 0.7516504132670219,
-          "drain": {
-            "seconds": 0.5,
-            "healthy": true,
-            "databaseIdle": true
-          },
-          "at": "2026-11-04T12:59:31Z"
-        },
-        {
-          "offeredRps": 2825,
-          "p50": 0.424597,
-          "p95": 1.682598,
-          "p99": 5.065762,
-          "mean": 0.7007809743367434,
-          "sent": 56501,
-          "dropped": 0,
-          "failed": 0,
-          "succeeded": 56501,
-          "successRate": 1.0,
-          "throughputRps": 2825.05,
-          "serviceCpuMsPerRequest": 0.19631156639811972,
-          "containerCpuShare": {
-            "api": 0.406,
-            "postgres": 0.13,
-            "redis": 0.103
-          },
+          "k6Cores": 0.4993,
           "resources": {
             "method": "window",
             "seconds": 19.0,
             "readings": 5,
             "containers": {
               "api": {
-                "cores": 0.5537,
-                "maxCores": 0.5677,
-                "workingSetMiB": 94.1,
-                "anonMiB": 85.4
+                "cores": 0.3246,
+                "maxCores": 0.3532,
+                "workingSetMiB": 119.2,
+                "anonMiB": 107.9
               },
               "postgres": {
-                "cores": 0.1604,
-                "maxCores": 0.1747,
-                "workingSetMiB": 98.0,
-                "anonMiB": 19.7
+                "cores": 0.102,
+                "maxCores": 0.1197,
+                "workingSetMiB": 97.7,
+                "anonMiB": 19.8
               },
               "redis": {
-                "cores": 0.1413,
-                "maxCores": 0.1451,
-                "workingSetMiB": 10.1,
+                "cores": 0.0757,
+                "maxCores": 0.0807,
+                "workingSetMiB": 11.0,
                 "anonMiB": 6.1
               }
             }
           },
-          "cacheHitRatio": 0.7542344383285252,
+          "cacheHitRatio": 0.6896222605631218,
           "drain": {
             "seconds": 0.5,
             "healthy": true,
             "databaseIdle": true
           },
-          "at": "2026-11-04T13:00:14Z"
+          "at": "2026-11-23T01:13:01Z"
         },
         {
-          "offeredRps": 2825,
-          "p50": 0.41069,
-          "p95": 1.538334,
-          "p99": 4.441066,
-          "mean": 0.6601451566343934,
-          "sent": 56501,
+          "offeredRps": 1362,
+          "p50": 0.399551,
+          "p95": 1.345380199999998,
+          "p99": 2.695167430000003,
+          "mean": 0.601113239299608,
+          "sent": 27242,
           "dropped": 0,
           "failed": 0,
-          "succeeded": 56501,
+          "succeeded": 27242,
           "successRate": 1.0,
-          "throughputRps": 2825.05,
-          "serviceCpuMsPerRequest": 0.194658426075383,
+          "throughputRps": 1362.1,
+          "serviceCpuMsPerRequest": 0.2409843185622412,
           "containerCpuShare": {
-            "api": 0.404,
-            "postgres": 0.131,
-            "redis": 0.102
+            "api": 0.316,
+            "postgres": 0.106,
+            "redis": 0.073
           },
-          "resources": {
-            "method": "window",
-            "seconds": 19.02,
-            "readings": 5,
-            "containers": {
-              "api": {
-                "cores": 0.5507,
-                "maxCores": 0.5763,
-                "workingSetMiB": 93.0,
-                "anonMiB": 83.7
-              },
-              "postgres": {
-                "cores": 0.162,
-                "maxCores": 0.19,
-                "workingSetMiB": 97.8,
-                "anonMiB": 19.7
-              },
-              "redis": {
-                "cores": 0.1402,
-                "maxCores": 0.1419,
-                "workingSetMiB": 10.9,
-                "anonMiB": 6.4
-              }
-            }
-          },
-          "cacheHitRatio": 0.752871630590609,
-          "drain": {
-            "seconds": 0.5,
-            "healthy": true,
-            "databaseIdle": true
-          },
-          "at": "2026-11-04T13:00:56Z"
-        }
-      ],
-      "at": "2026-11-04T13:00:59Z",
-      "p50": 0.41069,
-      "p95": 1.538334,
-      "p99": 4.441066,
-      "mean": 0.6601451566343934,
-      "successRate": 1.0,
-      "throughputRps": 2825.05,
-      "cacheHitRatio": 0.752871630590609,
-      "unstable": false,
-      "repeats": 3,
-      "failedRepeats": 0,
-      "resources": {
-        "method": "window",
-        "repeats": 3,
-        "containers": {
-          "api": {
-            "cores": 0.5507,
-            "maxCores": 0.5677,
-            "workingSetMiB": 94.1,
-            "anonMiB": 85.4
-          },
-          "postgres": {
-            "cores": 0.1604,
-            "maxCores": 0.1747,
-            "workingSetMiB": 98.0,
-            "anonMiB": 19.7
-          },
-          "redis": {
-            "cores": 0.1402,
-            "maxCores": 0.1419,
-            "workingSetMiB": 10.4,
-            "anonMiB": 6.3
-          }
-        }
-      }
-    },
-    {
-      "offeredRps": 4238,
-      "runs": [
-        {
-          "offeredRps": 4238,
-          "p50": 0.432658,
-          "p95": 2.381513,
-          "p99": 8.601001400000003,
-          "mean": 0.8567466074155442,
-          "sent": 84741,
-          "dropped": 0,
-          "failed": 0,
-          "succeeded": 84741,
-          "successRate": 1.0,
-          "throughputRps": 4237.05,
-          "serviceCpuMsPerRequest": 0.1648147396443001,
-          "containerCpuShare": {
-            "api": 0.466,
-            "postgres": 0.149,
-            "redis": 0.112
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.01,
-            "readings": 5,
-            "containers": {
-              "api": {
-                "cores": 0.6954,
-                "maxCores": 0.7085,
-                "workingSetMiB": 95.4,
-                "anonMiB": 85.9
-              },
-              "postgres": {
-                "cores": 0.1987,
-                "maxCores": 0.2176,
-                "workingSetMiB": 98.5,
-                "anonMiB": 20.3
-              },
-              "redis": {
-                "cores": 0.1685,
-                "maxCores": 0.1707,
-                "workingSetMiB": 10.7,
-                "anonMiB": 6.8
-              }
-            }
-          },
-          "cacheHitRatio": 0.7862073848550288,
-          "drain": {
-            "seconds": 0.4,
-            "healthy": true,
-            "databaseIdle": true
-          },
-          "at": "2026-11-04T13:01:42Z"
-        },
-        {
-          "offeredRps": 4238,
-          "p50": 0.421011,
-          "p95": 2.038345,
-          "p99": 6.3320965999999315,
-          "mean": 0.7546461497268673,
-          "sent": 84761,
-          "dropped": 0,
-          "failed": 0,
-          "succeeded": 84761,
-          "successRate": 1.0,
-          "throughputRps": 4238.05,
-          "serviceCpuMsPerRequest": 0.16263063462700092,
-          "containerCpuShare": {
-            "api": 0.459,
-            "postgres": 0.146,
-            "redis": 0.112
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.01,
-            "readings": 5,
-            "containers": {
-              "api": {
-                "cores": 0.689,
-                "maxCores": 0.7219,
-                "workingSetMiB": 134.9,
-                "anonMiB": 124.1
-              },
-              "postgres": {
-                "cores": 0.1959,
-                "maxCores": 0.2395,
-                "workingSetMiB": 97.8,
-                "anonMiB": 19.7
-              },
-              "redis": {
-                "cores": 0.1685,
-                "maxCores": 0.1737,
-                "workingSetMiB": 10.5,
-                "anonMiB": 6.5
-              }
-            }
-          },
-          "cacheHitRatio": 0.7860218732671865,
-          "drain": {
-            "seconds": 0.5,
-            "healthy": true,
-            "databaseIdle": true
-          },
-          "at": "2026-11-04T13:02:28Z"
-        },
-        {
-          "offeredRps": 4238,
-          "p50": 0.442228,
-          "p95": 2.772211,
-          "p99": 8.378228999999983,
-          "mean": 0.9003869720626215,
-          "sent": 84761,
-          "dropped": 0,
-          "failed": 0,
-          "succeeded": 84761,
-          "successRate": 1.0,
-          "throughputRps": 4238.05,
-          "serviceCpuMsPerRequest": 0.16473052891875564,
-          "containerCpuShare": {
-            "api": 0.463,
-            "postgres": 0.149,
-            "redis": 0.111
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 18.99,
-            "readings": 5,
-            "containers": {
-              "api": {
-                "cores": 0.6964,
-                "maxCores": 0.7153,
-                "workingSetMiB": 143.6,
-                "anonMiB": 132.5
-              },
-              "postgres": {
-                "cores": 0.1999,
-                "maxCores": 0.2332,
-                "workingSetMiB": 98.1,
-                "anonMiB": 19.8
-              },
-              "redis": {
-                "cores": 0.1679,
-                "maxCores": 0.1711,
-                "workingSetMiB": 11.1,
-                "anonMiB": 7.1
-              }
-            }
-          },
-          "cacheHitRatio": 0.7871426717476198,
-          "drain": {
-            "seconds": 0.4,
-            "healthy": true,
-            "databaseIdle": true
-          },
-          "at": "2026-11-04T13:03:14Z"
-        }
-      ],
-      "at": "2026-11-04T13:03:17Z",
-      "p50": 0.432658,
-      "p95": 2.381513,
-      "p99": 8.378228999999983,
-      "mean": 0.8567466074155442,
-      "successRate": 1.0,
-      "throughputRps": 4238.05,
-      "cacheHitRatio": 0.7862073848550288,
-      "unstable": false,
-      "repeats": 3,
-      "failedRepeats": 0,
-      "resources": {
-        "method": "window",
-        "repeats": 3,
-        "containers": {
-          "api": {
-            "cores": 0.6954,
-            "maxCores": 0.7153,
-            "workingSetMiB": 134.9,
-            "anonMiB": 124.1
-          },
-          "postgres": {
-            "cores": 0.1987,
-            "maxCores": 0.2332,
-            "workingSetMiB": 98.1,
-            "anonMiB": 19.8
-          },
-          "redis": {
-            "cores": 0.1685,
-            "maxCores": 0.1711,
-            "workingSetMiB": 10.7,
-            "anonMiB": 6.8
-          }
-        }
-      }
-    },
-    {
-      "offeredRps": 5085,
-      "runs": [
-        {
-          "offeredRps": 5085,
-          "p50": 0.488697,
-          "p95": 4.349549,
-          "p99": 13.158007,
-          "mean": 1.2033977547418608,
-          "sent": 101701,
-          "dropped": 0,
-          "failed": 0,
-          "succeeded": 101701,
-          "successRate": 1.0,
-          "throughputRps": 5085.05,
-          "serviceCpuMsPerRequest": 0.15315274910569363,
-          "containerCpuShare": {
-            "api": 0.493,
-            "postgres": 0.161,
-            "redis": 0.115
-          },
+          "k6Cores": 0.4809,
           "resources": {
             "method": "window",
             "seconds": 19.0,
             "readings": 5,
             "containers": {
               "api": {
-                "cores": 0.7816,
-                "maxCores": 0.8282,
-                "workingSetMiB": 155.3,
-                "anonMiB": 142.5
+                "cores": 0.3209,
+                "maxCores": 0.3409,
+                "workingSetMiB": 159.0,
+                "anonMiB": 146.4
               },
               "postgres": {
-                "cores": 0.2275,
-                "maxCores": 0.2747,
+                "cores": 0.0991,
+                "maxCores": 0.1064,
+                "workingSetMiB": 97.7,
+                "anonMiB": 19.8
+              },
+              "redis": {
+                "cores": 0.0744,
+                "maxCores": 0.0768,
+                "workingSetMiB": 11.0,
+                "anonMiB": 6.2
+              }
+            }
+          },
+          "cacheHitRatio": 0.6900741502092358,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:13:35Z"
+        },
+        {
+          "offeredRps": 1362,
+          "p50": 0.40290000000000004,
+          "p95": 1.352124349999997,
+          "p99": 2.4853635400000003,
+          "mean": 0.5942218818001603,
+          "sent": 27242,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 27242,
+          "successRate": 1.0,
+          "throughputRps": 1362.1,
+          "serviceCpuMsPerRequest": 0.24197577234817338,
+          "containerCpuShare": {
+            "api": 0.317,
+            "postgres": 0.109,
+            "redis": 0.074
+          },
+          "k6Cores": 0.4856,
+          "resources": {
+            "method": "window",
+            "seconds": 19.01,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.3188,
+                "maxCores": 0.3263,
+                "workingSetMiB": 162.1,
+                "anonMiB": 148.8
+              },
+              "postgres": {
+                "cores": 0.1004,
+                "maxCores": 0.1119,
+                "workingSetMiB": 98.8,
+                "anonMiB": 20.9
+              },
+              "redis": {
+                "cores": 0.0745,
+                "maxCores": 0.0764,
+                "workingSetMiB": 10.1,
+                "anonMiB": 5.3
+              }
+            }
+          },
+          "cacheHitRatio": 0.6880185008442845,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:14:09Z"
+        }
+      ],
+      "at": "2026-11-23T01:14:12Z",
+      "generator": {
+        "virtualUsers": 1050,
+        "coverS": 0.734
+      },
+      "p50": 0.40290000000000004,
+      "p95": 1.345380199999998,
+      "p99": 2.4853635400000003,
+      "mean": 0.5942218818001603,
+      "successRate": 1.0,
+      "throughputRps": 1362.1,
+      "cacheHitRatio": 0.6896222605631218,
+      "unstable": false,
+      "repeats": 3,
+      "failedRepeats": 0,
+      "droppedRepeats": 0,
+      "resources": {
+        "method": "window",
+        "repeats": 3,
+        "containers": {
+          "api": {
+            "cores": 0.3209,
+            "maxCores": 0.3409,
+            "workingSetMiB": 159.0,
+            "anonMiB": 146.4
+          },
+          "postgres": {
+            "cores": 0.1004,
+            "maxCores": 0.1119,
+            "workingSetMiB": 97.7,
+            "anonMiB": 19.8
+          },
+          "redis": {
+            "cores": 0.0745,
+            "maxCores": 0.0768,
+            "workingSetMiB": 11.0,
+            "anonMiB": 6.1
+          }
+        }
+      }
+    },
+    {
+      "offeredRps": 2725,
+      "runs": [
+        {
+          "offeredRps": 2725,
+          "p50": 0.363335,
+          "p95": 1.32099,
+          "p99": 3.382877,
+          "mean": 0.5719709892845958,
+          "sent": 54501,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 54501,
+          "successRate": 1.0,
+          "throughputRps": 2725.05,
+          "serviceCpuMsPerRequest": 0.20088006047617651,
+          "containerCpuShare": {
+            "api": 0.523,
+            "postgres": 0.149,
+            "redis": 0.121
+          },
+          "k6Cores": 0.8243,
+          "resources": {
+            "method": "window",
+            "seconds": 19.01,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.5423,
+                "maxCores": 0.5636,
+                "workingSetMiB": 177.0,
+                "anonMiB": 163.3
+              },
+              "postgres": {
+                "cores": 0.1398,
+                "maxCores": 0.1621,
+                "workingSetMiB": 98.9,
+                "anonMiB": 21.0
+              },
+              "redis": {
+                "cores": 0.1265,
+                "maxCores": 0.1285,
+                "workingSetMiB": 11.0,
+                "anonMiB": 6.1
+              }
+            }
+          },
+          "cacheHitRatio": 0.7506100805489807,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:14:44Z"
+        },
+        {
+          "offeredRps": 2725,
+          "p50": 0.374701,
+          "p95": 1.442708,
+          "p99": 3.71739,
+          "mean": 0.5943877684262688,
+          "sent": 54501,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 54501,
+          "successRate": 1.0,
+          "throughputRps": 2725.05,
+          "serviceCpuMsPerRequest": 0.2030869271643719,
+          "containerCpuShare": {
+            "api": 0.529,
+            "postgres": 0.15,
+            "redis": 0.121
+          },
+          "k6Cores": 0.8203,
+          "resources": {
+            "method": "window",
+            "seconds": 19.01,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.5481,
+                "maxCores": 0.5675,
+                "workingSetMiB": 187.8,
+                "anonMiB": 174.8
+              },
+              "postgres": {
+                "cores": 0.1439,
+                "maxCores": 0.1683,
                 "workingSetMiB": 98.4,
                 "anonMiB": 20.5
               },
               "redis": {
-                "cores": 0.1827,
-                "maxCores": 0.1876,
-                "workingSetMiB": 10.4,
-                "anonMiB": 6.6
+                "cores": 0.1271,
+                "maxCores": 0.1293,
+                "workingSetMiB": 11.0,
+                "anonMiB": 6.2
               }
             }
           },
-          "cacheHitRatio": 0.80084758261964,
+          "cacheHitRatio": 0.7484082860864938,
           "drain": {
-            "seconds": 0.4,
+            "seconds": 0.5,
             "healthy": true,
             "databaseIdle": true
           },
-          "at": "2026-11-04T13:04:02Z"
+          "at": "2026-11-23T01:15:18Z"
         },
         {
-          "offeredRps": 5085,
-          "p50": 0.516883,
-          "p95": 7.033936,
-          "p99": 23.687736,
-          "mean": 1.6797615936520025,
-          "sent": 101701,
+          "offeredRps": 2725,
+          "p50": 0.381735,
+          "p95": 1.435222799999999,
+          "p99": 3.944473169999994,
+          "mean": 0.6069982071452152,
+          "sent": 54498,
           "dropped": 0,
           "failed": 0,
-          "succeeded": 101701,
+          "succeeded": 54498,
           "successRate": 1.0,
-          "throughputRps": 5085.05,
-          "serviceCpuMsPerRequest": 0.15677174793710225,
+          "throughputRps": 2724.9,
+          "serviceCpuMsPerRequest": 0.20434790012183843,
           "containerCpuShare": {
-            "api": 0.511,
-            "postgres": 0.17,
-            "redis": 0.115
+            "api": 0.532,
+            "postgres": 0.154,
+            "redis": 0.122
           },
+          "k6Cores": 0.8179,
           "resources": {
             "method": "window",
-            "seconds": 19.02,
+            "seconds": 19.05,
             "readings": 5,
             "containers": {
               "api": {
-                "cores": 0.7921,
-                "maxCores": 0.866,
-                "workingSetMiB": 180.9,
-                "anonMiB": 168.2
+                "cores": 0.5537,
+                "maxCores": 0.6125,
+                "workingSetMiB": 186.7,
+                "anonMiB": 173.7
               },
               "postgres": {
-                "cores": 0.2366,
-                "maxCores": 0.3177,
-                "workingSetMiB": 98.7,
-                "anonMiB": 20.6
-              },
-              "redis": {
-                "cores": 0.1792,
-                "maxCores": 0.1809,
-                "workingSetMiB": 10.6,
-                "anonMiB": 6.6
-              }
-            }
-          },
-          "cacheHitRatio": 0.8019193518254492,
-          "drain": {
-            "seconds": 0.5,
-            "healthy": true,
-            "databaseIdle": true
-          },
-          "at": "2026-11-04T13:04:50Z"
-        },
-        {
-          "offeredRps": 5085,
-          "p50": 0.532139,
-          "p95": 10.323062099999996,
-          "p99": 47.48022307000025,
-          "mean": 2.4589849692771013,
-          "sent": 100902,
-          "dropped": 797,
-          "failed": 0,
-          "succeeded": 100902,
-          "successRate": 0.9921631481135508,
-          "throughputRps": 5045.1,
-          "serviceCpuMsPerRequest": 0.15604623714645324,
-          "containerCpuShare": {
-            "api": 0.495,
-            "postgres": 0.165,
-            "redis": 0.115
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.02,
-            "readings": 5,
-            "containers": {
-              "api": {
-                "cores": 0.7894,
-                "maxCores": 0.8035,
-                "workingSetMiB": 183.0,
-                "anonMiB": 170.2
-              },
-              "postgres": {
-                "cores": 0.235,
-                "maxCores": 0.2654,
-                "workingSetMiB": 98.6,
-                "anonMiB": 20.6
-              },
-              "redis": {
-                "cores": 0.1828,
-                "maxCores": 0.1874,
-                "workingSetMiB": 10.6,
-                "anonMiB": 6.6
-              }
-            }
-          },
-          "cacheHitRatio": 0.8006481536540405,
-          "drain": {
-            "seconds": 0.5,
-            "healthy": true,
-            "databaseIdle": true
-          },
-          "at": "2026-11-04T13:05:38Z"
-        }
-      ],
-      "at": "2026-11-04T13:05:41Z",
-      "p50": 0.516883,
-      "p95": 7.033936,
-      "p99": 23.687736,
-      "mean": 1.6797615936520025,
-      "successRate": 1.0,
-      "throughputRps": 5085.05,
-      "cacheHitRatio": 0.80084758261964,
-      "unstable": false,
-      "repeats": 3,
-      "failedRepeats": 0,
-      "resources": {
-        "method": "window",
-        "repeats": 3,
-        "containers": {
-          "api": {
-            "cores": 0.7894,
-            "maxCores": 0.8282,
-            "workingSetMiB": 180.9,
-            "anonMiB": 168.2
-          },
-          "postgres": {
-            "cores": 0.235,
-            "maxCores": 0.2747,
-            "workingSetMiB": 98.6,
-            "anonMiB": 20.6
-          },
-          "redis": {
-            "cores": 0.1827,
-            "maxCores": 0.1874,
-            "workingSetMiB": 10.6,
-            "anonMiB": 6.6
-          }
-        }
-      }
-    },
-    {
-      "offeredRps": 5650,
-      "runs": [
-        {
-          "offeredRps": 5650,
-          "p50": 0.4945095,
-          "p95": 4.99880634999999,
-          "p99": 14.447563689999939,
-          "mean": 1.2609579074690305,
-          "sent": 113000,
-          "dropped": 0,
-          "failed": 0,
-          "succeeded": 113000,
-          "successRate": 1.0,
-          "throughputRps": 5650.0,
-          "serviceCpuMsPerRequest": 0.14443634611842385,
-          "containerCpuShare": {
-            "api": 0.49,
-            "postgres": 0.161,
-            "redis": 0.114
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.02,
-            "readings": 5,
-            "containers": {
-              "api": {
-                "cores": 0.8065,
-                "maxCores": 0.8366,
-                "workingSetMiB": 181.3,
-                "anonMiB": 168.7
-              },
-              "postgres": {
-                "cores": 0.2356,
-                "maxCores": 0.2847,
-                "workingSetMiB": 100.3,
-                "anonMiB": 22.0
-              },
-              "redis": {
-                "cores": 0.1894,
-                "maxCores": 0.1918,
-                "workingSetMiB": 10.7,
-                "anonMiB": 6.8
-              }
-            }
-          },
-          "cacheHitRatio": 0.8077610619469027,
-          "drain": {
-            "seconds": 0.4,
-            "healthy": true,
-            "databaseIdle": true
-          },
-          "at": "2026-11-04T13:06:28Z"
-        },
-        {
-          "offeredRps": 5650,
-          "p50": 0.512267,
-          "p95": 5.874175499999998,
-          "p99": 22.26760579999999,
-          "mean": 1.5910644416002577,
-          "sent": 112783,
-          "dropped": 218,
-          "failed": 0,
-          "succeeded": 112783,
-          "successRate": 0.9980708135326236,
-          "throughputRps": 5639.15,
-          "serviceCpuMsPerRequest": 0.14607558461080306,
-          "containerCpuShare": {
-            "api": 0.506,
-            "postgres": 0.167,
-            "redis": 0.115
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.03,
-            "readings": 5,
-            "containers": {
-              "api": {
-                "cores": 0.8128,
-                "maxCores": 0.8417,
-                "workingSetMiB": 183.8,
-                "anonMiB": 170.5
-              },
-              "postgres": {
-                "cores": 0.2373,
-                "maxCores": 0.2911,
-                "workingSetMiB": 97.8,
-                "anonMiB": 19.7
-              },
-              "redis": {
-                "cores": 0.1877,
-                "maxCores": 0.1925,
-                "workingSetMiB": 10.6,
-                "anonMiB": 6.8
-              }
-            }
-          },
-          "cacheHitRatio": 0.8092531675873137,
-          "drain": {
-            "seconds": 0.5,
-            "healthy": true,
-            "databaseIdle": true
-          },
-          "at": "2026-11-04T13:07:17Z"
-        },
-        {
-          "offeredRps": 5650,
-          "p50": 0.566823,
-          "p95": 7.003565399999998,
-          "p99": 35.33130872000001,
-          "mean": 2.0211635011824542,
-          "sent": 112057,
-          "dropped": 944,
-          "failed": 0,
-          "succeeded": 112057,
-          "successRate": 0.9916460916275077,
-          "throughputRps": 5602.85,
-          "serviceCpuMsPerRequest": 0.14789719632828757,
-          "containerCpuShare": {
-            "api": 0.505,
-            "postgres": 0.171,
-            "redis": 0.115
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.01,
-            "readings": 5,
-            "containers": {
-              "api": {
-                "cores": 0.8227,
-                "maxCores": 0.846,
-                "workingSetMiB": 180.4,
-                "anonMiB": 167.4
-              },
-              "postgres": {
-                "cores": 0.2501,
-                "maxCores": 0.2809,
-                "workingSetMiB": 99.0,
-                "anonMiB": 20.8
-              },
-              "redis": {
-                "cores": 0.1884,
-                "maxCores": 0.193,
-                "workingSetMiB": 11.5,
-                "anonMiB": 7.6
-              }
-            }
-          },
-          "cacheHitRatio": 0.8073480460836896,
-          "drain": {
-            "seconds": 0.5,
-            "healthy": true,
-            "databaseIdle": true
-          },
-          "at": "2026-11-04T13:08:06Z"
-        }
-      ],
-      "at": "2026-11-04T13:08:09Z",
-      "p50": 0.512267,
-      "p95": 5.874175499999998,
-      "p99": 22.26760579999999,
-      "mean": 1.5910644416002577,
-      "successRate": 0.9980708135326236,
-      "throughputRps": 5639.15,
-      "cacheHitRatio": 0.8077610619469027,
-      "unstable": false,
-      "repeats": 3,
-      "failedRepeats": 0,
-      "resources": {
-        "method": "window",
-        "repeats": 3,
-        "containers": {
-          "api": {
-            "cores": 0.8128,
-            "maxCores": 0.8417,
-            "workingSetMiB": 181.3,
-            "anonMiB": 168.7
-          },
-          "postgres": {
-            "cores": 0.2373,
-            "maxCores": 0.2847,
-            "workingSetMiB": 99.0,
-            "anonMiB": 20.8
-          },
-          "redis": {
-            "cores": 0.1884,
-            "maxCores": 0.1925,
-            "workingSetMiB": 10.7,
-            "anonMiB": 6.8
-          }
-        }
-      }
-    },
-    {
-      "offeredRps": 6215,
-      "runs": [
-        {
-          "offeredRps": 6215,
-          "p50": 0.5743965,
-          "p95": 10.699816099999993,
-          "p99": 35.148692360000105,
-          "mean": 2.2584652924912483,
-          "sent": 124202,
-          "dropped": 98,
-          "failed": 0,
-          "succeeded": 124202,
-          "successRate": 0.9992115848753017,
-          "throughputRps": 6210.1,
-          "serviceCpuMsPerRequest": 0.13823668223546465,
-          "containerCpuShare": {
-            "api": 0.514,
-            "postgres": 0.167,
-            "redis": 0.117
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.0,
-            "readings": 5,
-            "containers": {
-              "api": {
-                "cores": 0.855,
-                "maxCores": 0.8697,
-                "workingSetMiB": 183.2,
-                "anonMiB": 170.0
-              },
-              "postgres": {
-                "cores": 0.2438,
-                "maxCores": 0.2895,
-                "workingSetMiB": 100.0,
-                "anonMiB": 21.8
-              },
-              "redis": {
-                "cores": 0.1957,
-                "maxCores": 0.1966,
-                "workingSetMiB": 11.9,
-                "anonMiB": 7.9
-              }
-            }
-          },
-          "cacheHitRatio": 0.8180544596705367,
-          "drain": {
-            "seconds": 0.5,
-            "healthy": true,
-            "databaseIdle": true
-          },
-          "at": "2026-11-04T13:08:57Z"
-        },
-        {
-          "offeredRps": 6215,
-          "p50": 0.5603695,
-          "p95": 13.082817499999992,
-          "p99": 49.995880549999995,
-          "mean": 2.7680698138515307,
-          "sent": 123842,
-          "dropped": 459,
-          "failed": 0,
-          "succeeded": 123842,
-          "successRate": 0.9963073507051432,
-          "throughputRps": 6192.1,
-          "serviceCpuMsPerRequest": 0.13735624782007724,
-          "containerCpuShare": {
-            "api": 0.509,
-            "postgres": 0.168,
-            "redis": 0.116
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 18.99,
-            "readings": 5,
-            "containers": {
-              "api": {
-                "cores": 0.8371,
-                "maxCores": 0.8731,
-                "workingSetMiB": 181.5,
-                "anonMiB": 168.5
-              },
-              "postgres": {
-                "cores": 0.2431,
-                "maxCores": 0.2946,
-                "workingSetMiB": 100.8,
-                "anonMiB": 22.5
-              },
-              "redis": {
-                "cores": 0.1932,
-                "maxCores": 0.1956,
-                "workingSetMiB": 10.5,
-                "anonMiB": 6.7
-              }
-            }
-          },
-          "cacheHitRatio": 0.8168068991133864,
-          "drain": {
-            "seconds": 0.5,
-            "healthy": true,
-            "databaseIdle": true
-          },
-          "at": "2026-11-04T13:09:47Z"
-        },
-        {
-          "offeredRps": 6215,
-          "p50": 0.564674,
-          "p95": 8.77428,
-          "p99": 33.184280519999966,
-          "mean": 2.072909705203486,
-          "sent": 124167,
-          "dropped": 133,
-          "failed": 0,
-          "succeeded": 124167,
-          "successRate": 0.9989300080450523,
-          "throughputRps": 6208.35,
-          "serviceCpuMsPerRequest": 0.13845785934218832,
-          "containerCpuShare": {
-            "api": 0.503,
-            "postgres": 0.164,
-            "redis": 0.114
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.03,
-            "readings": 5,
-            "containers": {
-              "api": {
-                "cores": 0.8495,
-                "maxCores": 0.8641,
-                "workingSetMiB": 183.6,
-                "anonMiB": 169.7
-              },
-              "postgres": {
-                "cores": 0.2405,
-                "maxCores": 0.2852,
+                "cores": 0.1462,
+                "maxCores": 0.1619,
                 "workingSetMiB": 98.2,
+                "anonMiB": 20.2
+              },
+              "redis": {
+                "cores": 0.1293,
+                "maxCores": 0.1378,
+                "workingSetMiB": 11.9,
+                "anonMiB": 7.0
+              }
+            }
+          },
+          "cacheHitRatio": 0.7499357774597233,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:15:52Z"
+        }
+      ],
+      "at": "2026-11-23T01:15:55Z",
+      "generator": {
+        "virtualUsers": 1050,
+        "coverS": 0.367
+      },
+      "p50": 0.374701,
+      "p95": 1.435222799999999,
+      "p99": 3.71739,
+      "mean": 0.5943877684262688,
+      "successRate": 1.0,
+      "throughputRps": 2725.05,
+      "cacheHitRatio": 0.7499357774597233,
+      "unstable": false,
+      "repeats": 3,
+      "failedRepeats": 0,
+      "droppedRepeats": 0,
+      "resources": {
+        "method": "window",
+        "repeats": 3,
+        "containers": {
+          "api": {
+            "cores": 0.5481,
+            "maxCores": 0.5675,
+            "workingSetMiB": 186.7,
+            "anonMiB": 173.7
+          },
+          "postgres": {
+            "cores": 0.1439,
+            "maxCores": 0.1621,
+            "workingSetMiB": 98.4,
+            "anonMiB": 20.5
+          },
+          "redis": {
+            "cores": 0.1271,
+            "maxCores": 0.1293,
+            "workingSetMiB": 11.0,
+            "anonMiB": 6.2
+          }
+        }
+      }
+    },
+    {
+      "offeredRps": 4088,
+      "runs": [
+        {
+          "offeredRps": 4088,
+          "p50": 0.407001,
+          "p95": 2.197406,
+          "p99": 8.969513399999894,
+          "mean": 0.8177217903401397,
+          "sent": 81761,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 81761,
+          "successRate": 1.0,
+          "throughputRps": 4088.05,
+          "serviceCpuMsPerRequest": 0.17859461654370756,
+          "containerCpuShare": {
+            "api": 0.699,
+            "postgres": 0.195,
+            "redis": 0.154
+          },
+          "k6Cores": 1.1061,
+          "resources": {
+            "method": "window",
+            "seconds": 19.04,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.7294,
+                "maxCores": 0.7438,
+                "workingSetMiB": 194.8,
+                "anonMiB": 181.6
+              },
+              "postgres": {
+                "cores": 0.1818,
+                "maxCores": 0.1988,
+                "workingSetMiB": 98.5,
+                "anonMiB": 20.6
+              },
+              "redis": {
+                "cores": 0.1633,
+                "maxCores": 0.1648,
+                "workingSetMiB": 11.9,
+                "anonMiB": 7.1
+              }
+            }
+          },
+          "cacheHitRatio": 0.7820109832316141,
+          "drain": {
+            "seconds": 0.4,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:16:27Z"
+        },
+        {
+          "offeredRps": 4088,
+          "p50": 0.409144,
+          "p95": 1.944568,
+          "p99": 6.057130399999988,
+          "mean": 0.7413905046904975,
+          "sent": 81761,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 81761,
+          "successRate": 1.0,
+          "throughputRps": 4088.05,
+          "serviceCpuMsPerRequest": 0.17812561398015697,
+          "containerCpuShare": {
+            "api": 0.698,
+            "postgres": 0.189,
+            "redis": 0.152
+          },
+          "k6Cores": 1.0917,
+          "resources": {
+            "method": "window",
+            "seconds": 19.03,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.7295,
+                "maxCores": 0.7576,
+                "workingSetMiB": 192.1,
+                "anonMiB": 178.6
+              },
+              "postgres": {
+                "cores": 0.1814,
+                "maxCores": 0.1912,
+                "workingSetMiB": 98.3,
                 "anonMiB": 20.4
               },
               "redis": {
-                "cores": 0.1953,
-                "maxCores": 0.1993,
-                "workingSetMiB": 11.7,
-                "anonMiB": 7.9
+                "cores": 0.1608,
+                "maxCores": 0.1629,
+                "workingSetMiB": 11.9,
+                "anonMiB": 7.3
               }
             }
           },
-          "cacheHitRatio": 0.8184702859858094,
+          "cacheHitRatio": 0.7833074448698034,
           "drain": {
-            "seconds": 0.5,
+            "seconds": 0.4,
             "healthy": true,
             "databaseIdle": true
           },
-          "at": "2026-11-04T13:10:39Z"
-        }
-      ],
-      "at": "2026-11-04T13:10:42Z",
-      "p50": 0.564674,
-      "p95": 10.699816099999993,
-      "p99": 35.148692360000105,
-      "mean": 2.2584652924912483,
-      "successRate": 0.9989300080450523,
-      "throughputRps": 6208.35,
-      "cacheHitRatio": 0.8180544596705367,
-      "unstable": false,
-      "repeats": 3,
-      "failedRepeats": 0,
-      "resources": {
-        "method": "window",
-        "repeats": 3,
-        "containers": {
-          "api": {
-            "cores": 0.8495,
-            "maxCores": 0.8697,
-            "workingSetMiB": 183.2,
-            "anonMiB": 169.7
-          },
-          "postgres": {
-            "cores": 0.2431,
-            "maxCores": 0.2895,
-            "workingSetMiB": 100.0,
-            "anonMiB": 21.8
-          },
-          "redis": {
-            "cores": 0.1953,
-            "maxCores": 0.1966,
-            "workingSetMiB": 11.7,
-            "anonMiB": 7.9
-          }
-        }
-      }
-    },
-    {
-      "offeredRps": 7062,
-      "runs": [
-        {
-          "offeredRps": 7062,
-          "p50": 0.720155,
-          "p95": 16.282669999999953,
-          "p99": 44.765218979999986,
-          "mean": 3.088968439918339,
-          "sent": 140667,
-          "dropped": 575,
-          "failed": 0,
-          "succeeded": 140667,
-          "successRate": 0.9959289729683805,
-          "throughputRps": 7033.35,
-          "serviceCpuMsPerRequest": 0.12919950285346152,
-          "containerCpuShare": {
-            "api": 0.509,
-            "postgres": 0.176,
-            "redis": 0.11
-          },
-          "resources": {
-            "method": "window",
-            "seconds": 19.02,
-            "readings": 5,
-            "containers": {
-              "api": {
-                "cores": 0.8979,
-                "maxCores": 0.913,
-                "workingSetMiB": 185.0,
-                "anonMiB": 171.4
-              },
-              "postgres": {
-                "cores": 0.2645,
-                "maxCores": 0.3091,
-                "workingSetMiB": 99.1,
-                "anonMiB": 20.5
-              },
-              "redis": {
-                "cores": 0.2001,
-                "maxCores": 0.2142,
-                "workingSetMiB": 12.8,
-                "anonMiB": 8.7
-              }
-            }
-          },
-          "cacheHitRatio": 0.8280406918467018,
-          "drain": {
-            "seconds": 0.5,
-            "healthy": true,
-            "databaseIdle": true
-          },
-          "at": "2026-11-04T13:11:32Z"
+          "at": "2026-11-23T01:17:01Z"
         },
         {
-          "offeredRps": 7062,
-          "p50": 0.806153,
-          "p95": 27.60966329999999,
-          "p99": 63.084270780000026,
-          "mean": 4.717785389229621,
-          "sent": 139103,
-          "dropped": 2139,
+          "offeredRps": 4088,
+          "p50": 0.390318,
+          "p95": 1.906564,
+          "p99": 7.344487799999967,
+          "mean": 0.7460027722141337,
+          "sent": 81761,
+          "dropped": 0,
           "failed": 0,
-          "succeeded": 139103,
-          "successRate": 0.9848557794423755,
-          "throughputRps": 6955.15,
-          "serviceCpuMsPerRequest": 0.12922202087144616,
+          "succeeded": 81761,
+          "successRate": 1.0,
+          "throughputRps": 4088.05,
+          "serviceCpuMsPerRequest": 0.17594045126318467,
           "containerCpuShare": {
-            "api": 0.508,
-            "postgres": 0.176,
-            "redis": 0.107
+            "api": 0.691,
+            "postgres": 0.191,
+            "redis": 0.152
           },
+          "k6Cores": 1.0712,
           "resources": {
             "method": "window",
-            "seconds": 19.0,
+            "seconds": 19.03,
             "readings": 5,
             "containers": {
               "api": {
-                "cores": 0.8907,
-                "maxCores": 0.9292,
-                "workingSetMiB": 187.1,
-                "anonMiB": 173.6
+                "cores": 0.7166,
+                "maxCores": 0.7254,
+                "workingSetMiB": 194.7,
+                "anonMiB": 181.4
               },
               "postgres": {
-                "cores": 0.2707,
-                "maxCores": 0.3416,
-                "workingSetMiB": 99.6,
-                "anonMiB": 21.3
+                "cores": 0.1805,
+                "maxCores": 0.1944,
+                "workingSetMiB": 101.7,
+                "anonMiB": 23.4
               },
               "redis": {
-                "cores": 0.1926,
-                "maxCores": 0.2051,
-                "workingSetMiB": 10.7,
+                "cores": 0.1608,
+                "maxCores": 0.1652,
+                "workingSetMiB": 11.1,
                 "anonMiB": 6.4
               }
             }
           },
-          "cacheHitRatio": 0.826926809630274,
+          "cacheHitRatio": 0.7834786756522059,
           "drain": {
             "seconds": 0.5,
             "healthy": true,
             "databaseIdle": true
           },
-          "at": "2026-11-04T13:12:25Z"
-        },
-        {
-          "offeredRps": 7062,
-          "p50": 0.904276,
-          "p95": 35.921710399999995,
-          "p99": 70.68426090000001,
-          "mean": 5.866445352631755,
-          "sent": 137835,
-          "dropped": 3407,
-          "failed": 0,
-          "succeeded": 137835,
-          "successRate": 0.9758782798317781,
-          "throughputRps": 6891.75,
-          "serviceCpuMsPerRequest": 0.13043191357560108,
-          "containerCpuShare": {
-            "api": 0.514,
-            "postgres": 0.183,
-            "redis": 0.108
+          "at": "2026-11-23T01:17:35Z"
+        }
+      ],
+      "at": "2026-11-23T01:17:38Z",
+      "generator": {
+        "virtualUsers": 1072,
+        "coverS": 0.25
+      },
+      "p50": 0.407001,
+      "p95": 1.944568,
+      "p99": 7.344487799999967,
+      "mean": 0.7460027722141337,
+      "successRate": 1.0,
+      "throughputRps": 4088.05,
+      "cacheHitRatio": 0.7833074448698034,
+      "unstable": false,
+      "repeats": 3,
+      "failedRepeats": 0,
+      "droppedRepeats": 0,
+      "resources": {
+        "method": "window",
+        "repeats": 3,
+        "containers": {
+          "api": {
+            "cores": 0.7294,
+            "maxCores": 0.7438,
+            "workingSetMiB": 194.7,
+            "anonMiB": 181.4
           },
+          "postgres": {
+            "cores": 0.1814,
+            "maxCores": 0.1944,
+            "workingSetMiB": 98.5,
+            "anonMiB": 20.6
+          },
+          "redis": {
+            "cores": 0.1608,
+            "maxCores": 0.1648,
+            "workingSetMiB": 11.9,
+            "anonMiB": 7.1
+          }
+        }
+      }
+    },
+    {
+      "offeredRps": 4905,
+      "runs": [
+        {
+          "offeredRps": 4905,
+          "p50": 0.5340145000000001,
+          "p95": 4.755184100000004,
+          "p99": 33.14105478999963,
+          "mean": 1.8424905941488023,
+          "sent": 98100,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 98100,
+          "successRate": 1.0,
+          "throughputRps": 4905.0,
+          "serviceCpuMsPerRequest": 0.16683543538143386,
+          "containerCpuShare": {
+            "api": 0.78,
+            "postgres": 0.223,
+            "redis": 0.16
+          },
+          "k6Cores": 1.3635,
           "resources": {
             "method": "window",
             "seconds": 19.03,
             "readings": 5,
             "containers": {
               "api": {
-                "cores": 0.8955,
-                "maxCores": 0.9201,
-                "workingSetMiB": 188.6,
-                "anonMiB": 174.8
+                "cores": 0.8235,
+                "maxCores": 0.8725,
+                "workingSetMiB": 203.2,
+                "anonMiB": 189.1
               },
               "postgres": {
-                "cores": 0.2823,
-                "maxCores": 0.3557,
-                "workingSetMiB": 99.0,
-                "anonMiB": 20.9
+                "cores": 0.218,
+                "maxCores": 0.2536,
+                "workingSetMiB": 98.6,
+                "anonMiB": 20.6
               },
               "redis": {
-                "cores": 0.188,
-                "maxCores": 0.199,
-                "workingSetMiB": 11.9,
-                "anonMiB": 7.9
+                "cores": 0.171,
+                "maxCores": 0.173,
+                "workingSetMiB": 12.2,
+                "anonMiB": 7.6
               }
             }
           },
-          "cacheHitRatio": 0.8259222984002612,
+          "cacheHitRatio": 0.7961569826707441,
           "drain": {
             "seconds": 0.5,
             "healthy": true,
             "databaseIdle": true
           },
-          "at": "2026-11-04T13:13:17Z"
+          "at": "2026-11-23T01:18:10Z"
+        },
+        {
+          "offeredRps": 4905,
+          "p50": 0.456774,
+          "p95": 3.936103,
+          "p99": 17.525659,
+          "mean": 1.2964554616262904,
+          "sent": 98101,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 98101,
+          "successRate": 1.0,
+          "throughputRps": 4905.05,
+          "serviceCpuMsPerRequest": 0.1643484387614473,
+          "containerCpuShare": {
+            "api": 0.766,
+            "postgres": 0.216,
+            "redis": 0.161
+          },
+          "k6Cores": 1.3094,
+          "resources": {
+            "method": "window",
+            "seconds": 19.03,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.8102,
+                "maxCores": 0.826,
+                "workingSetMiB": 221.2,
+                "anonMiB": 206.6
+              },
+              "postgres": {
+                "cores": 0.2085,
+                "maxCores": 0.2285,
+                "workingSetMiB": 99.1,
+                "anonMiB": 20.9
+              },
+              "redis": {
+                "cores": 0.1735,
+                "maxCores": 0.1749,
+                "workingSetMiB": 12.3,
+                "anonMiB": 7.5
+              }
+            }
+          },
+          "cacheHitRatio": 0.7979021620574713,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:18:45Z"
+        },
+        {
+          "offeredRps": 4905,
+          "p50": 0.458837,
+          "p95": 6.380243,
+          "p99": 23.988994,
+          "mean": 1.5750947231832415,
+          "sent": 98101,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 98101,
+          "successRate": 1.0,
+          "throughputRps": 4905.05,
+          "serviceCpuMsPerRequest": 0.16502574494805344,
+          "containerCpuShare": {
+            "api": 0.763,
+            "postgres": 0.224,
+            "redis": 0.159
+          },
+          "k6Cores": 1.2931,
+          "resources": {
+            "method": "window",
+            "seconds": 19.02,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.8061,
+                "maxCores": 0.8305,
+                "workingSetMiB": 208.1,
+                "anonMiB": 193.8
+              },
+              "postgres": {
+                "cores": 0.2131,
+                "maxCores": 0.2412,
+                "workingSetMiB": 98.7,
+                "anonMiB": 20.5
+              },
+              "redis": {
+                "cores": 0.1692,
+                "maxCores": 0.1721,
+                "workingSetMiB": 12.4,
+                "anonMiB": 7.6
+              }
+            }
+          },
+          "cacheHitRatio": 0.7965566100243626,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:19:19Z"
         }
       ],
-      "at": "2026-11-04T13:13:20Z",
-      "p50": 0.806153,
-      "p95": 27.60966329999999,
-      "p99": 63.084270780000026,
-      "mean": 4.717785389229621,
-      "successRate": 0.9848557794423755,
-      "throughputRps": 6955.15,
-      "cacheHitRatio": 0.826926809630274,
+      "at": "2026-11-23T01:19:22Z",
+      "generator": {
+        "virtualUsers": 1277,
+        "coverS": 0.25
+      },
+      "p50": 0.458837,
+      "p95": 4.755184100000004,
+      "p99": 23.988994,
+      "mean": 1.5750947231832415,
+      "successRate": 1.0,
+      "throughputRps": 4905.05,
+      "cacheHitRatio": 0.7965566100243626,
       "unstable": false,
       "repeats": 3,
       "failedRepeats": 0,
+      "droppedRepeats": 0,
       "resources": {
         "method": "window",
         "repeats": 3,
         "containers": {
           "api": {
-            "cores": 0.8955,
-            "maxCores": 0.9201,
-            "workingSetMiB": 187.1,
-            "anonMiB": 173.6
+            "cores": 0.8102,
+            "maxCores": 0.8305,
+            "workingSetMiB": 208.1,
+            "anonMiB": 193.8
           },
           "postgres": {
-            "cores": 0.2707,
-            "maxCores": 0.3416,
-            "workingSetMiB": 99.1,
-            "anonMiB": 20.9
+            "cores": 0.2131,
+            "maxCores": 0.2412,
+            "workingSetMiB": 98.7,
+            "anonMiB": 20.6
           },
           "redis": {
-            "cores": 0.1926,
-            "maxCores": 0.2051,
-            "workingSetMiB": 11.9,
+            "cores": 0.171,
+            "maxCores": 0.173,
+            "workingSetMiB": 12.3,
+            "anonMiB": 7.6
+          }
+        }
+      }
+    },
+    {
+      "offeredRps": 5450,
+      "runs": [
+        {
+          "offeredRps": 5450,
+          "p50": 0.468777,
+          "p95": 4.644757199999971,
+          "p99": 36.72331647999941,
+          "mean": 1.8254202031284286,
+          "sent": 109000,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 109000,
+          "successRate": 1.0,
+          "throughputRps": 5450.0,
+          "serviceCpuMsPerRequest": 0.15348697981651374,
+          "containerCpuShare": {
+            "api": 0.794,
+            "postgres": 0.225,
+            "redis": 0.164
+          },
+          "k6Cores": 1.3834,
+          "resources": {
+            "method": "window",
+            "seconds": 19.02,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.84,
+                "maxCores": 0.854,
+                "workingSetMiB": 223.9,
+                "anonMiB": 208.9
+              },
+              "postgres": {
+                "cores": 0.2144,
+                "maxCores": 0.2402,
+                "workingSetMiB": 98.9,
+                "anonMiB": 21.0
+              },
+              "redis": {
+                "cores": 0.1758,
+                "maxCores": 0.1776,
+                "workingSetMiB": 12.8,
+                "anonMiB": 7.7
+              }
+            }
+          },
+          "cacheHitRatio": 0.8068807339449541,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:19:54Z"
+        },
+        {
+          "offeredRps": 5450,
+          "p50": 0.474206,
+          "p95": 5.188228,
+          "p99": 41.626464,
+          "mean": 1.9850118760470232,
+          "sent": 109001,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 109001,
+          "successRate": 1.0,
+          "throughputRps": 5450.05,
+          "serviceCpuMsPerRequest": 0.15479172200088537,
+          "containerCpuShare": {
+            "api": 0.795,
+            "postgres": 0.228,
+            "redis": 0.162
+          },
+          "k6Cores": 1.3699,
+          "resources": {
+            "method": "window",
+            "seconds": 19.02,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.844,
+                "maxCores": 0.8749,
+                "workingSetMiB": 207.2,
+                "anonMiB": 192.4
+              },
+              "postgres": {
+                "cores": 0.217,
+                "maxCores": 0.2581,
+                "workingSetMiB": 99.3,
+                "anonMiB": 21.0
+              },
+              "redis": {
+                "cores": 0.1765,
+                "maxCores": 0.1816,
+                "workingSetMiB": 11.5,
+                "anonMiB": 7.1
+              }
+            }
+          },
+          "cacheHitRatio": 0.8062403097219292,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:20:29Z"
+        },
+        {
+          "offeredRps": 5450,
+          "p50": 0.474161,
+          "p95": 5.203391199999997,
+          "p99": 32.85274697999983,
+          "mean": 1.7834148234268588,
+          "sent": 109003,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 109003,
+          "successRate": 1.0,
+          "throughputRps": 5450.15,
+          "serviceCpuMsPerRequest": 0.15420318818668213,
+          "containerCpuShare": {
+            "api": 0.797,
+            "postgres": 0.225,
+            "redis": 0.164
+          },
+          "k6Cores": 1.3572,
+          "resources": {
+            "method": "window",
+            "seconds": 19.04,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.8418,
+                "maxCores": 0.87,
+                "workingSetMiB": 225.6,
+                "anonMiB": 210.2
+              },
+              "postgres": {
+                "cores": 0.2165,
+                "maxCores": 0.2394,
+                "workingSetMiB": 98.3,
+                "anonMiB": 20.1
+              },
+              "redis": {
+                "cores": 0.1767,
+                "maxCores": 0.1804,
+                "workingSetMiB": 12.4,
+                "anonMiB": 7.6
+              }
+            }
+          },
+          "cacheHitRatio": 0.8062713870260452,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:21:03Z"
+        }
+      ],
+      "at": "2026-11-23T01:21:06Z",
+      "generator": {
+        "virtualUsers": 1413,
+        "coverS": 0.25
+      },
+      "p50": 0.474161,
+      "p95": 5.188228,
+      "p99": 36.72331647999941,
+      "mean": 1.8254202031284286,
+      "successRate": 1.0,
+      "throughputRps": 5450.05,
+      "cacheHitRatio": 0.8062713870260452,
+      "unstable": false,
+      "repeats": 3,
+      "failedRepeats": 0,
+      "droppedRepeats": 0,
+      "resources": {
+        "method": "window",
+        "repeats": 3,
+        "containers": {
+          "api": {
+            "cores": 0.8418,
+            "maxCores": 0.87,
+            "workingSetMiB": 223.9,
+            "anonMiB": 208.9
+          },
+          "postgres": {
+            "cores": 0.2165,
+            "maxCores": 0.2402,
+            "workingSetMiB": 98.9,
+            "anonMiB": 21.0
+          },
+          "redis": {
+            "cores": 0.1765,
+            "maxCores": 0.1804,
+            "workingSetMiB": 12.4,
+            "anonMiB": 7.6
+          }
+        }
+      }
+    },
+    {
+      "offeredRps": 5995,
+      "runs": [
+        {
+          "offeredRps": 5995,
+          "p50": 0.514896,
+          "p95": 10.996617,
+          "p99": 65.558222,
+          "mean": 3.0611419193167135,
+          "sent": 119901,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 119901,
+          "successRate": 1.0,
+          "throughputRps": 5995.05,
+          "serviceCpuMsPerRequest": 0.1456977740585774,
+          "containerCpuShare": {
+            "api": 0.834,
+            "postgres": 0.241,
+            "redis": 0.167
+          },
+          "k6Cores": 1.469,
+          "resources": {
+            "method": "window",
+            "seconds": 19.08,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.876,
+                "maxCores": 0.8831,
+                "workingSetMiB": 216.9,
+                "anonMiB": 201.3
+              },
+              "postgres": {
+                "cores": 0.2256,
+                "maxCores": 0.2472,
+                "workingSetMiB": 98.8,
+                "anonMiB": 20.7
+              },
+              "redis": {
+                "cores": 0.1822,
+                "maxCores": 0.1878,
+                "workingSetMiB": 12.6,
+                "anonMiB": 7.7
+              }
+            }
+          },
+          "cacheHitRatio": 0.8146387436301615,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:21:38Z"
+        },
+        {
+          "offeredRps": 5995,
+          "p50": 0.6666445,
+          "p95": 15.344151499999919,
+          "p99": 148.76399339999867,
+          "mean": 5.756006690883919,
+          "sent": 119900,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 119900,
+          "successRate": 1.0,
+          "throughputRps": 5995.0,
+          "serviceCpuMsPerRequest": 0.14864019872744705,
+          "containerCpuShare": {
+            "api": 0.847,
+            "postgres": 0.25,
+            "redis": 0.16
+          },
+          "k6Cores": 1.5364,
+          "resources": {
+            "method": "window",
+            "seconds": 19.03,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.8954,
+                "maxCores": 0.9214,
+                "workingSetMiB": 212.0,
+                "anonMiB": 196.1
+              },
+              "postgres": {
+                "cores": 0.2465,
+                "maxCores": 0.2652,
+                "workingSetMiB": 98.2,
+                "anonMiB": 20.5
+              },
+              "redis": {
+                "cores": 0.1708,
+                "maxCores": 0.1771,
+                "workingSetMiB": 12.5,
+                "anonMiB": 7.9
+              }
+            }
+          },
+          "cacheHitRatio": 0.811651376146789,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:22:12Z"
+        },
+        {
+          "offeredRps": 5995,
+          "p50": 0.573126,
+          "p95": 15.310475,
+          "p99": 95.704483,
+          "mean": 4.154547504040862,
+          "sent": 119901,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 119901,
+          "successRate": 1.0,
+          "throughputRps": 5995.05,
+          "serviceCpuMsPerRequest": 0.14699054076622464,
+          "containerCpuShare": {
+            "api": 0.84,
+            "postgres": 0.245,
+            "redis": 0.168
+          },
+          "k6Cores": 1.5189,
+          "resources": {
+            "method": "window",
+            "seconds": 19.05,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.8873,
+                "maxCores": 0.8948,
+                "workingSetMiB": 225.1,
+                "anonMiB": 209.4
+              },
+              "postgres": {
+                "cores": 0.2351,
+                "maxCores": 0.2598,
+                "workingSetMiB": 99.2,
+                "anonMiB": 20.9
+              },
+              "redis": {
+                "cores": 0.18,
+                "maxCores": 0.1909,
+                "workingSetMiB": 11.3,
+                "anonMiB": 6.7
+              }
+            }
+          },
+          "cacheHitRatio": 0.8134377528127372,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:22:47Z"
+        }
+      ],
+      "at": "2026-11-23T01:22:50Z",
+      "generator": {
+        "virtualUsers": 1549,
+        "coverS": 0.25
+      },
+      "p50": 0.573126,
+      "p95": 15.310475,
+      "p99": 95.704483,
+      "mean": 4.154547504040862,
+      "successRate": 1.0,
+      "throughputRps": 5995.05,
+      "cacheHitRatio": 0.8134377528127372,
+      "unstable": false,
+      "repeats": 3,
+      "failedRepeats": 0,
+      "droppedRepeats": 0,
+      "resources": {
+        "method": "window",
+        "repeats": 3,
+        "containers": {
+          "api": {
+            "cores": 0.8873,
+            "maxCores": 0.8948,
+            "workingSetMiB": 216.9,
+            "anonMiB": 201.3
+          },
+          "postgres": {
+            "cores": 0.2351,
+            "maxCores": 0.2598,
+            "workingSetMiB": 98.8,
+            "anonMiB": 20.7
+          },
+          "redis": {
+            "cores": 0.18,
+            "maxCores": 0.1878,
+            "workingSetMiB": 12.5,
+            "anonMiB": 7.7
+          }
+        }
+      }
+    },
+    {
+      "offeredRps": 6812,
+      "runs": [
+        {
+          "offeredRps": 6812,
+          "p50": 0.881257,
+          "p95": 91.63384139999992,
+          "p99": 294.57547320000043,
+          "mean": 14.052349388882762,
+          "sent": 133197,
+          "dropped": 3044,
+          "failed": 0,
+          "succeeded": 133197,
+          "successRate": 0.9776572397442767,
+          "throughputRps": 6659.85,
+          "serviceCpuMsPerRequest": 0.1367165091518124,
+          "containerCpuShare": {
+            "api": 0.867,
+            "postgres": 0.266,
+            "redis": 0.157
+          },
+          "k6Cores": 1.7577,
+          "resources": {
+            "method": "window",
+            "seconds": 19.06,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.9207,
+                "maxCores": 0.9355,
+                "workingSetMiB": 230.8,
+                "anonMiB": 213.5
+              },
+              "postgres": {
+                "cores": 0.2589,
+                "maxCores": 0.3053,
+                "workingSetMiB": 99.1,
+                "anonMiB": 20.8
+              },
+              "redis": {
+                "cores": 0.1701,
+                "maxCores": 0.1807,
+                "workingSetMiB": 12.7,
+                "anonMiB": 7.9
+              }
+            }
+          },
+          "cacheHitRatio": 0.8237647995074964,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:23:22Z"
+        },
+        {
+          "offeredRps": 6812,
+          "p50": 0.762837,
+          "p95": 75.09646059999955,
+          "p99": 193.51630444,
+          "mean": 11.005120319024654,
+          "sent": 135325,
+          "dropped": 916,
+          "failed": 0,
+          "succeeded": 135325,
+          "successRate": 0.9932766201070162,
+          "throughputRps": 6766.25,
+          "serviceCpuMsPerRequest": 0.13544045944124566,
+          "containerCpuShare": {
+            "api": 0.873,
+            "postgres": 0.262,
+            "redis": 0.164
+          },
+          "k6Cores": 1.7215,
+          "resources": {
+            "method": "window",
+            "seconds": 19.02,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.9226,
+                "maxCores": 0.9394,
+                "workingSetMiB": 251.8,
+                "anonMiB": 234.8
+              },
+              "postgres": {
+                "cores": 0.2469,
+                "maxCores": 0.2798,
+                "workingSetMiB": 98.8,
+                "anonMiB": 20.8
+              },
+              "redis": {
+                "cores": 0.1766,
+                "maxCores": 0.1884,
+                "workingSetMiB": 12.8,
+                "anonMiB": 7.9
+              }
+            }
+          },
+          "cacheHitRatio": 0.8237650101607242,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:23:56Z"
+        },
+        {
+          "offeredRps": 6812,
+          "p50": 0.7493215,
+          "p95": 101.43057279999981,
+          "p99": 171.53768853000005,
+          "mean": 12.189660368410458,
+          "sent": 135710,
+          "dropped": 531,
+          "failed": 0,
+          "succeeded": 135710,
+          "successRate": 0.9961024948436961,
+          "throughputRps": 6785.5,
+          "serviceCpuMsPerRequest": 0.1357600158198894,
+          "containerCpuShare": {
+            "api": 0.872,
+            "postgres": 0.267,
+            "redis": 0.16
+          },
+          "k6Cores": 1.7402,
+          "resources": {
+            "method": "window",
+            "seconds": 19.02,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.9205,
+                "maxCores": 0.9383,
+                "workingSetMiB": 229.1,
+                "anonMiB": 211.9
+              },
+              "postgres": {
+                "cores": 0.2487,
+                "maxCores": 0.2863,
+                "workingSetMiB": 98.9,
+                "anonMiB": 20.8
+              },
+              "redis": {
+                "cores": 0.1762,
+                "maxCores": 0.1847,
+                "workingSetMiB": 12.4,
+                "anonMiB": 7.7
+              }
+            }
+          },
+          "cacheHitRatio": 0.8233807383391054,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:24:31Z"
+        }
+      ],
+      "at": "2026-11-23T01:24:34Z",
+      "generator": {
+        "virtualUsers": 1753,
+        "coverS": 0.25
+      },
+      "p50": 0.762837,
+      "p95": 91.63384139999992,
+      "p99": 193.51630444,
+      "mean": 12.189660368410458,
+      "successRate": 0.9932766201070162,
+      "throughputRps": 6766.25,
+      "cacheHitRatio": 0.8237647995074964,
+      "unstable": false,
+      "repeats": 3,
+      "failedRepeats": 0,
+      "droppedRepeats": 3,
+      "resources": {
+        "method": "window",
+        "repeats": 3,
+        "containers": {
+          "api": {
+            "cores": 0.9207,
+            "maxCores": 0.9383,
+            "workingSetMiB": 230.8,
+            "anonMiB": 213.5
+          },
+          "postgres": {
+            "cores": 0.2487,
+            "maxCores": 0.2863,
+            "workingSetMiB": 98.9,
+            "anonMiB": 20.8
+          },
+          "redis": {
+            "cores": 0.1762,
+            "maxCores": 0.1847,
+            "workingSetMiB": 12.7,
             "anonMiB": 7.9
           }
         }
       }
     },
     {
-      "offeredRps": 8475,
+      "offeredRps": 8175,
       "runs": [
         {
-          "offeredRps": 8475,
-          "p50": 1.040944,
-          "p95": 50.47604589999991,
-          "p99": 82.33845913000015,
-          "mean": 8.474629722928272,
-          "sent": 159428,
-          "dropped": 10073,
+          "offeredRps": 8175,
+          "p50": 1.1319805,
+          "p95": 98.12186585000012,
+          "p99": 231.79560641000174,
+          "mean": 14.33333891000954,
+          "sent": 161084,
+          "dropped": 2417,
           "failed": 0,
-          "succeeded": 159428,
-          "successRate": 0.9405726219904307,
-          "throughputRps": 7971.4,
-          "serviceCpuMsPerRequest": 0.11386787043280638,
+          "succeeded": 161084,
+          "successRate": 0.9852172157968453,
+          "throughputRps": 8054.2,
+          "serviceCpuMsPerRequest": 0.11833606350119237,
           "containerCpuShare": {
-            "api": 0.478,
-            "postgres": 0.177,
-            "redis": 0.095
+            "api": 0.905,
+            "postgres": 0.29,
+            "redis": 0.148
           },
+          "k6Cores": 1.9483,
           "resources": {
             "method": "window",
             "seconds": 19.03,
             "readings": 5,
             "containers": {
               "api": {
-                "cores": 0.9026,
-                "maxCores": 0.9573,
-                "workingSetMiB": 191.2,
-                "anonMiB": 175.9
+                "cores": 0.9592,
+                "maxCores": 0.9739,
+                "workingSetMiB": 252.2,
+                "anonMiB": 233.8
               },
               "postgres": {
-                "cores": 0.283,
-                "maxCores": 0.3254,
-                "workingSetMiB": 98.6,
-                "anonMiB": 20.4
+                "cores": 0.2752,
+                "maxCores": 0.3281,
+                "workingSetMiB": 98.5,
+                "anonMiB": 20.5
               },
               "redis": {
-                "cores": 0.1871,
-                "maxCores": 0.1963,
-                "workingSetMiB": 11.9,
-                "anonMiB": 7.9
+                "cores": 0.1627,
+                "maxCores": 0.1778,
+                "workingSetMiB": 14.0,
+                "anonMiB": 9.0
               }
             }
           },
-          "cacheHitRatio": 0.8380334696540132,
+          "cacheHitRatio": 0.8378547838394875,
           "drain": {
             "seconds": 0.5,
             "healthy": true,
             "databaseIdle": true
           },
-          "at": "2026-11-04T13:14:14Z"
+          "at": "2026-11-23T01:25:06Z"
         },
         {
-          "offeredRps": 8475,
-          "p50": 1.0823,
-          "p95": 48.365722500000004,
-          "p99": 77.61970520000003,
-          "mean": 8.658513533356546,
-          "sent": 163491,
-          "dropped": 6010,
+          "offeredRps": 8175,
+          "p50": 1.04467,
+          "p95": 162.56578000000047,
+          "p99": 274.3442842400003,
+          "mean": 19.079790759938458,
+          "sent": 160159,
+          "dropped": 3342,
           "failed": 0,
-          "succeeded": 163491,
-          "successRate": 0.9645429820473036,
-          "throughputRps": 8174.55,
-          "serviceCpuMsPerRequest": 0.11285238557674009,
+          "succeeded": 160159,
+          "successRate": 0.9795597580442933,
+          "throughputRps": 8007.95,
+          "serviceCpuMsPerRequest": 0.11814430130123649,
           "containerCpuShare": {
-            "api": 0.489,
-            "postgres": 0.182,
-            "redis": 0.095
+            "api": 0.899,
+            "postgres": 0.284,
+            "redis": 0.149
           },
-          "resources": {
-            "method": "window",
-            "seconds": 19.01,
-            "readings": 5,
-            "containers": {
-              "api": {
-                "cores": 0.9152,
-                "maxCores": 0.9404,
-                "workingSetMiB": 190.9,
-                "anonMiB": 176.3
-              },
-              "postgres": {
-                "cores": 0.2995,
-                "maxCores": 0.3542,
-                "workingSetMiB": 101.8,
-                "anonMiB": 23.3
-              },
-              "redis": {
-                "cores": 0.1819,
-                "maxCores": 0.2069,
-                "workingSetMiB": 12.7,
-                "anonMiB": 8.5
-              }
-            }
-          },
-          "cacheHitRatio": 0.8385415710956566,
-          "drain": {
-            "seconds": 0.4,
-            "healthy": true,
-            "databaseIdle": true
-          },
-          "at": "2026-11-04T13:15:10Z"
-        },
-        {
-          "offeredRps": 8475,
-          "p50": 0.997015,
-          "p95": 38.875353999999966,
-          "p99": 72.53820192000002,
-          "mean": 6.753998749291144,
-          "sent": 164697,
-          "dropped": 4804,
-          "failed": 0,
-          "succeeded": 164697,
-          "successRate": 0.9716579843186766,
-          "throughputRps": 8234.85,
-          "serviceCpuMsPerRequest": 0.11193617927702444,
-          "containerCpuShare": {
-            "api": 0.481,
-            "postgres": 0.177,
-            "redis": 0.096
-          },
+          "k6Cores": 1.9244,
           "resources": {
             "method": "window",
             "seconds": 19.03,
             "readings": 5,
             "containers": {
               "api": {
-                "cores": 0.918,
-                "maxCores": 0.9543,
-                "workingSetMiB": 192.8,
-                "anonMiB": 179.0
+                "cores": 0.9518,
+                "maxCores": 0.9782,
+                "workingSetMiB": 240.6,
+                "anonMiB": 222.3
               },
               "postgres": {
-                "cores": 0.2844,
-                "maxCores": 0.3399,
-                "workingSetMiB": 98.1,
-                "anonMiB": 19.7
+                "cores": 0.2705,
+                "maxCores": 0.3162,
+                "workingSetMiB": 98.9,
+                "anonMiB": 20.6
               },
               "redis": {
-                "cores": 0.1903,
-                "maxCores": 0.2053,
-                "workingSetMiB": 11.8,
+                "cores": 0.1637,
+                "maxCores": 0.168,
+                "workingSetMiB": 12.8,
+                "anonMiB": 8.3
+              }
+            }
+          },
+          "cacheHitRatio": 0.8386977940671457,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:25:41Z"
+        },
+        {
+          "offeredRps": 8175,
+          "p50": 1.2203835,
+          "p95": 102.40200200000001,
+          "p99": 207.58460559999924,
+          "mean": 15.396764427610144,
+          "sent": 161846,
+          "dropped": 1655,
+          "failed": 0,
+          "succeeded": 161846,
+          "successRate": 0.9898777377508394,
+          "throughputRps": 8092.3,
+          "serviceCpuMsPerRequest": 0.11779197706599479,
+          "containerCpuShare": {
+            "api": 0.902,
+            "postgres": 0.297,
+            "redis": 0.144
+          },
+          "k6Cores": 1.9396,
+          "resources": {
+            "method": "window",
+            "seconds": 19.04,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.9582,
+                "maxCores": 0.9829,
+                "workingSetMiB": 234.4,
+                "anonMiB": 215.6
+              },
+              "postgres": {
+                "cores": 0.2814,
+                "maxCores": 0.317,
+                "workingSetMiB": 98.9,
+                "anonMiB": 20.8
+              },
+              "redis": {
+                "cores": 0.1572,
+                "maxCores": 0.1662,
+                "workingSetMiB": 12.7,
                 "anonMiB": 8.0
               }
             }
           },
-          "cacheHitRatio": 0.8388130931346655,
+          "cacheHitRatio": 0.8363629623222075,
           "drain": {
             "seconds": 0.5,
             "healthy": true,
             "databaseIdle": true
           },
-          "at": "2026-11-04T13:16:07Z"
+          "at": "2026-11-23T01:26:16Z"
         }
       ],
-      "at": "2026-11-04T13:16:10Z",
-      "p50": 1.040944,
-      "p95": 48.365722500000004,
-      "p99": 77.61970520000003,
-      "mean": 8.474629722928272,
-      "successRate": 0.9645429820473036,
-      "throughputRps": 8174.55,
-      "cacheHitRatio": 0.8385415710956566,
+      "at": "2026-11-23T01:26:19Z",
+      "generator": {
+        "virtualUsers": 2094,
+        "coverS": 0.25
+      },
+      "p50": 1.1319805,
+      "p95": 102.40200200000001,
+      "p99": 231.79560641000174,
+      "mean": 15.396764427610144,
+      "successRate": 0.9852172157968453,
+      "throughputRps": 8054.2,
+      "cacheHitRatio": 0.8378547838394875,
       "unstable": false,
       "repeats": 3,
       "failedRepeats": 0,
+      "droppedRepeats": 3,
       "resources": {
         "method": "window",
         "repeats": 3,
         "containers": {
           "api": {
-            "cores": 0.9152,
-            "maxCores": 0.9543,
-            "workingSetMiB": 191.2,
-            "anonMiB": 176.3
+            "cores": 0.9582,
+            "maxCores": 0.9782,
+            "workingSetMiB": 240.6,
+            "anonMiB": 222.3
           },
           "postgres": {
-            "cores": 0.2844,
-            "maxCores": 0.3399,
-            "workingSetMiB": 98.6,
-            "anonMiB": 20.4
+            "cores": 0.2752,
+            "maxCores": 0.317,
+            "workingSetMiB": 98.9,
+            "anonMiB": 20.6
           },
           "redis": {
-            "cores": 0.1871,
-            "maxCores": 0.2053,
-            "workingSetMiB": 11.9,
-            "anonMiB": 8.0
+            "cores": 0.1627,
+            "maxCores": 0.168,
+            "workingSetMiB": 12.8,
+            "anonMiB": 8.3
           }
         }
       }
+    },
+    {
+      "offeredRps": 6404,
+      "runs": [
+        {
+          "offeredRps": 6404,
+          "p50": 0.7254875000000001,
+          "p95": 93.12544539999996,
+          "p99": 226.15325476999982,
+          "mean": 11.172173906343431,
+          "sent": 127722,
+          "dropped": 359,
+          "failed": 0,
+          "succeeded": 127722,
+          "successRate": 0.9971970862188771,
+          "throughputRps": 6386.1,
+          "serviceCpuMsPerRequest": 0.14180706294716608,
+          "containerCpuShare": {
+            "api": 0.859,
+            "postgres": 0.257,
+            "redis": 0.164
+          },
+          "k6Cores": 1.6238,
+          "resources": {
+            "method": "window",
+            "seconds": 19.03,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.9115,
+                "maxCores": 0.9452,
+                "workingSetMiB": 223.0,
+                "anonMiB": 206.7
+              },
+              "postgres": {
+                "cores": 0.2447,
+                "maxCores": 0.2968,
+                "workingSetMiB": 99.3,
+                "anonMiB": 21.3
+              },
+              "redis": {
+                "cores": 0.1787,
+                "maxCores": 0.1878,
+                "workingSetMiB": 13.3,
+                "anonMiB": 8.4
+              }
+            }
+          },
+          "cacheHitRatio": 0.8187156480481045,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:26:52Z"
+        },
+        {
+          "offeredRps": 6404,
+          "p50": 0.666237,
+          "p95": 55.61549659999994,
+          "p99": 189.80239077999997,
+          "mean": 9.264431434151662,
+          "sent": 127467,
+          "dropped": 613,
+          "failed": 0,
+          "succeeded": 127467,
+          "successRate": 0.9952139287945034,
+          "throughputRps": 6373.35,
+          "serviceCpuMsPerRequest": 0.14188269438784493,
+          "containerCpuShare": {
+            "api": 0.854,
+            "postgres": 0.253,
+            "redis": 0.163
+          },
+          "k6Cores": 1.5709,
+          "resources": {
+            "method": "window",
+            "seconds": 19.05,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.9087,
+                "maxCores": 0.9244,
+                "workingSetMiB": 227.7,
+                "anonMiB": 210.7
+              },
+              "postgres": {
+                "cores": 0.241,
+                "maxCores": 0.2755,
+                "workingSetMiB": 98.9,
+                "anonMiB": 20.7
+              },
+              "redis": {
+                "cores": 0.1808,
+                "maxCores": 0.1858,
+                "workingSetMiB": 13.6,
+                "anonMiB": 8.8
+              }
+            }
+          },
+          "cacheHitRatio": 0.8183529854785945,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:27:26Z"
+        },
+        {
+          "offeredRps": 6404,
+          "p50": 0.6521790000000001,
+          "p95": 82.13905675000001,
+          "p99": 183.87807085000006,
+          "mean": 10.318999185682989,
+          "sent": 126996,
+          "dropped": 1086,
+          "failed": 0,
+          "succeeded": 126996,
+          "successRate": 0.9915210568229728,
+          "throughputRps": 6349.8,
+          "serviceCpuMsPerRequest": 0.1407165741405139,
+          "containerCpuShare": {
+            "api": 0.848,
+            "postgres": 0.251,
+            "redis": 0.166
+          },
+          "k6Cores": 1.5867,
+          "resources": {
+            "method": "window",
+            "seconds": 19.04,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.9002,
+                "maxCores": 0.9245,
+                "workingSetMiB": 243.1,
+                "anonMiB": 224.2
+              },
+              "postgres": {
+                "cores": 0.2395,
+                "maxCores": 0.2787,
+                "workingSetMiB": 99.2,
+                "anonMiB": 21.0
+              },
+              "redis": {
+                "cores": 0.1808,
+                "maxCores": 0.1847,
+                "workingSetMiB": 12.1,
+                "anonMiB": 7.3
+              }
+            }
+          },
+          "cacheHitRatio": 0.8192305269457306,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:28:01Z"
+        }
+      ],
+      "at": "2026-11-23T01:28:04Z",
+      "generator": {
+        "virtualUsers": 1651,
+        "coverS": 0.25
+      },
+      "p50": 0.666237,
+      "p95": 82.13905675000001,
+      "p99": 189.80239077999997,
+      "mean": 10.318999185682989,
+      "successRate": 0.9952139287945034,
+      "throughputRps": 6373.35,
+      "cacheHitRatio": 0.8187156480481045,
+      "unstable": false,
+      "repeats": 3,
+      "failedRepeats": 0,
+      "droppedRepeats": 3,
+      "resources": {
+        "method": "window",
+        "repeats": 3,
+        "containers": {
+          "api": {
+            "cores": 0.9087,
+            "maxCores": 0.9245,
+            "workingSetMiB": 227.7,
+            "anonMiB": 210.7
+          },
+          "postgres": {
+            "cores": 0.241,
+            "maxCores": 0.2787,
+            "workingSetMiB": 99.2,
+            "anonMiB": 21.0
+          },
+          "redis": {
+            "cores": 0.1808,
+            "maxCores": 0.1858,
+            "workingSetMiB": 13.3,
+            "anonMiB": 8.4
+          }
+        }
+      },
+      "refinement": true
+    },
+    {
+      "offeredRps": 6200,
+      "runs": [
+        {
+          "offeredRps": 6200,
+          "p50": 0.613776,
+          "p95": 12.742945,
+          "p99": 52.769059800000015,
+          "mean": 2.972521925913931,
+          "sent": 123721,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 123721,
+          "successRate": 1.0,
+          "throughputRps": 6186.05,
+          "serviceCpuMsPerRequest": 0.14507608406663597,
+          "containerCpuShare": {
+            "api": 0.851,
+            "postgres": 0.253,
+            "redis": 0.167
+          },
+          "k6Cores": 1.5352,
+          "resources": {
+            "method": "window",
+            "seconds": 19.02,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.9024,
+                "maxCores": 0.9438,
+                "workingSetMiB": 229.0,
+                "anonMiB": 212.8
+              },
+              "postgres": {
+                "cores": 0.2404,
+                "maxCores": 0.2944,
+                "workingSetMiB": 98.9,
+                "anonMiB": 20.6
+              },
+              "redis": {
+                "cores": 0.1805,
+                "maxCores": 0.1871,
+                "workingSetMiB": 12.6,
+                "anonMiB": 7.9
+              }
+            }
+          },
+          "cacheHitRatio": 0.8151647658845305,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:28:37Z"
+        },
+        {
+          "offeredRps": 6200,
+          "p50": 0.571558,
+          "p95": 9.526719,
+          "p99": 79.059307,
+          "mean": 3.487528247135095,
+          "sent": 124001,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 124001,
+          "successRate": 1.0,
+          "throughputRps": 6200.05,
+          "serviceCpuMsPerRequest": 0.1423360107354146,
+          "containerCpuShare": {
+            "api": 0.841,
+            "postgres": 0.242,
+            "redis": 0.167
+          },
+          "k6Cores": 1.5127,
+          "resources": {
+            "method": "window",
+            "seconds": 19.02,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.8887,
+                "maxCores": 0.8983,
+                "workingSetMiB": 243.9,
+                "anonMiB": 227.1
+              },
+              "postgres": {
+                "cores": 0.2322,
+                "maxCores": 0.2588,
+                "workingSetMiB": 98.9,
+                "anonMiB": 20.9
+              },
+              "redis": {
+                "cores": 0.1797,
+                "maxCores": 0.1858,
+                "workingSetMiB": 12.7,
+                "anonMiB": 7.9
+              }
+            }
+          },
+          "cacheHitRatio": 0.8184450125402214,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:29:12Z"
+        },
+        {
+          "offeredRps": 6200,
+          "p50": 0.558281,
+          "p95": 8.377202,
+          "p99": 69.036368,
+          "mean": 2.8245423962790848,
+          "sent": 124001,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 124001,
+          "successRate": 1.0,
+          "throughputRps": 6200.05,
+          "serviceCpuMsPerRequest": 0.14439481586237624,
+          "containerCpuShare": {
+            "api": 0.849,
+            "postgres": 0.246,
+            "redis": 0.166
+          },
+          "k6Cores": 1.5062,
+          "resources": {
+            "method": "window",
+            "seconds": 19.03,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.8944,
+                "maxCores": 0.9117,
+                "workingSetMiB": 226.1,
+                "anonMiB": 210.0
+              },
+              "postgres": {
+                "cores": 0.2294,
+                "maxCores": 0.261,
+                "workingSetMiB": 99.3,
+                "anonMiB": 21.0
+              },
+              "redis": {
+                "cores": 0.1823,
+                "maxCores": 0.1841,
+                "workingSetMiB": 12.9,
+                "anonMiB": 7.9
+              }
+            }
+          },
+          "cacheHitRatio": 0.8177030830396529,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:29:47Z"
+        }
+      ],
+      "at": "2026-11-23T01:29:50Z",
+      "generator": {
+        "virtualUsers": 1600,
+        "coverS": 0.25
+      },
+      "p50": 0.571558,
+      "p95": 9.526719,
+      "p99": 69.036368,
+      "mean": 2.972521925913931,
+      "successRate": 1.0,
+      "throughputRps": 6200.05,
+      "cacheHitRatio": 0.8177030830396529,
+      "unstable": false,
+      "repeats": 3,
+      "failedRepeats": 0,
+      "droppedRepeats": 0,
+      "resources": {
+        "method": "window",
+        "repeats": 3,
+        "containers": {
+          "api": {
+            "cores": 0.8944,
+            "maxCores": 0.9117,
+            "workingSetMiB": 229.0,
+            "anonMiB": 212.8
+          },
+          "postgres": {
+            "cores": 0.2322,
+            "maxCores": 0.261,
+            "workingSetMiB": 98.9,
+            "anonMiB": 20.9
+          },
+          "redis": {
+            "cores": 0.1805,
+            "maxCores": 0.1858,
+            "workingSetMiB": 12.7,
+            "anonMiB": 7.9
+          }
+        }
+      },
+      "refinement": true
+    },
+    {
+      "offeredRps": 6302,
+      "runs": [
+        {
+          "offeredRps": 6302,
+          "p50": 0.6426415,
+          "p95": 34.7509085999999,
+          "p99": 154.36200030999998,
+          "mean": 7.121821910791111,
+          "sent": 125604,
+          "dropped": 357,
+          "failed": 0,
+          "succeeded": 125604,
+          "successRate": 0.9971657894110082,
+          "throughputRps": 6280.2,
+          "serviceCpuMsPerRequest": 0.1432012093571447,
+          "containerCpuShare": {
+            "api": 0.851,
+            "postgres": 0.25,
+            "redis": 0.165
+          },
+          "k6Cores": 1.5425,
+          "resources": {
+            "method": "window",
+            "seconds": 19.04,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.8988,
+                "maxCores": 0.93,
+                "workingSetMiB": 243.6,
+                "anonMiB": 226.4
+              },
+              "postgres": {
+                "cores": 0.2375,
+                "maxCores": 0.3006,
+                "workingSetMiB": 99.4,
+                "anonMiB": 21.0
+              },
+              "redis": {
+                "cores": 0.1783,
+                "maxCores": 0.1856,
+                "workingSetMiB": 12.7,
+                "anonMiB": 8.0
+              }
+            }
+          },
+          "cacheHitRatio": 0.817848157701984,
+          "drain": {
+            "seconds": 0.4,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:30:22Z"
+        },
+        {
+          "offeredRps": 6302,
+          "p50": 0.718233,
+          "p95": 42.076935099999915,
+          "p99": 161.39534838999995,
+          "mean": 7.962213866024277,
+          "sent": 125978,
+          "dropped": 249,
+          "failed": 0,
+          "succeeded": 125978,
+          "successRate": 0.9980273634008572,
+          "throughputRps": 6298.9,
+          "serviceCpuMsPerRequest": 0.14342709920755867,
+          "containerCpuShare": {
+            "api": 0.857,
+            "postgres": 0.256,
+            "redis": 0.163
+          },
+          "k6Cores": 1.5897,
+          "resources": {
+            "method": "window",
+            "seconds": 19.04,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.9104,
+                "maxCores": 0.9235,
+                "workingSetMiB": 226.9,
+                "anonMiB": 210.3
+              },
+              "postgres": {
+                "cores": 0.2473,
+                "maxCores": 0.2724,
+                "workingSetMiB": 99.2,
+                "anonMiB": 20.9
+              },
+              "redis": {
+                "cores": 0.1778,
+                "maxCores": 0.1868,
+                "workingSetMiB": 12.0,
+                "anonMiB": 7.1
+              }
+            }
+          },
+          "cacheHitRatio": 0.8189445776246647,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:30:57Z"
+        },
+        {
+          "offeredRps": 6302,
+          "p50": 0.643148,
+          "p95": 16.499764,
+          "p99": 81.1637632,
+          "mean": 4.067405422663991,
+          "sent": 126041,
+          "dropped": 0,
+          "failed": 0,
+          "succeeded": 126041,
+          "successRate": 1.0,
+          "throughputRps": 6302.05,
+          "serviceCpuMsPerRequest": 0.14306272191608232,
+          "containerCpuShare": {
+            "api": 0.857,
+            "postgres": 0.249,
+            "redis": 0.165
+          },
+          "k6Cores": 1.5705,
+          "resources": {
+            "method": "window",
+            "seconds": 19.02,
+            "readings": 5,
+            "containers": {
+              "api": {
+                "cores": 0.911,
+                "maxCores": 0.9249,
+                "workingSetMiB": 241.0,
+                "anonMiB": 224.5
+              },
+              "postgres": {
+                "cores": 0.2398,
+                "maxCores": 0.2703,
+                "workingSetMiB": 98.2,
+                "anonMiB": 20.2
+              },
+              "redis": {
+                "cores": 0.1781,
+                "maxCores": 0.1834,
+                "workingSetMiB": 12.6,
+                "anonMiB": 8.1
+              }
+            }
+          },
+          "cacheHitRatio": 0.8185035028284448,
+          "drain": {
+            "seconds": 0.5,
+            "healthy": true,
+            "databaseIdle": true
+          },
+          "at": "2026-11-23T01:31:32Z"
+        }
+      ],
+      "at": "2026-11-23T01:31:35Z",
+      "generator": {
+        "virtualUsers": 1626,
+        "coverS": 0.25
+      },
+      "p50": 0.643148,
+      "p95": 34.7509085999999,
+      "p99": 154.36200030999998,
+      "mean": 7.121821910791111,
+      "successRate": 0.9980273634008572,
+      "throughputRps": 6298.9,
+      "cacheHitRatio": 0.8185035028284448,
+      "unstable": false,
+      "repeats": 3,
+      "failedRepeats": 0,
+      "droppedRepeats": 2,
+      "resources": {
+        "method": "window",
+        "repeats": 3,
+        "containers": {
+          "api": {
+            "cores": 0.9104,
+            "maxCores": 0.9249,
+            "workingSetMiB": 241.0,
+            "anonMiB": 224.5
+          },
+          "postgres": {
+            "cores": 0.2398,
+            "maxCores": 0.2724,
+            "workingSetMiB": 99.2,
+            "anonMiB": 20.9
+          },
+          "redis": {
+            "cores": 0.1781,
+            "maxCores": 0.1856,
+            "workingSetMiB": 12.6,
+            "anonMiB": 8.0
+          }
+        }
+      },
+      "refinement": true
+    }
+  ],
+  "extensionSeals": [
+    {
+      "offeredRps": 6404,
+      "predictionsSha256": "441f311d2c44decb4df68355aeb15523de499ba1322ff06870c30cb1ebdbc6ad"
+    },
+    {
+      "offeredRps": 6200,
+      "predictionsSha256": "e3b3e7d34f723cc551484aa69524c7b176b89e182680ddf27f8e1a2e7ea1f26d"
+    },
+    {
+      "offeredRps": 6302,
+      "predictionsSha256": "96a880d126902b401b4d4248f04a9e0fb53db8dbf785fba5a0dfbe6a45ef6ba1"
     }
   ]
 }

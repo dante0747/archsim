@@ -19,19 +19,25 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class LatestRunsTests {
 
-	// the first set was measured on 3-4 Nov 2026; nothing has measured the second
+	// the newest set is the one no engine has been tuned on
 	@Test
-	void awaitingMeasurement_theCommittedResults_areTheSecondSet() {
-		assertThat(LatestRuns.awaitingMeasurement(RepositoryLayout.current().results())).extracting(Experiment::id)
-			.containsExactly("python-cores", "python-wide", "java-hot-row", "go-pool", "cache-miss");
+	void inPageOrder_twoHeldOutSets_leadsWithTheNewest() {
+		assertThat(LatestRuns.inPageOrder()).extracting(Experiment::id)
+			.containsExactly("python-cores", "python-wide", "java-hot-row", "go-pool", "cache-miss", "java-mixed",
+					"go-mixed", "python-mixed", "chain", "cache-ttl", "pg-mixed", "pg-hot-row", "cache-aside", "kafka");
+	}
+
+	@Test
+	void awaitingMeasurement_theCommittedResults_isNone() {
+		assertThat(LatestRuns.awaitingMeasurement(RepositoryLayout.current().results())).isEmpty();
 	}
 
 	// the tuned-on four were never registered: they are not held out
 	@Test
 	void awaitingMeasurement_noResults_areEveryHeldOutExperimentInThePagesOrder(@TempDir Path results) {
 		assertThat(LatestRuns.awaitingMeasurement(results)).extracting(Experiment::id)
-			.containsExactly("java-mixed", "go-mixed", "python-mixed", "chain", "cache-ttl", "python-cores",
-					"python-wide", "java-hot-row", "go-pool", "cache-miss");
+			.containsExactly("python-cores", "python-wide", "java-hot-row", "go-pool", "cache-miss", "java-mixed",
+					"go-mixed", "python-mixed", "chain", "cache-ttl");
 	}
 
 	// its latest run, or one kept before it

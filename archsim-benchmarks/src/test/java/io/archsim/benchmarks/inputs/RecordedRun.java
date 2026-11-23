@@ -10,6 +10,8 @@ import tools.jackson.databind.node.ObjectNode;
 import io.archsim.benchmarks.RepositoryLayout;
 import io.archsim.benchmarks.experiments.Experiment;
 import io.archsim.benchmarks.experiments.Experiments;
+import io.archsim.benchmarks.results.CalibratedRuns;
+import io.archsim.benchmarks.results.KeptRun;
 import io.archsim.benchmarks.results.ResultFiles;
 import io.archsim.model.text.PythonJson;
 
@@ -25,6 +27,8 @@ record RecordedRun(Experiment experiment, JsonNode calibration, JsonNode check) 
 
 	private static final RepositoryLayout LAYOUT = RepositoryLayout.current();
 
+	private static final CalibratedRuns RUNS = CalibratedRuns.of(LAYOUT.results());
+
 	/** What the median of the replicates puts before how an input was found. */
 	private static final Pattern MEDIAN_PREFIX = Pattern.compile("^the median of [^:]+\\): ");
 
@@ -37,9 +41,15 @@ record RecordedRun(Experiment experiment, JsonNode calibration, JsonNode check) 
 	static RecordedRun of(String experiment, String calibratedAt) {
 		Path dev = LAYOUT.results().resolve("dev/0.16.0-java").resolve(experiment).resolve(calibratedAt + ".json");
 		JsonNode check = ResultFiles.read(dev).orElseThrow();
-		Path run = LAYOUT.results().resolve(check.get("results").stringValue());
-		return new RecordedRun(Experiments.standard().get(experiment),
-				ResultFiles.read(run.resolve("calibration.json")).orElseThrow(), check);
+		return new RecordedRun(Experiments.standard().get(experiment), calibrationOf(experiment, check), check);
+	}
+
+	// found by its time: a run that was the latest when it was checked has moved to
+	// run-N/
+	private static JsonNode calibrationOf(String experiment, JsonNode check) {
+		String calibratedAt = check.get("calibratedAt").stringValue();
+		KeptRun run = RUNS.find(experiment, calibratedAt).orElseThrow();
+		return ResultFiles.read(run.file(KeptRun.CALIBRATION)).orElseThrow();
 	}
 
 	/**

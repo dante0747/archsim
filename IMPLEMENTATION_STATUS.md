@@ -1,6 +1,6 @@
 # Implementation status
 
-State as of 2026-11-20 (engine 1.6.0, the Java engine: 1.0.0 reproduces the frozen engine 0.16.0
+State as of 2026-11-23 (engine 1.6.0, the Java engine: 1.0.0 reproduces the frozen engine 0.16.0
 measured on the held-out experiments, 1.1.0 changes only how the cost counts autoscaled parts and
 prices the peak, ADR-0074, 1.1.1 where a run's per-request rates at the base load are measured,
 1.2.0 how a third-party API without a price is priced, ADR-0081, 1.2.1 how a cache's hit ratio
@@ -20,6 +20,20 @@ implemented, how it was verified, what is known to be limited, and what comes ne
 listed under "Implemented" is a stub or a mock.
 
 ## Implemented and covered by automated tests
+
+**The second held-out campaign: engine 1.6.0 out of sample, three rounds (2026-11-23).** The frozen
+engine predicted all fourteen experiments before they were measured, on 21-23 Nov 2026 under
+protocol v7. Held out, median knee errors: python-cores -0.1%, java-hot-row -3.3%, go-pool +15.1%,
+cache-miss -18.9% and python-wide -24.5%, all within ±25%. The predicted range held 12 of their 15
+runs; python-wide's held 1 of 3 and misses the plan's target. Over the 15 runs ArchSim's median
+error of 16.5% ties bottleneck arithmetic's 16.2%. Its worst run is -27.4% against +78.7%, 13 of 15
+are within 25% against 8, and none over-predicted by more than 25% against 7. Only go-pool also
+meets criteria 2 and 3a. The other nine, in-sample: 11.8% over 26 counted runs (Kafka's third was
+disturbed), level with the engine's analytic estimate at 10.3%. pg-mixed's third round (-31%)
+counts: one slow calibration pass, whose cause is unknown, ended its staircase early. Three
+stopped or disturbed attempts are kept in `benchmarks/results/trials/`, described and not counted.
+The findings for the next model version are in
+[Where the model is wrong](docs/validation.md#where-the-model-is-wrong-and-why).
 
 **The benchmark harness and the repository's tooling in Java: stage 7 of the Java port
 (2026-11-14).**
@@ -232,8 +246,9 @@ Java port (2026-11-12).**
   the Alembic migrations, `migrate` and `seed` until stage 6. Since stage 5's S5-10a (12 Nov) the
   seed is `archsim-app seed`, and `services/api` keeps the migrations and `migrate`.
 - /accuracy and docs/validation.md say, in one sentence labelled re-simulated and in-sample, that
-  1.0.0 re-simulates every kept calibration with exactly 0.16.0's knees (65 of 65): the latest
-  predictions they show are 0.16.0's, which 1.0.0 reproduces (older runs' are older engines').
+  on the inputs 0.16.0 derived the Java engine gives exactly 0.16.0's knees on the 65 calibrations
+  the two were compared on. Since the second held-out campaign (23 Nov) the latest runs'
+  predictions are engine 1.6.0's, from its own inputs.
 - The harness's move to the Java CLI and the Python engine's deletion moved to stage 5's exit
   (8 Nov): the MCP server and the `archsim check` action import the Python engine until stage 5
   ports them. Until then the harness simulates on the Java engine when asked (`BENCH_ENGINE=java`)

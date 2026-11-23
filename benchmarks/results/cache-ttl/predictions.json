@@ -1,12 +1,13 @@
 {
   "experiment": "cache-ttl",
-  "at": "2026-11-04T06:16:50Z",
-  "engineVersion": "0.16.0",
-  "reportVersion": "1.14",
+  "at": "2026-11-23T04:46:10Z",
+  "engineVersion": "1.6.0",
+  "reportVersion": "1.21",
   "provenance": {
-    "commit": "d8e3006681af8ceed751d647fc337f72cb4ecbf9",
-    "engineTree": "4da78ff6f72e91d3224a3a3eb5c70a1588074e36",
-    "harnessHash": "ccb5ddb27b66f3e9fc4ccf8428f1b673f477f074f04026d21834c1fbceb1a73b",
+    "commit": "0f8a176b98367ed71b79655bfdc72f35ba129643",
+    "engineSources": "a8bc8fac29b22b0220b41213f2f2c96649cc3fb2eaa9566fa19fce56c972de16",
+    "javaBuild": "48de60120dd5433fdfb3795b34f52c8a43489534b41727afcdbd4698611c39ee",
+    "harnessHash": "34b93d4cdab01febbf58ba778571f53d7bfead34eb71c09b88e8317702e16008",
     "dirty": false,
     "machineId": "i7-1165g7"
   },
@@ -15,121 +16,529 @@
     "minSuccess": 0.99
   },
   "knee": {
-    "kneeRps": 5100,
+    "kneeRps": 5200,
     "tried": [
       {
         "offeredRps": 100.0,
-        "p95": 3.1331,
-        "successRate": 1.0
-      },
-      {
-        "offeredRps": 200.0,
         "p95": 2.8945,
         "successRate": 1.0
       },
       {
-        "offeredRps": 400.0,
-        "p95": 2.6216,
-        "successRate": 1.0
-      },
-      {
-        "offeredRps": 800.0,
+        "offeredRps": 200.0,
         "p95": 2.4704,
         "successRate": 1.0
       },
       {
+        "offeredRps": 400.0,
+        "p95": 2.1506,
+        "successRate": 1.0
+      },
+      {
+        "offeredRps": 800.0,
+        "p95": 2.0671,
+        "successRate": 1.0
+      },
+      {
         "offeredRps": 1600.0,
-        "p95": 2.3745,
+        "p95": 2.0671,
         "successRate": 1.0
       },
       {
         "offeredRps": 3200.0,
-        "p95": 3.5283,
+        "p95": 2.7821,
         "successRate": 1.0
       },
       {
         "offeredRps": 6400.0,
         "p95": 1954.4549,
-        "successRate": 0.1957
+        "successRate": 0.1649
       },
       {
         "offeredRps": 4800,
-        "p95": 13.2979,
+        "p95": 7.1974,
         "successRate": 1.0
       },
       {
         "offeredRps": 5600,
-        "p95": 1770.21,
-        "successRate": 0.9816
+        "p95": 1571.8958,
+        "successRate": 0.9824
       },
       {
         "offeredRps": 5200,
-        "p95": 68.8013,
+        "p95": 28.2221,
         "successRate": 1.0
       },
       {
-        "offeredRps": 5000,
-        "p95": 25.5616,
+        "offeredRps": 5400,
+        "p95": 644.7866,
         "successRate": 1.0
       },
       {
-        "offeredRps": 5100,
-        "p95": 35.7924,
+        "offeredRps": 5300,
+        "p95": 171.0821,
         "successRate": 1.0
       },
       {
-        "offeredRps": 5150,
-        "p95": 51.1204,
+        "offeredRps": 5250,
+        "p95": 50.118,
         "successRate": 1.0
+      }
+    ]
+  },
+  "kneeBySeed": {
+    "lowRps": 5070,
+    "highRps": 5200,
+    "knees": [
+      {
+        "seed": 42,
+        "kneeRps": 5200
+      },
+      {
+        "seed": 1,
+        "kneeRps": 5135,
+        "tried": [
+          {
+            "offeredRps": 5200,
+            "p95": 68.8013,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 4160,
+            "p95": 5.6751,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 4680,
+            "p95": 9.6868,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 4940,
+            "p95": 13.8351,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5070,
+            "p95": 19.3725,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5135,
+            "p95": 33.728,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5168,
+            "p95": 51.1204,
+            "successRate": 1.0
+          }
+        ]
+      },
+      {
+        "seed": 2,
+        "kneeRps": 5135,
+        "tried": [
+          {
+            "offeredRps": 5200,
+            "p95": 77.4814,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 4160,
+            "p95": 5.5638,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 4680,
+            "p95": 9.6868,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 4940,
+            "p95": 16.21,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5070,
+            "p95": 27.6687,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5135,
+            "p95": 39.5177,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5168,
+            "p95": 52.1428,
+            "successRate": 1.0
+          }
+        ]
+      },
+      {
+        "seed": 3,
+        "kneeRps": 5200,
+        "tried": [
+          {
+            "offeredRps": 5200,
+            "p95": 46.3013,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 6500,
+            "p95": 1993.544,
+            "successRate": 0.1252
+          },
+          {
+            "offeredRps": 5850,
+            "p95": 1916.1322,
+            "successRate": 0.587
+          },
+          {
+            "offeredRps": 5525,
+            "p95": 1315.2921,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5362,
+            "p95": 479.086,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5281,
+            "p95": 127.1165,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5240,
+            "p95": 90.7818,
+            "successRate": 1.0
+          }
+        ]
+      },
+      {
+        "seed": 4,
+        "kneeRps": 5200,
+        "tried": [
+          {
+            "offeredRps": 5200,
+            "p95": 42.7752,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 6500,
+            "p95": 1993.544,
+            "successRate": 0.1132
+          },
+          {
+            "offeredRps": 5850,
+            "p95": 1916.1322,
+            "successRate": 0.5307
+          },
+          {
+            "offeredRps": 5525,
+            "p95": 1395.7985,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5362,
+            "p95": 619.7488,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5281,
+            "p95": 221.3129,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5240,
+            "p95": 106.3654,
+            "successRate": 1.0
+          }
+        ]
+      },
+      {
+        "seed": 5,
+        "kneeRps": 5200,
+        "tried": [
+          {
+            "offeredRps": 5200,
+            "p95": 41.1142,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 6500,
+            "p95": 1954.4549,
+            "successRate": 0.1306
+          },
+          {
+            "offeredRps": 5850,
+            "p95": 1954.4549,
+            "successRate": 0.5774
+          },
+          {
+            "offeredRps": 5525,
+            "p95": 1315.2921,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5362,
+            "p95": 508.4099,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5281,
+            "p95": 146.0169,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5240,
+            "p95": 73.0125,
+            "successRate": 1.0
+          }
+        ]
+      },
+      {
+        "seed": 6,
+        "kneeRps": 5070,
+        "tried": [
+          {
+            "offeredRps": 5200,
+            "p95": 77.4814,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 4160,
+            "p95": 4.8437,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 4680,
+            "p95": 8.2676,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 4940,
+            "p95": 17.2022,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5070,
+            "p95": 48.1719,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5135,
+            "p95": 62.3155,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5102,
+            "p95": 52.1428,
+            "successRate": 1.0
+          }
+        ]
+      },
+      {
+        "seed": 7,
+        "kneeRps": 5135,
+        "tried": [
+          {
+            "offeredRps": 5200,
+            "p95": 115.1333,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 4160,
+            "p95": 6.0225,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 4680,
+            "p95": 10.9089,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 4940,
+            "p95": 22.698,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5070,
+            "p95": 34.4025,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5135,
+            "p95": 48.1719,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5168,
+            "p95": 61.0936,
+            "successRate": 1.0
+          }
+        ]
+      },
+      {
+        "seed": 8,
+        "kneeRps": 5200,
+        "tried": [
+          {
+            "offeredRps": 5200,
+            "p95": 36.5083,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 6500,
+            "p95": 1954.4549,
+            "successRate": 0.108
+          },
+          {
+            "offeredRps": 5850,
+            "p95": 1916.1322,
+            "successRate": 0.5702
+          },
+          {
+            "offeredRps": 5525,
+            "p95": 1341.5979,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5362,
+            "p95": 561.3256,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5281,
+            "p95": 151.916,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5240,
+            "p95": 80.6117,
+            "successRate": 1.0
+          }
+        ]
+      },
+      {
+        "seed": 9,
+        "kneeRps": 5070,
+        "tried": [
+          {
+            "offeredRps": 5200,
+            "p95": 82.2239,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 4160,
+            "p95": 5.4547,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 4680,
+            "p95": 11.1271,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 4940,
+            "p95": 25.5616,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5070,
+            "p95": 44.5034,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5135,
+            "p95": 57.5698,
+            "successRate": 1.0
+          },
+          {
+            "offeredRps": 5102,
+            "p95": 53.1856,
+            "successRate": 1.0
+          }
+        ]
       }
     ]
   },
   "kneeRange": {
     "method": "the knee's run-to-run variation from a fresh calibration (each input's variation between calibrations times how much the knee moves with it) and the model's own error (the spread of measured over predicted knees in the in-sample runs), as a lognormal around the predicted knee",
-    "lowRps": 3826,
-    "highRps": 6798,
-    "nominalRps": 5100,
+    "lowRps": 4117,
+    "highRps": 6567,
+    "nominalRps": 5200,
     "nominalCoverage": 0.8,
-    "sigma": 0.2243,
-    "calibrationSigma": 0.1672,
-    "modelSigma": 0.1495,
+    "sigma": 0.1822,
+    "calibrationSigma": 0.1236,
+    "modelSigma": 0.1338,
     "sensitivity": {
-      "serviceTimeMs": -1.0,
-      "readServiceTimeMs": 0.0,
-      "dbCpuShare": 0.0,
+      "serviceTimeMs": -0.894,
+      "readServiceTimeMs": -0.127,
+      "dbCpuShare": -0.032,
       "dbLinkLatencyMs": 0.0,
-      "cacheServiceTimeMs": 0.0,
+      "cacheServiceTimeMs": -0.064,
       "cacheLinkLatencyMs": 0.0
     },
     "fit": {
-      "at": "2026-11-01T15:31:14Z",
-      "engineVersion": "0.16.0",
-      "commit": "c4bb64f579c1dcdea121f2402bb52d32f38585fe",
-      "runs": 12,
-      "experiments": 4
+      "at": "2026-11-20T18:09:45Z",
+      "engineVersion": "1.6.0",
+      "commit": "f10d0d942ebd6361226ba124a558b98cb6d5e705",
+      "runs": 49,
+      "experiments": 9
     }
   },
   "steps": [
     {
-      "offeredRps": 1275,
-      "p50": 0.4681,
+      "offeredRps": 1300,
+      "p50": 0.4325,
+      "p95": 1.9869,
+      "p99": 4.5643,
+      "mean": 0.6843,
+      "successRate": 1.0,
+      "throughputRps": 1300.0,
+      "resultDigest": "6e0cbb44d27ebdd1989434425b416d4a53e3d676300c60602eb438ce3a4f8f39",
+      "resources": {
+        "api": {
+          "cores": 0.3271,
+          "memoryMiB": 113.7
+        },
+        "cache": {
+          "cores": 0.057,
+          "memoryMiB": 9.6
+        },
+        "db": {
+          "cores": 0.0858
+        }
+      },
+      "database": {
+        "commitsPerFlush": null,
+        "meanLockWaitMs": null,
+        "meanCommitWaitMs": null
+      },
+      "cacheHitRatio": 0.6262
+    },
+    {
+      "offeredRps": 2600,
+      "p50": 0.4499,
       "p95": 2.3745,
-      "p99": 5.7886,
-      "mean": 0.7853,
+      "p99": 4.6556,
+      "mean": 0.7445,
       "successRate": 1.0,
-      "throughputRps": 1274.95,
-      "resultDigest": "f940a08bdf3011b89082c262176dd28f89a63461b11c686798591e74bfdbb4f3",
+      "throughputRps": 2600.05,
+      "resultDigest": "c545a0c3ffbc88e24615d3c69c1b5fe140a6aa8f45c7973b9d749f8a81bab824",
       "resources": {
         "api": {
-          "cores": 0.3354,
-          "memoryMiB": 90.1
+          "cores": 0.5156,
+          "memoryMiB": 138.2
         },
         "cache": {
-          "cores": 0.0609,
-          "memoryMiB": 9.5
+          "cores": 0.1139,
+          "memoryMiB": 16.7
         },
         "db": {
-          "cores": 0.0944
+          "cores": 0.158
         }
       },
       "database": {
@@ -137,28 +546,28 @@
         "meanLockWaitMs": null,
         "meanCommitWaitMs": null
       },
-      "cacheHitRatio": 0.6248
+      "cacheHitRatio": 0.6698
     },
     {
-      "offeredRps": 2550,
-      "p50": 0.4968,
-      "p95": 2.7821,
-      "p99": 5.7886,
-      "mean": 0.8642,
+      "offeredRps": 3900,
+      "p50": 0.63,
+      "p95": 3.8956,
+      "p99": 7.4882,
+      "mean": 1.1512,
       "successRate": 1.0,
-      "throughputRps": 2550.15,
-      "resultDigest": "1f6e4066fd1140a2b12167b2a179bde932f8ca21c347f5913076153ec9c4ecad",
+      "throughputRps": 3899.7,
+      "resultDigest": "f5a51d0c3504cbdede64a7a47f232381fa72cd2ecc4f79d015e3235745c34101",
       "resources": {
         "api": {
-          "cores": 0.5198,
-          "memoryMiB": 121.9
+          "cores": 0.7088,
+          "memoryMiB": 162.8
         },
         "cache": {
-          "cores": 0.1178,
-          "memoryMiB": 16.4
+          "cores": 0.184,
+          "memoryMiB": 23.1
         },
         "db": {
-          "cores": 0.1668
+          "cores": 0.2472
         }
       },
       "database": {
@@ -166,28 +575,28 @@
         "meanLockWaitMs": null,
         "meanCommitWaitMs": null
       },
-      "cacheHitRatio": 0.669
+      "cacheHitRatio": 0.6911
     },
     {
-      "offeredRps": 3825,
-      "p50": 0.7382,
-      "p95": 5.0393,
-      "p99": 11.1271,
-      "mean": 1.4507,
+      "offeredRps": 4680,
+      "p50": 1.26,
+      "p95": 6.6493,
+      "p99": 10.9089,
+      "mean": 2.0818,
       "successRate": 1.0,
-      "throughputRps": 3825.4,
-      "resultDigest": "2ac635f761c760de575ab69623b0fb35e53739f75f70dd82a693c54a76e8c9cc",
+      "throughputRps": 4680.1,
+      "resultDigest": "2faaccd2ddd3e42c7a40922403d56edfa8aeea07eaa0638aa70390594d282e01",
       "resources": {
         "api": {
-          "cores": 0.7258,
-          "memoryMiB": 152.6
+          "cores": 0.8599,
+          "memoryMiB": 178.2
         },
         "cache": {
-          "cores": 0.174,
-          "memoryMiB": 22.8
+          "cores": 0.2452,
+          "memoryMiB": 26.6
         },
         "db": {
-          "cores": 0.2338
+          "cores": 0.3282
         }
       },
       "database": {
@@ -195,28 +604,28 @@
         "meanLockWaitMs": null,
         "meanCommitWaitMs": null
       },
-      "cacheHitRatio": 0.6899
+      "cacheHitRatio": 0.7016
     },
     {
-      "offeredRps": 4590,
-      "p50": 1.598,
-      "p95": 9.4968,
-      "p99": 18.6202,
-      "mean": 2.8751,
+      "offeredRps": 5200,
+      "p50": 8.6016,
+      "p95": 28.2221,
+      "p99": 37.2384,
+      "mean": 10.4207,
       "successRate": 1.0,
-      "throughputRps": 4589.3,
-      "resultDigest": "6712a987740cc4cd821f0cf9c6c04691a83d3736dbbf21177eebfbe15bda84b0",
+      "throughputRps": 5196.05,
+      "resultDigest": "36f79d057cfce4151a54dd930a68f0209158fa5fa5a9b0034ce02e9e71f54d15",
       "resources": {
         "api": {
-          "cores": 0.8735,
-          "memoryMiB": 177.2
+          "cores": 0.9785,
+          "memoryMiB": 193.5
         },
         "cache": {
-          "cores": 0.2074,
-          "memoryMiB": 26.2
+          "cores": 0.2965,
+          "memoryMiB": 28.9
         },
         "db": {
-          "cores": 0.2692
+          "cores": 0.3952
         }
       },
       "database": {
@@ -224,86 +633,28 @@
         "meanLockWaitMs": null,
         "meanCommitWaitMs": null
       },
-      "cacheHitRatio": 0.7006
+      "cacheHitRatio": 0.7086
     },
     {
-      "offeredRps": 5100,
-      "p50": 8.4329,
-      "p95": 35.7924,
-      "p99": 48.1719,
-      "mean": 12.1761,
-      "successRate": 1.0,
-      "throughputRps": 5101.55,
-      "resultDigest": "1fb9ad35262f933651c26034e16f1576e6eb4212cfa1c94050be54069a883f23",
-      "resources": {
-        "api": {
-          "cores": 0.9728,
-          "memoryMiB": 190.5
-        },
-        "cache": {
-          "cores": 0.2293,
-          "memoryMiB": 28.5
-        },
-        "db": {
-          "cores": 0.2934
-        }
-      },
-      "database": {
-        "commitsPerFlush": null,
-        "meanLockWaitMs": null,
-        "meanCommitWaitMs": null
-      },
-      "cacheHitRatio": 0.7071
-    },
-    {
-      "offeredRps": 5610,
-      "p50": 1100.5776,
-      "p95": 1805.6142,
-      "p99": 1954.4549,
-      "mean": 1091.7944,
-      "successRate": 0.9757,
-      "throughputRps": 5218.05,
-      "resultDigest": "958ccff3cd32516c2b0eedf7d348cbeecdddfac42a54e12c0a1c74b99980b1a0",
-      "resources": {
-        "api": {
-          "cores": 0.9981,
-          "memoryMiB": 292.9
-        },
-        "cache": {
-          "cores": 0.2342,
-          "memoryMiB": 30.6
-        },
-        "db": {
-          "cores": 0.2986
-        }
-      },
-      "database": {
-        "commitsPerFlush": null,
-        "meanLockWaitMs": null,
-        "meanCommitWaitMs": null
-      },
-      "cacheHitRatio": 0.7087
-    },
-    {
-      "offeredRps": 6375,
-      "p50": 1571.8958,
-      "p95": 1954.4549,
+      "offeredRps": 5720,
+      "p50": 1264.2177,
+      "p95": 1916.1322,
       "p99": 1993.544,
-      "mean": 1554.5836,
-      "successRate": 0.2071,
-      "throughputRps": 1614.5,
-      "resultDigest": "acceefab210c5c86de027e6ce4c196d3dcc061bffccf4a2ef4b515dc6fe753be",
+      "mean": 1258.6969,
+      "successRate": 0.8451,
+      "throughputRps": 4970.7,
+      "resultDigest": "a1b92ea588567ffb7d0a0adc5cc8d14aa0ace8e448008e7aa20061dd0bb9175e",
       "resources": {
         "api": {
-          "cores": 0.9981,
-          "memoryMiB": 484.4
+          "cores": 1.0,
+          "memoryMiB": 314.4
         },
         "cache": {
-          "cores": 0.2342,
-          "memoryMiB": 30.9
+          "cores": 0.3162,
+          "memoryMiB": 30.7
         },
         "db": {
-          "cores": 0.2986
+          "cores": 0.4208
         }
       },
       "database": {
@@ -311,28 +662,57 @@
         "meanLockWaitMs": null,
         "meanCommitWaitMs": null
       },
-      "cacheHitRatio": 0.7087
+      "cacheHitRatio": 0.709
     },
     {
-      "offeredRps": 7650,
+      "offeredRps": 6500,
+      "p50": 1735.5,
+      "p95": 1993.544,
+      "p99": 1993.544,
+      "mean": 1697.6127,
+      "successRate": 0.1247,
+      "throughputRps": 1167.95,
+      "resultDigest": "bdfe978a9bb1bbfba3a23668582687b0e59c9dc5267d0182558406d8bcbd5bea",
+      "resources": {
+        "api": {
+          "cores": 1.0,
+          "memoryMiB": 526.3
+        },
+        "cache": {
+          "cores": 0.3323,
+          "memoryMiB": 30.4
+        },
+        "db": {
+          "cores": 0.4434
+        }
+      },
+      "database": {
+        "commitsPerFlush": null,
+        "meanLockWaitMs": null,
+        "meanCommitWaitMs": null
+      },
+      "cacheHitRatio": 0.7083
+    },
+    {
+      "offeredRps": 7800,
       "p50": null,
       "p95": null,
       "p99": null,
       "mean": null,
       "successRate": 0.0,
-      "throughputRps": 352.1,
-      "resultDigest": "85d29e7e070a30e7f8434c50aae7c378494edab9522bb7f9657b10793026c63f",
+      "throughputRps": 2.45,
+      "resultDigest": "4702b5b3e2965a404f0973fc513a52180f550f5993b1cf704883ab5cb45b95f9",
       "resources": {
         "api": {
-          "cores": 0.9981,
-          "memoryMiB": 802.8
+          "cores": 1.0,
+          "memoryMiB": 941.1
         },
         "cache": {
-          "cores": 0.2342,
-          "memoryMiB": 31.0
+          "cores": 0.3414,
+          "memoryMiB": 28.7
         },
         "db": {
-          "cores": 0.2986
+          "cores": 0.459
         }
       },
       "database": {
@@ -340,11 +720,73 @@
         "meanLockWaitMs": null,
         "meanCommitWaitMs": null
       },
-      "cacheHitRatio": 0.7087
+      "cacheHitRatio": 0.7031
+    },
+    {
+      "offeredRps": 6110,
+      "p50": 1423.7145,
+      "p95": 1916.1322,
+      "p99": 1993.544,
+      "mean": 1450.9037,
+      "successRate": 0.3176,
+      "throughputRps": 2184.25,
+      "resultDigest": "89b81628151de01420897d83edd1c412e9bf722388640bd9e14e21dded4024c7",
+      "resources": {
+        "api": {
+          "cores": 1.0,
+          "memoryMiB": 416.8
+        },
+        "cache": {
+          "cores": 0.325,
+          "memoryMiB": 30.6
+        },
+        "db": {
+          "cores": 0.433
+        }
+      },
+      "database": {
+        "commitsPerFlush": null,
+        "meanLockWaitMs": null,
+        "meanCommitWaitMs": null
+      },
+      "cacheHitRatio": 0.709,
+      "refinement": true,
+      "at": "2026-11-23T05:00:03Z"
+    },
+    {
+      "offeredRps": 6305,
+      "p50": 1571.8958,
+      "p95": 1954.4549,
+      "p99": 1993.544,
+      "mean": 1567.3947,
+      "successRate": 0.2105,
+      "throughputRps": 1625.6,
+      "resultDigest": "2787b2de1db2b38f5515307b7cc9521715b5f615851cff72fb4efb6d2a037879",
+      "resources": {
+        "api": {
+          "cores": 1.0,
+          "memoryMiB": 468.0
+        },
+        "cache": {
+          "cores": 0.3301,
+          "memoryMiB": 30.6
+        },
+        "db": {
+          "cores": 0.4402
+        }
+      },
+      "database": {
+        "commitsPerFlush": null,
+        "meanLockWaitMs": null,
+        "meanCommitWaitMs": null
+      },
+      "cacheHitRatio": 0.7089,
+      "refinement": true,
+      "at": "2026-11-23T05:01:49Z"
     }
   ],
   "design": {
-    "schemaVersion": "1.0",
+    "schemaVersion": "1.7",
     "kind": "archsim.architecture",
     "metadata": {
       "name": "benchmark cache-ttl"
@@ -373,38 +815,109 @@
             "queueTimeoutMs": null,
             "serviceTimeMs": {
               "kind": "lognormal",
-              "median": 0.0838,
-              "p95": 0.6962
+              "median": 0.0797,
+              "p95": 0.5905
             },
-            "gcPauseMs": 9.3017,
-            "gcEveryRequests": 48905,
+            "gcPauseMs": 0,
             "serviceTimeByLoad": [
               {
                 "rps": 50.0,
-                "factor": 5.0479
+                "factor": 6.0839
               },
               {
-                "rps": 617.0,
-                "factor": 1.8379
+                "rps": 64.4,
+                "factor": 5.3971
               },
               {
-                "rps": 1713.0,
-                "factor": 1.186
+                "rps": 80.5,
+                "factor": 4.8609
               },
               {
-                "rps": 2863.0,
-                "factor": 1.0396
+                "rps": 100.7,
+                "factor": 4.3813
               },
               {
-                "rps": 3262.0,
+                "rps": 125.9,
+                "factor": 3.9524
+              },
+              {
+                "rps": 157.3,
+                "factor": 3.5687
+              },
+              {
+                "rps": 196.6,
+                "factor": 3.2256
+              },
+              {
+                "rps": 245.8,
+                "factor": 2.9187
+              },
+              {
+                "rps": 307.3,
+                "factor": 2.6441
+              },
+              {
+                "rps": 384.1,
+                "factor": 2.3986
+              },
+              {
+                "rps": 480.1,
+                "factor": 2.179
+              },
+              {
+                "rps": 600.1,
+                "factor": 1.9825
+              },
+              {
+                "rps": 750.2,
+                "factor": 1.8069
+              },
+              {
+                "rps": 937.7,
+                "factor": 1.6497
+              },
+              {
+                "rps": 1172.1,
+                "factor": 1.5092
+              },
+              {
+                "rps": 1465.1,
+                "factor": 1.3834
+              },
+              {
+                "rps": 1831.4,
+                "factor": 1.271
+              },
+              {
+                "rps": 2289.3,
+                "factor": 1.1704
+              },
+              {
+                "rps": 2861.6,
+                "factor": 1.0805
+              },
+              {
+                "rps": 3577.0,
                 "factor": 1.0
+              },
+              {
+                "rps": 4471.2,
+                "factor": 0.928
+              },
+              {
+                "rps": 5589.1,
+                "factor": 0.8637
+              },
+              {
+                "rps": 7154.0,
+                "factor": 0.8003
               }
             ],
             "warmupFactor": 1,
             "cpuCores": 1,
             "memoryGib": 1024,
-            "memoryBaselineMb": 58.723,
-            "memoryPerRpsMb": 0.024251,
+            "memoryBaselineMb": 88.754,
+            "memoryPerRpsMb": 0.018632,
             "memoryPerRequestMb": 0.01
           }
         },
@@ -419,7 +932,7 @@
             "populateOnMiss": true,
             "serviceTimeMs": {
               "kind": "exponential",
-              "mean": 0.03477
+              "mean": 0.030591
             },
             "queueCapacity": 100000,
             "cpuCores": 1,
@@ -437,11 +950,11 @@
             "queueCapacity": 100000,
             "queueTimeoutMs": null,
             "cpuCores": 2,
-            "cpuShare": 1.0,
+            "cpuShare": 0.9475,
             "readServiceTimeMs": {
               "kind": "lognormal",
-              "median": 0.1417,
-              "p95": 0.5413
+              "median": 0.1254,
+              "p95": 0.4956
             }
           }
         }
@@ -476,7 +989,7 @@
             ],
             "latencyMs": {
               "kind": "constant",
-              "value": 0.0574
+              "value": 0.0485
             }
           }
         },
@@ -492,16 +1005,24 @@
             ],
             "latencyMs": {
               "kind": "lognormal",
-              "median": 0.0436,
-              "p95": 0.4055
+              "median": 0.0383,
+              "p95": 0.4022
             }
           }
         }
       ],
-      "autoSize": false
+      "autoSize": false,
+      "host": {
+        "physicalCores": 4,
+        "threadsPerCore": 2,
+        "siblingSpeed": 0.47,
+        "allCoreClock": 0.805,
+        "otherBusyThreads": 0.9,
+        "clientCpuMs": 0.3326
+      }
     },
     "workload": {
-      "rps": 5100,
+      "rps": 5200,
       "durationS": 25,
       "warmupS": 5,
       "readRatio": 1.0,

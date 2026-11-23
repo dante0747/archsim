@@ -111,7 +111,7 @@ final class ExperimentBlock {
 
 	/**
 	 * A model input's value as the inputs table writes it: a distribution, a load curve,
-	 * or a number, in milliseconds when its name says so.
+	 * the host machine's fit, or a number, in milliseconds when its name says so.
 	 * @param name the input's name
 	 * @param value its value
 	 * @return the value in words
@@ -125,6 +125,9 @@ final class ExperimentBlock {
 		if ("exponential".equals(kind)) {
 			return "exponential, mean " + Figures.format(value.get("mean"), "g") + " ms";
 		}
+		if ("host".equals(name)) {
+			return hostValue(value);
+		}
 		if (value.isArray()) {
 			List<String> points = value.valueStream()
 				.map((point) -> "x" + Figures.format(point.get("factor"), ".2f") + " at "
@@ -133,6 +136,16 @@ final class ExperimentBlock {
 			return points.isEmpty() ? "none" : String.join(", ", points) + " req/s";
 		}
 		return Figures.format(value, "g") + (name.endsWith("Ms") ? " ms" : "");
+	}
+
+	// the fit of the machine the design runs on, from the contention check
+	private static String hostValue(JsonNode host) {
+		return Figures.format(host.get("physicalCores"), "g") + " cores of "
+				+ Figures.format(host.get("threadsPerCore"), "g") + " threads, a sibling at "
+				+ Figures.format(host.get("siblingSpeed"), "g") + ", all-core clock "
+				+ Figures.format(host.get("allCoreClock"), "g") + ", "
+				+ Figures.format(host.get("otherBusyThreads"), "g") + " threads busy at rest, k6 "
+				+ Figures.format(host.get("clientCpuMs"), "g") + " ms of CPU per request";
 	}
 
 	private static List<String> knees(Experiment experiment, JsonNode comparison) {

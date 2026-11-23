@@ -1,0 +1,97 @@
+[14:32:27] === round 3: all --archive
+[14:33:00] starting stack 'postgres'
+[14:33:11] pg-mixed: kept the previous results in benchmarks/results/pg-mixed/run-18
+[14:33:12] settling pg-mixed: VACUUM ANALYZE, CHECKPOINT, 30 s warm-up
+[14:33:44] calibrating pg-mixed: 20 s idle
+[14:34:08] calibrating pg-mixed: read:0.9,write:0.1 at 50 req/s (up 1)
+[14:34:58] calibrating pg-mixed: read:0.9,write:0.1 at 844 req/s (up 2)
+[14:35:49] calibrating pg-mixed: read:0.9,write:0.1 at 2429 req/s (up 3)
+[14:36:40] calibrating pg-mixed: read:0.9,write:0.1 at 3025 req/s (up 4)
+[14:37:30] pg-mixed: up 4 pass disturbed (p95 6.0 ms, p50 0.53 ms); running it again
+[14:37:30] calibrating pg-mixed: read:0.9,write:0.1 at 3025 req/s (up 4)
+[14:38:21] calibrating pg-mixed: write_async:1 at 3025 req/s (write_async 1)
+[14:39:11] pg-mixed: write_async 1 pass disturbed (p95 5.6 ms, p50 0.51 ms); running it again
+[14:39:11] calibrating pg-mixed: write_async:1 at 3025 req/s (write_async 1)
+[14:40:01] calibrating pg-mixed: read:0.9,write:0.1 at 3025 req/s (down 4)
+[14:40:52] calibrating pg-mixed: write_async:1 at 3025 req/s (write_async 2)
+[14:41:44] pg-mixed: write_async 2 pass disturbed (p95 42.0 ms, p50 0.55 ms); running it again
+[14:41:44] calibrating pg-mixed: write_async:1 at 3025 req/s (write_async 2)
+[14:42:34] calibrating pg-mixed: read:0.9,write:0.1 at 2429 req/s (down 3)
+[14:43:24] calibrating pg-mixed: read:0.9,write:0.1 at 844 req/s (down 2)
+[14:44:14] calibrating pg-mixed: read:0.9,write:0.1 at 50 req/s (down 1)
+[14:45:05] calibrating pg-mixed: read:0.9,write:0.1 at 3025 req/s (top 3)
+[14:45:55] calibrating pg-mixed: write_async:1 at 3025 req/s (write_async 3)
+[14:46:45] calibrating pg-mixed: read:0.9,write:0.1 at 3025 req/s (top 4)
+[14:47:35] calibrating pg-mixed: write_async:1 at 3025 req/s (write_async 4)
+[14:48:25] pg-mixed: write_async 4 pass disturbed (p95 5.7 ms, p50 0.51 ms); running it again
+[14:48:25] calibrating pg-mixed: write_async:1 at 3025 req/s (write_async 4)
+[14:49:24] predicting pg-mixed: searching the knee
+[14:49:34] the knee's sensitivity to 6 inputs, for its range
+[14:49:41] the knee again at 9 more seeds
+[14:50:05] predicted knee 4200 req/s; steps [1050, 2100, 3150, 3780, 4200, 4620, 5250, 6300]
+[14:50:08] pg-mixed: predictions saved, sha256 eefef903111094a3ee6aab041aca6ac9b70189b74d321be9986e471892211068
+[14:50:08] measuring pg-mixed at 1050 req/s (run 1)
+[14:50:38]   p50 0.54 ms, p95 1.86 ms, success 1.000, 1050 req/s
+[14:50:41] measuring pg-mixed at 1050 req/s (run 2)
+[14:51:10]   p50 0.61 ms, p95 2.19 ms, success 1.000, 1050 req/s
+[14:51:14] measuring pg-mixed at 1050 req/s (run 3)
+[14:51:43]   p50 0.50 ms, p95 1.77 ms, success 1.000, 1050 req/s
+[14:51:46] measuring pg-mixed at 2100 req/s (run 1)
+[14:52:16]   p50 0.54 ms, p95 2.31 ms, success 1.000, 2100 req/s
+[14:52:19] measuring pg-mixed at 2100 req/s (run 2)
+[14:52:48]   p50 0.51 ms, p95 2.01 ms, success 1.000, 2100 req/s
+[14:52:51] measuring pg-mixed at 2100 req/s (run 3)
+[14:53:21]   p50 0.52 ms, p95 2.29 ms, success 1.000, 2100 req/s
+[14:53:24] measuring pg-mixed at 3150 req/s (run 1)
+[14:53:54]   p50 0.57 ms, p95 8.30 ms, success 1.000, 3150 req/s
+[14:53:57] measuring pg-mixed at 3150 req/s (run 2)
+[14:54:27]   p50 0.57 ms, p95 4.57 ms, success 1.000, 3150 req/s
+[14:54:30] measuring pg-mixed at 3150 req/s (run 3)
+[14:54:59]   p50 0.55 ms, p95 3.54 ms, success 1.000, 3150 req/s
+[14:55:02] measuring pg-mixed at 3780 req/s (run 1)
+[14:55:32]   p50 0.72 ms, p95 48.13 ms, success 1.000, 3780 req/s
+[14:55:35] measuring pg-mixed at 3780 req/s (run 2)
+[14:56:05]   p50 0.67 ms, p95 14.37 ms, success 1.000, 3780 req/s
+[14:56:08] measuring pg-mixed at 3780 req/s (run 3)
+[14:56:38]   p50 1.54 ms, p95 215.65 ms, success 0.996, 3763 req/s
+[14:56:41] measuring pg-mixed at 4200 req/s (run 1)
+[14:57:12]   p50 1.26 ms, p95 74.14 ms, success 0.987, 4147 req/s
+[14:57:15] measuring pg-mixed at 4200 req/s (run 2)
+[14:57:45]   p50 1.74 ms, p95 132.57 ms, success 1.000, 4200 req/s
+[14:57:48] measuring pg-mixed at 4200 req/s (run 3)
+[14:58:18]   p50 2.69 ms, p95 112.92 ms, success 0.997, 4189 req/s
+[14:58:21] measuring pg-mixed at 4620 req/s (run 1)
+[14:58:51]   p50 66.17 ms, p95 264.84 ms, success 0.986, 4555 req/s
+[14:58:54] measuring pg-mixed at 4620 req/s (run 2)
+[14:59:24]   p50 120.18 ms, p95 301.75 ms, success 0.977, 4512 req/s
+[14:59:27] measuring pg-mixed at 4620 req/s (run 3)
+[14:59:57]   p50 47.41 ms, p95 252.86 ms, success 0.994, 4594 req/s
+[15:00:00] measuring pg-mixed at 5250 req/s (run 1)
+[15:00:31]   p50 266.93 ms, p95 364.44 ms, success 0.897, 4708 req/s
+[15:00:34] measuring pg-mixed at 5250 req/s (run 2)
+[15:01:04]   p50 260.55 ms, p95 345.50 ms, success 0.931, 4890 req/s
+[15:01:07] measuring pg-mixed at 5250 req/s (run 3)
+[15:01:37]   p50 274.78 ms, p95 355.19 ms, success 0.901, 4728 req/s
+[15:01:40] measuring pg-mixed at 6300 req/s (run 1)
+[15:02:11]   p50 323.23 ms, p95 430.93 ms, success 0.738, 4651 req/s
+[15:02:14] measuring pg-mixed at 6300 req/s (run 2)
+[15:02:44]   p50 320.89 ms, p95 424.15 ms, success 0.745, 4694 req/s
+[15:02:47] measuring pg-mixed at 6300 req/s (run 3)
+[15:03:17]   p50 324.36 ms, p95 471.85 ms, success 0.735, 4608 req/s
+[15:03:21] pg-mixed: closing in on the knee; predicting and then measuring 3990 req/s
+[15:03:21] pg-mixed: predictions saved with 3990 req/s, sha256 bda10f002f0794a55cebab27934d12ef8ab3c4473a1ee150c4b3c0fb29d9ef1a
+[15:03:21] measuring pg-mixed at 3990 req/s (run 1)
+[15:03:51]   p50 1.55 ms, p95 190.77 ms, success 0.999, 3988 req/s
+[15:03:54] measuring pg-mixed at 3990 req/s (run 2)
+[15:04:24]   p50 0.76 ms, p95 40.05 ms, success 1.000, 3990 req/s
+[15:04:27] measuring pg-mixed at 3990 req/s (run 3)
+[15:04:57]   p50 1.08 ms, p95 160.26 ms, success 1.000, 3990 req/s
+[15:05:00] pg-mixed: closing in on the knee; predicting and then measuring 3885 req/s
+[15:05:01] pg-mixed: predictions saved with 3885 req/s, sha256 6c610f5c316e0b80d77f73ebc1d95fa5972b3333ae17326f8eee3c1d6e2384ca
+[15:05:01] measuring pg-mixed at 3885 req/s (run 1)
+[15:05:31]   p50 0.67 ms, p95 28.97 ms, success 1.000, 3885 req/s
+[15:05:34] measuring pg-mixed at 3885 req/s (run 2)
+[15:06:04]   p50 0.64 ms, p95 17.42 ms, success 1.000, 3885 req/s
+[15:06:07] measuring pg-mixed at 3885 req/s (run 3)
+[15:06:36]   p50 0.65 ms, p95 45.29 ms, success 1.000, 3885 req/s
+[15:06:40] pg-mixed: knee measured 3901.8 vs predicted 4201.4 req/s (error 0.07678507355579461)

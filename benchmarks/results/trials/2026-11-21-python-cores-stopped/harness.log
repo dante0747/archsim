@@ -1,0 +1,60 @@
+[15:26:48] starting stack 'python-cores'
+[15:26:58] python-cores: kept the previous results in benchmarks/results/python-cores/run-1
+[15:26:59] settling python-cores: VACUUM ANALYZE, CHECKPOINT, 30 s warm-up
+[15:27:31] calibrating python-cores: 20 s idle
+[15:27:55] calibrating python-cores: read:0.9,write:0.1 at 50 req/s (up 1)
+[15:28:45] calibrating python-cores: read:0.9,write:0.1 at 830 req/s (up 2)
+[15:29:35] calibrating python-cores: read:0.9,write:0.1 at 1150 req/s (up 3)
+[15:30:27] python-cores: up 3 pass disturbed (p95 120.4 ms, p50 1.32 ms); running it again
+[15:30:27] calibrating python-cores: read:0.9,write:0.1 at 1150 req/s (up 3)
+[15:31:23] calibrating python-cores: write_async:1 at 1150 req/s (write_async 1)
+[15:32:15] python-cores: write_async 1 pass disturbed (p95 271.1 ms, p50 2.37 ms); running it again
+[15:32:15] calibrating python-cores: write_async:1 at 1150 req/s (write_async 1)
+[15:33:07] calibrating python-cores: read:0.9,write:0.1 at 1150 req/s (down 3)
+[15:34:00] python-cores: down 3 pass disturbed (p95 62.3 ms, p50 2.67 ms); running it again
+[15:34:00] calibrating python-cores: read:0.9,write:0.1 at 1150 req/s (down 3)
+[15:34:55] calibrating python-cores: write_async:1 at 1150 req/s (write_async 2)
+[15:35:48] python-cores: write_async 2 pass disturbed (p95 174.9 ms, p50 4.96 ms); running it again
+[15:35:48] calibrating python-cores: write_async:1 at 1150 req/s (write_async 2)
+[15:36:39] calibrating python-cores: read:0.9,write:0.1 at 830 req/s (down 2)
+[15:37:31] python-cores: down 2 pass disturbed (p95 23.9 ms, p50 1.75 ms); running it again
+[15:37:31] calibrating python-cores: read:0.9,write:0.1 at 830 req/s (down 2)
+[15:38:23] calibrating python-cores: read:0.9,write:0.1 at 50 req/s (down 1)
+[15:39:14] calibrating python-cores: read:0.9,write:0.1 at 1150 req/s (top 3)
+[15:40:06] python-cores: top 3 pass disturbed (p95 93.6 ms, p50 2.10 ms); running it again
+[15:40:06] calibrating python-cores: read:0.9,write:0.1 at 1150 req/s (top 3)
+[15:40:58] calibrating python-cores: write_async:1 at 1150 req/s (write_async 3)
+[15:41:49] python-cores: write_async 3 pass disturbed (p95 40.8 ms, p50 1.18 ms); running it again
+[15:41:49] calibrating python-cores: write_async:1 at 1150 req/s (write_async 3)
+[15:42:39] calibrating python-cores: read:0.9,write:0.1 at 1150 req/s (top 4)
+[15:43:30] calibrating python-cores: write_async:1 at 1150 req/s (write_async 4)
+[15:44:20] calibrating python-cores: read:0.9,write:0.1 at 1150 req/s (top 5)
+[15:45:10] calibrating python-cores: write_async:1 at 1150 req/s (write_async 5)
+[15:46:03] predicting python-cores: searching the knee
+[15:46:07] the knee's sensitivity to 6 inputs, for its range
+[15:46:10] the knee again at 9 more seeds
+[15:46:19] predicted knee 1925 req/s; steps [481, 962, 1444, 1732, 1925, 2118, 2406, 2888]
+[15:46:21] python-cores: predictions saved, sha256 fdf3159954fcba170309cf4ad5252cd9836dcdd3140935194b66b811066185bd
+[15:46:21] measuring python-cores at 481 req/s (run 1)
+[15:46:52]   p50 0.98 ms, p95 4.54 ms, success 1.000, 481 req/s
+[15:46:55] measuring python-cores at 481 req/s (run 2)
+[15:47:25]   p50 0.94 ms, p95 3.43 ms, success 1.000, 481 req/s
+[15:47:28] measuring python-cores at 481 req/s (run 3)
+[15:47:58]   p50 0.90 ms, p95 2.46 ms, success 1.000, 481 req/s
+[15:48:01] measuring python-cores at 962 req/s (run 1)
+[15:48:31]   p50 0.96 ms, p95 3.34 ms, success 1.000, 962 req/s
+[15:48:34] measuring python-cores at 962 req/s (run 2)
+[15:49:04]   p50 0.95 ms, p95 3.24 ms, success 1.000, 962 req/s
+[15:49:07] measuring python-cores at 962 req/s (run 3)
+[15:49:37]   p50 1.33 ms, p95 5.25 ms, success 1.000, 962 req/s
+[15:49:40] measuring python-cores at 1444 req/s (run 1)
+[15:50:10]   p50 2.18 ms, p95 30.96 ms, success 1.000, 1444 req/s
+[15:50:13] measuring python-cores at 1444 req/s (run 2)
+[15:50:44]   p50 2.24 ms, p95 14.47 ms, success 1.000, 1444 req/s
+[15:50:47] measuring python-cores at 1444 req/s (run 3)
+[15:51:17]   p50 665.04 ms, p95 1054.58 ms, success 0.915, 1321 req/s
+[15:51:20] measuring python-cores at 1732 req/s (run 1)
+[15:51:50]   p50 3.91 ms, p95 180.24 ms, success 1.000, 1732 req/s
+[15:51:53] measuring python-cores at 1732 req/s (run 2)
+[15:52:24]   p50 81.13 ms, p95 542.15 ms, success 0.997, 1727 req/s
+[15:52:27] measuring python-cores at 1732 req/s (run 3)

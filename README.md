@@ -160,19 +160,20 @@ PostgreSQL for the workers; the CLI and the MCP server call the engine directly.
 
 ## How accurate is it?
 
-Measured, not claimed. In nine experiments on real services, ArchSim was calibrated at low load,
-predicted where each would break, and only then was the breaking point measured with k6:
+Measured, not claimed. In fourteen experiments, small synthetic services on real PostgreSQL, Redis
+and Kafka, ArchSim was calibrated at low load, predicted where each would break, and only then was the breaking point measured with k6:
 
 | Experiments | Median error in the predicted breaking point |
 | --- | --- |
-| **5 held out**, predicted before any of them was measured | −6% to +70%: one within ±25%, and four over-predicted capacity, the unsafe side |
-| **4 tuned on**, the model developed with their results in view | −23% to +16% |
+| **5 held out**, predicted by a frozen engine before any of them was measured | −25% to +15%: all five within ±25%, and no run over-predicted capacity by more than 25% |
+| **9 tuned on**, the model developed with their results in view | −18% to +11% |
 
-These are three to six runs per experiment on one laptop (engine 0.16.0, whose results the Java
-engine 1.0.0 reproduces exactly; 1.1.0 to 1.5.2 change the cost and how a run is reported, not a
-knee, and 1.6.0 counts a vCPU as a hyperthread by default from schema 1.11, which the benchmark
-designs, written at older schemas, keep off). No technology counts as validated yet: that needs a second
-machine. [docs/validation.md](docs/validation.md) shows every run, where the model is wrong and why,
+These are three runs per experiment on one laptop with engine 1.6.0 (two counted for Kafka, whose
+third was disturbed). On a typical held-out run ArchSim is level with plain bottleneck arithmetic
+on the same calibration (median error 16.5% against 16.2%). Its advantage is the worst case: −27%
+against +79%. Only one of the five held-out experiments also meets the latency and stability
+criteria, and no technology counts as validated yet: that needs a second machine.
+[docs/validation.md](docs/validation.md) shows every run, where the model is wrong and why,
 and [how to rerun the benchmarks](docs/validation.md#reproduce) on your own machine.
 
 > **Results are estimates, not production guarantees.** Every number comes from the model you drew

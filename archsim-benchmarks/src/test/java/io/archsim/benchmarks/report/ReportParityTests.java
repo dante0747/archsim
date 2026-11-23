@@ -48,12 +48,12 @@ class ReportParityTests {
 					() -> assertThat(chart.getValue()).isEqualTo(read(LAYOUT.validation().resolve(chart.getKey())))));
 	}
 
-	// the held-out experiments registered and not yet measured have nothing to chart
 	@Test
 	void validationPage_theCommittedResults_chartsEveryMeasuredExperiment() throws IOException {
 		Reports.Page page = REPORTS.validationPage(read(LAYOUT.validationPage()));
 
-		assertThat(page.charts()).containsOnlyKeys("java-mixed.svg", "go-mixed.svg", "python-mixed.svg", "chain.svg",
+		assertThat(page.charts()).containsOnlyKeys("python-cores.svg", "python-wide.svg", "java-hot-row.svg",
+				"go-pool.svg", "cache-miss.svg", "java-mixed.svg", "go-mixed.svg", "python-mixed.svg", "chain.svg",
 				"cache-ttl.svg", "pg-mixed.svg", "pg-hot-row.svg", "cache-aside.svg", "kafka.svg");
 	}
 

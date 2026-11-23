@@ -3,6 +3,7 @@ package io.archsim.benchmarks.report;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.benchmarks.ProtocolV6Runs;
 import io.archsim.benchmarks.RepositoryLayout;
 import io.archsim.benchmarks.docker.Cpusets;
 import io.archsim.benchmarks.experiments.Experiment;
@@ -44,9 +45,9 @@ class AccuracyEnvironmentTests {
 		assertThat(published.has("java")).isFalse();
 	}
 
-	// pg-mixed's latest run, which the Python harness made
+	// pg-mixed's last run under v6, which the Python harness made
 	private static ObjectNode recorded() {
-		return (ObjectNode) ResultFiles.read(LAYOUT.results().resolve("pg-mixed/environment.json")).orElseThrow();
+		return (ObjectNode) ResultFiles.read(ProtocolV6Runs.of("pg-mixed").resolve("environment.json")).orElseThrow();
 	}
 
 	private static Cpusets cpusets() {

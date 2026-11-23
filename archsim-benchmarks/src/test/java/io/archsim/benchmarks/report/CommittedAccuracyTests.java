@@ -15,8 +15,8 @@ import io.archsim.benchmarks.experiments.Engines;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * {@code accuracy.json} on the committed results: the latest runs are the held-out ones
- * of 3-4 Nov 2026 and the tuned-on ones of 4 Nov.
+ * {@code accuracy.json} on the committed results: the latest runs are the third round of
+ * the second held-out campaign (23 Nov 2026, engine 1.6.0), every experiment in it.
  */
 class CommittedAccuracyTests {
 
@@ -26,20 +26,29 @@ class CommittedAccuracyTests {
 		.of(new ReportSources(LAYOUT.results(), Engines.read(LAYOUT.engines()), Cpusets.declaredIn(LAYOUT.compose())))
 		.orElseThrow();
 
-	private static final List<String> HELD_OUT = List.of("java-mixed", "go-mixed", "python-mixed", "chain",
-			"cache-ttl");
+	private static final List<String> HELD_OUT = List.of("python-cores", "python-wide", "java-hot-row", "go-pool",
+			"cache-miss");
 
-	private static final List<String> TUNED_ON = List.of("pg-mixed", "pg-hot-row", "cache-aside", "kafka");
+	private static final List<String> TUNED_ON = List.of("java-mixed", "go-mixed", "python-mixed", "chain", "cache-ttl",
+			"pg-mixed", "pg-hot-row", "cache-aside", "kafka");
 
 	@Test
-	void summary_theLatestRuns_rangeFromMinus16ToPlus70Percent() {
-		assertThat(DATA.at("/summary/kneeErrorRangeText").stringValue()).isEqualTo("-16% to +70%");
+	void summary_theLatestRuns_rangeFromMinus31ToPlus15Percent() {
+		assertThat(DATA.at("/summary/kneeErrorRangeText").stringValue()).isEqualTo("-31% to +15%");
+	}
+
+	// pg-mixed's third round stopped its calibration early, at 743 req/s
+	@Test
+	void summary_theLatestRuns_meetTheKneeToleranceForAllButPgMixed() {
+		assertThat(ids("kneeWithinTolerance")).containsExactly("python-cores", "python-wide", "java-hot-row", "go-pool",
+				"cache-miss", "java-mixed", "go-mixed", "python-mixed", "chain", "cache-ttl", "pg-hot-row",
+				"cache-aside", "kafka");
 	}
 
 	@Test
-	void summary_theLatestRuns_meetTheKneeToleranceForCacheTtlAndTheTunedOnFour() {
-		assertThat(ids("kneeWithinTolerance")).containsExactly("cache-ttl", "pg-mixed", "pg-hot-row", "cache-aside",
-				"kafka");
+	void experiments_theLatestRuns_werePredictedByTheFrozenEngine() {
+		assertThat(DATA.get("experiments")).hasSize(HELD_OUT.size() + TUNED_ON.size())
+			.allMatch((experiment) -> "1.6.0".equals(experiment.get("engineVersion").stringValue()));
 	}
 
 	@Test
@@ -53,21 +62,22 @@ class CommittedAccuracyTests {
 			.noneMatch((technology) -> technology.get("validated").booleanValue());
 	}
 
-	// every protocol after v4 was designed with the four's results in view
+	// engine 1.6.0 lists the first nine as tuned on
 	@Test
-	void summary_theTunedOnFour_areInSample() {
+	void summary_theTunedOnNine_areInSample() {
 		assertThat(ids("inSample")).isEqualTo(TUNED_ON);
 	}
 
-	// no protocol was designed with the held-out experiments' results in view
+	// registered before engine 1.6.0 was frozen, sealed until it had predicted them
 	@Test
-	void summary_theOtherFive_areHeldOut() {
+	void summary_theSecondSet_isHeldOut() {
 		assertThat(ids("heldOut")).isEqualTo(HELD_OUT);
 	}
 
+	// Kafka's third round was disturbed, which leaves it two runs alike
 	@Test
-	void summary_everyExperiment_wasRepeated() {
-		assertThat(ids("repeated")).hasSize(HELD_OUT.size() + TUNED_ON.size());
+	void summary_everyExperimentButKafka_wasRepeated() {
+		assertThat(ids("repeated")).hasSize(HELD_OUT.size() + TUNED_ON.size() - 1).doesNotContain("kafka");
 	}
 
 	@Test
@@ -75,16 +85,14 @@ class CommittedAccuracyTests {
 		assertThat(ids("withSpread")).hasSize(HELD_OUT.size() + TUNED_ON.size());
 	}
 
-	// pg-mixed's first run of 4 Nov (2,875 req/s,
-	// against 4,371 and 4,483) widens its spread
 	@Test
-	void summary_pgMixed_hasASpreadBeyondItsError() {
-		assertThat(ids("spreadExceedsError")).containsExactly("pg-mixed");
+	void summary_fourExperiments_haveASpreadBeyondTheirError() {
+		assertThat(ids("spreadExceedsError")).containsExactly("python-cores", "java-mixed", "go-mixed", "pg-hot-row");
 	}
 
 	@Test
-	void summary_theKeptRuns_areSixtySeven() {
-		assertThat(DATA.at("/summary/runs").intValue()).isEqualTo(67);
+	void summary_theKeptRuns_areAHundredAndNine() {
+		assertThat(DATA.at("/summary/runs").intValue()).isEqualTo(109);
 	}
 
 	@Test
@@ -92,64 +100,65 @@ class CommittedAccuracyTests {
 		assertThat(DATA.at("/summary/machines")).hasSize(1);
 	}
 
-	// the 80% range (W28) held the measured knee in 29 of 37 runs: 20 of 22 tuned on
+	// the 80% range held the measured knee in 37 of the 41 counted runs: 25 of 26 tuned
+	// on
 	@Test
 	void summary_theRanges_heldAsManyKneesAsTheyClaim() {
 		assertThat(DATA.at("/summary/coverage")).isEqualTo(JsonText.read("""
-				{"withRange": 37, "inRange": 29, "expectedInRange": 29.6, "nominalCoverage": 0.8,
+				{"withRange": 41, "inRange": 37, "expectedInRange": 32.8, "nominalCoverage": 0.8,
 				 "verdict": "as claimed"}"""));
 	}
 
-	// 9 of 15 held out, every held-out miss java-mixed's or go-mixed's
+	// 12 of 15 held out: python-wide missed twice, cache-miss once
 	@Test
 	void summary_theHeldOutRanges_heldAsManyKneesAsTheyClaim() {
 		assertThat(DATA.at("/summary/coverageHeldOut")).isEqualTo(JsonText.read("""
-				{"withRange": 15, "inRange": 9, "expectedInRange": 12.0, "nominalCoverage": 0.8,
+				{"withRange": 15, "inRange": 12, "expectedInRange": 12.0, "nominalCoverage": 0.8,
 				 "verdict": "as claimed"}"""));
 	}
 
-	// pg-mixed's two disturbed v5 runs, six older ones,
-	// and hot-row's and Kafka's first runs of 4 Nov
+	// pg-mixed's two disturbed v5 runs, six older ones, hot-row's
+	// and Kafka's first runs of 4 Nov, and Kafka's third round
 	@Test
-	void summary_theKeptRuns_haveTenDisturbed() {
-		assertThat(DATA.at("/summary/disturbedRuns").intValue()).isEqualTo(10);
+	void summary_theKeptRuns_haveElevenDisturbed() {
+		assertThat(DATA.at("/summary/disturbedRuns").intValue()).isEqualTo(11);
 	}
 
 	@Test
 	void experiment_pgMixed_writesItsKneeAsThePageDoes() {
 		assertThat(experiment("pg-mixed").at("/knee/text")).isEqualTo(JsonText.read("""
-				{"measured": "4,483", "predicted": "5,203", "error": "+16%", "absError": "16%"}"""));
+				{"measured": "4,934", "predicted": "3,401", "error": "-31%", "absError": "31%"}"""));
 	}
 
-	// the measured knee's spread pools v5 and v6:
+	// the measured knee's spread pools v5, v6 and v7:
 	// the protocol changes the calibration only
 	@Test
-	void experiment_pgMixed_spreadsOverItsCountedRunsOfBothProtocols() {
+	void experiment_pgMixed_spreadsOverItsCountedRunsOfEveryProtocol() {
 		JsonNode spread = experiment("pg-mixed").get("spread");
 
-		assertThat(spread.get("text").stringValue()).isEqualTo("2,875 to 4,495 req/s");
-		assertThat(spread.get("plusMinusText").stringValue()).isEqualTo("±22%");
+		assertThat(spread.get("text").stringValue()).isEqualTo("2,875 to 4,934 req/s");
+		assertThat(spread.get("plusMinusText").stringValue()).isEqualTo("±26%");
 		assertThat(spread.get("disturbed").intValue()).isEqualTo(2);
 		assertThat(spread.get("values")).extracting((value) -> value.get("run").stringValue())
 			.containsExactly("run-8/", "run-9/", "run-10/", "run-11/", "run-12/", "run-13/", "run-14/", "run-15/",
-					"latest");
+					"run-16/", "run-17/", "run-18/", "latest");
 	}
 
-	// only the runs after the healthcheck fix, and not the disturbed one
+	// only the runs after the healthcheck fix, and not the two disturbed
 	@Test
 	void experiment_kafka_spreadsOverItsRunsAfterTheHealthcheckFix() {
 		assertThat(experiment("kafka").at("/spread/values")).extracting((value) -> value.get("run").stringValue())
-			.containsExactly("run-6/", "run-7/", "run-8/", "run-10/", "latest");
+			.containsExactly("run-6/", "run-7/", "run-8/", "run-10/", "run-11/", "run-12/", "run-13/");
 	}
 
-	// criterion 2 is symmetric (ADR-0018): pg-mixed's 3,900 req/s step misses
+	// criterion 2 is symmetric (ADR-0018): pg-mixed's worst step is at 3,740 req/s
 	@Test
 	void experiment_pgMixed_missesThePredictedP95AtItsWorstStep() {
 		JsonNode below = experiment("pg-mixed").get("p95BelowKnee");
 
-		assertThat(below.get("within").intValue()).isEqualTo(2);
-		assertThat(below.get("steps").intValue()).isEqualTo(3);
-		assertThat(below.at("/worst/text/offered").stringValue()).isEqualTo("3,900");
+		assertThat(below.get("within").intValue()).isEqualTo(4);
+		assertThat(below.get("steps").intValue()).isEqualTo(7);
+		assertThat(below.at("/worst/text/offered").stringValue()).isEqualTo("3,740");
 	}
 
 	@Test
@@ -197,12 +206,12 @@ class CommittedAccuracyTests {
 	}
 
 	// the top step at or below both knees: the
-	// model's (5,652 req/s), not the measured (6,752)
+	// model's (5,460 req/s), not the measured (6,335)
 	@Test
 	void resources_cacheAside_comparesAtTheModelsKnee() {
 		JsonNode resources = experiment("cache-aside").get("resources");
 
-		assertThat(resources.get("topRps").intValue()).isEqualTo(5650);
+		assertThat(resources.get("topRps").intValue()).isEqualTo(5450);
 		assertThat(resources.get("parts")).extracting((part) -> part.get("container").stringValue())
 			.containsExactly("api", "postgres", "redis");
 	}

@@ -29,8 +29,8 @@ class BenchmarksTests {
 	// and HarnessSetupTests covers the line the setup logs for that
 	private static final Map<String, String> NO_HOST_MACHINE = Map.of("BENCH_HOST", "off");
 
-	/** cache-aside's kept runs: run-1/ to run-10/ and the latest. */
-	private static final int CACHE_ASIDE_RUNS = 11;
+	/** cache-aside's kept runs: run-1/ to run-13/ and the latest. */
+	private static final int CACHE_ASIDE_RUNS = 14;
 
 	@Test
 	void compare_keptRunsWithoutComparisons_writesEachRunsComparison(@TempDir Path root) throws IOException {
@@ -69,6 +69,9 @@ class BenchmarksTests {
 		assertThat(out.toString().lines()).containsExactly(
 				"[12:34:56] wrote benchmarks/results/cache-ttl/run-1/comparison.json",
 				"[12:34:56] wrote benchmarks/results/cache-ttl/run-2/comparison.json",
+				"[12:34:56] wrote benchmarks/results/cache-ttl/run-3/comparison.json",
+				"[12:34:56] wrote benchmarks/results/cache-ttl/run-4/comparison.json",
+				"[12:34:56] wrote benchmarks/results/cache-ttl/run-5/comparison.json",
 				"[12:34:56] wrote benchmarks/results/cache-ttl/comparison.json");
 	}
 

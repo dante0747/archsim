@@ -16,8 +16,8 @@ import io.archsim.benchmarks.values.PythonValues;
  * What the Java engine reproduces of the frozen engine's predictions: of the kept
  * calibrations either engine re-simulated, how many it gave exactly the frozen engine's
  * knee, with the one sentence the validation page and {@code /accuracy} show of it
- * (in-sample, never in the headline). The page's older runs were predicted by older
- * engines, so the sentence speaks of the latest predictions only.
+ * (in-sample, never in the headline). It speaks only of the calibrations the two were
+ * compared on: runs kept since were predicted by a later engine.
  */
 final class JavaEngineCheck {
 
@@ -39,14 +39,11 @@ final class JavaEngineCheck {
 		}
 		int same = (int) pairs.stream().filter(KneePairs::sameKnee).count();
 		String version = javaVersion(engines);
-		String text = (same == pairs.size())
-				? "Re-simulated, in-sample: engine " + version + " (Java) re-simulates every kept calibration with "
-						+ "exactly " + KneePairs.FROZEN_ENGINE + "'s knees (" + same + " of " + pairs.size()
-						+ "); the latest predictions shown are " + KneePairs.FROZEN_ENGINE + "'s, which " + version
-						+ " reproduces."
-				: "Re-simulated, in-sample: engine " + version + " (Java) re-simulates " + same + " of " + pairs.size()
-						+ " kept calibrations with exactly " + KneePairs.FROZEN_ENGINE
-						+ "'s knees; the latest predictions shown are " + KneePairs.FROZEN_ENGINE + "'s.";
+		String count = (same == pairs.size()) ? "all " + same : same + " of the " + pairs.size();
+		String text = "Re-simulated, in-sample: on the inputs " + KneePairs.FROZEN_ENGINE
+				+ " derived (whole cores, no cost law, no host machine), engine " + version + " (Java) gives exactly "
+				+ KneePairs.FROZEN_ENGINE + "'s knees on " + count + " calibrations the two engines were compared on; "
+				+ "the predictions shown for the latest runs use its own inputs instead.";
 		ObjectNode check = NODES.objectNode().put("version", version).put("reproduces", KneePairs.FROZEN_ENGINE);
 		return Optional.of(check.put("sameKnees", same).put("keptCalibrations", pairs.size()).put("text", text));
 	}

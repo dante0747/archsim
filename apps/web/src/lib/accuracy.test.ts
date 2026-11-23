@@ -54,9 +54,9 @@ const spread: Spread = {
 
 describe("accuracy data", () => {
   it("has every experiment with the fields the page reads", () => {
-    // the held-out experiments lead, then the four the model was built with
-    expect(accuracy.experiments.map((x) => x.id)).toEqual(["java-mixed", "go-mixed", "python-mixed", "chain", "cache-ttl", "pg-mixed", "pg-hot-row", "cache-aside", "kafka"]);
-    expect(accuracy.experiments.map((x) => x.sample)).toEqual([...Array(5).fill("held-out"), ...Array(4).fill("tuned-on")]);
+    // the newest held-out set leads, then the nine its engine was tuned on
+    expect(accuracy.experiments.map((x) => x.id)).toEqual(["python-cores", "python-wide", "java-hot-row", "go-pool", "cache-miss", "java-mixed", "go-mixed", "python-mixed", "chain", "cache-ttl", "pg-mixed", "pg-hot-row", "cache-aside", "kafka"]);
+    expect(accuracy.experiments.map((x) => x.sample)).toEqual([...Array(5).fill("held-out"), ...Array(9).fill("tuned-on")]);
     for (const x of accuracy.experiments) {
       expect(x.name).toBeTruthy();
       expect(x.knee.text.measured).toMatch(/\d/);

@@ -3,8 +3,6 @@ package io.archsim.benchmarks.resimulation;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
@@ -120,10 +118,7 @@ public final class DevCheck {
 
 	private ObjectNode header(KeptRun run, JsonNode calibration) {
 		ObjectNode check = NODES.objectNode().put("experiment", run.experiment());
-		check.put("results",
-				StreamSupport.stream(this.results.relativize(run.directory()).spliterator(), false)
-					.map(Path::toString)
-					.collect(Collectors.joining("/")));
+		check.put("results", run.folderUnder(this.results));
 		check.set("calibratedAt", PythonValues.get(calibration, "at"));
 		check.set("calibrationMethod", PythonValues.get(calibration, "method"));
 		check.put("kind", KIND);

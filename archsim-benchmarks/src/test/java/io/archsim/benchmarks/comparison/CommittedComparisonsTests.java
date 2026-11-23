@@ -30,7 +30,7 @@ class CommittedComparisonsTests {
 
 	private static final Path RESULTS = RepositoryLayout.current().results();
 
-	private static final int PG_HOT_ROW_OLDER_RUNS = 13;
+	private static final int PG_HOT_ROW_OLDER_RUNS = 16;
 
 	@TestFactory
 	Stream<DynamicTest> comparisonOf_eachKeptRun_isItsCommittedComparisonByteForByte() {

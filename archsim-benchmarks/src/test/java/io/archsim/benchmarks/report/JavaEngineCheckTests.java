@@ -15,7 +15,6 @@ import io.archsim.benchmarks.JsonText;
 import io.archsim.benchmarks.RepositoryLayout;
 import io.archsim.benchmarks.experiments.Engines;
 import io.archsim.benchmarks.results.DevChecks;
-import io.archsim.benchmarks.results.KeptRun;
 import io.archsim.benchmarks.results.KneePairs;
 import io.archsim.engine.version.EngineVersions;
 
@@ -33,20 +32,10 @@ class JavaEngineCheckTests {
 
 		assertThat(check).isEqualTo(JsonText.read("""
 				{"version": "%1$s", "reproduces": "0.16.0", "sameKnees": 65, "keptCalibrations": 65,
-				 "text": "Re-simulated, in-sample: engine %1$s (Java) re-simulates every kept calibration \
-				with exactly 0.16.0's knees (65 of 65); the latest predictions shown are 0.16.0's, which \
-				%1$s reproduces."}""".formatted(EngineVersions.ENGINE)));
-	}
-
-	@Test
-	void of_theCommittedResults_showTheFrozenEnginesPredictions() {
-		JsonNode check = JavaEngineCheck.of(LAYOUT.results(), ENGINES).orElseThrow();
-
-		assertThat(Runs.measured(LAYOUT.results()))
-			.map((experiment) -> LatestRuns.load(LAYOUT.results(), experiment.id(), KeptRun.PREDICTIONS)
-				.orElseThrow()
-				.get("engineVersion"))
-			.containsOnly(check.get("reproduces"));
+				 "text": "Re-simulated, in-sample: on the inputs 0.16.0 derived (whole cores, no cost law, no \
+				host machine), engine %1$s (Java) gives exactly 0.16.0's knees on all 65 calibrations the two \
+				engines were compared on; the predictions shown for the latest runs use its own inputs \
+				instead."}""".formatted(EngineVersions.ENGINE)));
 	}
 
 	@Test
@@ -67,9 +56,11 @@ class JavaEngineCheckTests {
 
 		assertThat(check.get("sameKnees").intValue()).isEqualTo(1);
 		assertThat(check.get("keptCalibrations").intValue()).isEqualTo(3);
-		assertThat(check.get("text").stringValue()).isEqualTo("Re-simulated, in-sample: engine " + EngineVersions.ENGINE
-				+ " (Java) re-simulates 1 of 3 kept calibrations with exactly 0.16.0's knees; the latest predictions "
-				+ "shown are 0.16.0's.");
+		assertThat(check.get("text").stringValue())
+			.isEqualTo("Re-simulated, in-sample: on the inputs 0.16.0 derived (whole cores, no cost law, no host "
+					+ "machine), engine " + EngineVersions.ENGINE + " (Java) gives exactly 0.16.0's knees on 1 of the "
+					+ "3 calibrations the two engines were compared on; the predictions shown for the latest runs "
+					+ "use its own inputs instead.");
 	}
 
 	@Test
@@ -84,7 +75,7 @@ class JavaEngineCheckTests {
 		String block = JavaEngineCheck.block(LAYOUT.results(), ENGINES);
 
 		assertThat(Files.readString(LAYOUT.validationPage(), StandardCharsets.UTF_8)).contains(block);
-		assertThat(block).endsWith("reproduces ([java-parity.md](validation/java-parity.md)).");
+		assertThat(block).endsWith("instead ([java-parity.md](validation/java-parity.md)).");
 	}
 
 	// one development check of kafka per knee, named by its place

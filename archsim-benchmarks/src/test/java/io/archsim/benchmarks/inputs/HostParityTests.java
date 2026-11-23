@@ -7,7 +7,6 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -23,6 +22,8 @@ import io.archsim.benchmarks.designs.Simulations;
 import io.archsim.benchmarks.experiments.Experiment;
 import io.archsim.benchmarks.experiments.Experiments;
 import io.archsim.benchmarks.machine.HostSwitch;
+import io.archsim.benchmarks.results.CalibratedRuns;
+import io.archsim.benchmarks.results.KeptRun;
 import io.archsim.benchmarks.results.ResultFiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,6 +42,8 @@ class HostParityTests {
 	private static final Path RESULTS = RepositoryLayout.current().results();
 
 	private static final Path W27 = RESULTS.resolve("dev/0.16.0-w27");
+
+	private static final CalibratedRuns RUNS = CalibratedRuns.of(RESULTS);
 
 	private static final ModelInputs WHAT_IF = ModelInputs
 		.asRecorded(Simulations.onTheEngine(),
@@ -125,21 +128,11 @@ class HostParityTests {
 		return speeds;
 	}
 
-	// the kept calibration the check was made from: the latest's or a kept run's
+	// the kept calibration the check was made from
 	private static JsonNode calibration(JsonNode check) {
-		Path results = RESULTS.resolve(check.get("results").stringValue());
-		try (Stream<Path> runs = Files.list(results)) {
-			return Stream
-				.concat(Stream.of(results), runs.filter((run) -> run.getFileName().toString().startsWith("run-")))
-				.map((run) -> ResultFiles.read(run.resolve("calibration.json")))
-				.flatMap(Optional::stream)
-				.filter((calibration) -> calibration.path("at").equals(check.get("calibratedAt")))
-				.findFirst()
-				.orElseThrow();
-		}
-		catch (IOException ex) {
-			throw new UncheckedIOException(ex);
-		}
+		KeptRun run = RUNS.find(check.get("experiment").stringValue(), check.get("calibratedAt").stringValue())
+			.orElseThrow();
+		return ResultFiles.read(run.file(KeptRun.CALIBRATION)).orElseThrow();
 	}
 
 }

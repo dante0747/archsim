@@ -56,6 +56,22 @@ class PageWordsTests {
 	}
 
 	@Test
+	void inputValue_theHostMachine_namesItsFit() {
+		JsonNode host = NODES.objectNode()
+			.put("physicalCores", 4)
+			.put("threadsPerCore", 2)
+			.put("siblingSpeed", 0.47)
+			.put("allCoreClock", 0.805)
+			.put("otherBusyThreads", 0.9)
+			.put("clientCpuMs", 0.3326);
+
+		String text = ExperimentBlock.inputValue("host", host);
+
+		assertThat(text).isEqualTo("4 cores of 2 threads, a sibling at 0.47, all-core clock 0.805, "
+				+ "0.9 threads busy at rest, k6 0.3326 ms of CPU per request");
+	}
+
+	@Test
 	void countedText_aDisturbedRun_namesTheStepsItMissed() {
 		JsonNode run = RepeatabilityTests.History.withTwoDisturbed().getFirst();
 

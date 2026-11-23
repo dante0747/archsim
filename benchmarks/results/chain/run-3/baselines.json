@@ -1,0 +1,183 @@
+{
+  "experiment": "chain",
+  "calibratedAt": "2026-11-04T05:34:15Z",
+  "kind": "baselines",
+  "rulesFixed": "2026-11-19",
+  "designedAfterMeasurements": true,
+  "how": "Simple estimates of the knee from this run's calibration alone, to set beside the simulator's prediction: no measured load step is used. Their rules were fixed on 2026-11-19. This run was calibrated and measured before that, so the rules were written with its results in view: its estimates check what the simulation adds and are not predictions.",
+  "inputs": "calibration.json's inputs as recorded, the ones predictions.json used, in the design today's harness builds from them",
+  "at": "2026-11-19T05:55:10Z",
+  "engineVersion": "1.5.0",
+  "provenance": {
+    "commit": "7fc25bf42279e30e98f5fa9df74accf9625938ce",
+    "engineSources": "28ec8d7792d09d055294b07e3b04e46e8b6fe1d07f0b5344c3bd25db39e86aef",
+    "javaBuild": "188507f507c175fc71f3de7c0ad5dadc3f8ebbef14802b4271f933d715bb7e17",
+    "harnessHash": "21c2518e85013b0ee745e28752e5b1f53868340bd17dbe67644329bd378f052d",
+    "dirty": false,
+    "machineId": "i7-1165g7"
+  },
+  "objective": {
+    "p95Ms": 50.0,
+    "minSuccess": 0.99
+  },
+  "baselines": {
+    "bottleneckArithmetic": {
+      "how": "Each hard limit of the design's parts (a service's or a cache's cores, a pool of workers that wait for their calls, a database's cores and its connections, the lock of a row every write updates, a queue's consumers) times 1,000 over the milliseconds of one unit a client request takes, from the calibrated inputs' means: a service's CPU per request at the top calibration rate, a query's time, and for a worker, a connection or a lock the time it is held. A cache sends its database the share of its lookups that missed in the top calibration pass. The knee is the smallest such load among the limits a request waits for; work behind a queue is listed but does not bound it. No queueing and no simulation: waiting, the times' spread and garbage collection pauses are left out, and no measured load step is used.",
+      "kneeRps": 4464.3,
+      "limitedBy": {
+        "part": "gateway",
+        "limit": "cpu"
+      },
+      "limits": [
+        {
+          "part": "gateway",
+          "limit": "cpu",
+          "units": 1,
+          "msPerRequest": 0.223999,
+          "capacityRps": 4464.3,
+          "onRequestPath": true
+        },
+        {
+          "part": "api",
+          "limit": "cpu",
+          "units": 1,
+          "msPerRequest": 0.184113,
+          "capacityRps": 5431.4,
+          "onRequestPath": true
+        },
+        {
+          "part": "db",
+          "limit": "cpu",
+          "units": 2,
+          "msPerRequest": 0.197889,
+          "capacityRps": 10106.7,
+          "onRequestPath": true
+        },
+        {
+          "part": "db",
+          "limit": "connections",
+          "units": 10,
+          "msPerRequest": 0.305951,
+          "capacityRps": 32685.0,
+          "onRequestPath": true
+        }
+      ]
+    },
+    "analyticEstimate": {
+      "how": "The highest load at which the engine's instant estimate of the design (queueing formulas at one load, not a simulation) gives a p95 within the objective, searched as the simulated knee is: by doubling from 100 req/s, then bisection to 1%. The estimate fails no request, so a load meets the objective when the estimate has a p95 there and it is within the objective's; it has none once a part a request waits for is overloaded. No measured load step is used.",
+      "kneeRps": 4400,
+      "basis": "p95",
+      "atKnee": {
+        "p95": 45.8,
+        "overloaded": false,
+        "saturationRps": 4464.3,
+        "summary": "p95 \u2248 46 ms; busiest Node.js gateway 99%"
+      },
+      "tried": [
+        {
+          "offeredRps": 100.0,
+          "p95": 3.28
+        },
+        {
+          "offeredRps": 200.0,
+          "p95": 3.11
+        },
+        {
+          "offeredRps": 400.0,
+          "p95": 2.95
+        },
+        {
+          "offeredRps": 800.0,
+          "p95": 2.8
+        },
+        {
+          "offeredRps": 1600.0,
+          "p95": 2.96
+        },
+        {
+          "offeredRps": 3200.0,
+          "p95": 4.12
+        },
+        {
+          "offeredRps": 6400.0,
+          "p95": null
+        },
+        {
+          "offeredRps": 4800,
+          "p95": null
+        },
+        {
+          "offeredRps": 4000,
+          "p95": 8.12
+        },
+        {
+          "offeredRps": 4400,
+          "p95": 45.8
+        },
+        {
+          "offeredRps": 4600,
+          "p95": null
+        },
+        {
+          "offeredRps": 4500,
+          "p95": null
+        },
+        {
+          "offeredRps": 4450,
+          "p95": 196.98
+        },
+        {
+          "offeredRps": 4425,
+          "p95": 73.35
+        }
+      ]
+    },
+    "utilisationExtrapolation": {
+      "how": "Each container's CPU in the calibration staircase's passes (busy cores, net of what it burns at rest) against the offered rate, fitted with a straight line by least squares and extrapolated to the container's CPUs less its CPU at rest. The knee is the lowest such load among the containers a request waits for; one that works behind a queue is listed but does not bound it. A linear extrapolation of utilisation, not a Universal Scalability Law fit, which a staircase of open-loop passes at low load cannot identify. No model input, no simulation, no measured load step.",
+      "kneeRps": 4474.9,
+      "limitedBy": "gateway",
+      "ratesRps": [
+        50,
+        728.0,
+        2120.0,
+        2816.0
+      ],
+      "cpusFrom": "environment.json's cpusets",
+      "containers": [
+        {
+          "container": "gateway",
+          "cpus": 1,
+          "onRequestPath": true,
+          "passes": 9,
+          "idleCores": 0.000809,
+          "interceptCores": 0.049979,
+          "cpuMsPerRequest": 0.21212,
+          "rSquared": 0.995885,
+          "capacityRps": 4474.9
+        },
+        {
+          "container": "chain-api",
+          "cpus": 1,
+          "onRequestPath": true,
+          "passes": 9,
+          "idleCores": 0.000855,
+          "interceptCores": 0.041568,
+          "cpuMsPerRequest": 0.182397,
+          "rSquared": 0.996943,
+          "capacityRps": 5250.0
+        },
+        {
+          "container": "postgres",
+          "cpus": 2,
+          "onRequestPath": true,
+          "passes": 9,
+          "idleCores": 0.014684,
+          "interceptCores": 0.013887,
+          "cpuMsPerRequest": 0.192275,
+          "rSquared": 0.999744,
+          "capacityRps": 10253.2
+        }
+      ]
+    }
+  }
+}
