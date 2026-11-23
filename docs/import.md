@@ -68,11 +68,14 @@ requests assumed.
 skipped), StatefulSet storage, Ingresses (a gateway routing to its backends) and ExternalName
 Services (third-party APIs) are read. HorizontalPodAutoscalers give min, max, scale-up period and
 the CPU target: `targetCPUUtilizationPercentage` (autoscaling/v1) or the CPU `Resource` metric
-(v2); with no metric at all, Kubernetes' default of 80%. ArchSim scales on CPU only, so memory
-and custom metrics are listed under `ignored`. A Service attaches to the workload whose pod
-labels its selector matches. Links come from container environment URLs that name a Service.
-The manifests do not describe nodes, so a Kubernetes cluster part with the default node pool is
-added and listed as a guess; services run on it by their platform, and it is never linked.
+(v2); with no metric at all, Kubernetes' default of 80%. That target becomes the part's
+`targetUtilization`, which ArchSim's autoscaler compares with the share of busy workers or, when
+the replica has a CPU size, the share of its CPU in use, whichever is higher. It has no memory or
+custom signal, so memory and custom metrics are listed under `ignored`. A Service attaches to the
+workload whose pod labels its selector matches. Links come from container environment URLs that
+name a Service. The manifests do not describe nodes, so a Kubernetes cluster part with the default
+node pool is added and listed as a guess; services run on it by their platform, and it is never
+linked.
 
 **Terraform** (the JSON of `terraform show -json`, plan or state). Mapped resources: on AWS
 `aws_db_instance` (and read replicas), `aws_rds_cluster` and its instances, `aws_dynamodb_table`,
