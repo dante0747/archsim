@@ -9,8 +9,8 @@ import tools.jackson.databind.node.ObjectNode;
 
 /**
  * An autoscaler's CPU utilization target (autoscaling/v1, v2beta1 or v2), how it was
- * found, and the other metrics it names (memory, custom metrics: ArchSim scales on CPU
- * only).
+ * found, and the other metrics it names (memory, custom metrics, a CPU target that is not
+ * a utilization: ArchSim's autoscaler reads only worker and CPU utilization).
  *
  * @param utilization the target, as a fraction; {@code null} for none
  * @param why how it was found

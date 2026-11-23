@@ -121,6 +121,11 @@ for when that version changes.
 
 ### Fixed
 
+- **The import report and guide say what the autoscaler reads.** They said ArchSim scales on CPU
+  only. It scales on the share of busy workers or, when the replica has a CPU size, the share of
+  its CPU in use, whichever is higher. Memory and custom metrics, and a CPU target given as an
+  average value, are still ignored. Only words change, so the engine stays at 1.6.0; a held-out
+  run still uses the sources of its tag, `engine-1.6.0` (ADR-0088).
 - **The instant estimate saturates a part on its own hyperthreads where they fill (engine 1.6.0,
   ADR-0091).** A part with 2 or more vCPU and a sibling speed below 1 (its own, the design's or,
   from schema 1.11, the default) fills its vCPUs where every one is busy at the sibling speed, but

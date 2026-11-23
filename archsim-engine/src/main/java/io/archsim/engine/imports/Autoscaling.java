@@ -10,7 +10,8 @@ import tools.jackson.databind.node.ObjectNode;
 /**
  * A HorizontalPodAutoscaler read into its workload's settings: its least and most
  * replicas, its CPU utilization target (autoscaling/v1, v2beta1 or v2), and its scale-up
- * period; the other metrics it names are listed as ignored, as ArchSim scales on CPU.
+ * period; any other metric, a CPU target that is not a utilization included, is listed as
+ * ignored, as ArchSim's autoscaler reads only worker and CPU utilization.
  */
 final class Autoscaling {
 
@@ -18,6 +19,12 @@ final class Autoscaling {
 	private static final double LEAST_TARGET = 0.1;
 
 	private static final double MOST_TARGET = 0.95;
+
+	/**
+	 * What the autoscaler holds to its target, so the report ignores any other measure.
+	 */
+	private static final String WHAT_IT_SCALES_ON = "ArchSim scales on worker utilization "
+			+ "or, with a CPU size, CPU utilization if higher";
 
 	private final DesignBuilder design;
 
@@ -107,12 +114,12 @@ final class Autoscaling {
 			this.design.note(nodeId, "targetUtilization", target.why());
 		}
 		else {
-			this.log.guessed(
-					named + " has no CPU utilization target: " + nodeId + " scales on CPU at ArchSim's default target");
+			this.log
+				.guessed(named + " has no CPU utilization target: " + nodeId + " scales at ArchSim's default target");
 		}
 		if (!target.others().isEmpty()) {
 			this.log.ignored(named + ": " + String.join(", ", target.others()) + " metric"
-					+ ((target.others().size() > 1) ? "s" : "") + " (ArchSim scales on CPU utilization)");
+					+ ((target.others().size() > 1) ? "s" : "") + " (" + WHAT_IT_SCALES_ON + ")");
 		}
 	}
 

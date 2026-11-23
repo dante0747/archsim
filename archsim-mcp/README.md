@@ -31,7 +31,9 @@ validator refuses in its own (ADR-0058). `calibrate` reads its files as the Pyth
 (`read_text`, `json.loads`), through the engine's `PythonFiles`, as the CLI does: one it cannot use
 is refused in the words of Python's `OSError`, codec or `json`, named as `pathlib` names it
 (`[Errno 2] No such file or directory: 'mapping.yaml'`). A report names the engine that made it,
-`1.0.0`, where Python's named `0.16.0`.
+`1.0.0`, where Python's named `0.16.0`. An import's report says ArchSim scales on worker
+utilization or, with a CPU size, CPU utilization if higher, where Python's said it scales on CPU
+(archsim-engine's README).
 
 The server reads its settings from the environment, as the Python server did:
 

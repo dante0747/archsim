@@ -17,7 +17,45 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
  */
 class DesignImporterTests {
 
+	private static final String AUTOSCALER_ON_MEMORY = """
+			apiVersion: apps/v1
+			kind: Deployment
+			metadata: {name: api}
+			spec:
+			  template:
+			    spec:
+			      containers:
+			        - {name: api, image: node:20}
+			---
+			apiVersion: autoscaling/v2
+			kind: HorizontalPodAutoscaler
+			metadata: {name: api}
+			spec:
+			  scaleTargetRef: {name: api}
+			  minReplicas: 2
+			  maxReplicas: 5
+			  metrics:
+			    - type: Resource
+			      resource: {name: memory, target: {type: Utilization, averageUtilization: 70}}
+			""";
+
 	private final DesignImporter importer = new DesignImporter(StandardComponents.registry(), PriceSnapshots.shipped());
+
+	@Test
+	void importDesign_autoscalerOnMemory_saysItsMetricIsIgnoredForWhatArchSimScalesOn() {
+		ImportedDesign imported = this.importer.importDesign(ImportFormat.K8S, AUTOSCALER_ON_MEMORY, null);
+
+		assertThat(imported.report().ignored()).contains("HorizontalPodAutoscaler api: memory metric "
+				+ "(ArchSim scales on worker utilization or, with a CPU size, CPU utilization if higher)");
+	}
+
+	@Test
+	void importDesign_autoscalerWithoutACpuTarget_guessesTheDefaultTargetWithoutCallingItCpuOnly() {
+		ImportedDesign imported = this.importer.importDesign(ImportFormat.K8S, AUTOSCALER_ON_MEMORY, null);
+
+		assertThat(imported.report().guessed()).contains(
+				"HorizontalPodAutoscaler api has no CPU utilization target: api scales at ArchSim's default target");
+	}
 
 	@Test
 	void importDesign_designThatCannotBeRead_throwsItsIssues() {

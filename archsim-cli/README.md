@@ -166,7 +166,9 @@ Elsewhere:
   Terraform text that is not JSON past its first character with Jackson's description of the
   problem in Python's form
   ([ADR-0044](../docs/adr/0044-read-terraform-json-with-jackson-as-python-json-reads-it.md)), as
-  `POST /import` refuses them.
+  `POST /import` refuses them. A HorizontalPodAutoscaler's lines in its report say ArchSim scales
+  on worker utilization or, with a CPU size, CPU utilization if higher, where Python's said it
+  scales on CPU (the engine's README).
 - `calibrate`: a mapping that is not YAML is refused in SnakeYAML's words, as `POST /calibrate`
   refuses it, and a recording that is not JSON past its first character in Jackson's, with
   Python's line, column and character; the refusal's start, `Cannot calibrate: the mapping is not

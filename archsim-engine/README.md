@@ -321,6 +321,13 @@ refuse what they cannot read in the Python engine's words, with these difference
   any length. It also reads `-INF`, `+INF` and `+Infinity`, which `json` refuses
   ([ADR-0044](../docs/adr/0044-read-terraform-json-with-jackson-as-python-json-reads-it.md)).
 
+An import report says what the autoscaler reads: a HorizontalPodAutoscaler's other metrics are
+ignored with `(ArchSim scales on worker utilization or, with a CPU size, CPU utilization if
+higher)`, and one without a CPU utilization target `scales at ArchSim's default target`, where
+Python wrote `(ArchSim scales on CPU utilization)` and `scales on CPU at ArchSim's default target`.
+Only words change, so the engine stayed at 1.6.0. `ImportCasesTests` reads Python's words as the
+Java's through `ImportWordingDepartures`, so every word of each report is still compared exactly.
+
 Calibration reads its mapping's YAML as the importers do, and words what is wrong with it as the
 Python engine's `describe_yaml_error` did, the problem and its line and column without the text,
 with these differences:
