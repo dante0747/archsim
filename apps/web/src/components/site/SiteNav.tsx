@@ -15,8 +15,9 @@ export function SiteNav({ className }: { className?: string }) {
         <Link
           key={item.href}
           href={item.href}
+          prefetch={false}
           aria-current={here(item.section) ? "page" : undefined}
-          className="rounded-lg px-3 py-1.5 text-[13px] font-medium text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink aria-[current=page]:text-ink aria-[current=page]:bg-surface-2"
+          className="inline-flex h-9 items-center rounded-lg px-3 text-[14px] font-medium text-ink-2 transition-colors before:absolute before:inset-x-0 before:-inset-y-1 before:content-[''] hover:text-ink aria-[current=page]:bg-surface-2 aria-[current=page]:text-ink relative"
         >
           {item.label}
         </Link>

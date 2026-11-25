@@ -128,9 +128,10 @@ function Swatch({ id }: { id: ThemeId }) {
 
 /**
  * Theme picker: a sun or moon button with the two themes and "Match system". It brings its own
- * tooltip provider so it also works on pages without one (the projects home).
+ * tooltip provider so it also works on pages without one (the projects home). `className` styles
+ * the button (the website's header makes it a 44-pixel touch target).
  */
-export function ThemeMenu({ align = "end" }: { align?: "start" | "end" }) {
+export function ThemeMenu({ align = "end", className }: { align?: "start" | "end"; className?: string }) {
   const current = useTheme();
   const dark = useIsDark();
   useFollowSystem();
@@ -139,7 +140,7 @@ export function ThemeMenu({ align = "end" }: { align?: "start" | "end" }) {
       <Menu>
         <Tip content="Theme">
           <MenuTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="Choose a theme">
+            <Button variant="ghost" size="icon" aria-label="Choose a theme" className={className}>
               {dark ? <Moon /> : <Sun />}
             </Button>
           </MenuTrigger>

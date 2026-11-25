@@ -8,10 +8,10 @@ export const SITE_URL = "https://archsim.io";
 export const SITE_NAME = "ArchSim";
 /** The home page in a search result: at most about 155 characters, so it is not cut off. */
 export const SITE_DESCRIPTION =
-  "Crash-test your architecture before your users do: an open-source simulator for distributed systems that gives a straight yes or no, with the monthly bill.";
+  "Crash-test your architecture before your users do: an open-source simulator that finds bottlenecks and compares design decisions, with their monthly cost.";
 /** The home page in a link preview, which has room for the longer pitch. */
 export const SITE_SUMMARY =
-  "Crash-test your architecture before your users do. An open-source simulator for distributed systems: draw your stack with real technologies, throw traffic and failures at it, and get a straight yes or no, with the bottleneck and the monthly bill.";
+  "Crash-test your architecture before your users do. ArchSim simulates distributed systems so you can uncover bottlenecks, rehearse failures and compare architectural decisions, with their monthly cost, before writing production code.";
 
 /**
  * The site's content security policy, as a meta tag (GitHub Pages sends no headers): everything
@@ -77,9 +77,9 @@ export function robotsTxt(): string {
 }
 
 /**
- * The hosted demo the "Try it live" links open: `ARCHSIM_SITE_DEMO_URL` at build time (the
- * repository variable of the same name in the site's workflow), or null, and the links hidden,
- * when it is unset.
+ * The hosted demo "Try ArchSim" opens: `ARCHSIM_SITE_DEMO_URL` at build time (the repository
+ * variable of the same name in the site's workflow), or null when it is unset, and "Try ArchSim"
+ * goes to the home page's quick start instead.
  */
 export function demoUrl(env: Record<string, string | undefined>): string | null {
   const raw = env.ARCHSIM_SITE_DEMO_URL?.trim();

@@ -1,405 +1,356 @@
 /**
- * The public website's home page (ADR-0078). The copy that states facts comes from the
- * repository at build time: the README's reasons, screenshots, quick start, license and
- * contributing sections, the accuracy page's data and the catalog's technologies. The landing
- * pieces (the hero's replay, how it works, the feature grid, the logo wall) are the app's own.
+ * The public website's home page (ADR-0078, ADR-0097): one story from the problem to a decision,
+ * then how to run it. The narrative is the site's own; every fact on it comes from the repository
+ * at build time: the screenshots and their descriptions and the quick start from the README, the
+ * accuracy figures from the accuracy page's data, the technologies from the engine's catalog.
  */
-import { Activity, ArrowRight, ArrowUpRight, Boxes, CircleCheck, Gauge, Lock, type LucideIcon, Scale, Sparkles, TriangleAlert } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, Crosshair, Gauge, type LucideIcon, Receipt, Scale, Sigma, TriangleAlert, Unplug } from "lucide-react";
 import Link from "next/link";
-import { FeatureBento } from "@/components/landing/FeatureBento";
-import { HeroShot } from "@/components/landing/HeroShot";
-import { HowItWorks } from "@/components/landing/HowItWorks";
-import { Reveal } from "@/components/landing/Reveal";
-import { TechMarquee } from "@/components/landing/TechMarquee";
-import { Button } from "@/components/ui/button";
 import { REPOSITORY_URL, repositoryUrl } from "@/lib/repository";
-import type { AccuracyHighlights } from "@/lib/site/accuracy-highlights";
+import type { ProductViews } from "@/lib/site/product-views";
 import type { ReadmeContent } from "@/lib/site/readme";
-import type { Chip } from "@/lib/tech-chips";
+import type { FeaturedTechnology } from "@/lib/site/technologies";
 import { cn } from "@/lib/utils";
 import { CopyButton } from "./CopyButton";
+import { Cta, CtaGroup } from "./Cta";
 import { GitHubMark } from "./GitHubMark";
+import { ProductPicture, ScreenFrame } from "./ProductPicture";
+import { ProductShowcase } from "./ProductShowcase";
 import { Prose } from "./Prose";
 
 export interface SiteHomeProps {
-  readme: ReadmeContent;
-  accuracy: AccuracyHighlights;
-  chips: Chip[];
-  /** The catalog's counts (`catalogStats`) and the templates'. */
-  stats: { technologies: number; tiers: string; clientKinds: number; templates: number; scenarios: number };
-  /** ArchSim's version, which the changelog's latest release names. */
+  views: ProductViews;
+  quickStart: ReadmeContent["quickStart"];
+  accuracy: ReadmeContent["accuracy"];
+  /** The catalog's featured core technologies, and how many profiles it has by tier (`catalogStats`). */
+  technologies: { featured: FeaturedTechnology[]; count: number; tiers: string };
+  /** ArchSim's version, which the changelog's latest release names, and where its notes are. */
   version: string;
+  releaseNotes: string;
   demoUrl: string | null;
 }
 
-/** One icon per reason of the README's "Why ArchSim", in its order. */
-const WHY_ICONS: LucideIcon[] = [Boxes, Activity, CircleCheck, Scale, Lock];
+const HERO_SIZES = "(min-width: 1264px) 1200px, (min-width: 1024px) calc(100vw - 4rem), calc(100vw - 3rem)";
 
-function Head({ eyebrow, title, id, lead, center }: { eyebrow: string; title: string; id: string; lead?: React.ReactNode; center?: boolean }) {
+function SectionHead({ eyebrow, title, id, lead, className }: { eyebrow: string; title: string; id: string; lead?: React.ReactNode; className?: string }) {
   return (
-    <Reveal className={cn("max-w-3xl", center && "mx-auto text-center")}>
-      <p className="text-[13px] font-semibold text-accent">{eyebrow}</p>
-      <h2 id={id} className="mt-3 font-display text-[34px] font-semibold leading-[1.05] tracking-[-0.04em] text-ink sm:text-[46px]">
+    <div className={cn("max-w-3xl", className)}>
+      <p className="site-eyebrow">{eyebrow}</p>
+      <h2 id={id} className="site-h2 mt-3">
         {title}
       </h2>
-      {lead && <p className="mt-4 text-[17px] leading-relaxed text-ink-2">{lead}</p>}
-    </Reveal>
+      {lead && <p className="site-lead mt-4">{lead}</p>}
+    </div>
   );
 }
 
-function Hero({ version, demoUrl }: Pick<SiteHomeProps, "version" | "demoUrl">) {
+function TextLink({ href, className, children }: { href: string; className?: string; children: React.ReactNode }) {
+  const style = cn("group inline-flex min-h-11 items-center gap-1.5 text-[15px] font-semibold text-accent hover:underline", className);
+  const arrow = <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />;
+  return href.startsWith("/") ? (
+    <Link href={href} className={style} prefetch={false}>
+      {children}
+      {arrow}
+    </Link>
+  ) : (
+    <a href={href} className={style}>
+      {children}
+      {arrow}
+    </a>
+  );
+}
+
+/** "Try ArchSim" and GitHub, the page's only two actions. */
+function Actions({ demoUrl, className }: { demoUrl: string | null; className?: string }) {
   return (
-    <section aria-labelledby="hero-title" className="relative">
-      <div className="schematic-grid absolute inset-0 opacity-70 [mask-image:linear-gradient(#000_60%,transparent)]" aria-hidden />
-      <div className="relative mx-auto max-w-6xl px-4 pt-14 text-center sm:px-6 sm:pt-24">
-        <Link
-          href="/changelog/"
-          className="pop-in mx-auto inline-flex max-w-full items-center gap-2 rounded-full border border-line bg-surface py-1 pl-1 pr-3 text-[13px] text-ink-2 transition-colors hover:text-ink"
-        >
-          <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-[var(--accent-ink)]">v{version}</span>
-          <span className="truncate">Open source, out now: see what&apos;s in it</span>
-          <ArrowRight className="size-3.5 shrink-0" aria-hidden />
-        </Link>
-        <h1 id="hero-title" className="mt-7 font-display text-[40px] font-semibold leading-[1] tracking-[-0.05em] text-ink min-[400px]:text-[44px] sm:text-[64px] lg:text-[80px]">
+    <CtaGroup className={className}>
+      <Cta href={demoUrl ?? "#quick-start"}>
+        Try ArchSim
+        {demoUrl ? <ArrowUpRight aria-hidden /> : <ArrowRight aria-hidden />}
+      </Cta>
+      <Cta href={REPOSITORY_URL} variant="secondary">
+        <GitHubMark />
+        View on GitHub
+      </Cta>
+    </CtaGroup>
+  );
+}
+
+/** What running ArchSim yourself means, each with the qualification it needs. */
+const TRUST = ["Open source (AGPL-3.0)", "Self-host with Docker", "No account, no telemetry when self-hosted"];
+
+function Hero({ views, version, releaseNotes, demoUrl }: Pick<SiteHomeProps, "views" | "version" | "releaseNotes" | "demoUrl">) {
+  return (
+    <section aria-labelledby="hero-title" className="relative isolate overflow-hidden">
+      <div className="schematic-grid absolute inset-0 -z-10 opacity-60 [mask-image:radial-gradient(70%_55%_at_50%_0%,#000_40%,transparent)]" aria-hidden />
+      <div className="site-container pt-14 text-center sm:pt-20 lg:pt-24">
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[14px]">
+          <span className="text-ink-2">Open-source architecture simulator</span>
+          <Link
+            href={releaseNotes}
+            prefetch={false}
+            aria-label={`v${version} release notes`}
+            className="relative inline-flex h-8 items-center gap-1 rounded-full border border-line-strong bg-surface px-3 text-[13px] font-semibold text-ink transition-colors before:absolute before:inset-x-0 before:-inset-y-1.5 before:content-[''] hover:border-[color:var(--ink-3)]"
+          >
+            v{version}
+            <ArrowRight className="size-3.5 text-ink-3" aria-hidden />
+          </Link>
+        </div>
+        <h1 id="hero-title" className="site-h1 mx-auto mt-6 max-w-[15ch] sm:max-w-none">
           Crash-test your architecture <br className="hidden sm:block" />
-          <span className="text-gradient">before your users do.</span>
+          <span className="site-brand-text">before your users do.</span>
         </h1>
-        <p className="mx-auto mt-7 max-w-2xl text-[17px] leading-[1.6] text-ink-2 sm:text-lg">
-          ArchSim is a flight simulator for distributed systems. Draw your stack with real technologies, throw traffic and failures at it, and get a
-          straight yes or no against your objectives, with the bottleneck, the breaking point and the monthly bill.
-        </p>
-        <div className="mt-9 flex flex-wrap justify-center gap-3">
-          {demoUrl && (
-            <Button variant="primary" size="xl" asChild>
-              <a href={demoUrl}>
-                Try it live <ArrowUpRight />
-              </a>
-            </Button>
-          )}
-          <Button variant={demoUrl ? "secondary" : "primary"} size="xl" asChild>
-            <a href="#quick-start">
-              Get started <ArrowRight />
-            </a>
-          </Button>
-          <Button size="xl" asChild>
-            <Link href="/docs/">Read the docs</Link>
-          </Button>
-          <Button size="xl" variant="ghost" asChild>
-            <a href={REPOSITORY_URL}>
-              <GitHubMark className="size-[18px]" /> View on GitHub
-            </a>
-          </Button>
-        </div>
-        <p className="mt-5 text-[13px] text-ink-3">Open source · run it on your own machine: no account, no telemetry</p>
+        <p className="site-lead mx-auto mt-6">Simulate distributed systems, uncover bottlenecks, and compare architectural decisions before writing production code.</p>
+        <Actions demoUrl={demoUrl} className="mx-auto mt-10 max-w-sm justify-center sm:max-w-none" />
+        <ul className="mx-auto mt-6 flex max-w-2xl flex-wrap justify-center gap-x-5 gap-y-2 text-[13px] text-ink-2">
+          {TRUST.map((item) => (
+            <li key={item} className="inline-flex items-center gap-1.5 whitespace-nowrap">
+              <Check className="size-3.5 text-ink-3" aria-hidden />
+              {item}
+            </li>
+          ))}
+        </ul>
       </div>
-      <HeroShot />
+      <figure className="site-container relative mt-12 pb-16 sm:mt-16 md:pb-24">
+        <div className="absolute inset-x-[10%] top-[8%] bottom-[20%] -z-10 rounded-full bg-[radial-gradient(closest-side,color-mix(in_srgb,var(--brand-a)_22%,transparent),color-mix(in_srgb,var(--brand-b)_10%,transparent)_60%,transparent)] blur-2xl" aria-hidden />
+        <ScreenFrame>
+          <ProductPicture view={views.hero} sizes={HERO_SIZES} priority />
+        </ScreenFrame>
+      </figure>
     </section>
   );
 }
 
-function Stats({ stats }: Pick<SiteHomeProps, "stats">) {
-  const items: [React.ReactNode, string, string][] = [
-    [stats.technologies, "technology profiles", stats.tiers],
-    [stats.templates, "ready-made templates", `${stats.scenarios} scenarios to compare`],
-    [stats.clientKinds, "kinds of clients", "mobile, web, API consumers, generic"],
-    ["0", "bytes leave your machine", "when you run it yourself: no account"],
-  ];
+const CONTRAST: { label: string; text: string; ours?: boolean }[] = [
+  { label: "A diagram", text: "shows the structure you intend, not how it behaves under load or when a part fails." },
+  { label: "A load test", text: "measures real behaviour, but it usually needs a running system, so it comes after the big decisions." },
+  { label: "A simulation", text: "lets you try traffic, failures and cost on the design itself, while it is still cheap to change. Confirm with real measurements later.", ours: true },
+];
+
+function Problem() {
   return (
-    <section aria-label="At a glance" className="border-b border-line">
-      <dl className="mx-auto grid max-w-7xl grid-cols-2 gap-x-4 gap-y-6 px-4 py-12 sm:px-6 lg:grid-cols-4">
-        {items.map(([n, label, sub], i) => (
-          <Reveal key={label} delay={i * 70}>
-            <div className="flex flex-col-reverse px-2 py-3">
-              <div>
-                <dt className="mt-2 text-[15px] font-medium text-ink">{label}</dt>
-                <p className="mt-0.5 text-[13px] text-ink-3">{sub}</p>
-              </div>
-              <dd className="tabular font-display text-[40px] font-semibold leading-none tracking-[-0.04em] text-ink sm:text-[44px]">{n}</dd>
+    <section id="why" aria-labelledby="why-title" className="site-section border-t border-line">
+      <div className="site-container grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-16">
+        <SectionHead eyebrow="Why simulate" title="Architecture diagrams show what you intend. Simulation shows what might happen." id="why-title" />
+        <dl className="divide-y divide-line border-y border-line lg:mt-9">
+          {CONTRAST.map((row) => (
+            <div
+              key={row.label}
+              className={cn(
+                "grid gap-1 py-5 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-6",
+                // the simulation's row: a bar of the logo's blue, drawn by CSS so the list holds only terms and definitions
+                row.ours && "relative pl-4 before:absolute before:inset-y-5 before:left-0 before:w-0.5 before:rounded-full before:bg-[var(--brand-a)] before:content-[''] lg:pl-0 lg:before:-left-5",
+              )}
+            >
+              <dt className={cn("text-[15px] font-semibold", row.ours ? "text-ink" : "text-ink-2")}>{row.label}</dt>
+              <dd className={cn("text-[16px] leading-relaxed", row.ours ? "text-ink" : "text-ink-2")}>{row.text}</dd>
             </div>
-          </Reveal>
-        ))}
-      </dl>
+          ))}
+        </dl>
+      </div>
     </section>
   );
 }
 
-function QuickStart({ readme }: Pick<SiteHomeProps, "readme">) {
-  const { needs, commands, next } = readme.quickStart;
+const STEPS = [
+  { title: "Design", text: "Draw your architecture with the technologies you run: PostgreSQL, Redis, Kafka, services on Kubernetes and the clients that call them." },
+  { title: "Simulate", text: "Send realistic traffic, then take parts down, slow them and cap their capacity, and watch how every part copes." },
+  { title: "Decide", text: "Compare scenarios side by side: which meet your objectives, where each one breaks, and what each costs a month." },
+];
+
+function HowItWorks() {
   return (
-    <section id="quick-start" aria-labelledby="quick-start-title" className="scroll-mt-16 py-20 sm:py-24">
-      <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-14">
-        <div>
-          <Head eyebrow="Quick start" title="Up and running in one command" id="quick-start-title" />
-          <Reveal delay={60}>
-            <p className="mt-5 text-[17px] font-medium text-ink">{needs}</p>
-            <Prose html={next} className="mt-3 text-[15px] text-ink-2" />
-            <Link href="/docs/getting-started/" className="mt-5 inline-flex items-center gap-1.5 text-[14px] font-semibold text-accent hover:underline">
-              Run from source, the CLI or the MCP server <ArrowRight className="size-4" aria-hidden />
-            </Link>
-          </Reveal>
-        </div>
-        <Reveal delay={120} className="min-w-0">
-          <figure className="overflow-hidden rounded-2xl border border-line bg-[color:var(--lcd)] shadow-float">
-            <figcaption className="flex items-center gap-2 border-b border-line px-4 py-2">
-              <span className="flex gap-1.5" aria-hidden>
-                <span className="size-2.5 rounded-full bg-[color:var(--status-critical)] opacity-80" />
-                <span className="size-2.5 rounded-full bg-[color:var(--status-warning)] opacity-80" />
-                <span className="size-2.5 rounded-full bg-[color:var(--status-good)] opacity-80" />
+    <section id="how" aria-labelledby="how-title" className="site-section border-t border-line">
+      <div className="site-container">
+        <SectionHead eyebrow="How it works" title="Sketch it. Shake it. Ship the one that holds." id="how-title" />
+        {/* the line through the steps' numbers is the list's own, drawn by CSS */}
+        <ol className="relative mt-12 grid gap-8 before:absolute before:bottom-4 before:left-4 before:top-4 before:w-px before:bg-line-strong before:content-[''] md:grid-cols-3 md:gap-10 md:before:inset-x-4 md:before:bottom-auto md:before:h-px md:before:w-auto">
+          {STEPS.map((step, i) => (
+            <li key={step.title} className="relative grid grid-cols-[2rem_minmax(0,1fr)] gap-x-4 md:block">
+              <span className="relative flex size-8 items-center justify-center rounded-full border border-line-strong bg-page font-readout text-[13px] font-semibold text-ink" aria-hidden>
+                {i + 1}
               </span>
-              <span className="ml-2 text-xs font-medium text-ink-3">Terminal</span>
-              <CopyButton text={commands} label="Copy the commands" className="ml-auto" />
+              <div>
+                <h3 className="text-[20px] font-semibold tracking-[-0.02em] text-ink md:mt-6">{step.title}</h3>
+                <p className="mt-2 max-w-sm text-[16px] leading-relaxed text-ink-2">{step.text}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+  );
+}
+
+const CAPABILITIES: { icon: LucideIcon; title: string; text: string }[] = [
+  { icon: Gauge, title: "Where does it break?", text: "Ramp the load to find the first part to saturate, the highest load that still meets your objectives, and what to fix first." },
+  { icon: Unplug, title: "What if a part fails?", text: "Take down a cache, slow a database or add network latency mid-run, then watch the effect spread and the system recover, second by second." },
+  { icon: Scale, title: "Which option is better?", text: "Simulate every scenario of a design and compare them on one cost-against-latency map, with the ones that meet your objectives marked." },
+  { icon: Receipt, title: "What will it cost?", text: "Parts are sized for the peak and priced at AWS on-demand list prices, so each option comes with an estimated monthly bill, before discounts and data transfer." },
+  { icon: Sigma, title: "Where do the numbers come from?", text: "See the queueing formulas behind a part's numbers beside what was simulated, and rerun any run from its seed and engine version for the same result." },
+  { icon: Crosshair, title: "Does it match our system?", text: "Calibrate from Prometheus metrics or OpenTelemetry traces, replacing illustrative defaults with values measured on your own system." },
+];
+
+function Capabilities() {
+  return (
+    <section id="features" aria-labelledby="features-title" className="site-section border-t border-line">
+      <div className="site-container">
+        <SectionHead eyebrow="Product" title="Answer the questions every design review asks." id="features-title" />
+        <div className="mt-12 grid gap-x-8 gap-y-8 sm:grid-cols-2 sm:gap-y-10 lg:grid-cols-3">
+          {CAPABILITIES.map(({ icon: Icon, title, text }) => (
+            <article key={title} className="border-t border-line pt-6">
+              <h3 className="flex items-center gap-3 text-[18px] font-semibold tracking-[-0.02em] text-ink">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent" aria-hidden>
+                  <Icon className="size-[18px]" />
+                </span>
+                {title}
+              </h3>
+              <p className="mt-3 text-[16px] leading-relaxed text-ink-2">{text}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Showcase({ views }: Pick<SiteHomeProps, "views">) {
+  return (
+    <section id="tour" aria-labelledby="tour-title" className="site-section border-t border-line">
+      <div className="site-container">
+        <SectionHead eyebrow="Screens" title="Real screens from a real run." id="tour-title" lead="ArchSim simulating its Black Friday template: an online shop's checkout on Kubernetes." className="mb-10" />
+        <ProductShowcase views={views.showcase} />
+      </div>
+    </section>
+  );
+}
+
+function Technologies({ technologies }: Pick<SiteHomeProps, "technologies">) {
+  return (
+    <section id="technologies" aria-labelledby="technologies-title" className="site-section border-t border-line">
+      <div className="site-container">
+        <SectionHead
+          eyebrow="Technologies"
+          title="Model the stack you actually run."
+          id="technologies-title"
+          lead="Each technology models the mechanisms its documentation describes, such as PostgreSQL's write-ahead log or Kafka's partitions. Every default says whether it is documented or illustrative, and every one is a setting you can override."
+        />
+        <ul className="mt-10 grid grid-cols-4 gap-px overflow-hidden rounded-2xl border border-line bg-line lg:grid-cols-8">
+          {technologies.featured.map((tech) => (
+            <li key={tech.key} className="flex flex-col items-center justify-center gap-2.5 bg-page px-1 py-5 text-[12px] font-medium text-ink min-[360px]:text-[13px] sm:gap-3 sm:py-6 sm:text-[14px]">
+              <svg viewBox="0 0 24 24" className="size-7" fill={tech.logo.color ?? "currentColor"} aria-hidden>
+                <path d={tech.logo.path} />
+              </svg>
+              {tech.name}
+            </li>
+          ))}
+        </ul>
+        <div className="mt-6 flex flex-col gap-x-6 gap-y-1 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[15px] text-ink-2">
+            {technologies.count} technology profiles: {technologies.tiers}. No technology is validated against measurements yet; core ones will be first.
+          </p>
+          <TextLink href="/docs/assumptions/#technology-tiers" className="shrink-0 whitespace-nowrap">
+            See every technology profile
+          </TextLink>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Accuracy({ accuracy }: Pick<SiteHomeProps, "accuracy">) {
+  return (
+    <section id="accuracy" aria-labelledby="accuracy-title" className="site-section border-t border-line">
+      <div className="site-container grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
+        <div>
+          <p className="site-eyebrow">Accuracy</p>
+          <h2 id="accuracy-title" className="site-h2 mt-3">
+            Transparent by design.
+          </h2>
+          {/* the README's words (ADR-0097): the experiments, their table, what qualifies them, the caveat */}
+          <p className="site-lead mt-4" dangerouslySetInnerHTML={{ __html: accuracy.intro }} />
+        </div>
+        <div className="min-w-0 lg:mt-9">
+          <Prose html={accuracy.table} className="text-[15px] [&_td:first-child]:text-ink" />
+          <p className="mt-5 text-[16px] leading-relaxed text-ink-2" dangerouslySetInnerHTML={{ __html: accuracy.notes }} />
+          <div className="mt-6 flex gap-3 rounded-2xl border border-[color:color-mix(in_srgb,var(--status-warning)_35%,transparent)] bg-warning-soft p-5 text-[15px] leading-relaxed text-ink">
+            <TriangleAlert className="mt-0.5 size-5 shrink-0 text-warning" aria-hidden />
+            <p className="[&_strong]:font-semibold" dangerouslySetInnerHTML={{ __html: accuracy.caveat }} />
+          </div>
+          <ul className="mt-6 grid gap-x-8 sm:grid-cols-2">
+            <li>
+              <TextLink href="/accuracy/">Every run, in the accuracy report</TextLink>
+            </li>
+            <li>
+              <TextLink href="/docs/validation/#reproduce">Rerun the benchmarks yourself</TextLink>
+            </li>
+            <li>
+              <TextLink href="/docs/assumptions/">Every assumption, and its source</TextLink>
+            </li>
+            <li>
+              <TextLink href="/docs/simulation-model/">What the model leaves out</TextLink>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const WAYS_IN: { label: string; text: string; href: string }[] = [
+  { label: "Command line", text: "The same engine and answers, without a server or database.", href: repositoryUrl("archsim-cli/README.md") },
+  { label: "MCP server", text: "Give AI agents the engine as tools.", href: "/docs/agents/" },
+  { label: "CI gate", text: "Fail a pull request whose design misses its objectives.", href: "/docs/ci/" },
+  { label: "Import and export", text: "From docker-compose, Kubernetes or Terraform; to Compose, Kubernetes or Mermaid.", href: "/docs/import/" },
+];
+
+function QuickStart({ quickStart }: Pick<SiteHomeProps, "quickStart">) {
+  const { needs, commands, next } = quickStart;
+  const lines = commands.split("\n");
+  return (
+    <section id="quick-start" aria-labelledby="quick-start-title" className="site-section border-t border-line">
+      <div className="site-container grid gap-12 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-16">
+        <div className="min-w-0">
+          <SectionHead eyebrow="Quick start" title="Run ArchSim locally." id="quick-start-title" lead={needs} />
+          <figure className="mt-8 overflow-hidden rounded-xl border border-line bg-[color:var(--lcd)]">
+            <figcaption className="flex h-11 items-center justify-between border-b border-line pl-4">
+              <span className="text-[13px] font-medium text-ink-3">Terminal</span>
+              <CopyButton text={commands} label="Copy" className="h-11 rounded-none px-4 text-[13px] focus-visible:-outline-offset-2" />
             </figcaption>
-            <pre className="whitespace-pre-wrap px-5 py-5 font-code text-[13px] leading-[1.8] text-ink [overflow-wrap:anywhere] sm:text-[14px]">
-              {commands.split("\n").map((line, i) => {
+            <pre tabIndex={0} aria-label="Commands" className="overflow-x-auto px-4 py-4 font-code focus-visible:-outline-offset-2 text-[13px] leading-[1.9] text-ink sm:px-5 sm:text-[14px]">
+              {lines.map((line, i) => {
                 const at = line.search(/\s+#/);
                 return (
-                  <span key={i} className="block pl-[1.6em] -indent-[1.6em] before:inline-block before:w-[1.6em] before:indent-0 before:text-ink-3 before:content-['$']">
+                  <span key={i} className="block before:mr-3 before:text-ink-3 before:content-['$']">
                     {at < 0 ? line : line.slice(0, at)}
                     {at >= 0 && <span className="text-ink-3">{line.slice(at)}</span>}
-                    {i < commands.split("\n").length - 1 ? "\n" : ""}
+                    {i < lines.length - 1 ? "\n" : ""}
                   </span>
                 );
               })}
             </pre>
           </figure>
-        </Reveal>
-      </div>
-    </section>
-  );
-}
-
-function Why({ readme }: Pick<SiteHomeProps, "readme">) {
-  return (
-    <section id="why" aria-labelledby="why-title" className="scroll-mt-16 border-t border-line bg-surface-2/40 py-20 sm:py-24">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <Head eyebrow="Why ArchSim" title="An honest simulator for the decisions that are expensive to get wrong" id="why-title" />
-        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
-          {readme.why.map((reason, i) => {
-            const Icon = WHY_ICONS[i] ?? Sparkles;
-            return (
-              <Reveal key={reason.title} delay={(i % 3) * 70} className={i < 2 ? "lg:col-span-3" : "lg:col-span-2"}>
-                <article className="flex h-full flex-col rounded-2xl border border-line bg-surface p-6">
-                  <span className="flex size-10 items-center justify-center rounded-xl bg-accent-soft text-accent">
-                    <Icon className="size-5" aria-hidden />
-                  </span>
-                  <h3 className="mt-5 text-lg font-semibold tracking-[-0.02em] text-ink">{reason.title}</h3>
-                  <p className="mt-2 text-[15px] leading-relaxed text-ink-2">{reason.text}</p>
-                </article>
-              </Reveal>
-            );
-          })}
+          <p className="mt-4 text-[15px] leading-relaxed text-ink-2 [&_a]:text-accent [&_a]:underline [&_a]:underline-offset-2 [&_strong]:font-semibold [&_strong]:text-ink" dangerouslySetInnerHTML={{ __html: next }} />
+          <TextLink href="/docs/getting-started/">Getting started guide</TextLink>
         </div>
-      </div>
-    </section>
-  );
-}
-
-function How({ readme }: Pick<SiteHomeProps, "readme">) {
-  return (
-    <section id="how" aria-labelledby="how-title" className="scroll-mt-16 py-20 sm:py-24">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <Head eyebrow="How it works" title="Sketch it. Shake it. Ship the one that holds." id="how-title" />
-        <div className="mt-12">
-          <HowItWorks />
-        </div>
-        <Reveal className="mt-6">
-          <div className="grid gap-6 rounded-2xl border border-line bg-surface p-6 sm:p-8 lg:grid-cols-[13rem_minmax(0,1fr)]">
-            <div>
-              <p className="text-[13px] font-semibold text-accent">Under the hood</p>
-              <p className="mt-1 text-lg font-semibold tracking-[-0.02em] text-ink">One engine, every request</p>
-            </div>
-            <div>
-              <Prose html={readme.howItWorks} className="text-[15px] text-ink-2" />
-              <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-[14px] font-semibold">
-                <Link href="/docs/architecture/" className="inline-flex items-center gap-1.5 text-accent hover:underline">
-                  Architecture <ArrowRight className="size-4" aria-hidden />
-                </Link>
-                <Link href="/docs/simulation-model/" className="inline-flex items-center gap-1.5 text-accent hover:underline">
-                  Simulation model <ArrowRight className="size-4" aria-hidden />
-                </Link>
-              </div>
-            </div>
-          </div>
-        </Reveal>
-      </div>
-    </section>
-  );
-}
-
-function Tour({ readme }: Pick<SiteHomeProps, "readme">) {
-  return (
-    <section id="tour" aria-labelledby="tour-title" className="scroll-mt-16 border-t border-line bg-surface-2/40 py-20 sm:py-24">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <Head eyebrow="The product" title="From a sketch to a straight answer" id="tour-title" lead="Real screenshots of ArchSim, the same ones the README shows." />
-        <div className="mt-12 grid gap-5 md:grid-cols-2">
-          {readme.features.map((f, i) => (
-            <Reveal key={f.title} delay={(i % 2) * 70}>
-              <figure className="flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-surface">
-                <div className="border-b border-line bg-[color:var(--canvas)]">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- a static export serves images as they are, with no optimizer */}
-                  <img src={f.image} alt={f.alt} width={800} height={500} loading="lazy" decoding="async" className="aspect-[8/5] h-auto w-full object-cover object-top" />
-                </div>
-                <figcaption className="p-5 sm:p-6">
-                  <span className="block text-lg font-semibold tracking-[-0.02em] text-ink">{f.title}</span>
-                  <span className="mt-1 block text-[15px] leading-relaxed text-ink-2">{f.caption}</span>
-                </figcaption>
-              </figure>
-            </Reveal>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Features({ readme }: Pick<SiteHomeProps, "readme">) {
-  return (
-    <section id="features" aria-labelledby="features-title" className="scroll-mt-16 py-20 sm:py-24">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <Head eyebrow="Features" title="Everything a design review argues about, measured" id="features-title" />
-        <div className="mt-12">
-          <FeatureBento />
-        </div>
-        <Reveal className="mt-6">
-          <div className="grid gap-6 rounded-2xl border border-line bg-surface p-6 sm:p-8 lg:grid-cols-[13rem_minmax(0,1fr)]">
-            <div>
-              <p className="text-[13px] font-semibold text-accent">Beyond the canvas</p>
-              <p className="mt-1 text-lg font-semibold tracking-[-0.02em] text-ink">Fits the way you already work</p>
-            </div>
-            <div>
-              <Prose html={readme.beyond} className="text-[15px] text-ink-2" />
-              <Link href="/docs/features/" className="mt-4 inline-flex items-center gap-1.5 text-[14px] font-semibold text-accent hover:underline">
-                Every workspace and technology behaviour <ArrowRight className="size-4" aria-hidden />
-              </Link>
-            </div>
-          </div>
-        </Reveal>
-      </div>
-    </section>
-  );
-}
-
-function Technologies({ chips, stats }: Pick<SiteHomeProps, "chips" | "stats">) {
-  return (
-    <section id="technologies" aria-labelledby="tech-title" className="scroll-mt-16 border-t border-line bg-surface-2/40 py-20 sm:py-24">
-      <Head
-        center
-        eyebrow="Real technologies"
-        title="Model the stack you actually run"
-        id="tech-title"
-        lead={`${stats.technologies} technology profiles bring the mechanisms their documentation describes, each linked to the vendor's docs and each a setting you can override. A core set comes first; the others are marked experimental.`}
-      />
-      <div className="mt-12">
-        <TechMarquee chips={chips} />
-      </div>
-    </section>
-  );
-}
-
-function AccuracySummary({ accuracy: a }: Pick<SiteHomeProps, "accuracy">) {
-  const h = a.heldOut;
-  const t = a.tunedOn;
-  const cards: { value: string; label: string; note: string; tone: "good" | "warn" | "plain" }[] = [];
-  if (h) {
-    const notes = [
-      h.over ? `${h.over} over-predicted capacity, by ${h.overRange}: the unsafe side.` : "",
-      h.under ? `${h.under} under-predicted it, the safe side.` : "",
-    ].filter(Boolean);
-    cards.push({ value: `${h.within} of ${h.total}`, label: `held-out knees predicted within ${a.tolerance}`, note: notes.join(" ") || "The latest run of each, predicted before it was measured.", tone: h.within === h.total ? "good" : "warn" });
-  }
-  if (t) cards.push({ value: `${t.within} of ${t.total}`, label: `tuned-on knees within ${a.tolerance}`, note: `${t.range}, on experiments the model was developed with in view.`, tone: "plain" });
-  cards.push({
-    value: `${a.validated} of ${a.experiments}`,
-    label: "experiments meet every proposed threshold",
-    note: a.validated === 0 ? "So no technology counts as validated yet." : "Validated against the proposed bar.",
-    tone: a.validated === 0 ? "warn" : "good",
-  });
-  cards.push({ value: String(a.runs), label: "runs, every one published", note: `${a.period}, on ${a.machine}.`, tone: "plain" });
-  return (
-    <section id="accuracy" aria-labelledby="accuracy-title" className="scroll-mt-16 py-20 sm:py-24">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <Head
-          eyebrow="Accuracy"
-          title="Measured, not claimed. Misses included."
-          id="accuracy-title"
-          lead={`In ${a.experiments} experiments, small synthetic services on real PostgreSQL, Redis and Kafka run on ${a.machine}, ArchSim was calibrated at low load and predicted where each would break; only then was the breaking point measured with k6. The held-out ones were sealed until a frozen engine had predicted them.`}
-        />
-        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {cards.map((c, i) => (
-            <Reveal key={c.label} delay={i * 70}>
-              <div className="flex h-full flex-col rounded-2xl border border-line bg-surface p-6">
-                <p className="tabular font-display text-[40px] font-semibold leading-none tracking-[-0.04em] text-ink">{c.value}</p>
-                <p className="mt-3 text-[15px] font-medium text-ink">{c.label}</p>
-                <p className={cn("mt-2 flex gap-2 text-[14px] leading-relaxed", c.tone === "warn" ? "text-ink" : "text-ink-2")}>
-                  {c.tone === "warn" && <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />}
-                  {c.tone === "good" && <CircleCheck className="mt-0.5 size-4 shrink-0 text-good" aria-hidden />}
-                  <span>{c.note}</span>
-                </p>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-        <Reveal className="mt-6">
-          <div className="flex flex-col gap-5 rounded-2xl border border-line bg-warning-soft p-6 sm:flex-row sm:items-center">
-            <Gauge className="hidden size-6 shrink-0 text-warning sm:block" aria-hidden />
-            <p className="text-[15px] leading-relaxed text-ink">
-              <strong>Results are estimates, not production guarantees.</strong> Every number comes from the model you drew and the assumptions you
-              entered. Without calibration, trust comparisons between scenarios more than any single absolute value.
-            </p>
-            <div className="flex shrink-0 flex-wrap gap-2 sm:ml-auto">
-              <Button variant="primary" size="lg" asChild>
-                <Link href="/accuracy/">
-                  See every run <ArrowRight />
-                </Link>
-              </Button>
-              <Button size="lg" asChild>
-                <Link href="/docs/calibration/">Calibrate yours</Link>
-              </Button>
-            </div>
-          </div>
-        </Reveal>
-      </div>
-    </section>
-  );
-}
-
-function OpenSource({ readme }: Pick<SiteHomeProps, "readme">) {
-  return (
-    <section id="open-source" aria-labelledby="open-source-title" className="scroll-mt-16 border-t border-line bg-surface-2/40 py-20 sm:py-24">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <Head eyebrow="Open source" title="Yours to run, read and change" id="open-source-title" />
-        <div className="mt-12 grid gap-5 lg:grid-cols-2">
-          <Reveal>
-            <article className="flex h-full flex-col rounded-2xl border border-line bg-surface p-6 sm:p-8">
-              <h3 className="text-xl font-semibold tracking-[-0.02em] text-ink">License</h3>
-              <Prose html={readme.license} className="mt-3 flex-1 text-[15px] text-ink-2" />
-              <div className="mt-6 flex flex-wrap gap-2">
-                <Button size="lg" asChild>
-                  <a href={repositoryUrl("LICENSE")}>Read the AGPL-3.0</a>
-                </Button>
-                <Button size="lg" variant="soft" asChild>
-                  <a href={readme.commercialContact}>Ask for a commercial license</a>
-                </Button>
-              </div>
-            </article>
-          </Reveal>
-          <Reveal delay={70}>
-            <article className="flex h-full flex-col rounded-2xl border border-line bg-surface p-6 sm:p-8">
-              <h3 className="text-xl font-semibold tracking-[-0.02em] text-ink">Contributing</h3>
-              <Prose html={readme.contributing} className="mt-3 flex-1 text-[15px] text-ink-2" />
-              <div className="mt-6 flex flex-wrap gap-2">
-                <Button size="lg" asChild>
-                  <a href={`${REPOSITORY_URL}/discussions`}>Discussions</a>
-                </Button>
-                <Button size="lg" asChild>
-                  <a href={`${REPOSITORY_URL}/issues`}>Issues</a>
-                </Button>
-                <Button size="lg" variant="ghost" asChild>
-                  <a href={repositoryUrl("CONTRIBUTING.md")}>Contributing guide</a>
-                </Button>
-              </div>
-            </article>
-          </Reveal>
+        <div className="lg:pt-[4.5rem]">
+          <h3 className="text-[15px] font-semibold text-ink">Other ways in</h3>
+          <ul className="mt-3 divide-y divide-line border-y border-line">
+            {WAYS_IN.map((way) => (
+              <li key={way.label} className="py-4">
+                {way.href.startsWith("/") ? (
+                  <Link href={way.href} prefetch={false} className="text-[15px] font-semibold text-accent hover:underline">
+                    {way.label}
+                  </Link>
+                ) : (
+                  <a href={way.href} className="text-[15px] font-semibold text-accent hover:underline">
+                    {way.label}
+                  </a>
+                )}
+                <p className="mt-1 text-[15px] leading-relaxed text-ink-2">{way.text}</p>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </section>
@@ -408,36 +359,17 @@ function OpenSource({ readme }: Pick<SiteHomeProps, "readme">) {
 
 function FinalCall({ demoUrl }: Pick<SiteHomeProps, "demoUrl">) {
   return (
-    <section aria-labelledby="final-title" className="px-4 py-20 sm:px-6">
-      <Reveal className="mx-auto max-w-7xl">
-        <div className="hero-band relative overflow-hidden rounded-3xl border border-line px-6 py-16 text-center sm:px-12 sm:py-20">
-          <h2 id="final-title" className="relative font-display text-[34px] font-semibold leading-[1.02] tracking-[-0.045em] text-band-ink sm:text-[56px]">
-            Ready to break something?
-          </h2>
-          <p className="relative mx-auto mt-4 max-w-xl text-[17px] leading-relaxed text-ink-2">
-            Clone it, start it with Docker, open the starter example and press Simulate. Your first answer is seconds away.
-          </p>
-          <div className="relative mt-8 flex flex-wrap justify-center gap-3">
-            {demoUrl && (
-              <Button variant="primary" size="xl" asChild>
-                <a href={demoUrl}>
-                  Try it live <ArrowUpRight />
-                </a>
-              </Button>
-            )}
-            <Button variant={demoUrl ? "secondary" : "primary"} size="xl" asChild>
-              <a href="#quick-start">
-                Get started <ArrowRight />
-              </a>
-            </Button>
-            <Button size="xl" asChild>
-              <a href={REPOSITORY_URL}>
-                <GitHubMark className="size-[18px]" /> Star it on GitHub
-              </a>
-            </Button>
-          </div>
-        </div>
-      </Reveal>
+    <section
+      aria-labelledby="final-title"
+      className="site-section border-t border-line bg-[radial-gradient(50%_70%_at_50%_100%,color-mix(in_srgb,var(--brand-a)_12%,transparent),color-mix(in_srgb,var(--brand-b)_5%,transparent)_55%,transparent)]"
+    >
+      <div className="site-container text-center">
+        <h2 id="final-title" className="site-h2 mx-auto max-w-[22ch]">
+          Make better architecture decisions before production.
+        </h2>
+        <p className="site-lead mx-auto mt-4">{demoUrl ? "Try it in the hosted sandbox, or run it on your own machine." : "Run it on your own machine, with Docker."}</p>
+        <Actions demoUrl={demoUrl} className="mx-auto mt-8 max-w-sm justify-center sm:max-w-none" />
+      </div>
     </section>
   );
 }
@@ -445,17 +377,16 @@ function FinalCall({ demoUrl }: Pick<SiteHomeProps, "demoUrl">) {
 export function SiteHome(props: SiteHomeProps) {
   return (
     <main id="main">
-      <Hero version={props.version} demoUrl={props.demoUrl} />
-      <Stats stats={props.stats} />
-      <QuickStart readme={props.readme} />
-      <Why readme={props.readme} />
-      <How readme={props.readme} />
-      <Tour readme={props.readme} />
-      <Features readme={props.readme} />
-      <Technologies chips={props.chips} stats={props.stats} />
-      <AccuracySummary accuracy={props.accuracy} />
-      <OpenSource readme={props.readme} />
+      <Hero views={props.views} version={props.version} releaseNotes={props.releaseNotes} demoUrl={props.demoUrl} />
+      <Problem />
+      <HowItWorks />
+      <Capabilities />
+      <Showcase views={props.views} />
+      <Technologies technologies={props.technologies} />
+      <Accuracy accuracy={props.accuracy} />
+      <QuickStart quickStart={props.quickStart} />
       <FinalCall demoUrl={props.demoUrl} />
     </main>
   );
 }
+

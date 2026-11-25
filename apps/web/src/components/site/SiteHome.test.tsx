@@ -1,109 +1,201 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { accuracy } from "@/lib/accuracy";
-import { accuracyHighlights } from "@/lib/site/accuracy-highlights";
-import type { ReadmeContent } from "@/lib/site/readme";
+import { PRODUCT_VIEWS, productViews, renditions } from "@/lib/site/product-views";
+import type { Feature } from "@/lib/site/readme";
 import { SiteHome, type SiteHomeProps } from "./SiteHome";
 
-const readme: ReadmeContent = {
-  why: [
-    { title: "Real technologies, real behaviour", text: "PostgreSQL locks rows." },
-    { title: "A straight answer", text: "Yes or no." },
-  ],
-  features: [{ image: "/docs-assets/images/build.jpg", alt: "Design workspace with a PostgreSQL database selected", title: "Design with real technologies", caption: "Pick PostgreSQL." }],
-  beyond: "<ul><li><strong>Calibrate</strong> a design</li></ul>",
-  quickStart: { needs: "You need Docker with Compose, nothing else.", commands: "git clone https://github.com/dante0747/archsim.git\ncd archsim\ndocker compose up", next: "<p>Open http://localhost:3000.</p>" },
-  howItWorks: "<p>A design is one versioned JSON document.</p>",
-  commercialContact: "mailto:someone@example.com",
-  license: "<p>ArchSim is licensed under the AGPL-3.0-only.</p>",
-  contributing: "<p>Bug reports are welcome.</p>",
-};
+const feature = (name: string, title: string, alt: string): Feature => ({ image: `/docs-assets/images/${name}.jpg`, alt, title, caption: `${title}, in a sentence.` });
+
+const features: Feature[] = [
+  feature("build", "Design with real technologies", "Design workspace with a PostgreSQL database selected"),
+  feature("editor-results", "Test with traffic and failures", "Test workspace mid-ramp, beside a test plan that did not hold up"),
+  feature("scorecard", "Get a straight answer", "Results Answer tab: No, it doesn't hold up"),
+  feature("tradeoffs", "Compare the options", "Results Compare tab: monthly cost against p95 latency for every run"),
+];
 
 const props: SiteHomeProps = {
-  readme,
-  accuracy: accuracyHighlights(accuracy),
-  chips: [{ key: "database:postgresql", name: "PostgreSQL", technology: "postgresql", kind: "database" }],
-  stats: { technologies: 40, tiers: "12 core, 28 experimental", clientKinds: 4, templates: 25, scenarios: 125 },
-  version: "1.0.0",
+  views: productViews(
+    features,
+    Object.keys(PRODUCT_VIEWS).flatMap((name) => renditions(name).map((r) => `docs/${r.path}`)),
+  ),
+  quickStart: {
+    needs: "You need Docker with Compose, nothing else.",
+    commands: "git clone https://github.com/dante0747/archsim.git\ncd archsim\ndocker compose up",
+    next: 'Open <a href="http://localhost:3000">http://localhost:3000</a> and press <strong>Simulate</strong>.',
+  },
+  accuracy: {
+    intro: "Measured, not claimed. In 14 experiments, ArchSim was calibrated at low load, predicted where each would break, and only then was the breaking point measured with k6:",
+    table: "<table><thead><tr><th>Experiments</th><th>Median error</th></tr></thead><tbody><tr><td><strong>5 held out</strong></td><td>−25% to +15%</td></tr></tbody></table>",
+    notes: "These are three runs per experiment with engine 1.6.0. On a typical held-out run ArchSim is level with plain bottleneck arithmetic on the same calibration (median error 16.5% against 16.2%).",
+    caveat: "<strong>Results are estimates, not production guarantees.</strong> Every number comes from the model you drew.",
+  },
+  releaseNotes: "/changelog/#130---2026-11-17",
+  technologies: {
+    featured: [
+      { key: "database:postgresql", name: "PostgreSQL", logo: { path: "M0 0h24v24H0z", color: "#4169E1" } },
+      { key: "cache:redis", name: "Redis", logo: { path: "M0 0h24v24H0z", color: "#FF4438" } },
+    ],
+    count: 44,
+    tiers: "13 core, 25 experimental, 6 third-party APIs",
+  },
+  version: "1.3.0",
   demoUrl: null,
 };
+
+const hero = () => screen.getByRole("region", { name: /Crash-test your architecture/ });
 
 describe("SiteHome", () => {
   beforeEach(() => {
     vi.stubEnv("__NEXT_TRAILING_SLASH", "true");
-    // reduced motion: the replay draws one still frame and sections show at once
     vi.stubGlobal("matchMedia", (query: string) => ({ matches: query.includes("reduce"), addEventListener() {}, removeEventListener() {} }));
-    const Observer = class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    };
-    vi.stubGlobal("IntersectionObserver", Observer);
-    vi.stubGlobal("ResizeObserver", Observer);
   });
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
 
-  it("leads with the promise and the quick start, from the README", () => {
+  it("says what ArchSim does and offers one primary action, with GitHub beside it", () => {
     render(<SiteHome {...props} />);
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Crash-test your architecture before your users do.");
-    const quick = screen.getByRole("region", { name: /quick start|up and running/i });
-    expect(within(quick).getByText("You need Docker with Compose, nothing else.")).toBeInTheDocument();
-    expect(quick.querySelector("pre")?.textContent).toBe(readme.quickStart.commands);
-    expect(within(quick).getByRole("button", { name: /copy/i })).toBeInTheDocument();
+    expect(hero()).toHaveTextContent("Simulate distributed systems, uncover bottlenecks, and compare architectural decisions before writing production code.");
+    const actions = within(hero()).getAllByRole("link").filter((a) => a.dataset.cta);
+    expect(actions.map((a) => [a.textContent, a.dataset.cta])).toEqual([
+      ["Try ArchSim", "primary"],
+      ["View on GitHub", "secondary"],
+    ]);
   });
 
-  it("shows why ArchSim and every screenshot of the README with its alt text", () => {
-    render(<SiteHome {...props} />);
-
-    for (const why of readme.why) expect(screen.getByRole("heading", { level: 3, name: why.title })).toBeInTheDocument();
-    const shot = screen.getByRole("img", { name: readme.features[0].alt });
-    expect(shot).toHaveAttribute("src", readme.features[0].image);
-  });
-
-  it("is honest about accuracy: the held-out misses come first, with a link to every run", () => {
-    render(<SiteHome {...props} />);
-
-    const section = screen.getByRole("region", { name: /^Measured, not claimed/ });
-    const h = props.accuracy.heldOut;
-    if (h) {
-      expect(section).toHaveTextContent(`${h.within} of ${h.total}`);
-      if (h.overRange) expect(section).toHaveTextContent(h.overRange);
-    }
-    expect(within(section).getByRole("link", { name: /every run|accuracy/i })).toHaveAttribute("href", "/accuracy/");
-  });
-
-  it("describes the experiments as the accuracy page does: small synthetic services, on one machine it names", () => {
-    render(<SiteHome {...props} />);
-
-    const section = screen.getByRole("region", { name: /^Measured, not claimed/ });
-    expect(section).toHaveTextContent("small synthetic services on real PostgreSQL, Redis and Kafka");
-    expect(section).toHaveTextContent(`on ${props.accuracy.machine}`);
-    expect(section.textContent).not.toMatch(/on real services/);
-  });
-
-  it("says running it on your own machine needs no account, as a fact about running it yourself", () => {
-    render(<SiteHome {...props} demoUrl="https://app.archsim.io/" />);
-
-    expect(screen.getByText("Open source · run it on your own machine: no account, no telemetry")).toBeInTheDocument();
-    expect(screen.getByText("when you run it yourself: no account")).toBeInTheDocument();
-  });
-
-  it("states the license and how to ask for a commercial one", () => {
-    render(<SiteHome {...props} />);
-
-    expect(screen.getByText("ArchSim is licensed under the AGPL-3.0-only.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /commercial license/i })).toHaveAttribute("href", "mailto:someone@example.com");
-  });
-
-  it("offers Try it live only when there is a demo", () => {
+  it("sends Try ArchSim to the hosted demo when the build names one, and to the quick start otherwise", () => {
     const { rerender } = render(<SiteHome {...props} />);
-    expect(screen.queryByRole("link", { name: /try it live/i })).toBeNull();
+    expect(within(hero()).getByRole("link", { name: "Try ArchSim" })).toHaveAttribute("href", "#quick-start");
 
     rerender(<SiteHome {...props} demoUrl="https://app.archsim.io/" />);
-    expect(screen.getAllByRole("link", { name: /try it live/i })[0]).toHaveAttribute("href", "https://app.archsim.io/");
+    expect(within(hero()).getByRole("link", { name: "Try ArchSim" })).toHaveAttribute("href", "https://app.archsim.io/");
+  });
+
+  it("qualifies no account and no telemetry as true when self-hosted", () => {
+    render(<SiteHome {...props} demoUrl="https://app.archsim.io/" />);
+
+    expect(hero()).toHaveTextContent("No account, no telemetry when self-hosted");
+    expect(hero()).toHaveTextContent("Open source (AGPL-3.0)");
+  });
+
+  it("names the release, linking its notes, without competing with the headline", () => {
+    render(<SiteHome {...props} />);
+
+    expect(within(hero()).getByRole("link", { name: "v1.3.0 release notes" })).toHaveAttribute("href", "/changelog/#130---2026-11-17");
+  });
+
+  it("shows a real screenshot first, its words from the README, cropped for a phone", () => {
+    render(<SiteHome {...props} />);
+
+    const shot = within(hero()).getByRole("img", { name: features[1].alt });
+    expect(shot).toHaveAttribute("src", props.views.hero.full.src);
+    expect(shot).not.toHaveAttribute("loading", "lazy");
+    expect(shot.closest("picture")?.querySelector("source")).toHaveAttribute("srcset", props.views.hero.crop?.srcSet);
+  });
+
+  it("tells one story, problem to decision, then how to run it", () => {
+    render(<SiteHome {...props} />);
+
+    expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual([
+      "Architecture diagrams show what you intend. Simulation shows what might happen.",
+      "Sketch it. Shake it. Ship the one that holds.",
+      "Answer the questions every design review asks.",
+      "Real screens from a real run.",
+      "Model the stack you actually run.",
+      "Transparent by design.",
+      "Run ArchSim locally.",
+      "Make better architecture decisions before production.",
+    ]);
+  });
+
+  it("walks through three steps and six capabilities, each said once", () => {
+    render(<SiteHome {...props} />);
+
+    const steps = screen.getByRole("region", { name: "Sketch it. Shake it. Ship the one that holds." });
+    expect(within(steps).getAllByRole("listitem").map((s) => within(s).getByRole("heading").textContent)).toEqual(["Design", "Simulate", "Decide"]);
+    const capabilities = screen.getByRole("region", { name: "Answer the questions every design review asks." });
+    expect(within(capabilities).getAllByRole("heading", { level: 3 })).toHaveLength(6);
+  });
+
+  it("shows three product views in tabs, switched with the arrow keys", async () => {
+    const user = userEvent.setup();
+    render(<SiteHome {...props} />);
+
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs.map((t) => t.textContent)).toEqual(["Design", "Results", "Compare"]);
+    expect(tabs[0]).toHaveAttribute("aria-selected", "true");
+    await user.click(tabs[0]);
+    await user.keyboard("{ArrowRight}");
+    expect(tabs[1]).toHaveAttribute("aria-selected", "true");
+    expect(tabs[1]).toHaveFocus();
+    const panel = screen.getByRole("tabpanel", { name: "Results" });
+    expect(within(panel).getByRole("img", { name: features[2].alt })).toHaveAttribute("loading", "lazy");
+    // a phone shows the three as a plain list: no panel without its tab
+    expect(screen.getAllByRole("tabpanel")).toHaveLength(1);
+  });
+
+  it("features a few core technologies and links to every profile with its tier", () => {
+    render(<SiteHome {...props} />);
+
+    const section = screen.getByRole("region", { name: "Model the stack you actually run." });
+    expect(within(section).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["PostgreSQL", "Redis"]);
+    expect(section).toHaveTextContent("44 technology profiles: 13 core, 25 experimental, 6 third-party APIs");
+    expect(section).toHaveTextContent("No technology is validated against measurements yet");
+    expect(within(section).getByRole("link", { name: /every technology profile/i })).toHaveAttribute("href", "/docs/assumptions/#technology-tiers");
+  });
+
+  it("says how accurate ArchSim is in the README's words, the comparison with plain arithmetic and the caveat included", () => {
+    render(<SiteHome {...props} />);
+
+    const section = screen.getByRole("region", { name: "Transparent by design." });
+    expect(section).toHaveTextContent("ArchSim was calibrated at low load, predicted where each would break");
+    expect(within(section).getByRole("table")).toHaveTextContent("5 held out");
+    expect(section).toHaveTextContent("level with plain bottleneck arithmetic on the same calibration (median error 16.5% against 16.2%)");
+    expect(section).toHaveTextContent("Results are estimates, not production guarantees.");
+    expect(within(section).getByRole("link", { name: /accuracy report/i })).toHaveAttribute("href", "/accuracy/");
+  });
+
+  it("claims what the docs claim: prices are AWS on-demand list prices, and the formulas sit beside what was simulated", () => {
+    render(<SiteHome {...props} />);
+
+    const capabilities = screen.getByRole("region", { name: "Answer the questions every design review asks." });
+    expect(capabilities).toHaveTextContent("AWS on-demand list prices");
+    expect(capabilities).not.toHaveTextContent("Every number shows its formula");
+  });
+
+  it("runs locally with the README's commands, copyable, and points to the other ways in", () => {
+    render(<SiteHome {...props} />);
+
+    const quick = screen.getByRole("region", { name: "Run ArchSim locally." });
+    expect(quick).toHaveAttribute("id", "quick-start");
+    expect(within(quick).getByText(props.quickStart.needs)).toBeInTheDocument();
+    expect(quick.querySelector("pre")?.textContent).toBe(props.quickStart.commands);
+    expect(within(quick).getByRole("button", { name: /copy/i })).toBeInTheDocument();
+    expect(quick).toHaveTextContent("Open http://localhost:3000 and press Simulate.");
+    for (const name of ["Command line", "MCP server", "CI gate", "Import and export"]) expect(within(quick).getByRole("link", { name })).toBeInTheDocument();
+  });
+
+  it("ends with one call to action", () => {
+    render(<SiteHome {...props} demoUrl="https://app.archsim.io/" />);
+
+    const last = screen.getByRole("region", { name: "Make better architecture decisions before production." });
+    expect(
+      within(last)
+        .getAllByRole("link")
+        .map((a) => [a.textContent, a.dataset.cta]),
+    ).toEqual([
+      ["Try ArchSim", "primary"],
+      ["View on GitHub", "secondary"],
+    ]);
+  });
+
+  it("keeps the sections other pages link to", () => {
+    render(<SiteHome {...props} />);
+
+    for (const id of ["why", "how", "features", "tour", "technologies", "accuracy", "quick-start"]) expect(document.getElementById(id), id).not.toBeNull();
   });
 });

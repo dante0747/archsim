@@ -69,6 +69,21 @@ describe("checkSite", () => {
     ]);
   });
 
+  it("checks every image a srcset offers, on an img and on a picture's source", () => {
+    file(
+      "apps/web/out/index.html",
+      page(
+        '<picture><source media="(max-width: 767px)" srcset="/docs-assets/images/shot.jpg 400w, /docs-assets/images/crop-800.webp 800w">' +
+          '<img src="/docs-assets/images/shot.jpg" srcset="/docs-assets/images/shot.jpg 960w, /docs-assets/images/wide-1920.webp 1920w" alt=""></picture>',
+      ),
+    );
+
+    expect(checkSite({ out, repository: root }).map((p) => `${p.url} ${p.problem}`)).toEqual([
+      "/docs-assets/images/crop-800.webp no such page",
+      "/docs-assets/images/wide-1920.webp no such page",
+    ]);
+  });
+
   it("checks that every page the sitemap lists exists", () => {
     file("apps/web/out/index.html", page(""));
     file("apps/web/out/sitemap.xml", "<urlset><url><loc>https://archsim.io/docs/old/</loc></url></urlset>");

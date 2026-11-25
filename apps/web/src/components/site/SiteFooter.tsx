@@ -1,86 +1,104 @@
-/** The public website's footer (ADR-0078): the site, the docs, the community, and the license. */
+/**
+ * The public website's footer (ADR-0078, ADR-0097): the product, the documentation, the community
+ * and the legal links in four groups, the copyright and what the site does not collect. The
+ * license and the contributor agreement are linked, not explained, here: their own documents say
+ * what they mean.
+ */
 import Link from "next/link";
 import { Logo } from "@/components/brand";
 import { REPOSITORY_URL, repositoryUrl } from "@/lib/repository";
 
-const COLUMNS: { title: string; links: { label: string; href: string }[] }[] = [
-  {
-    title: "Product",
-    links: [
-      { label: "Quick start", href: "/#quick-start" },
-      { label: "Features", href: "/#features" },
-      { label: "Accuracy", href: "/accuracy/" },
-      { label: "Changelog", href: "/changelog/" },
-    ],
-  },
-  {
-    title: "Documentation",
-    links: [
-      { label: "Getting started", href: "/docs/getting-started/" },
-      { label: "Simulation model", href: "/docs/simulation-model/" },
-      { label: "Calibration", href: "/docs/calibration/" },
-      { label: "Decision records", href: "/docs/adr/" },
-      { label: "All docs", href: "/docs/" },
-    ],
-  },
-  {
-    title: "Community",
-    links: [
-      { label: "GitHub", href: REPOSITORY_URL },
-      { label: "Discussions", href: `${REPOSITORY_URL}/discussions` },
-      { label: "Issues", href: `${REPOSITORY_URL}/issues` },
-      { label: "Contributing", href: repositoryUrl("CONTRIBUTING.md") },
-      { label: "Security policy", href: repositoryUrl("SECURITY.md") },
-      { label: "Code of conduct", href: repositoryUrl("CODE_OF_CONDUCT.md") },
-    ],
-  },
-];
+interface FooterLink {
+  label: string;
+  href: string;
+}
 
-/** `copyright` is NOTICE's copyright line ("Copyright 2026 …"). */
-export function SiteFooter({ copyright }: { copyright: string }) {
+function groups(commercialContact: string): { title: string; links: FooterLink[] }[] {
+  return [
+    {
+      title: "Product",
+      links: [
+        { label: "Capabilities", href: "/#features" },
+        { label: "Screens", href: "/#tour" },
+        { label: "Quick start", href: "/#quick-start" },
+        { label: "Accuracy", href: "/accuracy/" },
+        { label: "Changelog", href: "/changelog/" },
+      ],
+    },
+    {
+      title: "Documentation",
+      links: [
+        { label: "Getting started", href: "/docs/getting-started/" },
+        { label: "Simulation model", href: "/docs/simulation-model/" },
+        { label: "Calibration", href: "/docs/calibration/" },
+        { label: "Decision records", href: "/docs/adr/" },
+        { label: "All docs", href: "/docs/" },
+      ],
+    },
+    {
+      title: "Community",
+      links: [
+        { label: "GitHub", href: REPOSITORY_URL },
+        { label: "Discussions", href: `${REPOSITORY_URL}/discussions` },
+        { label: "Issues", href: `${REPOSITORY_URL}/issues` },
+        { label: "Contributing", href: repositoryUrl("CONTRIBUTING.md") },
+        { label: "Code of conduct", href: repositoryUrl("CODE_OF_CONDUCT.md") },
+      ],
+    },
+    {
+      title: "Legal",
+      links: [
+        { label: "AGPL-3.0-only", href: repositoryUrl("LICENSE") },
+        { label: "Ask for a commercial license", href: commercialContact },
+        { label: "Contributor agreement", href: repositoryUrl("CLA.md") },
+        { label: "Security policy", href: repositoryUrl("SECURITY.md") },
+        { label: "Privacy", href: "/privacy/" },
+      ],
+    },
+  ];
+}
+
+const LINK = "inline-flex min-h-10 items-center text-ink-2 transition-colors hover:text-ink md:min-h-8";
+
+/**
+ * `copyright` is NOTICE's copyright line ("Copyright 2026 …"); `commercialContact` the README's
+ * mailto: link for a commercial license.
+ */
+export function SiteFooter({ copyright, commercialContact }: { copyright: string; commercialContact: string }) {
   return (
-    <footer className="border-t border-line bg-page">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]">
+    <footer className="border-t border-line">
+      <div className="site-container grid gap-x-8 gap-y-10 py-12 md:py-16 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,3fr)]">
         <div>
-          <Logo />
-          <p className="mt-4 max-w-xs text-[14px] leading-relaxed text-ink-2">
-            A flight simulator for distributed systems. Open source, local-first, honest about what it knows.
-          </p>
+          <Logo className="h-11 w-fit" />
+          <p className="mt-3 max-w-xs text-[14px] leading-relaxed text-ink-2">Architecture simulation for distributed systems. Open source, local-first, honest about what it knows.</p>
         </div>
-        {COLUMNS.map((col) => (
-          <nav key={col.title} aria-label={col.title}>
-            <p className="text-[13px] font-semibold text-ink">{col.title}</p>
-            <ul className="mt-3 space-y-2 text-[14px]">
-              {col.links.map((l) => (
-                <li key={l.label}>
-                  {l.href.startsWith("/") ? (
-                    <Link href={l.href} className="text-ink-2 hover:text-ink">
-                      {l.label}
-                    </Link>
-                  ) : (
-                    <a href={l.href} className="text-ink-2 hover:text-ink">
-                      {l.label}
-                    </a>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </nav>
-        ))}
+        <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-4">
+          {groups(commercialContact).map((group) => (
+            <nav key={group.title} aria-label={group.title}>
+              <p className="text-[13px] font-semibold text-ink">{group.title}</p>
+              <ul className="mt-2 text-[14px]">
+                {group.links.map((l) => (
+                  <li key={l.label}>
+                    {l.href.startsWith("/") ? (
+                      <Link href={l.href} className={LINK} prefetch={false}>
+                        {l.label}
+                      </Link>
+                    ) : (
+                      <a href={l.href} className={LINK}>
+                        {l.label}
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
+        </div>
       </div>
       <div className="border-t border-line">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-6 text-[13px] text-ink-3 sm:px-6">
-          <span>{copyright.replace(/^Copyright\s+/, "© ")}</span>
-          <span>
-            Licensed under the{" "}
-            <a href={repositoryUrl("LICENSE")} className="underline decoration-line-strong underline-offset-2 hover:text-ink">
-              AGPL-3.0-only
-            </a>
-          </span>
-          <Link href="/privacy/" className="underline decoration-line-strong underline-offset-2 hover:text-ink">
-            Privacy
-          </Link>
-          <span className="sm:ml-auto">No analytics, no cookies, no third-party scripts.</span>
+        <div className="site-container flex flex-col gap-2 py-6 text-[13px] text-ink-3 sm:flex-row sm:items-center sm:justify-between">
+          <p>{copyright.replace(/^Copyright\s+/, "© ")}</p>
+          <p>No analytics, no cookies, no third-party scripts.</p>
         </div>
       </div>
     </footer>

@@ -50,14 +50,14 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT + THEME_COLOR_SCRIPT }} />
         <a
           href="#main"
-          className="sr-only z-50 rounded-lg bg-surface px-4 py-2 text-[14px] font-semibold text-ink shadow-float focus:not-sr-only focus:fixed focus:left-4 focus:top-3"
+          className="sr-only z-50 rounded-lg bg-surface text-[14px] font-semibold text-ink shadow-float focus:not-sr-only focus:fixed focus:left-4 focus:top-2 focus:px-4 focus:py-2.5"
         >
           Skip to content
         </a>
         <div className="flex min-h-dvh flex-col">
           <SiteHeader demoUrl={demoUrl(process.env)} />
           <div className="flex-1">{children}</div>
-          <SiteFooter copyright={repository().copyright()} />
+          <SiteFooter copyright={repository().copyright()} commercialContact={repository().readme().commercialContact} />
         </div>
       </body>
     </html>

@@ -10,6 +10,19 @@ for when that version changes.
 
 ### Changed
 
+- **archsim.io's home page is redesigned
+  ([ADR-0097](docs/adr/0097-give-the-websites-home-page-its-own-narrative-and-take-its-facts-from-the-repository.md)).**
+  One story, about 60% shorter: what ArchSim does and one call to action, "Try ArchSim", then the
+  problem, three steps, six capabilities, three real product screens in tabs, eight core
+  technologies, the accuracy figures with their caveat, and the quick start. The screens are sharp
+  renditions of the README's screenshots, cropped to stay readable on a phone, in place of the
+  scripted replay. Buttons, type and spacing follow one system; the calls to action stack at full
+  width on a phone; the header has three sections and a phone menu that keeps focus and closes with
+  Escape. The accuracy section is the README's statement word for word, the tie with plain
+  bottleneck arithmetic and the latency criteria included. The license, contributing and security
+  links moved to a four-group footer. axe-core finds no WCAG 2.2 AA violations on the page, and the
+  site's link check now reads `srcset`. The header's, footer's and home page's links no longer
+  prefetch other pages' data as they scroll into view.
 - **archsim.io no longer flashes light before turning dark.** Its HTML starts dark and the theme
   script runs as the page is read, not once Next.js's scripts load; the browser bar gets one
   theme-color tag in either theme.

@@ -8,15 +8,18 @@
  * so one broken shot doesn't stop the rest. The video records the starter's cache-outage demo
  * (about 60 s) and converts it to a GIF with ffmpeg.
  *
- * Writes docs/images/<name>.jpg (taken at 1440 × 900 and scaled to 800 × 500, the names the
- * README uses) and docs/images/cache-outage.gif. Set CAPTURE_OUT_DIR to write somewhere else.
- * Without ffmpeg on PATH the shots stay full size and the video is saved as .webm, with the
- * command to convert it printed.
+ * Writes docs/images/<name>.jpg (taken at 1440 × 900, two device pixels per CSS pixel, and scaled
+ * to 800 × 500, the names the README uses), the website's renditions of the screens its home page
+ * shows under docs/images/site/ (src/lib/site/product-views.ts), and docs/images/cache-outage.gif.
+ * Set CAPTURE_OUT_DIR to write somewhere else. Without ffmpeg on PATH the shots stay full size, the
+ * website's renditions are not written, and the video is saved as .webm, with the command to
+ * convert it printed.
  */
 import { spawnSync } from "node:child_process";
 import { copyFileSync, mkdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { type APIRequestContext, expect, type Page, test } from "@playwright/test";
+import { PRODUCT_VIEWS, renditions } from "../src/lib/site/product-views";
 
 const OUT = path.resolve(process.env.CAPTURE_OUT_DIR ?? path.join(__dirname, "..", "..", "..", "docs", "images"));
 const SHOWCASE = "black-friday-kubernetes";
@@ -40,7 +43,21 @@ async function prepare(page: Page, theme: Theme) {
   }, theme);
 }
 
-/** Screenshot the viewport into docs/images/<name>.jpg. */
+/**
+ * The website's renditions of a screen its home page shows (src/lib/site/product-views.ts), as
+ * WebP: the whole screen at each width the page serves, and the phone's crop at one and two
+ * pixels per CSS pixel. `scale` is the screenshot's device pixels per CSS pixel.
+ */
+function siteRenditions(png: string, name: string, scale: number) {
+  const crop = PRODUCT_VIEWS[name].crop;
+  mkdirSync(path.join(OUT, "site"), { recursive: true });
+  for (const r of renditions(name)) {
+    const area = r.crop && crop ? `crop=${crop.width * scale}:${crop.height * scale}:${crop.x * scale}:${crop.y * scale},` : "";
+    ffmpeg(["-i", png, "-vf", `${area}scale=${r.width}:-2:flags=lanczos`, "-c:v", "libwebp", "-quality", "82", "-compression_level", "6", path.join(OUT, "site", path.basename(r.path))]);
+  }
+}
+
+/** Screenshot the viewport into docs/images/<name>.jpg, and the website's renditions of it. */
 async function shoot(page: Page, name: string) {
   await page.mouse.move(0, 0);
   await page.waitForTimeout(800); // entry animations
@@ -50,6 +67,7 @@ async function shoot(page: Page, name: string) {
     const png = test.info().outputPath(`${name}.png`);
     await page.screenshot({ path: png });
     ffmpeg(["-i", png, "-vf", "scale=800:500:flags=lanczos", "-q:v", "3", out]);
+    if (name in PRODUCT_VIEWS) siteRenditions(png, name, await page.evaluate(() => window.devicePixelRatio));
   } else {
     await page.screenshot({ path: out, type: "jpeg", quality: 85 });
   }

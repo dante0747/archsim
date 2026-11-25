@@ -1,6 +1,7 @@
 /**
  * Checks the exported website (out/, ADR-0078) the way a reader would find it broken: every link,
- * anchor, image and script of every page must resolve within the export, every link to the
+ * anchor, image (each candidate of a srcset too) and script of every page must resolve within the
+ * export, every link to the
  * repository on GitHub must name a file or folder that exists, nothing may load from another
  * origin, and every page the sitemap lists must exist. `npm run build:site` runs it after the
  * build; a problem fails the build.
@@ -13,6 +14,13 @@ const REPOSITORY_PATH = /^https:\/\/github\.com\/dante0747\/archsim\/(?:blob|tre
 const TAGS = /<(a|link|img|script|source|iframe|meta)\b([^>]*)>/gi;
 const ATTRIBUTES = /([\w:-]+)="([^"]*)"/g;
 const RESOURCE_TAGS = new Set(["img", "script", "source", "iframe"]);
+
+/** The URLs a srcset offers: "a.webp 960w, b.webp 1920w" is a.webp and b.webp. */
+const candidates = (srcset) =>
+  (srcset ?? "")
+    .split(",")
+    .map((c) => c.trim().split(/\s+/)[0])
+    .filter(Boolean);
 
 const decode = (s) =>
   s.replace(/&quot;/g, '"').replace(/&#x27;|&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
@@ -43,6 +51,7 @@ function scan(html) {
       if (attrs.content?.startsWith(`${SITE}/`)) refs.push({ url: attrs.content, resource: false });
       continue;
     }
+    if (name !== "link") for (const url of candidates(attrs.srcset)) refs.push({ url, resource: true });
     const url = attrs.href ?? attrs.src;
     if (url === undefined) continue;
     const resource = RESOURCE_TAGS.has(name) || (name === "link" && !/\b(canonical|alternate)\b/.test(attrs.rel ?? ""));

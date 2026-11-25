@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readmeContent } from "./readme";
+import { paragraphContent, readmeContent } from "./readme";
 
 const readme = `<h1 align="center">ArchSim</h1>
 
@@ -47,6 +47,19 @@ flowchart LR
 
 A design is one versioned JSON document. More in [docs/architecture.md](docs/architecture.md).
 
+## How accurate is it?
+
+Measured, not claimed. In four experiments, ArchSim was calibrated at low load and predicted where each would break:
+
+| Experiments | Median error |
+| --- | --- |
+| **2 held out** | −5% to +5% |
+
+These are three runs per experiment with engine 9.9.9. It ties plain arithmetic (median error 16.5% against 16.2%). [docs/validation.md](docs/validation.md) shows every run.
+
+> **Results are estimates.** Trust comparisons
+> more than absolute values. What is modeled: [docs/simulation-model.md](docs/simulation-model.md).
+
 ## Contributing
 
 Pull requests wait for the [Contributor License Agreement](CLA.md).
@@ -58,14 +71,19 @@ ArchSim is licensed under the AGPL. To ask for a commercial license, write to [s
 
 const ctx = { from: "README.md", isFolder: () => false };
 
-describe("readmeContent", () => {
-  it("reads why ArchSim, title and text of each reason", () => {
-    expect(readmeContent(readme, ctx).why).toEqual([
-      { title: "Real technologies, real behaviour", text: "PostgreSQL locks rows and waits for its write-ahead log." },
-      { title: "A straight answer", text: "Yes or no against your objectives." },
-    ]);
+describe("paragraphContent", () => {
+  it("gives a rendered paragraph's content, to show inside a paragraph of the page's own", () => {
+    expect(paragraphContent("<p>Open it and press <strong>Simulate</strong>.</p>\n", "Quick start")).toBe("Open it and press <strong>Simulate</strong>.");
   });
 
+  it("fails the build for more than one paragraph, which inside a <p> would break the page", () => {
+    expect(() => paragraphContent("<p>One.</p>\n<blockquote>\n<p>Two.</p>\n</blockquote>", "How accurate is it?")).toThrow(
+      /README.md's "How accurate is it\?" section is more than one paragraph where the home page shows one/,
+    );
+  });
+});
+
+describe("readmeContent", () => {
   it("reads the feature grid: each screenshot, served by the site, with its alt text, title and caption", () => {
     expect(readmeContent(readme, ctx).features).toEqual([
       { image: "/docs-assets/images/build.jpg", alt: "Design workspace: the Black Friday diagram", title: "Design with real technologies", caption: "Pick PostgreSQL, Kafka or a Go service." },
@@ -73,38 +91,30 @@ describe("readmeContent", () => {
     ]);
   });
 
-  it("renders what lies beyond the canvas, its links pointing at the site's docs", () => {
-    const { beyond } = readmeContent(readme, ctx);
-
-    expect(beyond).toContain("<strong>Calibrate</strong>");
-    expect(beyond).toContain('href="/docs/calibration/"');
-  });
-
-  it("reads the quick start: what you need, the commands, and what comes next", () => {
+  it("reads the quick start: what you need, the commands, and the first step after them", () => {
     const { quickStart } = readmeContent(readme, ctx);
 
     expect(quickStart.needs).toBe("You need Docker with Compose, nothing else.");
     expect(quickStart.commands).toBe("git clone https://github.com/dante0747/archsim.git\ndocker compose up");
-    expect(quickStart.next).toContain('href="http://localhost:3000"');
-    expect(quickStart.next).toContain('href="/docs/getting-started/"');
+    expect(quickStart.next).toBe('Open <a href="http://localhost:3000">http://localhost:3000</a> and press <strong>Simulate</strong>.');
   });
 
-  it("renders how it works without the diagram, and finds who to ask for a commercial license", () => {
-    const content = readmeContent(readme, ctx);
+  it("reads how accurate ArchSim is in the README's words: the experiments, their table, what qualifies them and the caveat", () => {
+    const { accuracy } = readmeContent(readme, ctx);
 
-    expect(content.howItWorks).toContain("A design is one versioned JSON document.");
-    expect(content.howItWorks).not.toContain("flowchart");
-    expect(content.commercialContact).toBe("mailto:someone@example.com");
+    expect(accuracy.intro).toBe("Measured, not claimed. In four experiments, ArchSim was calibrated at low load and predicted where each would break:");
+    expect(accuracy.table).toContain("<table>");
+    expect(accuracy.table).toContain("<strong>2 held out</strong>");
+    expect(accuracy.notes).toBe("These are three runs per experiment with engine 9.9.9. It ties plain arithmetic (median error 16.5% against 16.2%).");
+    expect(accuracy.caveat).toBe("<strong>Results are estimates.</strong> Trust comparisons\nmore than absolute values.");
   });
 
-  it("renders the license and contributing sections as they are", () => {
-    const content = readmeContent(readme, ctx);
 
-    expect(content.license).toContain("ArchSim is licensed under the AGPL.");
-    expect(content.contributing).toContain('href="https://github.com/dante0747/archsim/blob/main/CLA.md"');
+  it("finds who to ask for a commercial license", () => {
+    expect(readmeContent(readme, ctx).commercialContact).toBe("mailto:someone@example.com");
   });
 
   it("names the section it cannot find, so a README change cannot quietly empty the home page", () => {
-    expect(() => readmeContent(readme.replace("## Why ArchSim", "## Reasons"), ctx)).toThrow(/README.md has no "Why ArchSim" section/);
+    expect(() => readmeContent(readme.replace("## Quick start", "## Install"), ctx)).toThrow(/README.md has no "Quick start" section/);
   });
 });
