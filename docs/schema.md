@@ -200,8 +200,9 @@ overrides in `provenance`.
   one setting: a third-party API's `costPerMillionRequests` of 0 is left unset (below), unless the
   design's provenance records it as `measured` or `assumed`. 1.10 to 1.11 counts a vCPU as a
   hyperthread by default (below, [ADR-0091](adr/0091-count-a-vcpu-as-a-hyperthread-unless-the-design-or-its-instance-family-says-otherwise.md)) and writes `architecture.siblingSpeed: 1` once, so a
-  saved design keeps its results; its parts are left as they are, and so is the digest of a
-  run's result.
+  saved design keeps its results and the digest of a run's result; its parts are left as they
+  are. The exception is an auto-sized part that sets its own `siblingSpeed`, which engine 1.6.0
+  sizes for its hyperthreads, so its size, cost and runs change.
 - `architecture.siblingSpeed` (1.11; above 0, at most 1; empty by default, left out of the JSON):
   the sibling speed of every service, database and cache that sets none of its own. 1 counts
   every vCPU as a whole core. Empty, each part goes by the default below. A design saved before
