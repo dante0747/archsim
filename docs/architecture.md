@@ -37,7 +37,7 @@ flowchart LR
 
 The `archsim` command ([`archsim-cli/README.md`](../archsim-cli/README.md)) on the Java engine,
 without the API or a database: `validate`, `run`, `analyze`, `compare`, `calibrate`, `import`,
-`export`, `check` (the CI gate, which the `archsim-check` action runs from an image the job
+`export`, `check` (the CI check, which the `archsim-check` action runs from an image the job
 builds; see [`ci.md`](ci.md)), `catalog` and `schema`. It replaced the Python engine's CLI with
 the same flags, lines and exit codes
 ([ADR-0055](adr/0055-the-java-clis-output-contract.md)). The benchmark harness,

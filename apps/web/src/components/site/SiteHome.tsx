@@ -1,8 +1,9 @@
 /**
- * The public website's home page (ADR-0078, ADR-0097): one story from the problem to a decision,
- * then how to run it. The narrative is the site's own; every fact on it comes from the repository
- * at build time: the screenshots and their descriptions and the quick start from the README, the
- * accuracy figures from the accuracy page's data, the technologies from the engine's catalog.
+ * The public website's home page (ADR-0078, ADR-0097): one story from the problem to what to
+ * test (ADR-0099), then how to run it. The narrative is the site's own; every fact on it comes from
+ * the repository at build time: the screenshots and their descriptions and the quick start from
+ * the README, the accuracy figures from the accuracy page's data, the technologies from the
+ * engine's catalog.
  */
 import { ArrowRight, ArrowUpRight, Check, Crosshair, Gauge, type LucideIcon, Receipt, Scale, Sigma, TriangleAlert, Unplug } from "lucide-react";
 import Link from "next/link";
@@ -85,7 +86,7 @@ function Hero({ views, version, releaseNotes, demoUrl }: Pick<SiteHomeProps, "vi
       <div className="schematic-grid absolute inset-0 -z-10 opacity-60 [mask-image:radial-gradient(70%_55%_at_50%_0%,#000_40%,transparent)]" aria-hidden />
       <div className="site-container pt-14 text-center sm:pt-20 lg:pt-24">
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[14px]">
-          <span className="text-ink-2">Open-source architecture simulator</span>
+          <span className="text-ink-2">Open-source architecture experimentation tool</span>
           <Link
             href={releaseNotes}
             prefetch={false}
@@ -155,14 +156,17 @@ function Problem() {
 const STEPS = [
   { title: "Design", text: "Draw your architecture with the technologies you run: PostgreSQL, Redis, Kafka, services on Kubernetes and the clients that call them." },
   { title: "Simulate", text: "Send realistic traffic, then take parts down, slow them and cap their capacity, and watch how every part copes." },
-  { title: "Decide", text: "Compare scenarios side by side: which meet your objectives, where each one breaks, and what each costs a month." },
+  {
+    title: "Learn",
+    text: "Compare scenarios side by side: which meet your objectives, where each one breaks, and what each costs a month, as hypotheses to confirm with a load test.",
+  },
 ];
 
 function HowItWorks() {
   return (
     <section id="how" aria-labelledby="how-title" className="site-section border-t border-line">
       <div className="site-container">
-        <SectionHead eyebrow="How it works" title="Sketch it. Shake it. Ship the one that holds." id="how-title" />
+        <SectionHead eyebrow="How it works" title="Sketch it. Shake it. Learn what to test." id="how-title" />
         {/* the line through the steps' numbers is the list's own, drawn by CSS */}
         <ol className="relative mt-12 grid gap-8 before:absolute before:bottom-4 before:left-4 before:top-4 before:w-px before:bg-line-strong before:content-[''] md:grid-cols-3 md:gap-10 md:before:inset-x-4 md:before:bottom-auto md:before:h-px md:before:w-auto">
           {STEPS.map((step, i) => (
@@ -300,7 +304,7 @@ function Accuracy({ accuracy }: Pick<SiteHomeProps, "accuracy">) {
 const WAYS_IN: { label: string; text: string; href: string }[] = [
   { label: "Command line", text: "The same engine and answers, without a server or database.", href: repositoryUrl("archsim-cli/README.md") },
   { label: "MCP server", text: "Give AI agents the engine as tools.", href: "/docs/agents/" },
-  { label: "CI gate", text: "Fail a pull request whose design misses its objectives.", href: "/docs/ci/" },
+  { label: "CI check", text: "Comment on a pull request whose design misses its objectives or regresses: a warning to read, not a gate.", href: "/docs/ci/" },
   { label: "Import and export", text: "From docker-compose, Kubernetes or Terraform; to Compose, Kubernetes or Mermaid.", href: "/docs/import/" },
 ];
 
@@ -365,7 +369,7 @@ function FinalCall({ demoUrl }: Pick<SiteHomeProps, "demoUrl">) {
     >
       <div className="site-container text-center">
         <h2 id="final-title" className="site-h2 mx-auto max-w-[22ch]">
-          Make better architecture decisions before production.
+          Challenge your assumptions before you build.
         </h2>
         <p className="site-lead mx-auto mt-4">{demoUrl ? "Try it in the hosted sandbox, or run it on your own machine." : "Run it on your own machine, with Docker."}</p>
         <Actions demoUrl={demoUrl} className="mx-auto mt-8 max-w-sm justify-center sm:max-w-none" />

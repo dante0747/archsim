@@ -1,7 +1,9 @@
-# An SLO gate in CI
+# Checking designs in CI
 
-`archsim check` simulates a design and answers two questions a pull request raises: does it
-still meet its objectives, and is it worse than the base branch?
+`archsim check` simulates a design in a pull request and reports whether it still meets its
+objectives in the simulation and how it compares with the base branch. Its answer is a hypothesis
+under the design's assumptions: run it as a warning that tells a reviewer where to look, not as a
+gate that blocks a merge or a deployment ([Run it as a warning](#run-it-as-a-warning)).
 
 ```bash
 archsim check archsim/design.json --baseline-ref origin/main \
@@ -22,7 +24,7 @@ Regressions compare the design with a baseline: `--baseline other.json`, or the 
 git ref with `--baseline-ref origin/main`. A design that does not exist at that ref (a new
 design) has no baseline and is checked against its objectives only. A ref that cannot be read —
 a typo, or a shallow checkout that does not have it (`actions/checkout` fetches one commit
-unless `fetch-depth: 0`) — is an error (exit 2), never "no baseline", so a gate cannot pass for
+unless `fetch-depth: 0`) — is an error (exit 2), never "no baseline", so a check cannot pass for
 want of the comparison it was asked to make. Thresholds, all changeable:
 
 | Metric | Regression when | Option |
@@ -93,6 +95,7 @@ jobs:
       - uses: actions/checkout@v7
         with: {fetch-depth: 0}   # the base branch, for --baseline-ref
       - uses: ./.github/actions/archsim-check
+        continue-on-error: true  # a warning to read, not a gate
         with:
           design: archsim/design.json
           baseline-ref: origin/${{ github.base_ref }}
@@ -107,6 +110,7 @@ downloads that whole repository with the action, and the action builds ArchSim f
       - uses: actions/checkout@v7
         with: {fetch-depth: 0}
       - uses: <owner>/archsim/.github/actions/archsim-check@<commit-sha>
+        continue-on-error: true  # a warning to read, not a gate
         with:
           design: archsim/design.json
           baseline-ref: origin/${{ github.base_ref }}
@@ -120,6 +124,24 @@ workspace; empty builds the action's own repository). Outputs: `passed`, `exit-c
 requests from forks get a read-only token, so the comment step may fail there without failing
 the job; the job summary always has the result.
 
+## Run it as a warning
+
+A check that fails says the change misses an objective or regresses in the simulation, under the
+design's assumptions. That is a hypothesis about the change, worth a reviewer's look and perhaps
+a load test, not proof that the change is wrong; and a check that passes does not show that the
+running system will meet its objectives. So let the check inform the review rather than decide
+it:
+
+- **Mark the step `continue-on-error: true`**, as the examples above do. The comment, the job
+  summary and the artifact still carry the result, and the job succeeds whether the check passes,
+  fails or cannot run; a check that could not run says so in its comment and summary. In another
+  CI system, let the step fail without failing the pipeline (GitLab's `allow_failure: true`, for
+  example): `archsim check` itself always exits 1 when it fails.
+- **Don't make it a required status check, and don't let it decide a deployment.** Its answer is
+  as good as the design's inputs: calibrate the design from your own telemetry first
+  ([calibration.md](calibration.md)), and read [how accurate ArchSim is](validation.md) on the
+  stacks it was checked against; no technology counts as validated yet.
+
 ## Checking infrastructure changes
 
 With [import](import.md), a change to Kubernetes manifests, a compose file or a Terraform plan
@@ -132,13 +154,15 @@ archsim check /tmp/head.json --baseline /tmp/base.json --fail-on regression
 ```
 
 An imported design has default traffic and no objectives (infrastructure files state neither),
-so regressions are the useful gate there: replicas, sizes and topology changes move p95, the
+so regressions are the useful signal there: replicas, sizes and topology changes move p95, the
 breaking point and cost. A team that keeps `archsim/design.json` with its own traffic and
 objectives can check that file instead.
 
 This repository's CI runs the action on `examples/cache-aside-starter.json`
 (`.github/workflows/ci.yml`, job `archsim-check`): pull requests against their base branch
-(`origin/<base>`), pushes against the previous commit (`HEAD~1`).
+(`origin/<base>`), pushes against the previous commit (`HEAD~1`). There the job fails with the
+check, because it tests ArchSim itself (the action, the CLI and the engine on a template whose
+objectives it must keep meeting), not the design of a system that will run.
 
 ## Release images
 

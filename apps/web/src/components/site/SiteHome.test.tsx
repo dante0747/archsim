@@ -10,7 +10,7 @@ const feature = (name: string, title: string, alt: string): Feature => ({ image:
 const features: Feature[] = [
   feature("build", "Design with real technologies", "Design workspace with a PostgreSQL database selected"),
   feature("editor-results", "Test with traffic and failures", "Test workspace mid-ramp, beside a test plan that did not hold up"),
-  feature("scorecard", "Get a straight answer", "Results Answer tab: No, it doesn't hold up"),
+  feature("scorecard", "Get an answer to test", "Results Answer tab: No, it doesn't hold up"),
   feature("tradeoffs", "Compare the options", "Results Compare tab: monthly cost against p95 latency for every run"),
 ];
 
@@ -28,7 +28,7 @@ const props: SiteHomeProps = {
     intro: "Measured, not claimed. In 14 experiments, ArchSim was calibrated at low load, predicted where each would break, and only then was the breaking point measured with k6:",
     table: "<table><thead><tr><th>Experiments</th><th>Median error</th></tr></thead><tbody><tr><td><strong>5 held out</strong></td><td>−25% to +15%</td></tr></tbody></table>",
     notes: "These are three runs per experiment with engine 1.6.0. On a typical held-out run ArchSim is level with plain bottleneck arithmetic on the same calibration (median error 16.5% against 16.2%).",
-    caveat: "<strong>Results are estimates, not production guarantees.</strong> Every number comes from the model you drew.",
+    caveat: "<strong>Results are hypotheses to test, not production guarantees.</strong> Every number comes from the model you drew.",
   },
   releaseNotes: "/changelog/#130---2026-11-17",
   technologies: {
@@ -97,26 +97,35 @@ describe("SiteHome", () => {
     expect(shot.closest("picture")?.querySelector("source")).toHaveAttribute("srcset", props.views.hero.crop?.srcSet);
   });
 
-  it("tells one story, problem to decision, then how to run it", () => {
+  it("tells one story, problem to what to test, then how to run it", () => {
     render(<SiteHome {...props} />);
 
     expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual([
       "Architecture diagrams show what you intend. Simulation shows what might happen.",
-      "Sketch it. Shake it. Ship the one that holds.",
+      "Sketch it. Shake it. Learn what to test.",
       "Answer the questions every design review asks.",
       "Real screens from a real run.",
       "Model the stack you actually run.",
       "Transparent by design.",
       "Run ArchSim locally.",
-      "Make better architecture decisions before production.",
+      "Challenge your assumptions before you build.",
     ]);
+  });
+
+  it("presents what a run finds as hypotheses to test, never a verdict or a gate", () => {
+    render(<SiteHome {...props} />);
+
+    expect(hero()).toHaveTextContent("Open-source architecture experimentation tool");
+    expect(screen.getByRole("region", { name: "Sketch it. Shake it. Learn what to test." })).toHaveTextContent("as hypotheses to confirm with a load test");
+    expect(screen.getByRole("region", { name: "Run ArchSim locally." })).toHaveTextContent("a warning to read, not a gate");
+    expect(screen.getByRole("main").textContent).not.toMatch(/yes or no|straight answer|ship the one|CI gate|fail a pull request/i);
   });
 
   it("walks through three steps and six capabilities, each said once", () => {
     render(<SiteHome {...props} />);
 
-    const steps = screen.getByRole("region", { name: "Sketch it. Shake it. Ship the one that holds." });
-    expect(within(steps).getAllByRole("listitem").map((s) => within(s).getByRole("heading").textContent)).toEqual(["Design", "Simulate", "Decide"]);
+    const steps = screen.getByRole("region", { name: "Sketch it. Shake it. Learn what to test." });
+    expect(within(steps).getAllByRole("listitem").map((s) => within(s).getByRole("heading").textContent)).toEqual(["Design", "Simulate", "Learn"]);
     const capabilities = screen.getByRole("region", { name: "Answer the questions every design review asks." });
     expect(within(capabilities).getAllByRole("heading", { level: 3 })).toHaveLength(6);
   });
@@ -155,7 +164,7 @@ describe("SiteHome", () => {
     expect(section).toHaveTextContent("ArchSim was calibrated at low load, predicted where each would break");
     expect(within(section).getByRole("table")).toHaveTextContent("5 held out");
     expect(section).toHaveTextContent("level with plain bottleneck arithmetic on the same calibration (median error 16.5% against 16.2%)");
-    expect(section).toHaveTextContent("Results are estimates, not production guarantees.");
+    expect(section).toHaveTextContent("Results are hypotheses to test, not production guarantees.");
     expect(within(section).getByRole("link", { name: /accuracy report/i })).toHaveAttribute("href", "/accuracy/");
   });
 
@@ -176,13 +185,13 @@ describe("SiteHome", () => {
     expect(quick.querySelector("pre")?.textContent).toBe(props.quickStart.commands);
     expect(within(quick).getByRole("button", { name: /copy/i })).toBeInTheDocument();
     expect(quick).toHaveTextContent("Open http://localhost:3000 and press Simulate.");
-    for (const name of ["Command line", "MCP server", "CI gate", "Import and export"]) expect(within(quick).getByRole("link", { name })).toBeInTheDocument();
+    for (const name of ["Command line", "MCP server", "CI check", "Import and export"]) expect(within(quick).getByRole("link", { name })).toBeInTheDocument();
   });
 
   it("ends with one call to action", () => {
     render(<SiteHome {...props} demoUrl="https://app.archsim.io/" />);
 
-    const last = screen.getByRole("region", { name: "Make better architecture decisions before production." });
+    const last = screen.getByRole("region", { name: "Challenge your assumptions before you build." });
     expect(
       within(last)
         .getAllByRole("link")

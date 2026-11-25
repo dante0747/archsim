@@ -51,6 +51,16 @@ describe("the app's home page", () => {
     expect(container.textContent).not.toMatch(/runs on your machine|leave your machine|no telemetry/i);
   });
 
+  it("presents what a run finds as hypotheses to test, never a straight yes or no", () => {
+    auth.state = { ...auth.state, status: "ready", config: config("none") };
+
+    const { container } = render(<ProjectsHome privacyUrl={null} />);
+
+    expect(container).toHaveTextContent("ArchSim is an architecture experimentation tool for distributed systems.");
+    expect(container).toHaveTextContent("hypotheses to test");
+    expect(container.textContent).not.toMatch(/yes or no|straight answer|ship the one/i);
+  });
+
   it("links to the server's privacy notice in the footer when the server names one", () => {
     auth.state = { ...auth.state, status: "signed-out", config: config("oauth") };
 

@@ -89,7 +89,12 @@ function ResultsVignette() {
 const STEPS = [
   { n: "1", title: "Design", text: "Drag in real technologies (PostgreSQL, Redis, Kafka, Kubernetes services, mobile and web clients) and connect them.", visual: <DesignVignette /> },
   { n: "2", title: "Test", text: "Send traffic, inject outages and slowdowns, and replay every second like a flight recorder.", visual: <TestVignette /> },
-  { n: "3", title: "Decide", text: "Get a straight yes or no against your objectives, the bottleneck, the breaking point and the monthly bill.", visual: <ResultsVignette /> },
+  {
+    n: "3",
+    title: "Learn",
+    text: "See how it fares against your objectives: the bottleneck, the breaking point and the monthly bill, as hypotheses to test in a prototype or a load test.",
+    visual: <ResultsVignette />,
+  },
 ];
 
 export function HowItWorks() {

@@ -32,6 +32,14 @@ describe("the home page's descriptions", () => {
     expect(SITE_SUMMARY.length).toBeGreaterThan(SITE_DESCRIPTION.length);
     expect(SITE_SUMMARY).toMatch(/^Crash-test your architecture before your users do\./);
   });
+
+  it("present ArchSim as an experimentation tool whose results are hypotheses to test, not a yes or no", () => {
+    for (const text of [SITE_DESCRIPTION, SITE_SUMMARY]) {
+      expect(text).toMatch(/experimentation tool/);
+      expect(text).toMatch(/hypotheses to test/);
+      expect(text).not.toMatch(/yes or no|verdict|gate/i);
+    }
+  });
 });
 
 describe("sitemapXml", () => {
