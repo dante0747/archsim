@@ -161,6 +161,13 @@ for when that version changes.
 
 ### Fixed
 
+- **A Kubernetes service's pods follow the autoscaler in a replay.** In a design without a
+  Kubernetes cluster part, such as the Black Friday template, a service on the Kubernetes platform
+  kept the pods it starts with all run long: the Checkout API showed 3 pods while the autoscaler
+  took it to 10. A run records pods only for a service on a cluster part, and the card did not
+  fall back to the replicas the run recorded for every autoscaled service. Now it does, so the
+  pods grow and shrink with the autoscaler. An autoscaled service's card also shows its range,
+  "Autoscaling 3–14 replicas", where it showed the replicas it starts with as if they were fixed.
 - **The import report and guide say what the autoscaler reads.** They said ArchSim scales on CPU
   only. It scales on the share of busy workers or, when the replica has a CPU size, the share of
   its CPU in use, whichever is higher. Memory and custom metrics, and a CPU target given as an
