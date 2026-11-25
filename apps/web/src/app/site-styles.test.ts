@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * The website's stylesheet (ADR-0098): Tailwind builds it from the files the website renders, not
+ * The website's stylesheet (ADR-0100): Tailwind builds it from the files the website renders, not
  * from the whole app, and React Flow's styles stay with the app's editor, so each page of
  * archsim.io waits for less CSS before it paints. Each stylesheet the site imports is compiled the
  * way the build compiles it (@tailwindcss/turbopack): Tailwind's compiler, then its scanner over

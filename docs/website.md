@@ -28,7 +28,7 @@ the document, and both GitHub and the site follow them. A link to archsim.io its
 on the site, so a reader stays at whichever of the two addresses they opened.
 
 The site has a stylesheet of its own, `apps/web/src/app/site.css`
-([ADR-0098](adr/0098-give-the-website-a-stylesheet-of-its-own-built-from-the-files-it-renders.md)):
+([ADR-0100](adr/0100-give-the-website-a-stylesheet-of-its-own-built-from-the-files-it-renders.md)):
 the app's design system (`theme.css`, which the app's `globals.css` imports too), with Tailwind
 reading classes only from the files the site renders, and none of React Flow's styles. When a site
 page starts using another of the app's components, add the component to the `@source` list in

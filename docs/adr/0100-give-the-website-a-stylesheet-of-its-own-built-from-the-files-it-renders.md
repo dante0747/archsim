@@ -4,7 +4,7 @@ date: 2026-11-25
 decision-makers: Majid Abarghooei (owner)
 ---
 
-# 0098. Give the website a stylesheet of its own, built from the files it renders
+# 0100. Give the website a stylesheet of its own, built from the files it renders
 
 ## Context and Problem Statement
 
@@ -103,5 +103,6 @@ Measured with Lighthouse 13.6.0 on the mobile profile with DevTools throttling, 
 locally with gzip as GitHub Pages serves it: seven runs of each page, before and after alternated,
 and the median of each. On the measuring machine a security product's web filter handed Chrome the
 files uncompressed (Lighthouse reported transfer sizes equal to the raw sizes), so the throttled
-network carried the raw bytes, before and after alike; on GitHub Pages the stylesheet travels
-gzipped. How the site is built: [the website's guide](../website.md).
+network carried the raw bytes, before and after alike; GitHub Pages and Cloudflare Pages
+([ADR-0098](0098-serve-the-website-at-a-second-address-from-cloudflare-pages.md)) send the
+stylesheet compressed. How the site is built: [the website's guide](../website.md).

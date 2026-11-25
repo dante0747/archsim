@@ -1,6 +1,6 @@
 /**
  * The public website's root layout (ADR-0078; only `npm run build:site` sees *.site.tsx files).
- * The app's look from a stylesheet of the site's own (site.css, ADR-0098) and the app's theme
+ * The app's look from a stylesheet of the site's own (site.css, ADR-0100) and the app's theme
  * script, Geist served from the site itself, a content security policy that keeps every request on
  * the site's origin, and the site's header and footer.
  */
