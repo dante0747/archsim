@@ -138,4 +138,4 @@ what the repository shows.
 | [0094](0094-fit-the-knees-range-on-every-experiment-the-engine-is-tuned-on-with-an-error-each-experiment-shares.md) | Fit the knee's range on every experiment the engine is tuned on, with an error each experiment shares | Accepted | 2026-11-20 |
 | [0095](0095-run-the-benchmark-designs-on-the-laptops-fitted-host-machine-and-let-a-freeze-name-it.md) | Run the benchmark designs on the laptop's fitted host machine and let a freeze name it | Accepted | 2026-11-20 |
 | [0096](0096-read-the-simulation-paritys-runs-as-the-frozen-engines-where-the-engine-changed-on-purpose.md) | Read the simulation parity's runs as the frozen engine's where the engine changed on purpose | Accepted | 2026-11-20 |
-| [0097](0097-give-the-websites-home-page-its-own-narrative-and-take-its-facts-from-the-repository.md) | Give the website's home page its own narrative, and take its facts from the repository | Proposed | 2026-11-25 |
+| [0097](0097-give-the-websites-home-page-its-own-narrative-and-take-its-facts-from-the-repository.md) | Give the website's home page its own narrative, and take its facts from the repository | Accepted | 2026-11-25 |

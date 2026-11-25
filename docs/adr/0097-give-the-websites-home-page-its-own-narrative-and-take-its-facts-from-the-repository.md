@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-11-25
 decision-makers: Majid Abarghooei (owner)
 ---
@@ -53,9 +53,10 @@ facts and let them drift.
   latency criteria, why nothing is validated yet) and the caveat. A home page that counted its own
   figures from `src/data/accuracy.json` showed only the favourable ones and mixed latest runs with
   the README's medians; the full figures stay on `/accuracy`. A missing section, screenshot,
-  rendition or technology fails the build, naming it. The site no longer reads the README's "Why
-  ArchSim", "How it works", "Contributing" and "License" sections; the footer links the license,
-  the contributor agreement and the contributing guide instead of repeating them.
+  rendition or technology fails the build, naming it. The site no longer shows the README's "Why
+  ArchSim", "How it works" and "Contributing" sections or its license text (from "License" it
+  reads only the commercial license's contact); the footer links the license, the contributor
+  agreement and the contributing guide instead of repeating them.
 - **Real screens.** The capture run (`npm run e2e:capture`) shoots at two device pixels per CSS
   pixel and also writes the website's renditions of four of the README's screenshots as WebP under
   `docs/images/site/`: each screen at 960, 1,440 and 1,920 pixels, and for three of them a crop
@@ -67,16 +68,17 @@ facts and let them drift.
   app's projects home still does.
 - **One system.** `src/app/site.css` adds the site's type scale, measure and spacing to the app's
   tokens; `Cta` and `CtaGroup` are its only buttons: one primary and at most one secondary, 48
-  pixels tall, stacked at full width on a phone and side by side from 640 pixels.
+  pixels tall (40 in the header, with a 44-pixel target), stacked at full width on a phone and
+  side by side from 640 pixels.
 
 ### Consequences
 
 - Good, because the page says what ArchSim does in one sentence under the headline, has one
-  primary action, and is about 60% shorter in words (about 1,940 before, about 750 after).
+  primary action, and is 56 to 58% shorter in words (about 1,940 before, 822 to 856 after).
 - Good, because the screens are real, sharp and readable on a phone, where the replay was
   illustrative and shrank to unreadable.
-- Good, because the page sends less JavaScript (the replay's 30-frames-a-second loop and the icon
-  library are gone) and axe-core finds no violations where it found three.
+- Good, because the page sends less JavaScript (the replay's 30-frames-a-second loop and the logo
+  marquee, drawn in the browser, are gone) and axe-core finds no violations where it found three.
 - Bad, because the narrative can drift from the product as features change; the page keeps numbers
   out of it, and a change to what ArchSim does should look at `SiteHome.tsx` as well as the README.
 - Bad, because about 0.9 MB of WebP renditions live in the repository and must be recaptured when
