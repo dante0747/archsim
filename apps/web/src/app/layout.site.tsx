@@ -3,14 +3,13 @@
  * The app's look and theme script, Geist served from the site itself, a content security policy
  * that keeps every request on the site's origin, and the site's header and footer.
  */
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { repository } from "@/lib/site/content";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_SUMMARY, SITE_URL, contentSecurityPolicy, demoUrl, pageMetadata } from "@/lib/site/site";
-import { THEME_COLORS, THEME_SCRIPT } from "@/lib/theme-script";
+import { THEME_COLOR_SCRIPT, THEME_SCRIPT } from "@/lib/theme-script";
 import "./globals.css";
 import "./site.css";
 
@@ -33,20 +32,22 @@ export const metadata: Metadata = {
   formatDetection: { telephone: false },
 };
 
-// The site is dark unless light was chosen, whatever the operating system prefers: the bar starts
-// dark, and the theme script and the theme picker give it the colour of the theme shown.
-export const viewport: Viewport = { themeColor: THEME_COLORS.dark };
+// The site is dark unless light was chosen, whatever the operating system prefers. The browser bar
+// takes the colour of the theme shown: the theme script adds its theme-color tag (THEME_COLOR_SCRIPT)
+// and the theme picker keeps it in step.
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${mono.variable} antialiased`}>
+    // Dark in the HTML itself, the site's default: a page that paints before any script runs paints
+    // dark. The theme script, the body's first element, runs before anything in the body is drawn,
+    // turns the page light for whoever chose light, and adds its theme-color tag after everything
+    // Next.js writes in the head. As next/script it would wait until Next.js's own scripts load.
+    <html lang="en" suppressHydrationWarning className={`dark ${geistSans.variable} ${mono.variable} antialiased`}>
       <head>
         <meta httpEquiv="Content-Security-Policy" content={contentSecurityPolicy(process.env.NODE_ENV === "development")} />
       </head>
       <body className="min-h-full">
-        <Script id="archsim-theme" strategy="beforeInteractive">
-          {THEME_SCRIPT}
-        </Script>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT + THEME_COLOR_SCRIPT }} />
         <a
           href="#main"
           className="sr-only z-50 rounded-lg bg-surface px-4 py-2 text-[14px] font-semibold text-ink shadow-float focus:not-sr-only focus:fixed focus:left-4 focus:top-3"
