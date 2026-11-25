@@ -155,8 +155,9 @@ export function ProjectsHome({ privacyUrl }: { privacyUrl: string | null }) {
             <span className="text-gradient">before your users do.</span>
           </h1>
           <p className="mx-auto mt-7 max-w-2xl text-[17px] leading-[1.6] text-ink-2 sm:text-lg">
-            ArchSim is a flight simulator for distributed systems. Draw your stack with real technologies, throw traffic and failures at it, and get a
-            straight yes or no, with the monthly bill.
+            ArchSim is an architecture experimentation tool for distributed systems. Draw your stack with real technologies, throw traffic and
+            failures at it, and see how each alternative fares against your objectives: the bottleneck, the breaking point and the monthly bill, as
+            hypotheses to test before you build.
           </p>
           <div className="mt-9 flex flex-wrap justify-center gap-3">
             {starter && (
@@ -260,7 +261,7 @@ export function ProjectsHome({ privacyUrl }: { privacyUrl: string | null }) {
             <Reveal className="max-w-2xl">
               <p className="text-[13px] font-semibold text-accent">How it works</p>
               <h2 id="how-heading" className="mt-3 font-display text-[36px] font-semibold leading-[1.05] tracking-[-0.04em] text-ink sm:text-[48px]">
-                Sketch it. Shake it. Ship the one that holds.
+                Sketch it. Shake it. Learn what to test.
               </h2>
             </Reveal>
             <div className="mt-12">
@@ -275,7 +276,7 @@ export function ProjectsHome({ privacyUrl }: { privacyUrl: string | null }) {
             <Reveal className="max-w-2xl">
               <p className="text-[13px] font-semibold text-accent">Features</p>
               <h2 id="features-heading" className="mt-3 font-display text-[36px] font-semibold leading-[1.05] tracking-[-0.04em] text-ink sm:text-[48px]">
-                Everything a design review argues about, measured
+                Everything a design review argues about, simulated
               </h2>
             </Reveal>
             <div className="mt-12">

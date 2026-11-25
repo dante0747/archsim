@@ -12,7 +12,7 @@ const feature = (name: string, title: string): Feature => ({
 const features: Feature[] = [
   feature("build", "Design with real technologies"),
   feature("editor-results", "Test with traffic and failures"),
-  feature("scorecard", "Get a straight answer"),
+  feature("scorecard", "Get an answer to test"),
   feature("tradeoffs", "Compare the options"),
   feature("traces", "Follow single requests"),
 ];
@@ -27,7 +27,7 @@ describe("productViews", () => {
     expect(views.hero).toMatchObject({ name: "editor-results", title: "Test with traffic and failures", alt: "The editor-results screen", caption: "What editor-results shows." });
     expect(views.showcase.map((v) => [v.tab, v.name, v.title])).toEqual([
       ["Design", "build", "Design with real technologies"],
-      ["Results", "scorecard", "Get a straight answer"],
+      ["Results", "scorecard", "Get an answer to test"],
       ["Compare", "tradeoffs", "Compare the options"],
     ]);
   });

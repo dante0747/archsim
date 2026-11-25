@@ -21,7 +21,7 @@ Everything about using, running, trusting and changing ArchSim. New here? Start 
 | [Calibration](calibration.md) | Setting a design's inputs from Prometheus metrics or OpenTelemetry traces |
 | [Importing a design](import.md) | Starting from docker-compose, Kubernetes manifests or a Terraform plan |
 | [Prices and machine shapes](pricing.md) | Real instance types and price snapshots behind every cost line |
-| [An SLO gate in CI](ci.md) | `archsim check` and the GitHub Action that comments on pull requests |
+| [Checking designs in CI](ci.md) | `archsim check` and the GitHub Action that comments on pull requests, run as a warning |
 | [AI agents](agents.md) | The MCP server for coding agents and the WebMCP tools in the browser |
 | [Performance](performance.md) | How fast the engine answers, and the sampled mode for long runs |
 

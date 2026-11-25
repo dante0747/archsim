@@ -127,6 +127,14 @@ describe("AccuracyPage", () => {
     expect(hero.textContent).toMatch(/small synthetic services/);
   });
 
+  it("says near the top that the predictions are calibrated models', and how they compare with bottleneck arithmetic", () => {
+    const { container } = render(<AccuracyPage data={accuracy} />);
+
+    const hero = container.querySelector("main > section") as HTMLElement;
+    expect(hero.textContent).toMatch(/calibrate ArchSim on each at low load/);
+    expect(hero.textContent).toMatch(/about as close as plain bottleneck arithmetic on the same calibration/);
+  });
+
   it("says the benchmarks rerun by hand while the workflow's schedule is off", () => {
     // vitest runs in apps/web: the workflow is two levels up
     const workflow = readFileSync(resolve(process.cwd(), "../..", BENCHMARK_WORKFLOW), "utf8");

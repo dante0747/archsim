@@ -6,16 +6,18 @@ design from wherever you are, and results land on the canvas right away. A short
 on the first visit (and from the ⋯ menu), and a hint on the canvas says what to do next, for
 example adding API servers behind a lone Clients box.
 
-> **Results are estimates, not production guarantees.** Every number comes from the model you
-> drew and the assumptions you entered. Without calibration against real telemetry, trust
-> comparisons between scenarios more than any single absolute value. See
-> [the simulation model](simulation-model.md) and [how accurate ArchSim is](validation.md).
+> **Results are hypotheses to test, not production guarantees.** Every number comes from the model
+> you drew and the assumptions you entered. Use them to explore alternatives, challenge
+> assumptions and decide what to prototype or load-test, not as sign-off, audit evidence or a
+> deployment gate. Without calibration against real telemetry, trust comparisons between scenarios
+> more than any single absolute value. See [the simulation model](simulation-model.md) and
+> [how accurate ArchSim is](validation.md).
 
 - [Design: draw it with real technologies](#design-draw-it-with-real-technologies)
 - [Test: traffic, failures and replay](#test-traffic-failures-and-replay)
 - [Results: answer, compare, breaking point, details](#results-answer-compare-breaking-point-details)
 - [Dashboard: a Grafana-style view of every run](#dashboard-a-grafana-style-view-of-every-run)
-- [Bring your own system: calibrate, import, price, gate](#bring-your-own-system-calibrate-import-price-gate)
+- [Bring your own system: calibrate, import, price, check](#bring-your-own-system-calibrate-import-price-check)
 - [AI agents](#ai-agents)
 - [Teams, review and sharing](#teams-review-and-sharing)
 - [Everywhere](#everywhere)
@@ -111,8 +113,8 @@ StatefulSets) or Mermaid, as reviewed starting points.
   component's utilization, queue and traffic at that second. The timeline below stays short:
   play, the time, speed, the traffic plan, events, latency against the objective and failures;
   "More detail" adds throughput and a heat lane per component.
-- **A verdict for every test** against its objectives (what must stay true), including what
-  happened during each failure.
+- **Every test checked** against its objectives (what must stay true), including what happened
+  during each failure.
 
 ## Results: answer, compare, breaking point, details
 
@@ -159,7 +161,7 @@ failures) through every hop, wait, lock, log flush and GC pause on a waterfall.
   data" (table and CSV) per panel, and Replay at 1x/4x/10x that draws the run live, shared with the
   Test workspace. Each panel's info popover says how its value is calculated.
 
-## Bring your own system: calibrate, import, price, gate
+## Bring your own system: calibrate, import, price, check
 
 - **Calibrate from your telemetry.** Prometheus metrics (with a mapping file) or an OpenTelemetry
   trace export set service times, hit ratios, link latency and the traffic curve; each input is
@@ -179,9 +181,10 @@ failures) through every hop, wait, lock, log flush and GC pause on a waterfall.
   refreshed monthly; templates and new projects use them, and every dollar figure names its source.
   Designs saved without a snapshot keep the generic illustrative rates. See
   [pricing.md](pricing.md).
-- **An SLO gate in CI.** `archsim check` fails a pull request when a design misses its objectives
-  or regresses against the base branch (p95, success rate, cost, breaking point), and a GitHub
-  Action posts one sticky comment with the comparison. See [ci.md](ci.md).
+- **Design checks in CI.** `archsim check` simulates a design in a pull request and flags it when
+  it misses its objectives or regresses against the base branch (p95, success rate, cost,
+  breaking point), and a GitHub Action posts one sticky comment with the comparison. Run it as a
+  warning to read, not as a gate ([ci.md](ci.md#run-it-as-a-warning)).
 
 ## AI agents
 
@@ -202,7 +205,9 @@ Locally there is no sign-in: you are the owner of one `default` workspace. With 
 ([deployment.md](deployment.md#sign-in-teams-and-api-tokens)), people sign in with GitHub or
 Google, work in personal and team workspaces as viewers, editors or owners, and make API tokens for
 the CLI, CI and MCP. Anyone in a workspace can comment on parts, links and runs, resolve threads and
-sign off a run; every change is recorded in the project's history. A share link is a frozen,
+review a run (approve it or request changes, with a note); every change is recorded in the
+project's history. A review records what the team concluded from a simulated run under its
+assumptions, not evidence that the running system meets its objectives. A share link is a frozen,
 read-only copy of one run's results that anyone with the link can open. The endpoints are in
 [api.md](api.md).
 

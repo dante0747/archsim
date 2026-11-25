@@ -37,7 +37,7 @@ describe("the landing page's figures", () => {
     expect(landing.objectives).toEqual(template.objectives);
   });
 
-  it("show the run's throughput, p95 and monthly bill in Decide", () => {
+  it("show the run's throughput, p95 and monthly bill in Learn", () => {
     render(<HowItWorks />);
 
     expect(screen.getByText(`${Math.round(landing.throughputRps)}/s`)).toBeInTheDocument();

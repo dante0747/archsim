@@ -116,7 +116,7 @@ function story(t: number, f: Frame): { text: string; tone: "ok" | "bad" | "warn"
   if (t < OUTAGE[0] + 6) return { text: "Every read now goes from the API to PostgreSQL · it saturates", tone: "bad" };
   if (t < OUTAGE[1]) return { text: "The autoscaler adds 2 API replicas · the database is still the bottleneck", tone: "bad" };
   if (t < OUTAGE[1] + 6) return { text: "Cache back · queues draining", tone: "warn" };
-  return { text: "Recovered · verdict: give the database a fallback or replicas", tone: "ok" };
+  return { text: "Recovered · to test next: a database fallback or replicas", tone: "ok" };
 }
 
 /** Scale the fixed-size stage to the width of its container. */

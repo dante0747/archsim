@@ -8,10 +8,10 @@ export const SITE_URL = "https://archsim.io";
 export const SITE_NAME = "ArchSim";
 /** The home page in a search result: at most about 155 characters, so it is not cut off. */
 export const SITE_DESCRIPTION =
-  "Crash-test your architecture before your users do: an open-source simulator that finds bottlenecks and compares design decisions, with their monthly cost.";
+  "Crash-test your architecture before your users do: an open-source experimentation tool that finds bottlenecks and compares designs, as hypotheses to test.";
 /** The home page in a link preview, which has room for the longer pitch. */
 export const SITE_SUMMARY =
-  "Crash-test your architecture before your users do. ArchSim simulates distributed systems so you can uncover bottlenecks, rehearse failures and compare architectural decisions, with their monthly cost, before writing production code.";
+  "Crash-test your architecture before your users do. ArchSim, an open-source architecture experimentation tool, simulates distributed systems so you can uncover bottlenecks, rehearse failures and compare designs, with their monthly cost, as hypotheses to test before writing production code.";
 
 /**
  * The site's content security policy, as a meta tag (GitHub Pages sends no headers): everything

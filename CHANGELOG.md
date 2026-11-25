@@ -19,6 +19,17 @@ for when that version changes.
 
 ### Changed
 
+- **The README, archsim.io, the app's home page and the docs present ArchSim as an architecture
+  experimentation tool
+  ([ADR-0099](docs/adr/0099-present-results-as-hypotheses-to-test-not-verdicts-or-gates.md),
+  proposed).** A result is a hypothesis to test under the assumptions stated, not a straight yes or
+  no, sign-off, audit evidence or a deployment gate. On archsim.io the story ends in "Learn what to
+  test" and "Challenge your assumptions before you build.", and the CI way in is a check, "a warning
+  to read, not a gate"; the accuracy section, the README's statement, now says the figures are for
+  calibrated models, and `/accuracy` says how its predictions compare with bottleneck arithmetic.
+  `docs/ci.md`, now "Checking designs in CI", recommends running `archsim check` as a warning
+  (`continue-on-error: true`), not as a required check. The copy alone changes: the check, the
+  reviews of runs and the results' words work as before.
 - **archsim.io's home page is redesigned
   ([ADR-0097](docs/adr/0097-give-the-websites-home-page-its-own-narrative-and-take-its-facts-from-the-repository.md)).**
   One story, about 60% shorter: what ArchSim does and one call to action, "Try ArchSim", then the
