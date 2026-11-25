@@ -1,10 +1,11 @@
 /**
  * Applies the saved theme (dark by default) before first paint to avoid a flash; it sets the dark
- * class or takes it away, so a page whose HTML starts dark (the website's) turns light at once.
- * The app's layout and the public website's (ADR-0078) both run it; the choice is the theme
- * picker's (components/ui/theme-toggle.tsx), stored in this browser only. Where the page has a
- * theme-color meta tag (the website's), the browser bar takes the colour of the theme shown, not
- * the operating system's preference: the site is dark unless light was chosen.
+ * class or takes it away, so a page whose HTML starts dark, as every page's does, turns light at
+ * once. The app's layout and the public website's (ADR-0078) both run it inline as the body's
+ * first element, never as next/script, which would hold it back until Next.js's own scripts load.
+ * The choice is the theme picker's (components/ui/theme-toggle.tsx), stored in this browser only.
+ * Where the page has a theme-color meta tag (the website's), the browser bar takes the colour of
+ * the theme shown, not the operating system's preference: the site is dark unless light was chosen.
  */
 
 /** The browser bar's colour in each theme: the page's background (globals.css, --page). */

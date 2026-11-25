@@ -26,6 +26,10 @@ for when that version changes.
 - **archsim.io no longer flashes light before turning dark.** Its HTML starts dark and the theme
   script runs as the page is read, not once Next.js's scripts load; the browser bar gets one
   theme-color tag in either theme.
+- **The app no longer flashes light before turning dark either.** Its HTML starts dark as well,
+  and the theme script runs as the page is read, not once Next.js's scripts load: on a slow
+  connection the projects home, the editor and the account pages no longer show the light theme
+  first and then animate to dark.
 - **The second held-out campaign is published
   ([ADR-0090](docs/adr/0090-register-a-second-held-out-set-before-the-next-model-change.md)).**
   The frozen engine 1.6.0 predicted all fourteen experiments before they were measured, three
