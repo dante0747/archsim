@@ -815,7 +815,7 @@ at most 15% (or no fit error recorded), or documented.
 - **Medium:** otherwise.
 
 The web app shows the badge and the reason next to every verdict, the Markdown report and
-`archsim run` print them, the CI gate's comment carries them, and the MCP tools return them.
+`archsim run` print them, the CI check's comment carries them, and the MCP tools return them.
 Confidence is not part of `resultDigest`.
 
 ## Instant estimate (`estimate`)

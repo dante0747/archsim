@@ -7,9 +7,10 @@
 <h3 align="center">Crash-test your architecture before your users do.</h3>
 
 <p align="center">
-  A flight simulator for distributed systems. Draw your stack with real technologies, throw traffic
-  and failures at it, and get a straight yes or no against your objectives, with the bottleneck,
-  the breaking point and the monthly bill.
+  An architecture experimentation tool for distributed systems. Draw your stack with real
+  technologies, throw traffic and failures at it, and see how each alternative fares against your
+  objectives: the bottleneck, the breaking point and the monthly bill, as hypotheses to test before
+  you build.
 </p>
 
 <p align="center">
@@ -31,7 +32,7 @@
 <p align="center">
   <img src="docs/images/cache-outage.gif" alt="Demo: the cache-aside starter (clients, load balancer, API servers, Redis, PostgreSQL) is opened from the templates gallery and the Lose Redis Cache chaos pad is pressed, which simulates the outage; the replay shows the API servers saturating while every read goes to PostgreSQL, the test plan says Didn't hold up, and the answer is No, it doesn't hold up" width="800">
   <br>
-  <sub>Losing Redis on the cache-aside starter: press a chaos pad and the verdict flips within seconds.</sub>
+  <sub>Losing Redis on the cache-aside starter: press a chaos pad and the simulated answer flips within seconds.</sub>
 </p>
 
 ## Why ArchSim
@@ -43,9 +44,10 @@
 - **Every request, every second.** A discrete-event engine moves each request through every hop,
   queue, lock and retry, then replays the run second by second on your diagram. Same document and
   seed, same result, down to the digest.
-- **A straight answer.** Yes or no against your latency and availability objectives, the
-  bottleneck, what to fix first, the highest load that still holds, and the monthly cost on real
-  AWS instance types.
+- **Hypotheses to test.** Whether a design meets your latency and availability objectives under
+  the assumptions you state, the likely bottleneck, what to try first, the highest load that still
+  meets them and the monthly cost on real AWS instance types: what to check with a prototype or a
+  load test, not production sign-off.
 - **Honest about what it knows.** Every default says whether it is documented or illustrative,
   calibration replaces them with values measured by Prometheus or OpenTelemetry, and the accuracy
   report publishes predictions against real systems, misses included.
@@ -60,7 +62,7 @@
 <td width="50%" valign="top"><img src="docs/images/editor-results.jpg" alt="Test workspace: a Kubernetes checkout service scaled to 3 pods mid-ramp, live request rates on the links, and a timeline of traffic, events, latency and failures beside a test plan that did not hold up" width="380"><br><b>Test with traffic and failures</b><br>Ramp the load, drop a cache, slow a database, then scrub the replay to any second.</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><img src="docs/images/scorecard.jpg" alt="Results Answer tab: No, it doesn't hold up, with p95 561 ms against a 500 ms objective, availability 98.8% against 99.5%, the primary bottleneck, a confidence note and the monthly cost" width="380"><br><b>Get a straight answer</b><br>The verdict, the objective that failed, the bottleneck, what to fix first and the bill.</td>
+<td width="50%" valign="top"><img src="docs/images/scorecard.jpg" alt="Results Answer tab: No, it doesn't hold up, with p95 561 ms against a 500 ms objective, availability 98.8% against 99.5%, the primary bottleneck, a confidence note and the monthly cost" width="380"><br><b>Get an answer to test</b><br>How it fares under your assumptions: the objective that failed, the likely bottleneck, what to try first and the bill.</td>
 <td width="50%" valign="top"><img src="docs/images/tradeoffs.jpg" alt="Results Compare tab: monthly cost plotted against p95 latency for every Black Friday run, from 3 fixed pods at $827 a month to 14 fixed pods at $1,434, the only run that meets the objectives; the autoscaler costs $844 and misses the 500 ms p95 objective line, and a table of the runs follows" width="380"><br><b>Compare the options</b><br>Every scenario on a cost-against-latency map, then a load sweep to find where it breaks.</td>
 </tr>
 <tr>
@@ -78,10 +80,12 @@ And beyond the canvas:
 - **Calibrate** a design from Prometheus metrics or OpenTelemetry traces ([calibration](docs/calibration.md)).
 - **Import** docker-compose, Kubernetes manifests or a Terraform plan, and **export** compose,
   Kubernetes or Mermaid ([import](docs/import.md)).
-- **Gate pull requests** on your objectives with `archsim check` and a GitHub Action ([CI](docs/ci.md)).
+- **Check designs in pull requests** with `archsim check` and a GitHub Action that comments on how
+  a change fares against your objectives and the base branch, as a warning to read rather than a
+  gate ([CI](docs/ci.md)).
 - **Let AI agents drive it** through the MCP server or WebMCP in the browser ([agents](docs/agents.md)).
-- **Work as a team** with GitHub or Google sign-in, workspaces, comments, sign-offs and share links
-  ([deployment](docs/deployment.md)).
+- **Work as a team** with GitHub or Google sign-in, workspaces, comments, reviews of runs and share
+  links ([deployment](docs/deployment.md)).
 
 Every workspace and technology behaviour is described in [docs/features.md](docs/features.md).
 
@@ -172,13 +176,17 @@ These are three runs per experiment on one laptop with engine 1.6.0 (two counted
 third was disturbed). On a typical held-out run ArchSim is level with plain bottleneck arithmetic
 on the same calibration (median error 16.5% against 16.2%). Its advantage is the worst case: −27%
 against +79%. Only one of the five held-out experiments also meets the latency and stability
-criteria, and no technology counts as validated yet: that needs a second machine.
+criteria, and no technology counts as validated yet: that needs a second machine. These figures
+are for models calibrated on the stack they predict; a design on ArchSim's illustrative defaults
+has not been checked this way.
 [docs/validation.md](docs/validation.md) shows every run, where the model is wrong and why,
 and [how to rerun the benchmarks](docs/validation.md#reproduce) on your own machine.
 
-> **Results are estimates, not production guarantees.** Every number comes from the model you drew
-> and the assumptions you entered. Without calibration, trust comparisons between scenarios more
-> than any single absolute value. What is and isn't modeled: [docs/simulation-model.md](docs/simulation-model.md).
+> **Results are hypotheses to test, not production guarantees.** Every number comes from the model
+> you drew and the assumptions you entered. Use them to explore alternatives, challenge
+> assumptions and decide what to prototype or load-test, not as sign-off, audit evidence or a
+> deployment gate. Without calibration, trust comparisons between scenarios more than any single
+> absolute value. What is and isn't modeled: [docs/simulation-model.md](docs/simulation-model.md).
 
 ## Documentation
 
@@ -188,7 +196,7 @@ and [how to rerun the benchmarks](docs/validation.md#reproduce) on your own mach
 | [Features](docs/features.md) | [Troubleshooting](docs/troubleshooting.md) | [Assumptions](docs/assumptions.md) |
 | [Calibration](docs/calibration.md) | [HTTP API](docs/api.md) | [Accuracy](docs/validation.md) |
 | [Import](docs/import.md) and [pricing](docs/pricing.md) | [Security](SECURITY.md) | [Architecture](docs/architecture.md) |
-| [CI gate](docs/ci.md) and [AI agents](docs/agents.md) | [Command line](archsim-cli/README.md) | [Decision records](docs/adr/README.md) |
+| [CI checks](docs/ci.md) and [AI agents](docs/agents.md) | [Command line](archsim-cli/README.md) | [Decision records](docs/adr/README.md) |
 
 Everything else is indexed in [docs/README.md](docs/README.md), and all of it is published at
 [archsim.io](https://archsim.io).

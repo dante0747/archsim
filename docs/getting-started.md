@@ -178,7 +178,7 @@ archsim check examples/cache-aside-starter.json --baseline-ref origin/main --fai
 tier without simulating. Untrusted documents are bounded: the wall-clock limit and cancellation
 hold inside the event loop, and a design whose one request would fan out into more than 10,000
 calls is rejected (`design.amplification`). Every command, flag and exit code is in
-[archsim-cli's README](../archsim-cli/README.md); the CI gate is in [ci.md](ci.md).
+[archsim-cli's README](../archsim-cli/README.md); checking designs in CI is in [ci.md](ci.md).
 
 ## The MCP server
 
