@@ -23,6 +23,14 @@ another document becomes a link to its page, an image under `docs/` is served by
 link to any other file goes to it on GitHub, at main. Write links as GitHub reads them, relative to
 the document, and both GitHub and the site follow them.
 
+The site has a stylesheet of its own, `apps/web/src/app/site.css`
+([ADR-0098](adr/0098-give-the-website-a-stylesheet-of-its-own-built-from-the-files-it-renders.md)):
+the app's design system (`theme.css`, which the app's `globals.css` imports too), with Tailwind
+reading classes only from the files the site renders, and none of React Flow's styles. When a site
+page starts using another of the app's components, add the component to the `@source` list in
+`site.css`; `src/app/site-styles.test.ts` fails until it is there, and when a listed file is no
+longer rendered.
+
 The home page reads the README's sections by their headings: "Features" (the screenshot table:
 each screen's title, caption and alt text), "Quick start" (what you need, the commands and the
 first sentence after them), "How accurate is it?" (the paragraph leading into the table, the table,

@@ -1,7 +1,8 @@
 /**
  * The public website's root layout (ADR-0078; only `npm run build:site` sees *.site.tsx files).
- * The app's look and theme script, Geist served from the site itself, a content security policy
- * that keeps every request on the site's origin, and the site's header and footer.
+ * The app's look from a stylesheet of the site's own (site.css, ADR-0098) and the app's theme
+ * script, Geist served from the site itself, a content security policy that keeps every request on
+ * the site's origin, and the site's header and footer.
  */
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -10,7 +11,6 @@ import { SiteHeader } from "@/components/site/SiteHeader";
 import { repository } from "@/lib/site/content";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_SUMMARY, SITE_URL, contentSecurityPolicy, demoUrl, pageMetadata } from "@/lib/site/site";
 import { THEME_COLOR_SCRIPT, THEME_SCRIPT } from "@/lib/theme-script";
-import "./globals.css";
 import "./site.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
