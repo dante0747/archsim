@@ -8,6 +8,17 @@ for when that version changes.
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-25
+
+Hyperthreads counted by default, the second held-out accuracy campaign, and results presented as
+hypotheses to test. Results change: the engine moves from 1.5.0 to 1.6.0. Its instant estimate
+changes for the same design and seed, and so does a run of a design whose vCPUs count as
+hyperthreads. Designs move to schema 1.11: older ones are upgraded when read and keep their
+results, unless an auto-sized part sets its own sibling speed, which is now sized for its
+hyperthreads. A new design, one started from a template included, counts a vCPU on most x86
+instances as a hyperthread, so it can show less capacity and a higher monthly cost (both under
+Changed).
+
 ### Added
 
 - **The website is also at [archsim.coderator.dev](https://archsim.coderator.dev)
@@ -136,11 +147,12 @@ for when that version changes.
   part's summary says how its vCPUs counted (`vcpus`: the speed, why and the words, outside the
   result digest), the report's model notes name the parts on the default and the pods (counted as
   whole cores, which is optimistic on an x86 node pool), and the editor's design overview shows
-  the design's sibling speed and clears it in one click. **A saved design keeps its results:** the
-  upgrade to 1.11 writes `architecture.siblingSpeed: 1` once and leaves its parts as they are, so
-  its runs and their result digests are what they were; clearing the setting puts it on the
-  default. The accuracy benchmarks' designs are written at schemas 1.0 and 1.7, so no simulated
-  knee moves. An API of 2 replicas (10 ms of CPU a request) and a PostgreSQL at 480 req/s,
+  the design's sibling speed and clears it in one click. **A saved design keeps its results,**
+  unless an auto-sized part in it sets its own `siblingSpeed` (the next entry): the upgrade to 1.11
+  writes `architecture.siblingSpeed: 1` once and leaves its parts as they are, so its runs and
+  their result digests are what they were; clearing the setting puts it on the default. The
+  accuracy benchmarks' designs are written at schemas 1.0 and 1.7, so no simulated knee moves. An
+  API of 2 replicas (10 ms of CPU a request) and a PostgreSQL at 480 req/s,
   auto-sized at schema 1.11: at generic prices each gets 8 vCPU where it got 4, the month costs
   $747 where it cost $374, and the API's CPU ceiling is 960 req/s where it was 800, its vCPUs 31%
   busy at the peak where they were 60%; with the price list limited to x86 families (c6i, m6i,
@@ -148,7 +160,15 @@ for when that version changes.
   was $509; on AWS unrestricted they keep c6g.xlarge and db.m6g.xlarge, whose vCPUs are whole
   cores, at $432. Sized by hand at 4 vCPU on c6i and db.m6i, the same design's API fills at 480
   req/s where it filled at 800, and its p95 at 480 req/s is 244 ms where it was 39 ms.
-
+- **A part that sets its own sibling speed is sized for its hyperthreads (engine 1.6.0).**
+  Auto-sizing slowed a part's work only on a design with a `host`, so a service, database or cache
+  that set `siblingSpeed` was sized as if its vCPUs were whole cores, and its run then had every
+  vCPU busy or past it. On a design without a host, such a part now needs its whole-core work over
+  its sibling speed, at the same 60% target: a service doing 2.4 cores' work at its peak at 0.6
+  gets 8 vCPU where it got 4, and runs its peak with 33% of them busy where 99% were. A part that
+  gets one vCPU on whole cores keeps it, and so does a part with one handler. The upgrade to schema
+  1.11 leaves a part's own speed as it is, so this changes an auto-sized part's size, cost, runs and
+  result digests in a saved design too.
 - **The templates start new designs on the default (schema 1.11).** The 25 templates are written at
   schema 1.11 without the upgrade's `architecture.siblingSpeed: 1`, since a design started from one
   is new. 24 keep their figures, 12 of them gaining the model note on pods. The .NET SaaS on SQL
@@ -198,7 +218,6 @@ for when that version changes.
   utilization falls with its speed (125% where it read 8094%), and with it the busy replicas an
   autoscaled part's cost counts before a run and the analysis's confidence, which weighs each part
   by it. Nothing a run simulates changes.
-
 - **The instant estimate counts a cache's commands as a run does (engine 1.5.2,
   [ADR-0092](docs/adr/0092-spread-a-caches-commands-over-its-shards-and-count-its-fills.md)).**
   A sharded cache's CPU was its whole load over one shard's cores, where each shard has its own;
@@ -530,7 +549,8 @@ cost, and publishes how accurate it is. Start with [Getting started](docs/gettin
 - Exports are scaffolding to review, not production configuration.
 - The editor is designed for desktop screens.
 
-[Unreleased]: https://github.com/dante0747/archsim/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/dante0747/archsim/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/dante0747/archsim/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/dante0747/archsim/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/dante0747/archsim/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/dante0747/archsim/compare/v1.0.0...v1.1.0
