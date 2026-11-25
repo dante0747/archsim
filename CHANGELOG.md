@@ -8,6 +8,15 @@ for when that version changes.
 
 ## [Unreleased]
 
+### Added
+
+- **The website is also at [archsim.coderator.dev](https://archsim.coderator.dev)
+  ([ADR-0098](docs/adr/0098-serve-the-website-at-a-second-address-from-cloudflare-pages.md)),** for
+  networks that block newly registered domains such as archsim.io. Cloudflare Pages serves the
+  files GitHub Pages serves, deployed by the same run; every page still names archsim.io as its
+  address for search engines, and a link in the docs to archsim.io itself keeps a reader at the
+  address they opened.
+
 ### Changed
 
 - **The README, archsim.io, the app's home page and the docs present ArchSim as an architecture

@@ -199,7 +199,8 @@ and [how to rerun the benchmarks](docs/validation.md#reproduce) on your own mach
 | [CI checks](docs/ci.md) and [AI agents](docs/agents.md) | [Command line](archsim-cli/README.md) | [Decision records](docs/adr/README.md) |
 
 Everything else is indexed in [docs/README.md](docs/README.md), and all of it is published at
-[archsim.io](https://archsim.io).
+[archsim.io](https://archsim.io), and at [archsim.coderator.dev](https://archsim.coderator.dev) for
+networks that block new domains.
 
 ## Contributing
 

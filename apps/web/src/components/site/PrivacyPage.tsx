@@ -32,8 +32,8 @@ export function PrivacyPage() {
       <h1 className="mt-5 font-display text-[40px] font-semibold leading-[1.05] tracking-[-0.04em] text-ink sm:text-[52px]">Privacy</h1>
       <p className="mt-5 text-[17px] leading-relaxed text-ink-2">
         What the demo at <a href="https://app.archsim.io" className="font-medium text-ink underline underline-offset-2">app.archsim.io</a> keeps about
-        you, where, and for how long. This website, archsim.io, keeps nothing: it is static pages served by GitHub Pages, with no analytics, no
-        cookies and no third-party scripts.
+        you, where, and for how long. This website keeps nothing: it is static pages, served at archsim.io by GitHub Pages and at
+        archsim.coderator.dev by Cloudflare Pages, with no analytics, no cookies and no third-party scripts.
       </p>
 
       <div className="doc-prose mt-10">
