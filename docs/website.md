@@ -2,7 +2,10 @@
 
 [archsim.io](https://archsim.io) is a static export of the web app, built from this repository on
 every change to main and served by GitHub Pages
-([ADR-0078](adr/0078-build-the-website-as-a-static-export-of-the-web-app.md)). Its facts are the
+([ADR-0078](adr/0078-build-the-website-as-a-static-export-of-the-web-app.md)). The same files are
+also served at [archsim.coderator.dev](https://archsim.coderator.dev), by Cloudflare Pages, for
+networks that block newly registered domains such as archsim.io
+([ADR-0098](adr/0098-serve-the-website-at-a-second-address-from-cloudflare-pages.md)). Its facts are the
 repository's: the home page tells its own short story, but every number, command, technology and
 screenshot on it is read from the repository at build time
 ([ADR-0097](adr/0097-give-the-websites-home-page-its-own-narrative-and-take-its-facts-from-the-repository.md)).
@@ -21,7 +24,8 @@ The site's pages are the files named `*.site.tsx` and `*.site.ts` under `apps/we
 build never sees them. The Markdown is rendered at build time (`apps/web/src/lib/site/`): a link to
 another document becomes a link to its page, an image under `docs/` is served by the site, and a
 link to any other file goes to it on GitHub, at main. Write links as GitHub reads them, relative to
-the document, and both GitHub and the site follow them.
+the document, and both GitHub and the site follow them. A link to archsim.io itself becomes a path
+on the site, so a reader stays at whichever of the two addresses they opened.
 
 The home page reads the README's sections by their headings: "Features" (the screenshot table:
 each screen's title, caption and alt text), "Quick start" (what you need, the commands and the
@@ -81,7 +85,9 @@ header, the phone's menu, the product tabs, the copy button and the images.
 - **Each page** has its title, a description, its canonical URL on archsim.io and a link preview
   (`apps/web/src/lib/site/site.ts`). A document's description is its first paragraph of prose, less
   a closing line that leads into a list with a colon, cut at about 155 characters; to change what a
-  search result says about a page, change that paragraph.
+  search result says about a page, change that paragraph. The pages at archsim.coderator.dev name
+  the same canonical URLs, so search engines read them as copies of archsim.io's, not as a second
+  site.
 - **Structured data** (schema.org JSON-LD, `apps/web/src/lib/site/structured-data.ts`): the home
   page describes ArchSim as free software at the version in `apps/web/package.json`, and each
   document is an article with the breadcrumbs that lead to it.
@@ -110,3 +116,20 @@ points `archsim.io` at GitHub Pages' addresses (A and AAAA records) and `www.arc
 `dante0747.github.io` (a CNAME record), as GitHub's
 [custom domain guide](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site)
 lists them.
+
+### The second address
+
+The workflow's `mirror` job hands the files it gave GitHub Pages to Cloudflare Pages, which serves
+them at archsim.coderator.dev. It deploys with Wrangler, at the exact version the workflow names,
+and is skipped until it is set up, once:
+
+1. In Cloudflare (the account that holds archsim.io's DNS), a Pages project named `archsim`,
+   created for direct upload, with `main` as its production branch.
+2. An API token that may edit Cloudflare Pages in that account and nothing else, as the secret
+   `CLOUDFLARE_API_TOKEN` of the repository's environment `cloudflare-pages` (Settings >
+   Environments), whose deployment branches are limited to `main`.
+3. The account's ID as the repository variable `CLOUDFLARE_ACCOUNT_ID`, which turns the job on.
+   A run by hand on main then deploys.
+4. The project's custom domain `archsim.coderator.dev`, and at coderator.dev's DNS a CNAME record
+   from `archsim` to the project's own address, `archsim.pages.dev`. Cloudflare issues the
+   certificate.

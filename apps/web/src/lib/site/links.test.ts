@@ -62,6 +62,13 @@ describe("resolveHref", () => {
     expect(resolveHref("docs/images/build.jpg", from("README.md"))).toBe("/docs-assets/images/build.jpg");
   });
 
+  it("turns a link to the site itself into a path, so the page works at each address the site is served at", () => {
+    expect(resolveHref("https://archsim.io", from("docs/website.md"))).toBe("/");
+    expect(resolveHref("https://archsim.io/docs/", from("docs/README.md"))).toBe("/docs/");
+    expect(resolveHref("https://archsim.io/docs/validation/#criteria", from("docs/README.md"))).toBe("/docs/validation/#criteria");
+    expect(resolveHref("https://app.archsim.io/", from("docs/getting-started.md"))).toBe("https://app.archsim.io/");
+  });
+
   it("leaves anchors and links that leave the repository alone", () => {
     for (const href of ["#reproduce", "https://adr.github.io/madr/", "mailto:someone@example.com", "http://localhost:3000"]) {
       expect(resolveHref(href, from("docs/README.md"))).toBe(href);

@@ -3,10 +3,12 @@
  * link to each other and to code by relative paths, as GitHub reads them; the site keeps those
  * links working: a document under docs/ becomes a page under /docs, CHANGELOG.md the changelog
  * page, an image under docs/ is served from /docs-assets, and any other file or folder links to
- * the repository on GitHub, at main.
+ * the repository on GitHub, at main. A link to the site itself becomes a path on it, since the site
+ * is served at more than one address (ADR-0098).
  */
 import { posix } from "node:path";
 import { repositoryUrl } from "@/lib/repository";
+import { SITE_URL } from "./site";
 
 /** The document a link is in, from the repository's root, and how to tell a folder from a file. */
 export interface LinkContext {
@@ -41,8 +43,17 @@ export function assetRoute(repoPath: string): string | null {
   return isDocAsset(repoPath) ? `/docs-assets/${repoPath.slice("docs/".length)}` : null;
 }
 
+/** A link to the site itself as a path on it, or null for a link anywhere else. */
+function sitePath(href: string): string | null {
+  if (href !== SITE_URL && !href.startsWith(`${SITE_URL}/`)) return null;
+  const { pathname, search, hash } = new URL(href);
+  return pathname + search + hash;
+}
+
 /** A link as the site needs it, from a link as a document in the repository writes it. */
 export function resolveHref(href: string, ctx: LinkContext): string {
+  const path = sitePath(href);
+  if (path !== null) return path;
   if (href.startsWith("#") || /^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith("//")) return href;
   const hashAt = href.indexOf("#");
   const target = hashAt < 0 ? href : href.slice(0, hashAt);

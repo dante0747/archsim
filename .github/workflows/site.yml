@@ -3,9 +3,11 @@ name: Website
 # The public website, https://archsim.io (ADR-0078): a static export of the web app's *.site.tsx
 # routes, with the docs and the changelog rendered from the repository's Markdown at build time.
 # A push to main that changes what the site is built from rebuilds it and deploys it to GitHub
-# Pages; a pull request that does builds it only, so a broken link or a README section the home
-# page reads fails before it merges. A run by hand (Actions > Website > Run workflow) on main
-# rebuilds and deploys. Each deploy then announces the sitemap's pages to IndexNow.
+# Pages, and the same files to Cloudflare Pages, which serves them at https://archsim.coderator.dev
+# for networks that block newly registered domains (ADR-0098). A pull request that changes what the
+# site is built from builds it only, so a broken link or a README section the home page reads fails
+# before it merges. A run by hand (Actions > Website > Run workflow) on main rebuilds and deploys.
+# Each deploy to GitHub Pages then announces the sitemap's pages to IndexNow.
 #
 # The build fails on any broken link (apps/web/scripts/site-check.mjs), and the browser checks
 # (apps/web/e2e-site) open every page on a phone and a desktop in both themes. The repository
@@ -86,6 +88,37 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+  # The same files at a second address, https://archsim.coderator.dev, for networks that block
+  # newly registered domains such as archsim.io (ADR-0098). Cloudflare Pages serves them; every page
+  # still names archsim.io as its canonical address. OFF until the owner sets it up
+  # (docs/website.md): the environment `cloudflare-pages`, limited to main, holds the secret
+  # CLOUDFLARE_API_TOKEN (Cloudflare Pages: Edit, nothing else), and the repository variable
+  # CLOUDFLARE_ACCOUNT_ID turns the job on. Without the variable, the job is skipped.
+  mirror:
+    name: Deploy to Cloudflare Pages (archsim.coderator.dev)
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.CLOUDFLARE_ACCOUNT_ID != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: cloudflare-pages
+      url: https://archsim.coderator.dev
+    steps:
+      # The very files the build job handed GitHub Pages.
+      - uses: actions/download-artifact@v8
+        with:
+          name: github-pages
+      - run: mkdir site && tar -xf artifact.tar -C site
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      # Wrangler at an exact version, bumped by hand.
+      - run: npx --yes wrangler@4.168.0 pages deploy site --project-name=archsim --branch=main --commit-hash="$GITHUB_SHA"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: "false"
 
   # After a deploy, tells the search engines that take part in IndexNow to crawl the site's pages
   # again (apps/web/scripts/indexnow.mjs). A job of its own, so the deploy's Pages permissions stay
