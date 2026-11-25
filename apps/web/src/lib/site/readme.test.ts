@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { paragraphContent, readmeContent } from "./readme";
 
@@ -6,14 +8,14 @@ const readme = `<h1 align="center">ArchSim</h1>
 ## Why ArchSim
 
 - **Real technologies, real behaviour.** PostgreSQL locks rows and waits for its write-ahead log.
-- **A straight answer.** Yes or no against your objectives.
+- **Hypotheses to test.** Whether a design meets your objectives under the assumptions you state.
 
 ## Features
 
 <table>
 <tr>
 <td width="50%" valign="top"><img src="docs/images/build.jpg" alt="Design workspace: the Black Friday diagram" width="380"><br><b>Design with real technologies</b><br>Pick PostgreSQL, Kafka or a Go service.</td>
-<td width="50%" valign="top"><img src="docs/images/scorecard.jpg" alt="Results Answer tab" width="380"><br><b>Get a straight answer</b><br>The verdict and the bill.</td>
+<td width="50%" valign="top"><img src="docs/images/scorecard.jpg" alt="Results Answer tab" width="380"><br><b>Get an answer to test</b><br>The objective that failed and the bill.</td>
 </tr>
 </table>
 
@@ -87,7 +89,7 @@ describe("readmeContent", () => {
   it("reads the feature grid: each screenshot, served by the site, with its alt text, title and caption", () => {
     expect(readmeContent(readme, ctx).features).toEqual([
       { image: "/docs-assets/images/build.jpg", alt: "Design workspace: the Black Friday diagram", title: "Design with real technologies", caption: "Pick PostgreSQL, Kafka or a Go service." },
-      { image: "/docs-assets/images/scorecard.jpg", alt: "Results Answer tab", title: "Get a straight answer", caption: "The verdict and the bill." },
+      { image: "/docs-assets/images/scorecard.jpg", alt: "Results Answer tab", title: "Get an answer to test", caption: "The objective that failed and the bill." },
     ]);
   });
 
@@ -116,5 +118,25 @@ describe("readmeContent", () => {
 
   it("names the section it cannot find, so a README change cannot quietly empty the home page", () => {
     expect(() => readmeContent(readme.replace("## Quick start", "## Install"), ctx)).toThrow(/README.md has no "Quick start" section/);
+  });
+});
+
+describe("the repository's README", () => {
+  // vitest runs in apps/web; the README is two levels up
+  const source = readFileSync(resolve(process.cwd(), "../../README.md"), "utf8");
+
+  it("presents ArchSim as an experimentation tool whose results are hypotheses to test, not a yes or no or a gate", () => {
+    expect(source).toContain("An architecture experimentation tool for distributed systems.");
+    expect(source).toContain("- **Hypotheses to test.**");
+    expect(source).not.toMatch(/straight (yes or no|answer)|yes or no against|gate pull requests/i);
+  });
+
+  it("gives the home page a caveat that says what results are not, and that the figures are calibrated models'", () => {
+    const { accuracy } = readmeContent(source, ctx);
+    const words = (html: string) => html.replace(/\s+/g, " ");
+
+    expect(words(accuracy.caveat)).toMatch(/^<strong>Results are hypotheses to test, not production guarantees\.<\/strong>/);
+    expect(words(accuracy.caveat)).toContain("not as sign-off, audit evidence or a deployment gate");
+    expect(words(accuracy.notes)).toContain("These figures are for models calibrated on the stack they predict");
   });
 });

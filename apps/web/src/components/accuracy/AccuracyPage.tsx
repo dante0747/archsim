@@ -544,8 +544,10 @@ export function AccuracyPage({ data, header = <AppHeader />, footer = <AppFooter
               How accurate is ArchSim?
             </h1>
             <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-ink-2">
-              We run small synthetic services on real PostgreSQL, Redis and Kafka, ask ArchSim to predict how they behave under load <em>before</em>{" "}
-              measuring them, and then measure. Here is every result, the good and the bad, and how far to trust them.
+              We run small synthetic services on real PostgreSQL, Redis and Kafka, calibrate ArchSim on each at low load, ask it to predict how they
+              behave under heavier load <em>before</em> measuring them, and then measure. On a typical held-out run its predicted knee is about as close as plain
+              bottleneck arithmetic on the same calibration; its edge so far is a smaller worst miss. Here is every result, the good and the bad, and
+              how far to trust them.
             </p>
             <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-ink" data-testid="measured-on">
               {measuredOn(data).sentence}
