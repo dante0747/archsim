@@ -139,6 +139,14 @@ describe("AccuracyPage", () => {
     expect(hero.textContent).toMatch(/about as close as plain bottleneck arithmetic on the same calibration/);
   });
 
+  it("takes the top's comparison with bottleneck arithmetic from the data, and says none without it", () => {
+    const { container } = render(<AccuracyPage data={{ ...accuracy, summary: { ...accuracy.summary, againstEstimatesHeldOut: null } }} />);
+
+    const hero = container.querySelector("main > section") as HTMLElement;
+    expect(hero.textContent).toMatch(/calibrate ArchSim on each at low load/);
+    expect(hero.textContent).not.toMatch(/bottleneck arithmetic/);
+  });
+
   it("leads the short version with how ArchSim compares with plain bottleneck arithmetic on the held-out runs", () => {
     const data = accuracy.summary.againstEstimatesHeldOut;
     const arithmetic = arithmeticOf(data);

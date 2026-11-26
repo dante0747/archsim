@@ -54,7 +54,7 @@ final class AgainstEstimatesHeldOut {
 	 * @param history every kept run, by experiment ({@link RunHistory#of})
 	 * @param results the results folder, which holds each run's {@code baselines.json}
 	 * @return the runs and experiments counted, the simulator's errors and each
-	 * estimate's; empty without a held-out run
+	 * estimate's; empty without a counted held-out run
 	 */
 	static Optional<ObjectNode> of(List<String> heldOut, Map<String, List<JsonNode>> history, Path results) {
 		Map<String, List<Run>> experiments = new LinkedHashMap<>();
@@ -110,7 +110,7 @@ final class AgainstEstimatesHeldOut {
 		return medianSize(both, one).doubleValue() < medianSize(both, other).doubleValue();
 	}
 
-	// the median size of the runs' errors, or None without one
+	// the median size of the errors of runs that all have one
 	private static JsonNode medianSize(List<Run> runs, String key) {
 		return PythonValues.median(runs.stream().map((run) -> PythonValues.abs(run.error(key))).toList());
 	}
@@ -128,8 +128,8 @@ final class AgainstEstimatesHeldOut {
 	static String verdict(int simulatorNearer, int estimateNearer) {
 		int experiments = simulatorNearer + estimateNearer;
 		BigInteger ways = BigInteger.ZERO;
-		for (int nearer = Math.max(simulatorNearer, estimateNearer); nearer <= experiments; nearer++) {
-			ways = ways.add(PythonStatistics.comb(experiments, nearer));
+		for (int votes = Math.max(simulatorNearer, estimateNearer); votes <= experiments; votes++) {
+			ways = ways.add(PythonStatistics.comb(experiments, votes));
 		}
 		// either way: twice those ways over every way, exact since the divisor is a power
 		// of two

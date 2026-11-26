@@ -13,9 +13,11 @@ three simple estimates on [`docs/validation.md`](../validation.md) and left `acc
 the web app unchanged. The README and the validation page's headline now lead with the held-out
 comparison, written by hand: over the second held-out set's 15 runs the simulator's median knee
 error is 16.5% against bottleneck arithmetic's 16.2%, a tie, and its worst run -27% against +79%.
-`/accuracy`, built from `accuracy.json`, said nothing of it, which a review called a credibility
-gap. How should the data carry the comparison, and on what evidence may the page call the two
-level, or one of them the nearer?
+`accuracy.json` carried nothing of it, which a review called a credibility gap, and `/accuracy`'s
+lead says it in a sentence typed by hand
+([ADR-0099](0099-present-results-as-hypotheses-to-test-not-verdicts-or-gates.md)), which a new
+campaign could leave stating the old comparison. How should the data carry the comparison, and on
+what evidence may the page call the two level, or one of them the nearer?
 
 ## Decision Drivers
 
@@ -46,7 +48,9 @@ were the nearer to the measured knee, with the verdict of a two-sided sign test 
 experiments: `level`, `simulator nearer` or `estimate nearer`. An experiment's nearer knee is the
 one whose errors have the smaller median over its runs that have both. `/accuracy` opens its short
 version with the README's statement built from these figures, the verdict choosing its words, a
-table of each estimate's median and worst run, and the split the verdict rests on.
+table of each estimate's median and worst run, and the split the verdict rests on; its lead's
+sentence on bottleneck arithmetic is built from the same verdict and worst runs, and is left out
+before a held-out run has the arithmetic's knee.
 
 On the second held-out set every verdict is `level`: the simulator is the nearer in 3 of the 5
 experiments against the arithmetic, 4 against the engine's analytic estimate and all 5 against

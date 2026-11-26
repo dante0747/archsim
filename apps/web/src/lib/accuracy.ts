@@ -541,6 +541,11 @@ export function arithmeticOf(a: AgainstEstimates | null | undefined): EstimateCo
   return a?.estimates.find((e) => e.estimate === "bottleneckArithmetic" && e.runs > 0) ?? null;
 }
 
+/** Whether ArchSim's worst held-out run missed the measured knee by less than the estimate's worst. */
+function smallerWorstMiss(simulator: KneeErrors, estimate: KneeErrors): boolean {
+  return Math.abs(simulator.worstError ?? Infinity) < Math.abs(estimate.worstError ?? Infinity);
+}
+
 /** How ArchSim stands on a typical held-out run against plain bottleneck arithmetic, by the report's sign test. */
 const TYPICAL_RUN: Record<EstimateComparison["verdict"], string> = {
   level: "is level with",
@@ -558,9 +563,27 @@ export function arithmeticSentence(a: AgainstEstimates | null | undefined): stri
   const sim = a.simulator;
   const typical = `On a typical held-out run ArchSim ${TYPICAL_RUN[arithmetic.verdict]} plain bottleneck arithmetic on the same calibration (median error ${sim.text.medianAbsError} against ${arithmetic.text.medianAbsError}, over ${a.runs} runs).`;
   const worsts = `${minus(sim.text.worstError)} against ${minus(arithmetic.text.worstError)}`;
-  const nearer = Math.abs(sim.worstError ?? Infinity) < Math.abs(arithmetic.worstError ?? Infinity);
-  if (!nearer) return `${typical} Its worst run is no nearer: ${worsts}.`;
+  if (!smallerWorstMiss(sim, arithmetic)) return `${typical} Its worst run is no nearer: ${worsts}.`;
   return arithmetic.verdict === "simulator nearer" ? `${typical} Its worst run is nearer too: ${worsts}.` : `${typical} Its advantage is the worst case: ${worsts}.`;
+}
+
+/** How close ArchSim's predicted knee is to the measured one beside plain bottleneck arithmetic's, by the sign test. */
+const LEAD: Record<EstimateComparison["verdict"], string> = {
+  level: "is about as close as",
+  "simulator nearer": "is nearer the measured one than",
+  "estimate nearer": "is further from the measured one than",
+};
+
+/**
+ * The page's lead on plain bottleneck arithmetic, in a few words: how ArchSim's predicted knee compares on a typical
+ * held-out run, then its worst miss. Null before a held-out run has the arithmetic's knee.
+ */
+export function leadSentence(a: AgainstEstimates | null | undefined): string | null {
+  const arithmetic = arithmeticOf(a);
+  if (!a || !arithmetic) return null;
+  const typical = `On a typical held-out run its predicted knee ${LEAD[arithmetic.verdict]} plain bottleneck arithmetic on the same calibration`;
+  if (!smallerWorstMiss(a.simulator, arithmetic)) return `${typical}, and its worst miss is no smaller.`;
+  return arithmetic.verdict === "simulator nearer" ? `${typical}, and its worst miss is smaller too.` : `${typical}; its edge so far is a smaller worst miss.`;
 }
 
 /**

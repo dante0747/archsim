@@ -18,6 +18,7 @@ import {
   formatTime,
   kneeScale,
   kneeSentence,
+  leadSentence,
   lowLoadSentence,
   minus,
   p95Sentence,
@@ -363,6 +364,22 @@ describe("against plain arithmetic", () => {
     );
   });
 
+  it("leads the page with the comparison in a few words, the verdict choosing them", () => {
+    const tie = against({ verdict: "level", simulatorNearer: 3, estimateNearer: 2 });
+    const nearer = against({ verdict: "simulator nearer", simulatorNearer: 6, estimateNearer: 0, experiments: 6 });
+    const further = against({ verdict: "estimate nearer", simulatorNearer: 0, estimateNearer: 6, experiments: 6 }, -0.2, "-20%");
+
+    expect(leadSentence(tie)).toBe(
+      "On a typical held-out run its predicted knee is about as close as plain bottleneck arithmetic on the same calibration; its edge so far is a smaller worst miss.",
+    );
+    expect(leadSentence(nearer)).toBe(
+      "On a typical held-out run its predicted knee is nearer the measured one than plain bottleneck arithmetic on the same calibration, and its worst miss is smaller too.",
+    );
+    expect(leadSentence(further)).toBe(
+      "On a typical held-out run its predicted knee is further from the measured one than plain bottleneck arithmetic on the same calibration, and its worst miss is no smaller.",
+    );
+  });
+
   it("says nothing before a held-out run has the arithmetic's knee", () => {
     const none = against({ verdict: "level", simulatorNearer: 0, estimateNearer: 0 });
     none.estimates[0] = { ...none.estimates[0], runs: 0 };
@@ -370,6 +387,7 @@ describe("against plain arithmetic", () => {
     expect(arithmeticOf(none)).toBeNull();
     expect(arithmeticSentence(none)).toBeNull();
     expect(splitSentence(none)).toBeNull();
+    expect(leadSentence(none)).toBeNull();
     expect(arithmeticSentence(null)).toBeNull();
   });
 });

@@ -105,7 +105,8 @@ final class AccuracyData {
 		return summary;
 	}
 
-	// the held-out runs' knees against the simple estimates'; None without a held-out run
+	// the held-out runs' knees against the simple estimates'; None without a counted
+	// held-out run
 	private static JsonNode againstEstimates(List<ObjectNode> experiments, Map<String, List<JsonNode>> history,
 			Path results) {
 		List<String> heldOut = experiments.stream()

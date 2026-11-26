@@ -66,6 +66,10 @@ do.", stays: it names an experiment.
 - Bad, because `/accuracy`'s sentence on bottleneck arithmetic is written by hand, like the
   README's: `accuracy.json` does not carry the comparison, so the next campaign must revisit it.
 
+**Status (26 Nov 2026):** [ADR-0101](0101-show-the-held-out-runs-against-the-simple-estimates-on-the-accuracy-page.md)
+(proposed) puts the comparison in `accuracy.json` and builds `/accuracy`'s sentence from it; the
+README's stays written by hand, held to the data by a test.
+
 ### Confirmation
 
 The web app's tests hold the copy to it: `site.test.ts` (the search and preview descriptions),

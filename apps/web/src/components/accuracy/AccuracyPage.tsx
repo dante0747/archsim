@@ -26,6 +26,7 @@ import {
   formatDate,
   formatTime,
   kneeSentence,
+  leadSentence,
   lowLoadSentence,
   measuredOn,
   minus,
@@ -596,6 +597,7 @@ export function AccuracyPage({ data, header = <AppHeader />, footer = <AppFooter
   const cpu = cpuSentence(data.experiments);
   const coverage = coverageSentence(s);
   const allInSample = s.inSample.length === n;
+  const lead = leadSentence(s.againstEstimatesHeldOut);
 
   return (
     <div className="min-h-full overflow-x-clip bg-page [--meas:var(--series-1)] [--pred:#c26a00] dark:[--pred:#d07400]">
@@ -612,9 +614,8 @@ export function AccuracyPage({ data, header = <AppHeader />, footer = <AppFooter
             </h1>
             <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-ink-2">
               We run small synthetic services on real PostgreSQL, Redis and Kafka, calibrate ArchSim on each at low load, ask it to predict how they
-              behave under heavier load <em>before</em> measuring them, and then measure. On a typical held-out run its predicted knee is about as close as plain
-              bottleneck arithmetic on the same calibration; its edge so far is a smaller worst miss. Here is every result, the good and the bad, and
-              how far to trust them.
+              behave under heavier load <em>before</em> measuring them, and then measure.{lead && ` ${lead}`} Here is every result, the good and the bad,
+              and how far to trust them.
             </p>
             <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-ink" data-testid="measured-on">
               {measuredOn(data).sentence}
