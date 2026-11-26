@@ -27,6 +27,14 @@ link to any other file goes to it on GitHub, at main. Write links as GitHub read
 the document, and both GitHub and the site follow them. A link to archsim.io itself becomes a path
 on the site, so a reader stays at whichever of the two addresses they opened.
 
+The site has a stylesheet of its own, `apps/web/src/app/site.css`
+([ADR-0100](adr/0100-give-the-website-a-stylesheet-of-its-own-built-from-the-files-it-renders.md)):
+the app's design system (`theme.css`, which the app's `globals.css` imports too), with Tailwind
+reading classes only from the files the site renders, and none of React Flow's styles. When a site
+page starts using another of the app's components, add the component to the `@source` list in
+`site.css`; `src/app/site-styles.test.ts` fails until it is there, and when a listed file is no
+longer rendered.
+
 The home page reads the README's sections by their headings: "Features" (the screenshot table:
 each screen's title, caption and alt text), "Quick start" (what you need, the commands and the
 first sentence after them), "How accurate is it?" (the paragraph leading into the table, the table,

@@ -8,7 +8,7 @@
  * the theme shown, not the operating system's preference: the site is dark unless light was chosen.
  */
 
-/** The browser bar's colour in each theme: the page's background (globals.css, --page). */
+/** The browser bar's colour in each theme: the page's background (theme.css, --page). */
 export const THEME_COLORS = { dark: "#1c1c1e", light: "#f2f2f4" } as const;
 
 /** Gives the page's theme-color meta tag, if it has one, the colour of the theme shown. */
