@@ -82,6 +82,18 @@ class CommittedAccuracyPageTests {
 		});
 	}
 
+	// the headline's table of the held-out runs against the simple estimates is written
+	// by hand, so a new campaign's figures must reach it too
+	@Test
+	void againstEstimatesHeldOut_eachMedian_isInTheHeadlinesTable() {
+		JsonNode against = DATA.at("/summary/againstEstimatesHeldOut");
+
+		assertThat(PAGE)
+			.contains("| **ArchSim's simulator** | " + text(against.at("/simulator/text"), "medianAbsError") + " |");
+		assertThat(against.get("estimates").valueStream()).allSatisfy((estimate) -> assertThat(PAGE)
+			.contains("| " + text(estimate, "name") + " | " + text(estimate.get("text"), "medianAbsError") + " |"));
+	}
+
 	private static String text(JsonNode texts, String key) {
 		return texts.get(key).stringValue();
 	}

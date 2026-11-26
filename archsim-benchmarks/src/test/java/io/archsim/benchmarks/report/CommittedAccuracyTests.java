@@ -216,8 +216,64 @@ class CommittedAccuracyTests {
 			.containsExactly("api", "postgres", "redis");
 	}
 
+	// the five held-out experiments' three runs each: a tie on the median, and by each
+	// experiment's median the simulator is the nearer in three, the arithmetic in two
+	@Test
+	void summary_theHeldOutRuns_tieWithBottleneckArithmeticOnTheMedian() {
+		JsonNode arithmetic = estimate("bottleneckArithmetic");
+
+		assertThat(DATA.at("/summary/againstEstimatesHeldOut/runs").intValue()).isEqualTo(15);
+		assertThat(DATA.at("/summary/againstEstimatesHeldOut/experiments").intValue()).isEqualTo(5);
+		assertThat(DATA.at("/summary/againstEstimatesHeldOut/simulator/text/medianAbsError").stringValue())
+			.isEqualTo("16.5%");
+		assertThat(arithmetic.at("/text/medianAbsError").stringValue()).isEqualTo("16.2%");
+		assertThat(arithmetic.get("simulatorNearer").intValue()).isEqualTo(3);
+		assertThat(arithmetic.get("estimateNearer").intValue()).isEqualTo(2);
+		assertThat(arithmetic.get("verdict").stringValue()).isEqualTo("level");
+	}
+
+	// python-wide's run-2 against go-pool's run-2, where the arithmetic leaves out the
+	// host machine that slows the work down
+	@Test
+	void summary_theHeldOutRuns_putTheSimulatorsWorstRunFarBelowTheArithmetics() {
+		JsonNode simulator = DATA.at("/summary/againstEstimatesHeldOut/simulator");
+		JsonNode arithmetic = estimate("bottleneckArithmetic");
+
+		assertThat(simulator.at("/text/worstError").stringValue()).isEqualTo("-27%");
+		assertThat(simulator.get("worst")).isEqualTo(JsonText.read("""
+				{"experiment": "python-wide", "dir": "run-2/"}"""));
+		assertThat(arithmetic.at("/text/worstError").stringValue()).isEqualTo("+79%");
+		assertThat(arithmetic.get("worst")).isEqualTo(JsonText.read("""
+				{"experiment": "go-pool", "dir": "run-2/"}"""));
+	}
+
+	// neither knows of java-hot-row's lock; the simulator is the nearer in 4 and 5
+	// experiments, yet no split of five is uneven enough for the sign test
+	@Test
+	void summary_theOtherTwoEstimates_areFurtherOffThanFiveExperimentsCanShow() {
+		JsonNode analytic = estimate("analyticEstimate");
+		JsonNode extrapolation = estimate("utilisationExtrapolation");
+
+		assertThat(analytic.get("text")).isEqualTo(JsonText.read("""
+				{"medianAbsError": "27.5%", "worstError": "+316%"}"""));
+		assertThat(analytic.get("simulatorNearer").intValue()).isEqualTo(4);
+		assertThat(analytic.get("verdict").stringValue()).isEqualTo("level");
+		assertThat(extrapolation.get("text")).isEqualTo(JsonText.read("""
+				{"medianAbsError": "43.3%", "worstError": "+570%"}"""));
+		assertThat(extrapolation.get("simulatorNearer").intValue()).isEqualTo(5);
+		assertThat(extrapolation.get("verdict").stringValue()).isEqualTo("level");
+	}
+
 	private static List<String> ids(String list) {
 		return DATA.at("/summary/" + list).valueStream().map(JsonNode::stringValue).toList();
+	}
+
+	private static JsonNode estimate(String key) {
+		return DATA.at("/summary/againstEstimatesHeldOut/estimates")
+			.valueStream()
+			.filter((estimate) -> estimate.get("estimate").stringValue().equals(key))
+			.findFirst()
+			.orElseThrow();
 	}
 
 	private static JsonNode experiment(String id) {

@@ -32,6 +32,14 @@ final class RunHistory {
 
 	private static final Pattern PROTOCOL = Pattern.compile("\\((v\\d+)\\)");
 
+	/**
+	 * The history's name for an experiment's latest run, kept in the experiment's folder.
+	 */
+	private static final String LATEST = "latest";
+
+	/** What ends the history's name for an older run's folder: {@code run-3/}. */
+	private static final String FOLDER_END = "/";
+
 	/** What the history keeps of a run's predicted range. */
 	private static final List<String> RANGE_KEYS = List.of("lowRps", "highRps", "nominalCoverage", "containsMeasured",
 			"method");
@@ -61,7 +69,7 @@ final class RunHistory {
 		JsonNode calibratedAt = calibration.path("at");
 		String folder = run.directory().getFileName().toString();
 		ObjectNode entry = NODES.objectNode()
-			.put("dir", folder.equals(run.experiment()) ? "latest" : folder + "/")
+			.put("dir", folder.equals(run.experiment()) ? LATEST : folder + FOLDER_END)
 			.put("protocol", protocolOf(calibration));
 		entry.set("calibratedAt", calibratedAt);
 		entry.put("machine", PythonText.str(PythonValues.get(environment, "cpu")));
@@ -75,6 +83,24 @@ final class RunHistory {
 		entry.set("kneeRange", range(PythonValues.get(comparison, "kneeRange")));
 		entry.set("checks", checks(comparison));
 		return entry;
+	}
+
+	/**
+	 * A run of the history, back in its folder: the experiment's own for the latest,
+	 * {@code run-N/} under it for an older one.
+	 * @param results the results folder
+	 * @param experiment the run's experiment
+	 * @param run the run, as the history records it
+	 * @return the kept run
+	 */
+	static KeptRun keptRun(Path results, String experiment, JsonNode run) {
+		Path latest = results.resolve(experiment);
+		String dir = run.get("dir").stringValue();
+		if (LATEST.equals(dir)) {
+			return new KeptRun(experiment, latest);
+		}
+		// a path drops the slash that ends an older run's name
+		return new KeptRun(experiment, latest.resolve(dir));
 	}
 
 	/**

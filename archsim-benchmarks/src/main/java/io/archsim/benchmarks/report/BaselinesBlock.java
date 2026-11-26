@@ -120,7 +120,9 @@ final class BaselinesBlock {
 		}
 		List<String> missing = new ArrayList<>();
 		for (Row row : rows) {
-			JsonNode atKnee = estimate(baselines.get(row.experiment())).path("atKnee");
+			JsonNode atKnee = Baselines
+				.estimate(baselines.getOrDefault(row.experiment(), PythonValues.none()), Baselines.ESTIMATE)
+				.path("atKnee");
 			if (!baselines.containsKey(row.experiment())) {
 				missing.add(row.experiment());
 			}
@@ -156,11 +158,6 @@ final class BaselinesBlock {
 		return file != null && !file.path("designedAfterMeasurements").asBoolean(true);
 	}
 
-	// the engine's analytic estimate in a run's baselines; nothing for a run without them
-	private static JsonNode estimate(@Nullable JsonNode file) {
-		return (file != null) ? file.path("baselines").path(Baselines.ESTIMATE) : PythonValues.none();
-	}
-
 	// something each file says, each value once, in order, as a sentence lists them
 	private static String listed(Map<String, JsonNode> baselines, Function<JsonNode, String> said) {
 		return Figures.andList(baselines.values().stream().map(said).distinct().sorted().toList());
@@ -184,13 +181,12 @@ final class BaselinesBlock {
 		static Row of(JsonNode comparison, Map<String, String> samples, Map<String, JsonNode> baselines) {
 			String experiment = comparison.get("experiment").stringValue();
 			JsonNode measured = comparison.get("measuredKnee");
-			JsonNode file = baselines.get(experiment);
+			JsonNode file = baselines.getOrDefault(experiment, PythonValues.none());
 			List<Knee> knees = new ArrayList<>();
 			knees.add(
 					new Knee(Figures.knee(comparison.get("predictedKnee")), PythonValues.get(comparison, "kneeError")));
 			for (String estimate : Baselines.ESTIMATES) {
-				JsonNode knee = (file != null) ? file.path("baselines").path(estimate).path(Baselines.KNEE)
-						: PythonValues.none();
+				JsonNode knee = Baselines.knee(file, estimate);
 				knees.add(new Knee(Figures.rate(knee), RelativeError.of(knee, PythonValues.get(measured, "kneeRps"))));
 			}
 			return new Row(experiment, Objects.requireNonNull(samples.get(experiment), experiment), measured, knees);

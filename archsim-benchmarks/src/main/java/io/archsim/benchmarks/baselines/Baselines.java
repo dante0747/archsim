@@ -75,6 +75,9 @@ public final class Baselines {
 	static final String INPUTS = "calibration.json's inputs as recorded, the ones predictions.json used, in the "
 			+ "design today's harness builds from them";
 
+	/** Where a file holds its estimates, each under its key. */
+	private static final String FIGURES = "baselines";
+
 	/** What names a file's making, which two files of the same figures may differ in. */
 	private static final List<String> STAMP = List.of("at", "engineVersion", "provenance");
 
@@ -118,12 +121,32 @@ public final class Baselines {
 		ContainerCpus cpus = ContainerCpus.of(PythonValues.orNone(ResultFiles.read(run.file(KeptRun.ENVIRONMENT))),
 				this.declared, experiment.stack());
 		ObjectNode file = header(run, calibration);
-		ObjectNode baselines = file.putObject("baselines");
+		ObjectNode baselines = file.putObject(FIGURES);
 		baselines.set(ARITHMETIC, arithmetic(experiment, calibration));
 		baselines.set(ESTIMATE, AnalyticEstimate
 			.of((rps) -> this.estimates.estimate(Designs.design(experiment, inputs, rps, Designs.Window.STEP))));
 		baselines.set(EXTRAPOLATION, UtilisationExtrapolation.of(calibration, cpus));
 		return Optional.of(file);
+	}
+
+	/**
+	 * An estimate in a run's baselines: its knee, how it was found and what bounds it.
+	 * @param file the run's {@code baselines.json}, or None for a run without one
+	 * @param estimate the estimate's key, one of {@link #ESTIMATES}
+	 * @return the estimate, or None
+	 */
+	public static JsonNode estimate(JsonNode file, String estimate) {
+		return file.path(FIGURES).path(estimate);
+	}
+
+	/**
+	 * An estimate's knee in a run's baselines.
+	 * @param file the run's {@code baselines.json}, or None for a run without one
+	 * @param estimate the estimate's key, one of {@link #ESTIMATES}
+	 * @return the knee in requests per second, or None
+	 */
+	public static JsonNode knee(JsonNode file, String estimate) {
+		return estimate(file, estimate).path(KNEE);
 	}
 
 	/**

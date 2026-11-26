@@ -1,5 +1,6 @@
 package io.archsim.benchmarks.report;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -22,7 +23,8 @@ import io.archsim.model.text.PythonText;
 /**
  * Every number of the validation page's generated blocks as data, {@code accuracy.json},
  * which the web app's {@code /accuracy} page reads: the latest run of each experiment, a
- * summary across them, every kept run, and what the Java engine reproduces.
+ * summary across them with the held-out runs against the simple estimates, every kept
+ * run, and what the Java engine reproduces.
  */
 final class AccuracyData {
 
@@ -69,14 +71,14 @@ final class AccuracyData {
 			.put("p95Factor", Tiers.P95_FACTOR)
 			.put("p95Ms", Tiers.P95_TOLERANCE_MS)
 			.put("lowLoadFraction", SummaryBlocks.LOW_LOAD_FRACTION);
-		data.set("summary", summary(experiments, history));
+		data.set("summary", summary(experiments, history, sources.results()));
 		data.putArray("experiments").addAll(experiments);
 		data.set("history", history(history));
 		data.set("javaEngine", PythonValues.orNone(JavaEngineCheck.of(sources.results(), sources.engines())));
 		return Optional.of(data);
 	}
 
-	private static ObjectNode summary(List<ObjectNode> experiments, Map<String, List<JsonNode>> history) {
+	private static ObjectNode summary(List<ObjectNode> experiments, Map<String, List<JsonNode>> history, Path results) {
 		List<JsonNode> runs = allRuns(history);
 		List<JsonNode> errors = experiments.stream()
 			.map((experiment) -> experiment.at("/knee/error"))
@@ -99,7 +101,18 @@ final class AccuracyData {
 		summary.set("kneeErrorMax", high);
 		summary.put("kneeErrorRangeText", Figures.percent(low) + " to " + Figures.percent(high));
 		Lists.add(summary, experiments, history);
+		summary.set("againstEstimatesHeldOut", againstEstimates(experiments, history, results));
 		return summary;
+	}
+
+	// the held-out runs' knees against the simple estimates'; None without a held-out run
+	private static JsonNode againstEstimates(List<ObjectNode> experiments, Map<String, List<JsonNode>> history,
+			Path results) {
+		List<String> heldOut = experiments.stream()
+			.filter(Lists::heldOut)
+			.map((experiment) -> experiment.get("id").stringValue())
+			.toList();
+		return PythonValues.orNone(AgainstEstimatesHeldOut.of(heldOut, history, results));
 	}
 
 	private static JsonNode firstDate(List<JsonNode> runs) {
