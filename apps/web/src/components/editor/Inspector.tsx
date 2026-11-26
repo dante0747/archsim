@@ -13,7 +13,7 @@ import {
   Trash2,
   TriangleAlert,
 } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CLIENT_BLOCK_FIELDS, ClientBlock } from "@/components/editor/ClientBlock";
 import { type AutoHint, FieldGroups, isFieldVisible } from "@/components/editor/FieldControl";
 import { PricingCard } from "@/components/editor/PricingCard";
@@ -38,7 +38,7 @@ import { NODE_STATUS } from "@/lib/status";
 import { defaultSource } from "@/lib/tier";
 import { KIND_LABEL, REQ_GLYPH, kindOf, technologyLabel, type Kind } from "@/lib/theme";
 import type { DocExtras } from "@/lib/document";
-import type { ComponentType, FieldDescriptor, InputProvenance, Issue, NodeConfig, RequestType, SizingEntry } from "@/lib/types";
+import type { ClassifiedProvenance, ComponentType, FieldDescriptor, InputEntry, InputProvenance, Issue, NodeConfig, RequestType, SizingEntry } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useDecide } from "@/store/decide";
 import { type RightTab, useEditor } from "@/store/editor";
@@ -56,7 +56,7 @@ export function Inspector() {
     if (rightTab === "workload") markTrafficVisited();
   }, [rightTab, markTrafficVisited]);
   return (
-    <aside data-tour="panel" className="island flex h-full w-[320px] shrink-0 flex-col border-l border-line" aria-label="Side panel">
+    <aside data-tour="panel" className="island flex h-full w-[352px] shrink-0 flex-col border-l border-line" aria-label="Side panel">
       <Tabs value={rightTab} onValueChange={(v) => setRightTab(v as RightTab)} className="flex min-h-0 flex-1 flex-col">
         <TabsList>
           <TabsTrigger value="inspect">
@@ -251,6 +251,7 @@ function SettingsBlocks({
   between,
   autoValues,
   provenance,
+  sources,
 }: {
   fields: FieldDescriptor[];
   values: Record<string, unknown>;
@@ -260,6 +261,8 @@ function SettingsBlocks({
   autoValues?: Record<string, AutoHint>;
   /** Where values came from, by field key. */
   provenance?: Record<string, InputProvenance>;
+  /** Where the design's analysis says each performance input comes from, by field key. */
+  sources?: Record<string, ClassifiedProvenance>;
   extraAdvanced?: React.ReactNode;
   /** Shown between the key settings and "More settings" (e.g. resources). */
   between?: React.ReactNode;
@@ -273,7 +276,7 @@ function SettingsBlocks({
       {key.length > 0 && (
         <section aria-label="Settings" className="space-y-3">
           <h3 className="text-[13px] font-semibold text-ink">Settings</h3>
-          <FieldGroups fields={key} values={values} onChange={onChange} idPrefix={idPrefix} allowedRequestTypes={allowedRequestTypes} autoValues={autoValues} provenance={provenance} flat />
+          <FieldGroups fields={key} values={values} onChange={onChange} idPrefix={idPrefix} allowedRequestTypes={allowedRequestTypes} autoValues={autoValues} provenance={provenance} sources={sources} flat />
         </section>
       )}
       {between}
@@ -293,6 +296,7 @@ function SettingsBlocks({
               allowedRequestTypes={allowedRequestTypes}
               autoValues={autoValues}
               provenance={provenance}
+              sources={sources}
             />
             {extraAdvanced}
           </div>
@@ -364,6 +368,7 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
   const deleteElements = useEditor((s) => s.deleteElements);
   const duplicate = useEditor((s) => s.duplicateSelection);
   const sizing = useAutoSize(nodeId);
+  const inputs = useEditor((s) => s.analysis?.inputs);
   if (!node) return null;
   const comp = componentOf(catalog, node.data.type);
   const kind = kindOf(node.data.type, comp?.category);
@@ -415,6 +420,7 @@ function NodeInspector({ nodeId }: { nodeId: string }) {
       {comp ? (
         <SettingsBlocks
           provenance={provenanceUnder(extras, `nodes/${nodeId}/`, node.data.config)}
+          sources={sourcesOf(inputs, "node", nodeId)}
           fields={comp.fields.filter((f) => !RESOURCE_FIELDS.includes(f.key) && !(comp.isTrafficSource && CLIENT_BLOCK_FIELDS.includes(f.key)))}
           values={node.data.config}
           onChange={(key, v) => setNodeConfig(nodeId, key, v)}
@@ -451,6 +457,14 @@ function provenanceUnder(extras: DocExtras | undefined, prefix: string, values: 
     if (v.kind === "measured" && !stillMeasured(v, values[key])) continue;
     out[key] = v;
   }
+  return out;
+}
+
+/** Where the design's analysis says each of a part's or a link's performance inputs comes from, by field. */
+function sourcesOf(inputs: InputEntry[] | undefined, scope: "node" | "edge", id: string): Record<string, ClassifiedProvenance> | undefined {
+  if (!inputs) return undefined;
+  const out: Record<string, ClassifiedProvenance> = {};
+  for (const i of inputs) if (i.scope === scope && i.id === id && i.provenance) out[i.field] = i.provenance;
   return out;
 }
 
@@ -537,6 +551,33 @@ function fmtGiB(v: number): string {
   return v < 1 ? `${Math.round(v * 1024)} MiB` : `${+v.toFixed(1)} GiB`;
 }
 
+/** How many of a part's run facts show before "N more". */
+const FACT_LIMIT = 3;
+
+/** A part's facts from the run, one a line: the first few, the rest one click away. */
+function RunFacts({ facts }: { facts: string[] }) {
+  const [all, setAll] = useState(false);
+  if (!facts.length) return null;
+  const shown = all ? facts : facts.slice(0, FACT_LIMIT);
+  return (
+    <div className="px-3 pb-2.5">
+      <ul className="space-y-0.5 text-xs leading-relaxed text-ink-2" aria-label="From the run">
+        {shown.map((f) => (
+          <li key={f} className="flex gap-1.5">
+            <span className="mt-[7px] size-1 shrink-0 rounded-full bg-ink-3" aria-hidden />
+            {f}
+          </li>
+        ))}
+      </ul>
+      {facts.length > FACT_LIMIT && (
+        <button type="button" onClick={() => setAll((v) => !v)} className="mt-1 text-xs font-medium text-ink-3 hover:text-ink">
+          {all ? "Show fewer" : `${facts.length - FACT_LIMIT} more`}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** After a run: one status line and three numbers; charts are one click away. */
 function NodeResults({ nodeId }: { nodeId: string }) {
   const report = useActiveReport();
@@ -613,9 +654,7 @@ function NodeResults({ nodeId }: { nodeId: string }) {
           </div>
         ))}
       </dl>
-      {resourceStats.length > 0 && (
-        <p className="px-3 pb-2.5 text-xs text-ink-2">{resourceStats.join(" · ")}</p>
-      )}
+      <RunFacts facts={resourceStats} />
       <NodeCalculations nodeId={nodeId} />
     </section>
   );
@@ -635,6 +674,7 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
   const setEdgeLabel = useEditor((s) => s.setEdgeLabel);
   const deleteElements = useEditor((s) => s.deleteElements);
   const report = useActiveReport();
+  const inputs = useEditor((s) => s.analysis?.inputs);
   if (!edge || !edge.data) return null;
   const src = nodes.find((n) => n.id === edge.source);
   const tgt = nodes.find((n) => n.id === edge.target);
@@ -682,6 +722,7 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
       )}
       <SettingsBlocks
         provenance={provenanceUnder(extras, `edges/${edgeId}/`, edge.data.config as unknown as Record<string, unknown>)}
+        sources={sourcesOf(inputs, "edge", edgeId)}
         fields={fields}
         values={edge.data.config as unknown as Record<string, unknown>}
         onChange={(key, v) => setEdgeConfig(edgeId, key, v)}

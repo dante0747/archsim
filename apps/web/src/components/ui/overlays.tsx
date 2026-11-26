@@ -1,4 +1,4 @@
-import { Dialog as RDialog, DropdownMenu as RMenu, Tabs as RTabs } from "radix-ui";
+import { Dialog as RDialog, DropdownMenu as RMenu, Popover as RPopover, Tabs as RTabs } from "radix-ui";
 import { X } from "lucide-react";
 import * as React from "react";
 import { cn } from "@/lib/utils";
@@ -106,4 +106,23 @@ export function MenuSeparator() {
 
 export function MenuLabel({ className, ...props }: React.ComponentProps<typeof RMenu.Label>) {
   return <RMenu.Label className={cn("microlabel px-2 py-1", className)} {...props} />;
+}
+
+// ---- Popover ----------------------------------------------------------------------------------
+
+export const Popover = RPopover.Root;
+export const PopoverTrigger = RPopover.Trigger;
+
+/** A small card anchored to its trigger: the place for an explanation that is one click away. */
+export function PopoverContent({ className, ...props }: React.ComponentProps<typeof RPopover.Content>) {
+  return (
+    <RPopover.Portal>
+      <RPopover.Content
+        sideOffset={6}
+        collisionPadding={12}
+        className={cn("surface-glass z-50 w-80 rounded-lg p-3 text-[13px] leading-relaxed text-ink-2 outline-none", className)}
+        {...props}
+      />
+    </RPopover.Portal>
+  );
 }

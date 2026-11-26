@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Parts library (Design workspace): a searchable grid of technology tiles (the logo in white on its
+ * Parts library (Design workspace): a searchable list of parts (the logo in white on its
  * family's colour), grouped by family (Clients, Edge, Compute, Data, Cache, Queues, External).
  * Drag onto the canvas or click.
  */
@@ -99,8 +99,8 @@ function rowSub(it: LibraryItem): string {
   return "Any technology, set it up yourself";
 }
 
-/** A part as an app-icon tile: the technology on its family's colour, the name underneath. */
-function PartTile({ it, onPick }: { it: LibraryItem; onPick: (it: LibraryItem) => void }) {
+/** A part as a row: the technology on its family's colour, its full name, and what it is beneath. */
+function PartRow({ it, onPick }: { it: LibraryItem; onPick: (it: LibraryItem) => void }) {
   const note = useTierNote();
   const experimental = it.tier === "experimental" ? ` Experimental: ${note}` : "";
   return (
@@ -108,25 +108,25 @@ function PartTile({ it, onPick }: { it: LibraryItem; onPick: (it: LibraryItem) =
       type="button"
       {...dragProps(it.type, it.preset?.id)}
       onClick={() => onPick(it)}
-      title={`${tileName(it)} (${rowSub(it)}): ${it.description}${experimental}`}
+      title={`${it.description}${experimental}`}
       aria-label={`${tileName(it)}: ${rowSub(it)}${it.tier === "experimental" ? ", experimental" : ""}`}
-      className="group flex w-full cursor-grab flex-col items-center gap-1.5 rounded-xl px-1 pb-1.5 pt-2 text-center transition-colors hover:bg-surface-2 active:cursor-grabbing"
+      className="group flex w-full cursor-grab items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-2 active:cursor-grabbing"
     >
-      <span className="relative">
-        <TechIcon
-          technology={it.preset || it.comp.isTrafficSource ? it.technology : null}
-          kind={kindOf(it.type, it.comp.category)}
-          size={24}
-          tile
-          className="!size-[46px] !rounded-[12px] transition-transform duration-150 group-hover:-translate-y-px"
-        />
-        <Plus
-          className="absolute -right-1.5 -top-1.5 size-4 rounded-full bg-surface p-0.5 text-ink opacity-0 shadow-[0_0_0_1px_var(--line-strong)] transition-opacity group-hover:opacity-100"
-          aria-hidden
-        />
+      <TechIcon
+        technology={it.preset || it.comp.isTrafficSource ? it.technology : null}
+        kind={kindOf(it.type, it.comp.category)}
+        size={16}
+        tile
+        className="!size-8 shrink-0 !rounded-[9px]"
+      />
+      <span className="min-w-0 flex-1">
+        <span className="block text-[13px] font-medium leading-[17px] text-ink">{tileName(it)}</span>
+        <span className="flex items-center gap-1.5 text-[11.5px] leading-4 text-ink-3">
+          <span className="truncate">{rowSub(it)}</span>
+          <TierBadge tier={it.tier} variant="tile" className="shrink-0" />
+        </span>
       </span>
-      <span className="line-clamp-2 w-full text-[11.5px] font-medium leading-[14px] text-ink-2 group-hover:text-ink">{tileName(it)}</span>
-      <TierBadge tier={it.tier} variant="tile" className="-mt-1" />
+      <Plus className="size-4 shrink-0 text-ink-3 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" aria-hidden />
     </button>
   );
 }
@@ -243,10 +243,10 @@ export function PartsPanel() {
               {f.label}
               <span className="font-normal">{list.length}</span>
             </h3>
-            <ul className="grid grid-cols-3 gap-x-1 gap-y-1">
+            <ul className="space-y-px">
               {list.map((it) => (
                 <li key={it.key}>
-                  <PartTile it={it} onPick={pick} />
+                  <PartRow it={it} onPick={pick} />
                 </li>
               ))}
             </ul>

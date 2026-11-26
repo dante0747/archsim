@@ -15,11 +15,12 @@ const KEY = "siblingSpeed";
 /** An empty setting: each part's instance family decides; set, it starts from whole cores. */
 const BY_FAMILY: AutoHint = { value: 1, source: "each part's instance family", text: "each part's instance family" };
 
+/** What the setting means for this design, in a few words. */
 function meaning(siblingSpeed: number | null, hosted: boolean): string {
-  if (hosted) return "The design sets a host machine, whose sibling speed applies instead.";
-  if (siblingSpeed === null) return "Each part's instance family decides; x86 types count as hyperthread pairs (see each part's sibling speed).";
-  if (siblingSpeed >= 1) return "Whole cores (this design was saved before schema 1.11, or you set it).";
-  return `Hyperthread pairs at ${siblingSpeed} on every part that sets none.`;
+  if (hosted) return "The design's host machine decides instead.";
+  if (siblingSpeed === null) return "Now: each part's instance family decides (x86 types count as hyperthread pairs).";
+  if (siblingSpeed >= 1) return "Now: whole cores, set here or kept from before schema 1.11.";
+  return `Now: hyperthread pairs at ${siblingSpeed}, on every part that sets none.`;
 }
 
 export function SiblingSpeedCard() {

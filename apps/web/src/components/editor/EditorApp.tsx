@@ -326,7 +326,7 @@ function EditorShell() {
             {mode === "build" ? (
               <Inspector />
             ) : (
-              <aside className="island flex h-full w-[320px] shrink-0 flex-col overflow-y-auto border-l border-line" aria-label="Experiment">
+              <aside className="island flex h-full w-[352px] shrink-0 flex-col overflow-y-auto border-l border-line" aria-label="Experiment">
                 <ExperimentPanel />
               </aside>
             )}

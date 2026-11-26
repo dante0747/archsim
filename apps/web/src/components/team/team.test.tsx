@@ -199,7 +199,7 @@ describe("sign-off", () => {
     mockFetch((c) => signoff({ decision: (c.body as { decision: Signoff["decision"] }).decision, note: "Ship it", reviewer: bob }));
     renderIn(<SignOffPanel run={run} />);
     expect(screen.getByTestId("signoff-state")).toHaveTextContent("Not reviewed");
-    expect(screen.getByText(/revision 3 of the design/)).toBeInTheDocument();
+    expect(screen.getByText(/Covers this run and revision 3/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Review note"), { target: { value: " Ship it " } });
     fireEvent.click(screen.getByTestId("signoff-approve"));
     await waitFor(() => expect(screen.getByTestId("signoff-state")).toHaveTextContent("Approved"));

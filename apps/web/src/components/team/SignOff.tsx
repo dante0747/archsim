@@ -46,7 +46,7 @@ export function SignOffPanel({ run }: { run: Run }) {
   };
 
   return (
-    <section aria-label="Review" data-testid="signoff-panel" className="rounded-xl border border-line bg-surface p-4">
+    <section aria-label="Review" data-testid="signoff-panel" className="rounded-xl border border-line bg-surface p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-[15px] font-semibold text-ink">Review</h3>
         <Badge tone={STATE[state].tone} data-testid="signoff-state">
@@ -85,12 +85,13 @@ export function SignOffPanel({ run }: { run: Run }) {
       {earlier > 0 && <p className="mt-2 text-[11px] text-ink-3">{earlier} earlier sign-off{earlier === 1 ? "" : "s"} in the history.</p>}
       <div className="mt-3 space-y-2">
         <Textarea
-          rows={2}
+          rows={1}
           maxLength={2000}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Note for the author (optional)"
+          placeholder="Add a note for the author (optional)"
           aria-label="Review note"
+          className="min-h-9 resize-none [field-sizing:content]"
         />
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="primary" disabled={!!busy || run.status !== "succeeded"} onClick={() => void decide("approved")} data-testid="signoff-approve">
@@ -99,11 +100,7 @@ export function SignOffPanel({ run }: { run: Run }) {
           <Button size="sm" disabled={!!busy || run.status !== "succeeded"} onClick={() => void decide("changes_requested")} data-testid="signoff-changes">
             <CircleAlert /> Request changes
           </Button>
-          <p className="text-xs text-ink-3">
-            {dirty
-              ? `Covers the design as saved (revision ${revision}), not your unsaved changes.`
-              : `Covers this run and revision ${revision} of the design.`}
-          </p>
+          <p className="text-xs text-ink-3">{dirty ? `Covers revision ${revision} as saved, not your unsaved changes` : `Covers this run and revision ${revision}`}</p>
         </div>
       </div>
     </section>

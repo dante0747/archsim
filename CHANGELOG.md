@@ -8,7 +8,34 @@ for when that version changes.
 
 ## [Unreleased]
 
+### Changed
+
+- **Results lead with the answer, and every caveat explains itself on demand
+  ([ADR-0102](docs/adr/0102-lead-each-screen-with-the-answer-and-make-every-input-explain-itself.md),
+  proposed).** Results → Answer is one card: what the verdict rests on ("Misses 2 of 2
+  objectives"), the headline, the bottleneck, and the objectives with a target as tiles, with one
+  tile to add the others. Under it, "How sure is this" gives each caveat a line (the seeds, the
+  confidence, experimental parts, what queueing formulas predict, a quick check's sample), its
+  explanation in a popover. Then four key numbers, what to fix first by title with what to try
+  and its evidence under "Why", the month's cost as one bar split by part, and a compact review.
+  "Show on canvas" now opens Design with the part selected; before, it selected the part behind
+  the Results page.
+- **Every input says what it is and where its value comes from.** A setting's label shows in
+  full, with a one-line help under it, a tag from the design's analysis (measured, documented
+  with the vendor's site, your estimate, or default: an illustrative default, as the confidence
+  counts it) and a reset to the part's default when its value differs. The side panel is 352 px
+  wide. A part's resources fold why the auto size, what it needs and which price the cost uses
+  under one line, and its facts from the run read one a line.
+- **The parts library lists parts by their full names**, with what each is beneath, instead of a
+  grid of tiles that cut long names short.
+
 ### Fixed
+
+- **No label is cut short on the canvas or the timeline.** The chaos pads clipped their titles
+  ("Lose Catalog…"); they have two columns and room for three lines. A part's card cut a label
+  when its value was long ("Max connections per instan…"); the value now wraps under it. The Test
+  timeline printed the traffic scale on top of the drain band's label ("2K/sdrain"); the scale
+  ends where the band starts. The lanes' legend sits above the playhead.
 
 - **The run picker in Results and on the Dashboard shows the whole label of its run.** Since a
   run's label names its short id ("Current design · run 3f9a2c1d · seed 42 · 43s ago"), the picker
