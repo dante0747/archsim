@@ -25,7 +25,7 @@ example adding API servers behind a lone Clients box.
 
 ## Design: draw it with real technologies
 
-![The Design workspace in the light theme: the Black Friday diagram with Orders DB selected; the side panel shows its technology (PostgreSQL), how it did in the last run (2% busy, CPU caps it at 2,404 req/s, replica lag up to 18.3 ms), its settings and its resources sized as a real db.t4g.xlarge at $0.26 an hour (AWS us-east-1 prices of 2026-10-28), with the chaos pads below the canvas](images/build.jpg)
+![The Design workspace in the light theme: the Black Friday diagram with Orders DB selected; the side panel shows its technology (PostgreSQL), how it did in the last run (2% busy, CPU 16% busy with its busiest instance at 33%, CPU caps it at 928 req/s, replica lag up to 18.3 ms), its settings and its resources sized as a real db.t4g.xlarge at $0.26 an hour (AWS us-east-1 prices of 2026-10-28), with the chaos pads below the canvas](images/build.jpg)
 
 **A parts library with each technology's logo** and a search box: relational (PostgreSQL, MySQL,
 SQL Server, distributed SQL), document (MongoDB replica sets and sharded clusters), wide-column
@@ -101,7 +101,7 @@ StatefulSets) or Mermaid, as reviewed starting points.
 
 ## Test: traffic, failures and replay
 
-![The Test workspace paused at 103.3 s of the Black Friday on Kubernetes ramp (300 → 1,500 req/s): Checkout API has scaled out to 3 pods, link labels show live request rates, the timeline below shows the ramp, events, latency, failures and throughput per part, and the test plan reports that the design did not hold up: p95 561 ms against the 500 ms objective and 98.8% availability against 99.5%](images/editor-results.jpg)
+![The Test workspace paused at 103.3 s of the Black Friday on Kubernetes ramp (300 → 1,500 req/s): Checkout API, autoscaling between 3 and 14 replicas, has scaled out to 9 pods, link labels show live request rates, the timeline below shows the ramp, events, latency, failures and throughput per part, and the test plan reports that the design did not hold up: p95 561 ms against the 500 ms objective and 98.8% availability against 99.5%](images/editor-results.jpg)
 
 - **One test plan.** The Test plan panel holds the last result and one plan card with three rows:
   Traffic, Must stay true (your objectives) and Failures. "Add failure" offers quick tests
@@ -118,7 +118,7 @@ StatefulSets) or Mermaid, as reviewed starting points.
 
 ## Results: answer, compare, breaking point, details
 
-![Results → Answer in the light theme: "No, it doesn't hold up." Latency p95 561 ms against at most 500 ms and availability 98.8% against at least 99.5%, a note that p95 is within 15% of the objective from one seed with a Check 5 seeds button, Checkout API as the primary bottleneck, "Low confidence: 29 of 42 inputs are illustrative defaults" with how to raise it and the measured accuracy, then 937 req/s handled, p95 561 ms (608 ms counting failures as timeouts), 98.8% success and $844 a month at AWS prices, the queueing-formula estimate, a Review panel and the first findings](images/scorecard.jpg)
+![Results → Answer in the light theme: "No, it doesn't hold up." Latency p95 561 ms against at most 500 ms and availability 98.8% against at least 99.5%, a note that p95 is within 15% of the objective from one seed with a Check 5 seeds button, Checkout API as the primary bottleneck, "Low confidence: 28 of 42 inputs are illustrative defaults" with how to raise it and the measured accuracy, then 937 req/s handled, p95 561 ms (608 ms counting failures as timeouts), 98.8% success and $844 a month at AWS prices, the queueing-formula estimate, a Review panel and the first findings](images/scorecard.jpg)
 
 - **Answer**: one sentence ("Yes, it holds up." or "No, it doesn't hold up." with the objective
   that failed and the bottleneck), the key numbers, what to fix first, objective tiles with

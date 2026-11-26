@@ -8,6 +8,16 @@ for when that version changes.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The run picker in Results and on the Dashboard shows the whole label of its run.** Since a
+  run's label names its short id ("Current design · run 3f9a2c1d · seed 42 · 43s ago"), the picker
+  cut it off mid-word at common desktop widths ("· 12s a"), in the app and in the README's and
+  archsim.io's screenshots. It is now as wide as the label of the run it shows, up to 28rem; a
+  longer label ends in an ellipsis and stays whole in its tooltip, and in a crowded header the
+  picker gives way while the other controls keep their width. The screenshots that show it, and
+  the demo GIF, are retaken.
+
 ## [1.4.0] - 2026-11-25
 
 Hyperthreads counted by default, the second held-out accuracy campaign, and results presented as
