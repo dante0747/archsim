@@ -10,11 +10,15 @@ import { MobileNav } from "@/components/ui/MobileNav";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   type Accuracy,
+  type AgainstEstimates,
   BENCHMARK_WORKFLOW,
   CALIBRATION_DOC,
   type Experiment,
   JAVA_PARITY_DOC,
+  type KneeErrors,
   VALIDATION_DOC,
+  arithmeticOf,
+  arithmeticSentence,
   byKneeError,
   coverageAsClaimed,
   coverageSentence,
@@ -22,11 +26,13 @@ import {
   formatDate,
   formatTime,
   kneeSentence,
+  leadSentence,
   lowLoadSentence,
   measuredOn,
   minus,
   p95Sentence,
   repeatSentence,
+  splitSentence,
   spreadSentence,
   topStepText,
 } from "@/lib/accuracy";
@@ -63,6 +69,68 @@ function Section({ id, title, children, lead }: { id: string; title: string; lea
       {lead && <div className="mt-3 max-w-3xl text-[15px] leading-relaxed text-ink-2">{lead}</div>}
       <div className="mt-6">{children}</div>
     </section>
+  );
+}
+
+/**
+ * ArchSim against plain bottleneck arithmetic and the other simple estimates over the held-out runs: the README's
+ * statement from the data, each one's median and worst error, and the split the word "level" rests on.
+ */
+function AgainstArithmetic({ against }: { against: AgainstEstimates | null }) {
+  const arithmetic = arithmeticOf(against);
+  if (!against || !arithmetic) return null;
+  const rows: [string, KneeErrors][] = [["ArchSim", against.simulator], ...against.estimates.map((e): [string, KneeErrors] => [e.name, e])];
+  return (
+    <div role="note" aria-labelledby="against-arithmetic" className="mb-8 max-w-3xl rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow)]">
+      <p id="against-arithmetic" className="text-[15px] font-semibold text-ink">
+        Against plain arithmetic
+      </p>
+      <p className="mt-2 text-[15px] leading-relaxed text-ink">{arithmeticSentence(against)}</p>
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full min-w-[300px] text-left text-[13px]">
+          <caption className="sr-only">Knee error over the {against.runs} held-out runs: ArchSim and simple estimates from the same calibration</caption>
+          <thead className="text-ink-3">
+            <tr className="border-b border-line align-bottom">
+              <th scope="col" className={th}>
+                Estimate of the knee
+              </th>
+              <th scope="col" className={cn(th, "text-right")}>
+                Median error
+              </th>
+              <th scope="col" className="py-1.5 text-right font-medium">
+                Worst run
+              </th>
+            </tr>
+          </thead>
+          <tbody className="text-ink">
+            {rows.map(([name, e]) => (
+              <tr key={name} className="border-b border-line last:border-0">
+                <th scope="row" className={cn("py-1.5 pr-2 font-normal sm:pr-3", e === against.simulator && "font-semibold")}>
+                  {name}
+                </th>
+                <td className={cn(num, "tabular")}>
+                  {e.text.medianAbsError}
+                  {e.runs < against.runs && <span className="text-ink-3"> ({e.runs} runs)</span>}
+                </td>
+                <td className="py-1.5 text-right">
+                  <span className="tabular">{minus(e.text.worstError)}</span>
+                  {e.worst && (
+                    <a href={`#${e.worst.experiment}`} className="block whitespace-nowrap text-[12px] text-ink-3 hover:text-ink hover:underline sm:ml-1.5 sm:inline">
+                      {e.worst.experiment}
+                    </a>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-3 text-[13px] leading-relaxed text-ink-2">
+        {splitSentence(against)} Bottleneck arithmetic divides what each part has (its cores, workers or connections) by what one request takes of
+        it, from the calibrated inputs ArchSim used: no queueing, no simulation. The median counts misses on either side alike. What each estimate is,
+        and every run&apos;s figures, are under &ldquo;Against simple estimates&rdquo; in <RepoFile path={VALIDATION_DOC} small /> in the repository.
+      </p>
+    </div>
   );
 }
 
@@ -529,6 +597,7 @@ export function AccuracyPage({ data, header = <AppHeader />, footer = <AppFooter
   const cpu = cpuSentence(data.experiments);
   const coverage = coverageSentence(s);
   const allInSample = s.inSample.length === n;
+  const lead = leadSentence(s.againstEstimatesHeldOut);
 
   return (
     <div className="min-h-full overflow-x-clip bg-page [--meas:var(--series-1)] [--pred:#c26a00] dark:[--pred:#d07400]">
@@ -545,9 +614,8 @@ export function AccuracyPage({ data, header = <AppHeader />, footer = <AppFooter
             </h1>
             <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-ink-2">
               We run small synthetic services on real PostgreSQL, Redis and Kafka, calibrate ArchSim on each at low load, ask it to predict how they
-              behave under heavier load <em>before</em> measuring them, and then measure. On a typical held-out run its predicted knee is about as close as plain
-              bottleneck arithmetic on the same calibration; its edge so far is a smaller worst miss. Here is every result, the good and the bad, and
-              how far to trust them.
+              behave under heavier load <em>before</em> measuring them, and then measure.{lead && ` ${lead}`} Here is every result, the good and the bad,
+              and how far to trust them.
             </p>
             <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-ink" data-testid="measured-on">
               {measuredOn(data).sentence}
@@ -572,6 +640,7 @@ export function AccuracyPage({ data, header = <AppHeader />, footer = <AppFooter
 
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <Section id="summary" title="The short version">
+            <AgainstArithmetic against={s.againstEstimatesHeldOut} />
             <ul className="max-w-3xl space-y-3 text-[15px] leading-relaxed text-ink">
               {ordered.map((x, i) => (
                 <li key={x.id} className={cn("flex gap-3", held.length > 0 && i === held.length && "border-t border-line pt-3")}>

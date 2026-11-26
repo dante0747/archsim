@@ -21,6 +21,15 @@ listed under "Implemented" is a stub or a mock.
 
 ## Implemented and covered by automated tests
 
+**/accuracy states the held-out runs against plain arithmetic (2026-11-25).** `accuracy.json`
+carries what the README and `docs/validation.md` gave by hand (`summary.againstEstimatesHeldOut`,
+`AgainstEstimatesHeldOut`, ADR-0101 proposed): over the 15 counted held-out runs, the median and
+the worst knee error of the simulator and of each simple estimate, and a sign test over the
+experiments, one vote each. `/accuracy` opens its short version with it: on a typical run level
+with bottleneck arithmetic (16.5% against 16.2%, the nearer in 3 of the 5 experiments), its
+advantage the worst case (-27% against +79%). Tests pin the figures and keep the README and the
+validation page's headline table to them.
+
 **The second held-out campaign: engine 1.6.0 out of sample, three rounds (2026-11-23).** The frozen
 engine predicted all fourteen experiments before they were measured, on 21-23 Nov 2026 under
 protocol v7. Held out, median knee errors: python-cores -0.1%, java-hot-row -3.3%, go-pool +15.1%,

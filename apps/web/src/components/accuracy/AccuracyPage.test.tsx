@@ -9,10 +9,13 @@ import {
   JAVA_PARITY_DOC,
   VALIDATION_DOC,
   accuracy,
+  arithmeticOf,
+  arithmeticSentence,
   cpuSentence,
   kneeSentence,
   measuredOn,
   minus,
+  splitSentence,
   spreadSentence,
   topStepText,
 } from "@/lib/accuracy";
@@ -77,7 +80,8 @@ describe("AccuracyPage", () => {
 
     const runs = Object.values(accuracy.history).flat();
     // each card's steps + each history table + each resources card's summary and steps
-    expect(screen.getAllByRole("table").length).toBe(accuracy.experiments.length * 2 + withResources.length * 2);
+    // ... and the short version's comparison with plain arithmetic
+    expect(screen.getAllByRole("table").length).toBe(accuracy.experiments.length * 2 + withResources.length * 2 + (arithmeticOf(accuracy.summary.againstEstimatesHeldOut) ? 1 : 0));
     expect(text).toContain(`${runs.length} runs `);
     for (const r of runs) expect(text).toContain(r.machine);
     expect(screen.getByRole("heading", { name: "How to calibrate your own design" })).toBeInTheDocument();
@@ -133,6 +137,43 @@ describe("AccuracyPage", () => {
     const hero = container.querySelector("main > section") as HTMLElement;
     expect(hero.textContent).toMatch(/calibrate ArchSim on each at low load/);
     expect(hero.textContent).toMatch(/about as close as plain bottleneck arithmetic on the same calibration/);
+  });
+
+  it("takes the top's comparison with bottleneck arithmetic from the data, and says none without it", () => {
+    const { container } = render(<AccuracyPage data={{ ...accuracy, summary: { ...accuracy.summary, againstEstimatesHeldOut: null } }} />);
+
+    const hero = container.querySelector("main > section") as HTMLElement;
+    expect(hero.textContent).toMatch(/calibrate ArchSim on each at low load/);
+    expect(hero.textContent).not.toMatch(/bottleneck arithmetic/);
+  });
+
+  it("leads the short version with how ArchSim compares with plain bottleneck arithmetic on the held-out runs", () => {
+    const data = accuracy.summary.againstEstimatesHeldOut;
+    const arithmetic = arithmeticOf(data);
+    if (!data || !arithmetic) throw new Error("no held-out comparison in accuracy.json");
+    const { container } = render(<AccuracyPage data={accuracy} />);
+
+    const summary = container.querySelector("section#summary") as HTMLElement;
+    const note = within(summary).getByRole("note", { name: "Against plain arithmetic" });
+    expect(note).toHaveTextContent(arithmeticSentence(data) as string);
+    expect(note).toHaveTextContent(splitSentence(data) as string);
+    // before every experiment's line
+    const first = within(summary).getByRole("link", { name: accuracy.experiments[0].name });
+    expect(note.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // a row for ArchSim and one for each estimate, with its median error and its worst run
+    const rows = within(within(note).getByRole("table")).getAllByRole("row").slice(1);
+    expect(rows.map((r) => within(r).getByRole("rowheader").textContent)).toEqual(["ArchSim", ...data.estimates.map((e) => e.name)]);
+    [data.simulator, ...data.estimates].forEach((e, i) => {
+      expect(rows[i]).toHaveTextContent(e.text.medianAbsError);
+      expect(rows[i]).toHaveTextContent(minus(e.text.worstError));
+      expect(within(rows[i]).getByRole("link", { name: e.worst?.experiment })).toHaveAttribute("href", `#${e.worst?.experiment}`);
+    });
+  });
+
+  it("says nothing of plain arithmetic before a held-out run has its knee", () => {
+    const { container } = render(<AccuracyPage data={{ ...accuracy, summary: { ...accuracy.summary, againstEstimatesHeldOut: null } }} />);
+
+    expect(within(container).queryByRole("note", { name: "Against plain arithmetic" })).toBeNull();
   });
 
   it("says the benchmarks rerun by hand while the workflow's schedule is off", () => {

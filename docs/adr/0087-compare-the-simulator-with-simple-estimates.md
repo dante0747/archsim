@@ -107,6 +107,9 @@ estimates that do not know of the row's lock are +217% and +299%. Its Kafka note
 consumers falling behind at 1,959 req/s, not PostgreSQL. Its medians did not move (30% held out,
 16% tuned on), and its knee is within 2% of the simulator's on eight experiments.
 
+**Status (25 Nov 2026):** [ADR-0101](0101-show-the-held-out-runs-against-the-simple-estimates-on-the-accuracy-page.md)
+(proposed) puts the held-out comparison in `accuracy.json` and on `/accuracy`.
+
 ### Consequences
 
 - Good, because the page now answers the review's question, and the answer is the unwelcome

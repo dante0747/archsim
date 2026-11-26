@@ -55,6 +55,26 @@ class AccuracyDataTests {
 	}
 
 	@Test
+	void of_theLatestRunsAlone_compareOneRunOfEachHeldOutExperimentWithTheEstimates(@TempDir Path results)
+			throws IOException {
+		copyLatestRuns(results);
+
+		JsonNode data = AccuracyData.of(sources(results)).orElseThrow();
+
+		assertThat(data.at("/summary/againstEstimatesHeldOut/runs").intValue()).isEqualTo(5);
+		assertThat(data.at("/summary/againstEstimatesHeldOut/estimates/0/runs").intValue()).isEqualTo(5);
+	}
+
+	@Test
+	void of_theTunedOnRunsAlone_compareNothingWithTheEstimates(@TempDir Path results) throws IOException {
+		ResultCopies.copyLatest(LAYOUT.results().resolve("java-mixed"), results.resolve("java-mixed"));
+
+		JsonNode data = AccuracyData.of(sources(results)).orElseThrow();
+
+		assertThat(data.at("/summary/againstEstimatesHeldOut").isNull()).isTrue();
+	}
+
+	@Test
 	void of_noResults_isEmpty(@TempDir Path folder) {
 		assertThat(AccuracyData.of(sources(folder.resolve("none")))).isEmpty();
 	}

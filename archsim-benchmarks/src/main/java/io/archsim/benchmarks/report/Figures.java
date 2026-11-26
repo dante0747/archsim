@@ -76,6 +76,15 @@ final class Figures {
 	}
 
 	/**
+	 * A share as a percentage to a tenth, without a sign of its own: {@code 16.5%}.
+	 * @param share the share, or None
+	 * @return the percentage, or a dash
+	 */
+	static String magnitudeTenths(JsonNode share) {
+		return PythonValues.isNone(share) ? NONE : PythonFormat.format(share.doubleValue() * PERCENT, ".1f") + "%";
+	}
+
+	/**
 	 * A latency in milliseconds: {@code 1,234}, {@code 12.3} or {@code 1.23}.
 	 * @param latency the latency, or None
 	 * @return its text, or a dash

@@ -186,7 +186,80 @@
         ],
         "validated": false
       }
-    ]
+    ],
+    "againstEstimatesHeldOut": {
+      "runs": 15,
+      "experiments": 5,
+      "simulator": {
+        "runs": 15,
+        "medianAbsError": 0.1645761483206292,
+        "worstError": -0.2742745098039216,
+        "worst": {
+          "experiment": "python-wide",
+          "dir": "run-2/"
+        },
+        "text": {
+          "medianAbsError": "16.5%",
+          "worstError": "-27%"
+        }
+      },
+      "estimates": [
+        {
+          "estimate": "bottleneckArithmetic",
+          "name": "Bottleneck arithmetic",
+          "runs": 15,
+          "medianAbsError": 0.16186361896429144,
+          "worstError": 0.7865397342564783,
+          "worst": {
+            "experiment": "go-pool",
+            "dir": "run-2/"
+          },
+          "simulatorNearer": 3,
+          "estimateNearer": 2,
+          "verdict": "level",
+          "text": {
+            "medianAbsError": "16.2%",
+            "worstError": "+79%"
+          }
+        },
+        {
+          "estimate": "analyticEstimate",
+          "name": "Engine's analytic estimate",
+          "runs": 15,
+          "medianAbsError": 0.27450980392156865,
+          "worstError": 3.1637046816289227,
+          "worst": {
+            "experiment": "java-hot-row",
+            "dir": "run-2/"
+          },
+          "simulatorNearer": 4,
+          "estimateNearer": 1,
+          "verdict": "level",
+          "text": {
+            "medianAbsError": "27.5%",
+            "worstError": "+316%"
+          }
+        },
+        {
+          "estimate": "utilisationExtrapolation",
+          "name": "Utilisation extrapolation",
+          "runs": 15,
+          "medianAbsError": 0.43302811765659194,
+          "worstError": 5.703564537422565,
+          "worst": {
+            "experiment": "java-hot-row",
+            "dir": "run-2/"
+          },
+          "simulatorNearer": 5,
+          "estimateNearer": 0,
+          "verdict": "level",
+          "text": {
+            "medianAbsError": "43.3%",
+            "worstError": "+570%"
+          }
+        }
+      ]
+    }
   },
   "experiments": [
     {

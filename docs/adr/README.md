@@ -142,3 +142,4 @@ what the repository shows.
 | [0098](0098-serve-the-website-at-a-second-address-from-cloudflare-pages.md) | Serve the website at a second address, archsim.coderator.dev, from Cloudflare Pages | Proposed | 2026-11-25 |
 | [0099](0099-present-results-as-hypotheses-to-test-not-verdicts-or-gates.md) | Present results as hypotheses to test, not verdicts or gates | Proposed | 2026-11-25 |
 | [0100](0100-give-the-website-a-stylesheet-of-its-own-built-from-the-files-it-renders.md) | Give the website a stylesheet of its own, built from the files it renders | Proposed | 2026-11-25 |
+| [0101](0101-show-the-held-out-runs-against-the-simple-estimates-on-the-accuracy-page.md) | Show the held-out runs against the simple estimates on the accuracy page, each experiment one vote | Proposed | 2026-11-25 |

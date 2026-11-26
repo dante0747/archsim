@@ -57,6 +57,16 @@ final class Repeatability {
 	}
 
 	/**
+	 * The kept runs that repeat the latest one and count: {@link #comparable}, without
+	 * the disturbed ones.
+	 * @param runs the kept runs, the latest last
+	 * @return the runs counted, in their order
+	 */
+	static List<JsonNode> counted(List<? extends JsonNode> runs) {
+		return comparable(runs).stream().filter(RunHistory::counted).toList();
+	}
+
+	/**
 	 * How the latest run's conditions repeated, without the disturbed runs: the knee
 	 * errors, their median and range, and how often the measured knee fell inside the
 	 * predicted range.
@@ -68,7 +78,7 @@ final class Repeatability {
 		if (alike.isEmpty()) {
 			return Optional.empty();
 		}
-		List<JsonNode> group = alike.stream().filter(RunHistory::counted).toList();
+		List<JsonNode> group = counted(runs);
 		List<JsonNode> errors = group.stream()
 			.map((run) -> PythonValues.get(run, "kneeError"))
 			.filter((error) -> !PythonValues.isNone(error))

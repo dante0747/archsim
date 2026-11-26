@@ -284,11 +284,51 @@ export interface Accuracy {
     /** Kept runs left out of the criteria, repeatability and spread because they were disturbed. */
     disturbedRuns: number;
     technologies: { name: string; experiments: string[]; validated: boolean }[];
+    /** ArchSim's knees against simple estimates of them over the held-out runs; null before any held-out run. */
+    againstEstimatesHeldOut: AgainstEstimates | null;
   };
   experiments: Experiment[];
   history: Record<string, HistoryRun[]>;
   /** What the Java engine reproduces of the frozen engine's knees, re-simulated in-sample; null before it has. */
   javaEngine: JavaEngine | null;
+}
+
+/** ArchSim's or a simple estimate's knee errors over the held-out runs: their median size and the worst. */
+export interface KneeErrors {
+  /** The runs that have this knee. */
+  runs: number;
+  medianAbsError: number | null;
+  worstError: number | null;
+  /** The run with the worst error: its experiment and its folder ("latest" or "run-2/"). */
+  worst: { experiment: string; dir: string } | null;
+  text: { medianAbsError: string; worstError: string };
+}
+
+/** A simple estimate of the knee from the same calibration (ADR-0087), set beside ArchSim's. */
+export interface EstimateComparison extends KneeErrors {
+  /** Its key in each run's baselines.json: bottleneckArithmetic, analyticEstimate or utilisationExtrapolation. */
+  estimate: string;
+  name: string;
+  /**
+   * The experiments where ArchSim's knee was the nearer to the measured one, by the median of its errors over the
+   * experiment's runs, and those where the estimate's was: one vote an experiment, as its runs share their error.
+   */
+  simulatorNearer: number;
+  estimateNearer: number;
+  /** The report's sign test on those experiments: "level" when they cannot tell ArchSim and the estimate apart. */
+  verdict: "level" | "simulator nearer" | "estimate nearer";
+}
+
+/**
+ * ArchSim's knees against simple estimates of them on the same calibration, over every counted run that repeats a
+ * held-out experiment's latest conditions.
+ */
+export interface AgainstEstimates {
+  runs: number;
+  /** The held-out experiments those runs are of. */
+  experiments: number;
+  simulator: KneeErrors;
+  estimates: EstimateComparison[];
 }
 
 /** The Java engine's re-simulation of every kept calibration against the frozen engine's knees. */
@@ -494,6 +534,69 @@ export function coverageSentence(s: Accuracy["summary"]): string | null {
   const h = s.coverageHeldOut;
   const heldOut = h?.withRange ? ` On the held-out experiments alone, ${h.inRange} of ${h.withRange}.` : "";
   return `${head}${verdict}${heldOut}`;
+}
+
+/** Plain bottleneck arithmetic beside ArchSim over the held-out runs, once a run has its knee; else null. */
+export function arithmeticOf(a: AgainstEstimates | null | undefined): EstimateComparison | null {
+  return a?.estimates.find((e) => e.estimate === "bottleneckArithmetic" && e.runs > 0) ?? null;
+}
+
+/** Whether ArchSim's worst held-out run missed the measured knee by less than the estimate's worst. */
+function smallerWorstMiss(simulator: KneeErrors, estimate: KneeErrors): boolean {
+  return Math.abs(simulator.worstError ?? Infinity) < Math.abs(estimate.worstError ?? Infinity);
+}
+
+/** How ArchSim stands on a typical held-out run against plain bottleneck arithmetic, by the report's sign test. */
+const TYPICAL_RUN: Record<EstimateComparison["verdict"], string> = {
+  level: "is level with",
+  "simulator nearer": "is nearer the measured knee than",
+  "estimate nearer": "is further from the measured knee than",
+};
+
+/**
+ * ArchSim against plain bottleneck arithmetic on the same calibration, in the README's words: on a typical held-out
+ * run, with the two median errors, then the two worst runs. Null before a held-out run has the arithmetic's knee.
+ */
+export function arithmeticSentence(a: AgainstEstimates | null | undefined): string | null {
+  const arithmetic = arithmeticOf(a);
+  if (!a || !arithmetic) return null;
+  const sim = a.simulator;
+  const typical = `On a typical held-out run ArchSim ${TYPICAL_RUN[arithmetic.verdict]} plain bottleneck arithmetic on the same calibration (median error ${sim.text.medianAbsError} against ${arithmetic.text.medianAbsError}, over ${a.runs} runs).`;
+  const worsts = `${minus(sim.text.worstError)} against ${minus(arithmetic.text.worstError)}`;
+  if (!smallerWorstMiss(sim, arithmetic)) return `${typical} Its worst run is no nearer: ${worsts}.`;
+  return arithmetic.verdict === "simulator nearer" ? `${typical} Its worst run is nearer too: ${worsts}.` : `${typical} Its advantage is the worst case: ${worsts}.`;
+}
+
+/** How close ArchSim's predicted knee is to the measured one beside plain bottleneck arithmetic's, by the sign test. */
+const LEAD: Record<EstimateComparison["verdict"], string> = {
+  level: "is about as close as",
+  "simulator nearer": "is nearer the measured one than",
+  "estimate nearer": "is further from the measured one than",
+};
+
+/**
+ * The page's lead on plain bottleneck arithmetic, in a few words: how ArchSim's predicted knee compares on a typical
+ * held-out run, then its worst miss. Null before a held-out run has the arithmetic's knee.
+ */
+export function leadSentence(a: AgainstEstimates | null | undefined): string | null {
+  const arithmetic = arithmeticOf(a);
+  if (!a || !arithmetic) return null;
+  const typical = `On a typical held-out run its predicted knee ${LEAD[arithmetic.verdict]} plain bottleneck arithmetic on the same calibration`;
+  if (!smallerWorstMiss(a.simulator, arithmetic)) return `${typical}, and its worst miss is no smaller.`;
+  return arithmetic.verdict === "simulator nearer" ? `${typical}, and its worst miss is smaller too.` : `${typical}; its edge so far is a smaller worst miss.`;
+}
+
+/**
+ * In how many held-out experiments ArchSim's knee and the arithmetic's were each the nearer, one vote an experiment:
+ * what the report's sign test weighs. Null before a held-out run has the arithmetic's knee.
+ */
+export function splitSentence(a: AgainstEstimates | null | undefined): string | null {
+  const arithmetic = arithmeticOf(a);
+  if (!a || !arithmetic) return null;
+  const split = `By each experiment's median error, ArchSim's knee was the nearer to the measured one in ${arithmetic.simulatorNearer} of the ${a.experiments} held-out experiments, the arithmetic's in ${arithmetic.estimateNearer}`;
+  return arithmetic.verdict === "level"
+    ? `${split}: a sign test cannot tell the two apart, so for the knee the simulation adds nothing yet on a typical run.`
+    : `${split}: more uneven a split than chance would make, by a sign test.`;
 }
 
 /** Whether the predicted range held the measured knee about as often as it claims (false before any run had one). */
