@@ -17,7 +17,7 @@ import { faultsAt, fmtRate, runFaults, statusAt } from "@/lib/recorder";
 import { NODE_STATUS } from "@/lib/status";
 import { CLUSTER_TYPE, type ClusterPlan, clusterIdsOf, clusterOf, isOnKubernetes, membersOf, planCluster, spreadPods, startingPods } from "@/lib/kubernetes";
 import { kindOf, technologyLabel } from "@/lib/theme";
-import type { Fault, NodeReport, NodeStatus, Report } from "@/lib/types";
+import type { Fault, FieldDescriptor, NodeConfig, NodeReport, NodeStatus, Report } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
@@ -83,6 +83,19 @@ function QueueBlocks({ queue, left }: { queue: number; left: number }) {
       <span className="ml-1 font-mono text-[11px] leading-none text-ink-3">{queue >= 10 ? Math.round(queue) : queue.toFixed(1)} queued</span>
     </div>
   );
+}
+
+/**
+ * The replicas an autoscaled service may run, such as "3–14 replicas"; null when its count is
+ * fixed: autoscaling is off, or it runs serverless, where its own scaling rules apply instead.
+ */
+function autoscalingRange(config: NodeConfig, fields: FieldDescriptor[]): string | null {
+  const setting = (key: string) => config[key] ?? fields.find((f) => f.key === key)?.default;
+  if (setting("autoscaling") !== true || setting("platform") === "serverless") return null;
+  const [min, max] = [setting("minReplicas"), setting("maxReplicas")];
+  if (typeof min !== "number" || typeof max !== "number") return null;
+  if (min === max) return `${min} ${min === 1 ? "replica" : "replicas"}`;
+  return `${min}–${max} replicas`;
 }
 
 function FaultTag({ fault }: { fault: Fault }) {
@@ -186,7 +199,9 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
       );
     }
   } else if (onK8s) {
-    const ready = tsAt("podsReady");
+    // A run records pods for a service on a cluster part; on none, the autoscaler's replicas are
+    // its pods, each one taking requests (the same count a cluster's ready pods are).
+    const ready = tsAt("podsReady") ?? tsAt("replicas");
     if (live && ready != null) {
       podView = <PodStrip ready={ready} starting={tsAt("podsStarting") ?? 0} pending={tsAt("podsPending") ?? 0} />;
     } else {
@@ -243,7 +258,13 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
             : patternKind,
     });
   }
+  // an autoscaled service's starting replicas would read as a fixed count: show its range instead
+  const range = autoscalingRange(data.config, comp?.fields ?? []);
   for (const f of headline) {
+    if (f.key === "replicas" && range) {
+      facts.push({ k: "Autoscaling", v: range });
+      continue;
+    }
     const v = data.config[f.key] ?? f.default;
     facts.push({ k: f.label, v: isDistribution(v) ? shortDistribution(v, f.unit ?? "ms") : describeValue(f, v) });
   }
