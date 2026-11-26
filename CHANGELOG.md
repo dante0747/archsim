@@ -17,6 +17,17 @@ for when that version changes.
   longer label ends in an ellipsis and stays whole in its tooltip, and in a crowded header the
   picker gives way while the other controls keep their width. The screenshots that show it, and
   the demo GIF, are retaken.
+- **`/accuracy` says how its held-out predictions compare with plain bottleneck arithmetic.** It
+  said nothing of it, though the README and `docs/validation.md` lead with it. Its short version
+  now opens with the README's statement, its figures from the data: on a typical held-out run
+  ArchSim is level with bottleneck arithmetic on the same calibration (median error 16.5% against
+  16.2% over the 15 runs), and its advantage is the worst case (-27% against +79%). A table adds
+  the engine's analytic estimate and the utilisation line, each with its median and its worst
+  run. `accuracy.json` carries the figures (`summary.againstEstimatesHeldOut`), and "level" is a
+  sign test over the experiments, one vote each, as an experiment's runs share their error: by
+  each one's median error ArchSim is the nearer in 3 of the 5 and the arithmetic in 2
+  ([ADR-0101](docs/adr/0101-show-the-held-out-runs-against-the-simple-estimates-on-the-accuracy-page.md),
+  proposed).
 
 ## [1.4.0] - 2026-11-25
 

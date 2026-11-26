@@ -1,10 +1,17 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  type AgainstEstimates,
+  type EstimateComparison,
   type Experiment,
+  type KneeErrors,
   type Repeatability,
   type ResourcePart,
   type Spread,
   accuracy,
+  arithmeticOf,
+  arithmeticSentence,
   byKneeError,
   cpuSentence,
   formatDate,
@@ -18,6 +25,7 @@ import {
   coverageSentence,
   rangeSource,
   repeatSentence,
+  splitSentence,
   spreadSentence,
   topStepText,
   measuredOn,
@@ -282,5 +290,86 @@ describe("where the runs were measured", () => {
     const two = { ...accuracy, summary: { ...accuracy.summary, runs: 9, machines: ["AMD EPYC 7B13", "Apple M3"] } };
 
     expect(measuredOn(two)).toEqual({ short: "2 machines", sentence: "The 9 runs were measured on 2 machines: AMD EPYC 7B13 and Apple M3." });
+  });
+});
+
+describe("against plain arithmetic", () => {
+  // a comparison over 15 held-out runs of 5 experiments, its figures written here
+  const errors = (median: string, worst: number, worstText: string): KneeErrors => ({
+    runs: 15,
+    medianAbsError: parseFloat(median) / 100,
+    worstError: worst,
+    worst: { experiment: "go-pool", dir: "run-2/" },
+    text: { medianAbsError: median, worstError: worstText },
+  });
+  type Split = { verdict: EstimateComparison["verdict"]; simulatorNearer: number; estimateNearer: number; experiments?: number };
+  const against = ({ verdict, simulatorNearer, estimateNearer, experiments = 5 }: Split, worst = 0.787, worstText = "+79%"): AgainstEstimates => ({
+    runs: 15,
+    experiments,
+    simulator: errors("16.5%", -0.274, "-27%"),
+    estimates: [
+      { ...errors("16.2%", worst, worstText), estimate: "bottleneckArithmetic", name: "Bottleneck arithmetic", simulatorNearer, estimateNearer, verdict },
+      { ...errors("27.5%", 3.16, "+316%"), estimate: "analyticEstimate", name: "Engine's analytic estimate", simulatorNearer: 4, estimateNearer: 1, verdict: "level" },
+    ],
+  });
+
+  it("gives the README's figures, from the data", () => {
+    // vitest runs in apps/web: the README is two levels up, its lines wrapped
+    const readme = readFileSync(resolve(process.cwd(), "../..", "README.md"), "utf8").replace(/\s+/g, " ");
+    const data = accuracy.summary.againstEstimatesHeldOut;
+    const arithmetic = arithmeticOf(data);
+    if (!data || !arithmetic) throw new Error("no held-out comparison in accuracy.json");
+    const medians = `median error ${data.simulator.text.medianAbsError} against ${arithmetic.text.medianAbsError}`;
+    const worsts = `${minus(data.simulator.text.worstError)} against ${minus(arithmetic.text.worstError)}`;
+
+    expect(readme).toContain(medians);
+    expect(readme).toContain(worsts);
+    expect(arithmeticSentence(data)).toContain(medians);
+    expect(arithmeticSentence(data)).toContain(worsts);
+  });
+
+  it("calls a tie level, and the worst case ArchSim's advantage when it is", () => {
+    const tie = against({ verdict: "level", simulatorNearer: 3, estimateNearer: 2 });
+
+    expect(arithmeticSentence(tie)).toBe(
+      "On a typical held-out run ArchSim is level with plain bottleneck arithmetic on the same calibration (median error 16.5% against 16.2%, over 15 runs). " +
+        "Its advantage is the worst case: −27% against +79%.",
+    );
+    expect(splitSentence(tie)).toBe(
+      "By each experiment's median error, ArchSim's knee was the nearer to the measured one in 3 of the 5 held-out experiments, the arithmetic's in 2: " +
+        "a sign test cannot tell the two apart, so for the knee the simulation adds nothing yet on a typical run.",
+    );
+  });
+
+  it("says when the experiments put ArchSim nearer, and whether its worst run is too", () => {
+    const nearer = against({ verdict: "simulator nearer", simulatorNearer: 6, estimateNearer: 0, experiments: 6 });
+
+    expect(arithmeticSentence(nearer)).toBe(
+      "On a typical held-out run ArchSim is nearer the measured knee than plain bottleneck arithmetic on the same calibration (median error 16.5% against 16.2%, over 15 runs). " +
+        "Its worst run is nearer too: −27% against +79%.",
+    );
+    expect(splitSentence(nearer)).toBe(
+      "By each experiment's median error, ArchSim's knee was the nearer to the measured one in 6 of the 6 held-out experiments, the arithmetic's in 0: " +
+        "more uneven a split than chance would make, by a sign test.",
+    );
+  });
+
+  it("says when the experiments put the arithmetic nearer, and ArchSim's worst run no nearer", () => {
+    const further = against({ verdict: "estimate nearer", simulatorNearer: 0, estimateNearer: 6, experiments: 6 }, -0.2, "-20%");
+
+    expect(arithmeticSentence(further)).toBe(
+      "On a typical held-out run ArchSim is further from the measured knee than plain bottleneck arithmetic on the same calibration (median error 16.5% against 16.2%, over 15 runs). " +
+        "Its worst run is no nearer: −27% against −20%.",
+    );
+  });
+
+  it("says nothing before a held-out run has the arithmetic's knee", () => {
+    const none = against({ verdict: "level", simulatorNearer: 0, estimateNearer: 0 });
+    none.estimates[0] = { ...none.estimates[0], runs: 0 };
+
+    expect(arithmeticOf(none)).toBeNull();
+    expect(arithmeticSentence(none)).toBeNull();
+    expect(splitSentence(none)).toBeNull();
+    expect(arithmeticSentence(null)).toBeNull();
   });
 });
