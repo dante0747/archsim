@@ -1,26 +1,17 @@
 "use client";
 
 /**
- * How much of a verdict is the design and how much is the seed (W9).
- *
- * - A run of a seed group shows the group: "Meets the objectives in 4 of 5 runs · p95 98–131 ms
- *   (median 104) · seeds 42–46", with an amber Borderline when the runs disagree (and the
- *   confidence line capped at medium).
- * - A single run whose p95 is within 15% of the objective offers "Check 5 seeds".
- * - A quick check's report is labelled "estimated", and charts say they cover only the sample.
+ * How much of a verdict is the design and how much is the seed (W9): starting a seed group, the
+ * Borderline badge for runs that disagree, and the labels of an answer estimated from a sample
+ * ("Estimated", and the note charts carry). The verdict's caveats (Caveats.tsx) use them.
  */
-import { Dices, FlaskConical } from "lucide-react";
+import { FlaskConical } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Tip } from "@/components/ui/misc";
-import { BORDERLINE_REASON_TEXT, CHECK_SEEDS, NEAR_OBJECTIVE, capConfidence, getRunInput, isEstimated, nearObjective, seedRange, simulationModeOf } from "@/lib/seed-groups";
-import { formatSloValue } from "@/lib/slo";
-import type { Confidence, Report, Run } from "@/lib/types";
+import { CHECK_SEEDS, getRunInput, simulationModeOf } from "@/lib/seed-groups";
+import type { Report, Run } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
-import { useSeedGroup } from "@/store/seed-groups";
-import { ConfidenceLine } from "./Confidence";
 
 /** Start a seed group from a finished run: its stored input, scenario and mode, 5 seeds from its own. */
 export async function checkSeeds(run: Run): Promise<void> {
@@ -77,67 +68,4 @@ export function SampleNote({ report, className }: { report: Report | null | unde
       <span>{text}</span>
     </p>
   );
-}
-
-/** Under the verdict: the quick-check label, then the seed group's range or the offer to check more seeds. */
-export function SeedRange({ run, report }: { run: Run; report: Report }) {
-  const objectives = useEditor((s) => s.objectives);
-  const group = useSeedGroup(run.groupId);
-  const starting = useRuns((s) => s.starting);
-  const mode = simulationModeOf(report);
-  const estimated = isEstimated(report);
-
-  let seeds: React.ReactNode = null;
-  if (run.groupId && group) {
-    const range = seedRange(group.runs, objectives);
-    const active = group.runs.filter((r) => r.status === "queued" || r.status === "running").length;
-    const failed = group.runs.filter((r) => r.status === "failed" || r.status === "cancelled").length;
-    seeds = (
-      <p data-testid="seed-range" data-verdict={range.verdict ?? "none"} className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] leading-relaxed text-ink">
-        {range.borderline && <BorderlineBadge />}
-        <Dices className="size-4 shrink-0 text-ink-3" aria-hidden />
-        <span>{range.finished ? range.text : `Running ${range.runs} seeds…`}</span>
-        {active > 0 && range.finished > 0 && (
-          <span className="text-ink-3">
-            ({range.finished} of {range.runs} finished)
-          </span>
-        )}
-        {failed > 0 && active === 0 && <span className="text-ink-3">({failed} did not finish)</span>}
-      </p>
-    );
-  } else if (!run.groupId && nearObjective(report, objectives)) {
-    const target = objectives.latencyP95Ms ?? 0;
-    seeds = (
-      <div data-testid="check-seeds" className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-line bg-surface-2/60 px-3 py-2">
-        <p className="min-w-0 flex-1 text-[13px] leading-relaxed text-ink-2">
-          p95 {formatSloValue("p95", report.summary.latencyMs.p95)} is within {Math.round(NEAR_OBJECTIVE * 100)}% of the {formatSloValue("p95", target)} objective, and this is one
-          seed ({run.seed}). Another could change the answer.
-        </p>
-        <Button size="sm" variant="secondary" onClick={() => void checkSeeds(run)} disabled={starting}>
-          <Dices /> Check {CHECK_SEEDS} seeds
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      {estimated && mode && (
-        <p className="mt-2 flex flex-wrap items-center gap-2 text-[13px] text-ink-2" data-testid="estimated-line">
-          <EstimatedBadge report={report} />
-          <span>{mode.note}</span>
-        </p>
-      )}
-      {mode?.kind === "full" && <p className="mt-2 text-[13px] text-ink-3">{mode.note}</p>}
-      {seeds}
-    </>
-  );
-}
-
-/** The confidence line, capped at medium while the run's seed group is borderline. */
-export function SeedConfidenceLine({ run, confidence, fromDesign }: { run: Run; confidence: Confidence; fromDesign?: boolean }) {
-  const objectives = useEditor((s) => s.objectives);
-  const group = useSeedGroup(run.groupId);
-  const borderline = !!group && seedRange(group.runs, objectives).borderline;
-  return <ConfidenceLine confidence={borderline ? capConfidence(confidence, "medium", BORDERLINE_REASON_TEXT) : confidence} fromDesign={fromDesign} />;
 }

@@ -86,35 +86,36 @@ describe("Results header", () => {
     useRuns.setState({ runs: [runOf("r1", "succeeded")], reports: { r1: report() }, activeRunId: "r1" });
     show(<AnswerPage />);
     expect(screen.getByRole("heading", { name: "Yes, it holds up." })).toBeTruthy();
-    const line = screen.getByTestId("confidence-line");
-    expect(within(line).getByTestId("confidence-badge")).toHaveTextContent("Low confidence");
-    expect(within(line).getByTestId("confidence-badge").dataset.level).toBe("low");
-    expect(within(line).getByTestId("confidence-reason")).toHaveTextContent("31 of 35 inputs are illustrative defaults");
-    fireEvent.click(within(line).getByRole("button", { name: "how to raise it" }));
+    const caveats = screen.getByRole("list", { name: "How sure is this" });
+    expect(within(caveats).getByTestId("confidence-badge")).toHaveTextContent("Low confidence");
+    expect(within(caveats).getByTestId("confidence-badge").dataset.level).toBe("low");
+    expect(within(caveats).getByTestId("confidence-reason")).toHaveTextContent("31 of 35 inputs are illustrative defaults");
+    fireEvent.click(within(caveats).getByRole("button", { name: "About the confidence" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show the inputs" }));
     expect(useDecide.getState().section).toBe("details");
     expect(useDecide.getState().detailsView).toBe("assumptions");
   });
 
-  it("sets the run's estimate against what it simulated", () => {
-    useRuns.setState({ runs: [runOf("r1", "succeeded")], reports: { r1: report() }, activeRunId: "r1" });
-    show(<AnswerPage />);
-    expect(screen.getByTestId("estimate-vs-sim")).toHaveTextContent("Queueing formulas: p95 ≈ 97 ms (simulated 91 ms); API Servers 70% of its slots busy (simulated 70%).");
-  });
-
-  it("names what the formulas leave out as a link, not a stray label", () => {
+  it("sets the run's estimate against what it simulated, in full on demand", () => {
     useRuns.setState({ runs: [runOf("r1", "succeeded")], reports: { r1: report() }, activeRunId: "r1" });
     show(<AnswerPage />);
     const line = screen.getByTestId("estimate-vs-sim");
+    expect(line).toHaveTextContent("Queueing formulas predict p95 ≈ 97 ms");
 
-    expect(within(line).getByRole("button", { name: "What the formulas leave out" })).toBeInTheDocument();
-    expect(within(line).queryByRole("button", { name: "not simulated" })).toBeNull();
+    fireEvent.click(within(line).getByRole("button", { name: "About the formulas" }));
+
+    expect(screen.getByText("Queueing formulas: p95 ≈ 97 ms (simulated 91 ms); API Servers 70% of its slots busy (simulated 70%).")).toBeInTheDocument();
   });
 
-  it("falls back to the design's confidence for runs made before it was recorded", () => {
+  it("falls back to the design's confidence for runs made before it was recorded, and says so", () => {
     useRuns.setState({ runs: [runOf("r1", "succeeded")], reports: { r1: report(false) }, activeRunId: "r1" });
     show(<AnswerPage />);
-    expect(screen.getByTestId("confidence-reason")).toHaveTextContent("31 of 35 inputs are illustrative defaults (current design; simulate again");
+    expect(screen.getByTestId("confidence-reason")).toHaveTextContent("31 of 35 inputs are illustrative defaults");
     expect(screen.queryByTestId("estimate-vs-sim")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "About the confidence" }));
+
+    expect(screen.getByText(/the run predates it/)).toBeInTheDocument();
   });
 
   it("shows the instant estimate while a run is queued or running", () => {

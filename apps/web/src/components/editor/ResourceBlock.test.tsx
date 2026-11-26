@@ -73,7 +73,7 @@ describe("ResourceBlock", () => {
     useEditor.getState().setNodeConfig("db", "memoryGib", 8);
     show("db");
     expect(screen.getByLabelText(/Storage/)).toBeTruthy();
-    expect(screen.getByText(/the cost estimate uses it/)).toBeTruthy();
+    expect(screen.getByTestId("price-used")).toHaveTextContent("the cost estimate uses the size's price");
     cleanup();
     useEditor.getState().setNodeConfig("db", "costPerHour", 0.5);
     show("db");
@@ -102,7 +102,7 @@ describe("ResourceBlock", () => {
     show("db");
     expect(screen.queryByText(/your price/)).toBeNull();
     expect(screen.queryByText(/preset/)).toBeNull();
-    expect(screen.getByText(/the cost estimate uses it/)).toBeTruthy();
+    expect(screen.getByTestId("price-used")).toHaveTextContent("the cost estimate uses the size's price");
     cleanup();
     // a price the user typed is still theirs
     useEditor.getState().setNodeConfig("db", "costPerHour", 0.5);

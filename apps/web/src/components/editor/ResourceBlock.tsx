@@ -182,33 +182,21 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
         )}
       </div>
       {price != null && (
-        <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-ink-2">
-          <span>
-            {sku && pricing && !pricing.illustrative ? (
-              <>
-                <span className="font-mono text-ink">{sku}</span>, <span className="font-semibold text-ink">{formatUsd(price)}/h</span>
-                <span className="text-ink-3">
-                  {" "}
-                  (on-demand, {pricing.provider} {pricing.region}, prices of {pricing.snapshotDate})
-                </span>
-              </>
-            ) : (
-              <>
-                About <span className="font-semibold text-ink">{formatUsd(price)}/h</span> for this size
-                <span className="text-ink-3"> (illustrative on-demand price)</span>
-              </>
-            )}
-            {hasCost &&
-              (otherPrice == null ? (
-                <span className="text-ink-3">; the cost estimate uses it.</span>
-              ) : otherPrice === price ? (
-                <span className="text-ink-3">; used as its cost.</span>
-              ) : ownPrice != null ? (
-                <span className="text-ink-3">; the cost estimate uses your price of {formatUsd(ownPrice)}/h.</span>
-              ) : (
-                <span className="text-ink-3">; the cost estimate uses the technology preset&apos;s illustrative price of {formatUsd(otherPrice)}/h.</span>
-              ))}
-          </span>
+        <p className="flex flex-wrap items-baseline gap-x-1.5 text-xs text-ink-2" data-testid="size-price">
+          {sku && pricing && !pricing.illustrative ? (
+            <>
+              <span className="font-mono text-ink">{sku}</span>
+              <span className="font-semibold text-ink">{formatUsd(price)}/h</span>
+              <span className="text-ink-3">
+                on-demand, {pricing.provider} {pricing.region}, prices of {pricing.snapshotDate}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="font-semibold text-ink">About {formatUsd(price)}/h</span>
+              <span className="text-ink-3">for this size, an illustrative on-demand price</span>
+            </>
+          )}
           {hasCost && otherPrice != null && otherPrice !== price && (
             <button type="button" onClick={() => setNodeConfig(nodeId, "costPerHour", null)} className="font-medium text-accent hover:underline">
               Use size price
@@ -216,39 +204,56 @@ export function ResourceBlock({ nodeId, comp, config }: { nodeId: string; comp: 
           )}
         </p>
       )}
-      {size?.needText && !size.skipped && SPEC_FIELDS.some((k) => size.needText?.[k as SpecKey]) && (
-        <ul className="space-y-0.5 text-xs leading-relaxed text-ink-2" data-testid="need-vs-instance" aria-label="Needs and instance">
-          {SPEC_FIELDS.filter((k) => size.needText?.[k as SpecKey]).map((k) => (
-            <li key={k}>
-              <span className="text-ink-3">{NAME[k]}:</span> {size.needText?.[k as SpecKey]}
-            </li>
-          ))}
-        </ul>
-      )}
       {size?.skipped && <p className="text-xs text-ink-3">{size.skipped} Nothing is filled in automatically.</p>}
-      {autoUsed.length > 0 && size && (
-        <details className="group rounded-lg bg-accent-soft/40 px-2.5 py-2 text-xs text-ink-2">
-          <summary className="flex cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden">
-            <ChevronRight className="size-3.5 shrink-0 transition-transform group-open:rotate-90" aria-hidden />
+      <details className="group rounded-lg bg-surface-2/70 px-2.5 py-2 text-xs text-ink-2">
+        <summary className="flex cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden">
+          <ChevronRight className="size-3.5 shrink-0 transition-transform group-open:rotate-90" aria-hidden />
+          {autoUsed.length > 0 && size ? (
             <span>
               <span className="font-medium text-ink">Auto-sized</span> for about {Math.round(size.peakRps).toLocaleString("en-US")} req/s at peak
-              {targetCpu != null && <> ({Math.round(targetCpu * 100)}% CPU target)</>}. Type
-              a value to set your own.
+              {targetCpu != null && <> ({Math.round(targetCpu * 100)}% CPU target)</>}
             </span>
-          </summary>
-          <ul className="mt-1.5 space-y-1 pl-5">
-            {autoUsed.map((f) => (
-              <li key={f.key}>
-                <span className="font-medium text-ink">
-                  {NAME[f.key] ?? f.label} {autoOf(f.key)} {f.unit}
-                </span>
-                : {size.why[f.key as (typeof SPEC_KEYS)[number]]}
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-      <p className="text-xs leading-relaxed text-ink-3">{EFFECT[comp.type] ?? INFO_ONLY}</p>
+          ) : (
+            <span className="font-medium text-ink">What it needs, and what it costs</span>
+          )}
+        </summary>
+        <div className="mt-2 space-y-2 pl-5 leading-relaxed">
+          {autoUsed.length > 0 && size && (
+            <ul className="space-y-1">
+              {autoUsed.map((f) => (
+                <li key={f.key}>
+                  <span className="font-medium text-ink">
+                    {NAME[f.key] ?? f.label} {autoOf(f.key)} {f.unit}
+                  </span>
+                  : {size.why[f.key as (typeof SPEC_KEYS)[number]]}
+                </li>
+              ))}
+              <li className="text-ink-3">Type a value to set your own.</li>
+            </ul>
+          )}
+          {size?.needText && !size.skipped && SPEC_FIELDS.some((k) => size.needText?.[k as SpecKey]) && (
+            <ul className="space-y-0.5" data-testid="need-vs-instance" aria-label="Needs and instance">
+              {SPEC_FIELDS.filter((k) => size.needText?.[k as SpecKey]).map((k) => (
+                <li key={k}>
+                  <span className="text-ink-3">{NAME[k]}:</span> {size.needText?.[k as SpecKey]}
+                </li>
+              ))}
+            </ul>
+          )}
+          {price != null && hasCost && (
+            <p data-testid="price-used">
+              {otherPrice == null
+                ? "Its cost: the cost estimate uses the size's price."
+                : otherPrice === price
+                  ? "Its cost: the size's price, the same as the part's own."
+                  : ownPrice != null
+                    ? `Its cost: the cost estimate uses your price of ${formatUsd(ownPrice)}/h.`
+                    : `Its cost: the cost estimate uses the technology preset's illustrative price of ${formatUsd(otherPrice)}/h.`}
+            </p>
+          )}
+          <p className="text-ink-3">{EFFECT[comp.type] ?? INFO_ONLY}</p>
+        </div>
+      </details>
     </section>
   );
 }

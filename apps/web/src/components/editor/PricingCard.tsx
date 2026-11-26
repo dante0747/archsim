@@ -90,9 +90,8 @@ export function PricingCard() {
               setPricing(e.target.checked ? rest : { ...rest, burstable: "never" });
             }}
           />
-          <span>
-            Burstable t4g types for light parts
-            <span className="block text-ink-3">When a part&apos;s CPU at the base load stays under the type&apos;s baseline (it earns CPU credits). Off: full cores only.</span>
+          <span title="A burstable type is picked only when the part's CPU at the base load stays under the type's baseline, so it earns CPU credits. Off: full cores only.">
+            Allow burstable (t4g) types for lightly loaded parts
           </span>
         </label>
       )}

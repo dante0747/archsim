@@ -54,7 +54,7 @@ describe("SiblingSpeedCard", () => {
     opened("1.10");
 
     expect(screen.getByLabelText("vCPU sibling speed")).toHaveValue(1);
-    expect(screen.getByText(/whole cores \(this design was saved before schema 1\.11, or you set it\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Now: whole cores, set here or kept from before schema 1\.11/)).toBeInTheDocument();
   });
 
   it("moves a pinned design onto the default in one click", () => {
@@ -64,7 +64,7 @@ describe("SiblingSpeedCard", () => {
 
     expect(saved()).not.toHaveProperty("siblingSpeed");
     expect(useEditor.getState().dirty).toBe(true);
-    expect(screen.getByText(/each part's instance family decides; x86 types count as hyperthread pairs/i)).toBeInTheDocument();
+    expect(screen.getByText(/Now: each part's instance family decides \(x86 types count as hyperthread pairs\)/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Use the default" })).toBeNull();
   });
 

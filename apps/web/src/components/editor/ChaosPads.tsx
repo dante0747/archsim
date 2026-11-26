@@ -98,7 +98,7 @@ export function ChaosPads() {
   return (
     <>
     {marker}
-    <section aria-label="Chaos pads" className="surface-glass absolute bottom-3 right-3 z-10 w-[268px] rounded-[14px] p-2">
+    <section aria-label="Chaos pads" className="surface-glass absolute bottom-3 right-3 z-10 w-[300px] rounded-[14px] p-2">
       <header className="mb-2 flex items-center gap-2 text-xs">
         <span className="font-semibold text-ink">Chaos</span>
         <span className="text-ink-3">hit a pad</span>
@@ -118,7 +118,7 @@ export function ChaosPads() {
           </button>
         </span>
       </header>
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="grid grid-cols-2 gap-1.5">
         {presets.map((p) => {
           const { color, Icon } = KIND[p.kind];
           const on = lit(p);
@@ -130,7 +130,7 @@ export function ChaosPads() {
               title={p.description}
               aria-pressed={on}
               className={cn(
-                "flex h-[64px] flex-col justify-between overflow-hidden rounded-[10px] border px-2 pb-1.5 pt-2.5 text-left transition-[filter,transform] active:scale-[0.97]",
+                "flex min-h-[58px] flex-col justify-between gap-1 overflow-hidden rounded-[10px] border px-2.5 pb-2 pt-2.5 text-left transition-[filter,transform] active:scale-[0.97]",
                 on ? "border-transparent text-ink" : "border-line bg-surface-2 text-ink-2 hover:text-ink hover:brightness-110",
               )}
               style={{
@@ -139,7 +139,7 @@ export function ChaosPads() {
               }}
             >
               <Icon className="size-3.5 shrink-0" style={{ color }} aria-hidden />
-              <span className="line-clamp-2 text-[11px] font-medium leading-[13px]">{p.title}</span>
+              <span className="line-clamp-3 text-[11.5px] font-medium leading-[14px] [text-wrap:balance]">{p.title}</span>
             </button>
           );
         })}

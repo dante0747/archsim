@@ -27,7 +27,8 @@ example adding API servers behind a lone Clients box.
 
 ![The Design workspace in the light theme: the Black Friday diagram with Orders DB selected; the side panel shows its technology (PostgreSQL), how it did in the last run (2% busy, CPU 16% busy with its busiest instance at 33%, CPU caps it at 928 req/s, replica lag up to 18.3 ms), its settings and its resources sized as a real db.t4g.xlarge at $0.26 an hour (AWS us-east-1 prices of 2026-10-28), with the chaos pads below the canvas](images/build.jpg)
 
-**A parts library with each technology's logo** and a search box: relational (PostgreSQL, MySQL,
+**A parts library with each technology's logo**, one part a row with its full name and what it is
+beneath, and a search box: relational (PostgreSQL, MySQL,
 SQL Server, distributed SQL), document (MongoDB replica sets and sharded clusters), wide-column
 (Cassandra), key-value (DynamoDB-style provisioned throughput), search (Elasticsearch), caches
 (Redis, Valkey, Memcached, CDN edge, Varnish), message queues (Kafka, RabbitMQ, SQS-style...),
@@ -89,9 +90,13 @@ tile in its family's colour, its name, one or two key settings, and after a run 
 meter (green, then yellow, then red, like an audio meter) that shows how busy it was. Links are
 rounded wires that attach on any of the four sides: drag from a dot on any side of one part to any
 side of another, in either direction. Traffic moves along them while a run replays. Click a part to
-edit it: its technology, a one-line last-run status, at most three key settings (response-time
-distributions as a one-line summary you click to edit), and "More settings" for everything else,
-notes and what the model covers.
+edit it: its technology, a one-line last-run status and its facts from the run, at most three key
+settings (response-time distributions as a one-line summary you click to edit), and "More settings"
+for everything else, notes and what the model covers. Every setting shows its label in full and a
+one-line help beneath it, and says where its value comes from: measured, documented (with the
+vendor's site), your estimate, or default (an illustrative default, the kind the confidence counts
+against you), with a reset to the part's default when you changed it
+([ADR-0102](adr/0102-lead-each-screen-with-the-answer-and-make-every-input-explain-itself.md)).
 
 **A design review** flags single points of failure, missing timeouts, retry amplification along a
 path, timeout inversions, connection-pool exhaustion and more, with the numbers.
@@ -120,9 +125,12 @@ StatefulSets) or Mermaid, as reviewed starting points.
 
 ![Results → Answer in the light theme: "No, it doesn't hold up." Latency p95 561 ms against at most 500 ms and availability 98.8% against at least 99.5%, a note that p95 is within 15% of the objective from one seed with a Check 5 seeds button, Checkout API as the primary bottleneck, "Low confidence: 28 of 42 inputs are illustrative defaults" with how to raise it and the measured accuracy, then 937 req/s handled, p95 561 ms (608 ms counting failures as timeouts), 98.8% success and $844 a month at AWS prices, the queueing-formula estimate, a Review panel and the first findings](images/scorecard.jpg)
 
-- **Answer**: one sentence ("Yes, it holds up." or "No, it doesn't hold up." with the objective
-  that failed and the bottleneck), the key numbers, what to fix first, objective tiles with
-  editable targets, and monthly cost from per-component cost assumptions.
+- **Answer**: one card with the verdict ("Misses 2 of 2 objectives", then "Yes, it holds up." or
+  "No, it doesn't hold up."), the bottleneck with "Show on canvas", and objective tiles with
+  editable targets; under it, "How sure is this" names each caveat in a line (the seeds, the
+  confidence, experimental parts, what queueing formulas predict) and explains it on demand. Then
+  four key numbers, what to fix first by title with what to try (its evidence under "Why"), the
+  month's cost as one bar split by part, and the review.
 - **Compare**: cost against latency for every run and scenario (Pareto frontier, objective line),
   two runs side by side with the exact input differences, and the run history.
 - **Breaking point**: stepped load sweeps that find where latency turns into a hockey stick and the

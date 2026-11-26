@@ -3,7 +3,7 @@ import { Tooltip } from "radix-ui";
 import { describe, expect, it, vi } from "vitest";
 import catalogJson from "@/test/fixtures/catalog.json";
 import type { Catalog, FieldDescriptor } from "@/lib/types";
-import { FieldControl, FieldGroups, describeValue, validateNumber } from "./FieldControl";
+import { FieldControl, FieldGroups, describeValue, helpText, validateNumber } from "./FieldControl";
 
 const catalog = catalogJson as unknown as Catalog;
 const serviceFields = catalog.components.find((c) => c.type === "service")!.fields;
@@ -74,10 +74,61 @@ describe("FieldControl", () => {
     expect(onChange).toHaveBeenCalledWith(0.6);
   });
 
-  it("marks assumptions", () => {
+  it("says what it is in one line under its label, without the unit the field shows", () => {
     wrap(<FieldControl field={field(serviceFields, "serviceTimeMs")} value={{ kind: "lognormal", median: 8, p95: 25 }} onChange={() => {}} idPrefix="t" />);
-    expect(screen.getByLabelText("assumption")).toBeInTheDocument();
+
+    expect(screen.getByText("Handler time per request on a worker, excluding downstream calls.")).toBeInTheDocument();
     expect(screen.getByText(/mean 10\.2 ms/)).toBeInTheDocument();
+  });
+
+  it("keeps an abbreviation's full stop inside the help line's sentence", () => {
+    expect(helpText({ description: "Copies of each item kept by a leaderless or consensus store (e.g. Cassandra, distributed SQL). Others ignore it." })).toBe(
+      "Copies of each item kept by a leaderless or consensus store (e.g. Cassandra, distributed SQL).",
+    );
+    expect(helpText({ description: "fixed_ratio: each read hits. ttl_keyspace: keys expire." })).toBeNull();
+  });
+
+  it("says where its value comes from: a default, an estimate, vendor docs or a measurement", () => {
+    const serviceTime = field(serviceFields, "serviceTimeMs");
+    const value = { kind: "lognormal", median: 8, p95: 25 };
+    const { rerender } = wrap(<FieldControl field={serviceTime} value={value} onChange={() => {}} idPrefix="t" source={{ kind: "illustrative", source: "ArchSim default" }} />);
+    expect(screen.getByTestId("input-source")).toHaveTextContent("default");
+
+    rerender(
+      <Tooltip.Provider>
+        <FieldControl field={serviceTime} value={value} onChange={() => {}} idPrefix="t" source={{ kind: "assumed" }} />
+      </Tooltip.Provider>,
+    );
+    expect(screen.getByTestId("input-source")).toHaveTextContent("your estimate");
+
+    rerender(
+      <Tooltip.Provider>
+        <FieldControl field={serviceTime} value={value} onChange={() => {}} idPrefix="t" source={{ kind: "documented", source: "https://www.postgresql.org/docs/16/" }} />
+      </Tooltip.Provider>,
+    );
+    expect(screen.getByRole("link", { name: /documented · postgresql\.org/ })).toHaveAttribute("href", "https://www.postgresql.org/docs/16/");
+
+    rerender(
+      <Tooltip.Provider>
+        <FieldControl field={serviceTime} value={value} onChange={() => {}} idPrefix="t" source={{ kind: "measured", source: "Prometheus" }} />
+      </Tooltip.Provider>,
+    );
+    expect(screen.getByLabelText("measured: Prometheus")).toBeInTheDocument();
+  });
+
+  it("offers to reset a value set in the design to the part's default, and only then", () => {
+    const onChange = vi.fn();
+    const { rerender } = wrap(<FieldControl field={field(serviceFields, "replicas")} value={5} onChange={onChange} idPrefix="t" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset Replicas to the default, 2" }));
+
+    expect(onChange).toHaveBeenCalledWith(2);
+    rerender(
+      <Tooltip.Provider>
+        <FieldControl field={field(serviceFields, "replicas")} value={2} onChange={onChange} idPrefix="t" />
+      </Tooltip.Provider>,
+    );
+    expect(screen.queryByRole("button", { name: /Reset Replicas/ })).toBeNull();
   });
 
   it("hides fields whose visibleWhen does not match", () => {

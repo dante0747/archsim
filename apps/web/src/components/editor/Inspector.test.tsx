@@ -75,6 +75,26 @@ describe("Inspector", () => {
     expect(screen.getAllByText(/\(PostgreSQL, (documented|illustrative)\)$/).length).toBeGreaterThan(0);
   });
 
+  it("tags each of a part's inputs with where the design's analysis says its value comes from", () => {
+    const analysis = analysisCounting(hyperthreads);
+    analysis.inputs = [
+      { scope: "node", id: "db", label: "PostgreSQL", field: "readServiceTimeMs", fieldLabel: "Read query time", value: "p50 5 ms", provenance: { kind: "illustrative", source: "ArchSim default" } },
+      { scope: "node", id: "api", label: "API Servers", field: "serviceTimeMs", fieldLabel: "Service time", value: "p50 8 ms", provenance: { kind: "assumed" } },
+    ];
+    useEditor.getState().setAnalysis(analysis);
+
+    render(
+      <Tooltip.Provider>
+        <Inspector />
+      </Tooltip.Provider>,
+    );
+
+    const readTime = document.querySelector('[data-field="readServiceTimeMs"]') as HTMLElement;
+    expect(readTime.querySelector('[data-testid="input-source"]')).toHaveTextContent("default");
+    // another part's inputs are not this part's
+    expect(document.querySelectorAll('[data-testid="input-source"]')).toHaveLength(1);
+  });
+
   it("shows the design's sibling speed in the overview, with nothing selected", () => {
     const field: FieldDescriptor = {
       key: "siblingSpeed",

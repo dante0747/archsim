@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Info } from "lucide-react";
+import { ChevronDown, Info, RotateCcw } from "lucide-react";
 import { useId, useState } from "react";
 import { Input, Label, NativeSelect } from "@/components/ui/input";
 import { Switch, Tip } from "@/components/ui/misc";
@@ -105,6 +105,64 @@ export function ProvenanceTag({ provenance }: { provenance: ClassifiedProvenance
       </span>
     </Tip>
   );
+}
+
+/** How each kind of input source reads beside a setting, and what it means. */
+const SOURCE: Record<"assumed" | "illustrative", { text: string; tone: string; tip: string }> = {
+  assumed: {
+    text: "your estimate",
+    tone: "bg-surface-3",
+    tip: "Set in this design: an estimate, not a measurement. Calibrate it from telemetry to make it measured.",
+  },
+  illustrative: {
+    text: "default",
+    tone: "bg-warning-soft",
+    tip: "ArchSim's illustrative default, not a measurement. Put in your own number to raise the confidence in the results.",
+  },
+};
+
+/** Where a setting's value comes from: measured, a vendor's documentation, an estimate set in the design, or a default. */
+export function InputSource({ provenance }: { provenance: ClassifiedProvenance }) {
+  if (provenance.kind === "measured" || provenance.kind === "documented") {
+    return (
+      <span data-testid="input-source" data-kind={provenance.kind}>
+        <ProvenanceTag provenance={provenance} />
+      </span>
+    );
+  }
+  const meta = SOURCE[provenance.kind];
+  return (
+    <Tip content={meta.tip}>
+      <span
+        tabIndex={0}
+        data-testid="input-source"
+        data-kind={provenance.kind}
+        className={cn("cursor-help whitespace-nowrap rounded-full px-1.5 text-[10.5px] font-medium leading-4 text-ink-2 focus-visible:outline-2 focus-visible:outline-accent", meta.tone)}
+      >
+        {meta.text}
+      </span>
+    </Tip>
+  );
+}
+
+/** What a setting is, in one line: its description's first sentence, without the unit the field already shows. */
+export function helpText(field: Pick<FieldDescriptor, "description">): string | null {
+  const description = field.description?.trim();
+  // a description that lists its options ("fixed_ratio: …") reads better whole, in the tooltip
+  if (!description || /^[a-z]+(_[a-z]+)+:/.test(description)) return null;
+  // an abbreviation's full stop ("e.g.") does not end the sentence
+  const guarded = description.replace(/\b(?:e\.g|i\.e|vs|etc|approx)\./g, (m) => m.replace(/\./g, "\u0000"));
+  const first = (guarded.match(/^.*?[.!?](?=\s|$)/)?.[0] ?? guarded).replace(/\u0000/g, ".");
+  return first.replace(/\s*\((?:ms|s|GiB|MiB|KiB|KB|%|req\/s|ops\/s|vCPU|\$\/h|\$)\)/g, "");
+}
+
+/** Two values are the same setting when they print the same, whatever the order of their keys. */
+function sameValue(a: unknown, b: unknown): boolean {
+  const canonical = (v: unknown): unknown =>
+    v && typeof v === "object" && !Array.isArray(v)
+      ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([x], [y]) => x.localeCompare(y)).map(([k, x]) => [k, canonical(x)]))
+      : v;
+  return JSON.stringify(canonical(a ?? null)) === JSON.stringify(canonical(b ?? null));
 }
 
 export function AssumptionTag() {
@@ -440,6 +498,7 @@ export function FieldControl({
   allowedRequestTypes = ["read", "write"],
   auto,
   provenance,
+  source,
 }: {
   field: FieldDescriptor;
   value: unknown;
@@ -450,6 +509,8 @@ export function FieldControl({
   auto?: AutoHint;
   /** Where the value came from, when it was measured. */
   provenance?: InputProvenance;
+  /** Where the engine says the value comes from (the design's analysis), for a performance input. */
+  source?: ClassifiedProvenance;
 }) {
   const uid = useId();
   const id = `${idPrefix}-${field.key}-${uid}`;
@@ -588,26 +649,49 @@ export function FieldControl({
   const isSelectEnum =
     field.kind === "enum" &&
     !((field.options ?? []).length <= 3 && (field.options ?? []).reduce((n, o) => n + humanize(o).length, 0) <= 34);
+  // a label, a value and a short help line: the control sits beside the label when it is small
   const row =
     field.kind === "boolean" || isSelectEnum || field.kind === "nodeRef" || ((field.kind === "integer" || field.kind === "number") && !field.nullable);
+  const help = helpText(field);
+  const origin: ClassifiedProvenance | undefined = provenance?.kind === "measured" ? provenance : source;
+  const resettable = field.default !== undefined && !sameValue(value, field.default);
   return (
-    <div className={cn(row ? "grid grid-cols-[minmax(0,1fr)_136px] items-start gap-3" : "space-y-1.5", field.kind === "boolean" && "items-center [&>*:last-child]:justify-self-end")}>
-      <div className={cn("flex min-w-0 items-center gap-1.5", row && "min-h-8")}>
-        <Label id={labelId} htmlFor={field.kind === "enum" && !isSelectEnum ? undefined : id} className="truncate text-[13px] text-ink-2">
-          {field.label}
-        </Label>
-        {field.description && (
-          <Tip content={field.description}>
-            <button type="button" className="text-ink-3 hover:text-ink" aria-label={`About ${field.label}`}>
-              <Info className="size-3.5" />
-            </button>
-          </Tip>
-        )}
-        {provenance?.kind === "measured" ? <ProvenanceTag provenance={provenance} /> : field.assumption && <AssumptionTag />}
+    <div className="space-y-1" data-field={field.key}>
+      <div className={cn(row ? "grid grid-cols-[minmax(0,1fr)_128px] items-start gap-x-3" : "space-y-1.5", field.kind === "boolean" && "items-center [&>*:last-child]:justify-self-end")}>
+        <div className={cn("flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5", row && "min-h-8")}>
+          <Label id={labelId} htmlFor={field.kind === "enum" && !isSelectEnum ? undefined : id} className="text-[13px] leading-5 text-ink">
+            {field.label}
+          </Label>
+          {origin && <InputSource provenance={origin} />}
+          {resettable && (
+            <Tip content={`Reset to the default: ${describeValue(field, field.default)}`}>
+              <button
+                type="button"
+                onClick={() => onChange(field.default)}
+                aria-label={`Reset ${field.label} to the default, ${describeValue(field, field.default)}`}
+                className="rounded-sm p-0.5 text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink"
+              >
+                <RotateCcw className="size-3" />
+              </button>
+            </Tip>
+          )}
+        </div>
+        {control}
       </div>
-      {control}
+      {(help || field.description) && (
+        <p className="flex items-start gap-1 text-xs leading-snug text-ink-3">
+          {help && <span className="line-clamp-2">{help}</span>}
+          {field.description && field.description !== help && (
+            <Tip content={field.description}>
+              <button type="button" className="mt-px shrink-0 text-ink-3 hover:text-ink" aria-label={`About ${field.label}`}>
+                <Info className="size-3" />
+              </button>
+            </Tip>
+          )}
+        </p>
+      )}
       {auto && value === "auto" && (
-        <p className={cn("text-[11px] text-ink-3", row && "col-span-2 -mt-2 text-right")}>
+        <p className="text-[11px] text-ink-3">
           Auto: {describeAuto(field, auto.value)} for {auto.source},{" "}
           {auto.link ? (
             <a href={auto.link} target="_blank" rel="noreferrer" className="underline decoration-dotted underline-offset-2 hover:text-ink">
@@ -632,6 +716,7 @@ export function FieldGroups({
   flat = false,
   autoValues,
   provenance,
+  sources,
 }: {
   fields: FieldDescriptor[];
   values: Record<string, unknown>;
@@ -643,6 +728,8 @@ export function FieldGroups({
   autoValues?: Record<string, AutoHint>;
   /** Where values came from, by field key (measured ones get a badge). */
   provenance?: Record<string, InputProvenance>;
+  /** Where the design's analysis says each performance input's value comes from, by field key. */
+  sources?: Record<string, ClassifiedProvenance>;
 }) {
   const groups: { name: string; fields: FieldDescriptor[] }[] = [];
   for (const f of fields) {
@@ -667,6 +754,7 @@ export function FieldGroups({
               allowedRequestTypes={allowedRequestTypes}
               auto={autoValues?.[f.key]}
               provenance={provenance?.[f.key]}
+              source={sources?.[f.key]}
             />
           ))}
         </fieldset>

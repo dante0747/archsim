@@ -636,7 +636,12 @@ export function RecorderLanes({
           <ChevronRight className={cn("size-3.5 transition-transform", detail && "rotate-90")} aria-hidden />
           {detail ? "Less detail" : "More detail"}
         </button>
-        <div className="flex flex-1 items-center justify-end px-3">{detail ? <HeatLegend /> : <span className="text-xs text-ink-3">throughput and each part</span>}</div>
+        {/* the legend is chrome: it sits above the playhead (z-20), on the dock's own surface */}
+        <div className="flex flex-1 items-center justify-end px-3">
+          <span className="relative z-30 rounded-sm bg-surface px-1.5 py-0.5">
+            {detail ? <HeatLegend /> : <span className="text-xs text-ink-3">throughput and each part</span>}
+          </span>
+        </div>
       </div>
 
       {detail && (

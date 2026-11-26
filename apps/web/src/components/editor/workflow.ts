@@ -50,6 +50,12 @@ export function openDecide() {
   if (id) ui.markInsightsSeen(id);
 }
 
+/** Leave Results for Design with a part selected, so its settings open beside it. */
+export function showOnCanvas(nodeId: string) {
+  useEditor.getState().select({ nodeId });
+  useUi.getState().setMode("build");
+}
+
 /** Switch to Stress and replay the active run from the start. */
 export function replayActiveRun() {
   const ui = useUi.getState();

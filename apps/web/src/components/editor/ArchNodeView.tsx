@@ -337,9 +337,10 @@ function ArchNodeViewImpl({ id, data, selected }: NodeProps<ArchNode>) {
 
         <div className="space-y-1 px-3 pb-3 pt-2.5">
           {facts.map((f) => (
-            <div key={f.k} className="arch-card-fact flex items-baseline justify-between gap-3 text-xs leading-[18px]">
-              <span className="truncate text-ink-3">{f.k}</span>
-              <span className="font-readout shrink-0 text-ink">{f.v}</span>
+            // a label never truncates: a value too long to sit beside it wraps under it, to the right
+            <div key={f.k} className="arch-card-fact flex flex-wrap items-baseline justify-between gap-x-3 text-xs leading-[18px]">
+              <span className="text-ink-3">{f.k}</span>
+              <span className="font-readout ml-auto text-ink">{f.v}</span>
             </div>
           ))}
           {podView}

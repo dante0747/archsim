@@ -293,7 +293,8 @@ function TrafficTrack() {
           ))}
           <line x1={0} x2={plotWidth} y1={y(0)} y2={y(0)} stroke="var(--axis)" strokeWidth={1} />
           <line x1={0} x2={plotWidth} y1={y(yMax / 2)} y2={y(yMax / 2)} stroke="var(--grid)" strokeDasharray="2 4" strokeWidth={1} />
-          <text x={plotWidth - 4} y={PAD_T - 3} textAnchor="end" className="fill-ink-3 font-mono text-[11px]">
+          {/* the scale ends where the drain band starts, whose own label runs right from there */}
+          <text x={(runS < axisS ? x(runS) : plotWidth) - 4} y={PAD_T - 3} textAnchor="end" className="fill-ink-3 font-mono text-[11px]">
             {compact(yMax)}/s
           </text>
           <path d={area} fill="var(--accent)" fillOpacity={0.09} />

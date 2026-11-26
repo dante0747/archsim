@@ -141,7 +141,7 @@ describe("Results across seeds", () => {
     });
     show(<AnswerPage />);
     const offer = screen.getByTestId("check-seeds");
-    expect(offer).toHaveTextContent("p95 110 ms is within 15% of the 120 ms objective");
+    expect(offer).toHaveTextContent("One seed (42), and p95 is within 15% of the objective");
     fireEvent.click(within(offer).getByRole("button", { name: "Check 5 seeds" }));
     await waitFor(() => expect(useRuns.getState().pending).toEqual(["n1", "n2"]));
     const create = calls.find((c) => c.url.endsWith("/projects/p1/runs"));
@@ -163,7 +163,11 @@ describe("Results across seeds", () => {
     useRuns.setState({ runs: [run("r1", 42, 60, { mode: "sampled" })], reports: { r1: sampled }, activeRunId: "r1" });
     show(<AnswerPage />);
     expect(screen.getByTestId("estimated-badge")).toHaveTextContent("Estimated");
-    expect(screen.getByTestId("estimated-line")).toHaveTextContent(note);
+    expect(screen.getByTestId("estimated-line")).toHaveTextContent("Answered from a sample of the run");
+
+    fireEvent.click(screen.getByRole("button", { name: "About the quick check" }));
+
+    expect(screen.getByText(note)).toBeInTheDocument();
   });
 });
 
