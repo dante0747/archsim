@@ -59,7 +59,7 @@
 <table>
 <tr>
 <td width="50%" valign="top"><img src="docs/images/build.jpg" alt="Design workspace: the Black Friday diagram with a PostgreSQL database selected; the inspector shows its replica lag, settings and a real db.t4g.xlarge instance at its hourly price" width="380"><br><b>Design with real technologies</b><br>Pick PostgreSQL, Kafka or a Go service on Kubernetes, and see how it behaves and what it costs.</td>
-<td width="50%" valign="top"><img src="docs/images/editor-results.jpg" alt="Test workspace: a Kubernetes checkout service scaled to 3 pods mid-ramp, live request rates on the links, and a timeline of traffic, events, latency and failures beside a test plan that did not hold up" width="380"><br><b>Test with traffic and failures</b><br>Ramp the load, drop a cache, slow a database, then scrub the replay to any second.</td>
+<td width="50%" valign="top"><img src="docs/images/editor-results.jpg" alt="Test workspace: a Kubernetes checkout service autoscaled from 3 to 9 pods mid-ramp, live request rates on the links, and a timeline of traffic, events, latency and failures beside a test plan that did not hold up" width="380"><br><b>Test with traffic and failures</b><br>Ramp the load, drop a cache, slow a database, then scrub the replay to any second.</td>
 </tr>
 <tr>
 <td width="50%" valign="top"><img src="docs/images/scorecard.jpg" alt="Results Answer tab: No, it doesn't hold up, with p95 561 ms against a 500 ms objective, availability 98.8% against 99.5%, the primary bottleneck, a confidence note and the monthly cost" width="380"><br><b>Get an answer to test</b><br>How it fares under your assumptions: the objective that failed, the likely bottleneck, what to try first and the bill.</td>

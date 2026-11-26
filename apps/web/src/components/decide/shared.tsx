@@ -154,25 +154,29 @@ export function useDecideRun(): { run: Run | null; report: Report | null } {
   return { run, report };
 }
 
-/** Select which succeeded run a section shows. */
-export function RunPicker({ value, onChange, label = "Run" }: { value: string | null; onChange: (id: string) => void; label?: string }) {
+/**
+ * Select which succeeded run a section shows. It is as wide as the label of the run it shows, up
+ * to 28rem, and gives way first in a crowded header; a label it cannot fit ends in an ellipsis
+ * and stays whole in its tooltip.
+ */
+export function RunPicker({ value, onChange }: { value: string | null; onChange: (id: string) => void }) {
   const runs = useSucceededRuns();
   if (!runs.length) return null;
+  const shown = runs.find((r) => r.id === value);
   return (
-    <label className="flex items-center gap-2 font-mono text-xs text-ink-3">
-      {label && <span>{label}</span>}
-      <select
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-8 max-w-72 rounded-md border border-line bg-surface-2 px-2 font-mono text-xs text-ink hover:border-line-strong focus-visible:border-accent focus-visible:outline-none"
-      >
-        {runs.map((r) => (
-          <option key={r.id} value={r.id}>
-            {runOptionText(r)}
-          </option>
-        ))}
-      </select>
-    </label>
+    <select
+      aria-label="Run"
+      title={shown && runOptionText(shown)}
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value)}
+      className="field-sizing-content h-8 min-w-0 max-w-md truncate rounded-md border border-line bg-surface-2 px-2 font-mono text-xs text-ink hover:border-line-strong focus-visible:border-accent focus-visible:outline-none"
+    >
+      {runs.map((r) => (
+        <option key={r.id} value={r.id}>
+          {runOptionText(r)}
+        </option>
+      ))}
+    </select>
   );
 }
 

@@ -32,7 +32,7 @@ function IconButton({ label, onClick, disabled, children }: { label: React.React
         onClick={onClick}
         disabled={disabled}
         aria-label={typeof label === "string" ? label : undefined}
-        className="flex size-8 items-center justify-center rounded-md border border-line bg-surface text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:pointer-events-none disabled:opacity-40 [&_svg]:size-4"
+        className="flex size-8 shrink-0 items-center justify-center rounded-md border border-line bg-surface text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:pointer-events-none disabled:opacity-40 [&_svg]:size-4"
       >
         {children}
       </button>
@@ -61,7 +61,7 @@ function RangePicker() {
       <MenuTrigger asChild>
         <button
           type="button"
-          className="flex h-8 items-center gap-2 rounded-md border border-line bg-surface px-2.5 text-[13px] text-ink transition-colors hover:border-line-strong data-[state=open]:border-line-strong"
+          className="flex h-8 shrink-0 items-center gap-2 rounded-md border border-line bg-surface px-2.5 text-[13px] text-ink transition-colors hover:border-line-strong data-[state=open]:border-line-strong"
           aria-label="Time range"
         >
           <Clock className="size-3.5 text-ink-3" />
@@ -183,7 +183,7 @@ export function DashboardHeader({ runId, endS, running }: { runId: string; endS:
       <LayoutDashboard className="size-4 text-accent" aria-hidden />
       <h2 className="mr-1 text-[14px] font-semibold tracking-[-0.01em] text-ink">Dashboard</h2>
       <span className="h-5 w-px bg-line" aria-hidden />
-      <RunPicker value={runId} onChange={pickRun} label="" />
+      <RunPicker value={runId} onChange={pickRun} />
       <RangePicker />
       <IconButton label="Zoom out" onClick={zoomOut} disabled={!zoomed}>
         <ZoomOut />
@@ -191,7 +191,7 @@ export function DashboardHeader({ runId, endS, running }: { runId: string; endS:
       <IconButton label="Reset to the whole run" onClick={() => setRange(null)} disabled={!zoomed}>
         <RotateCcw />
       </IconButton>
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex shrink-0 items-center gap-2">
         {running && <RunProgressPill run={running} />}
         <ReplayControl endS={endS} />
       </div>
