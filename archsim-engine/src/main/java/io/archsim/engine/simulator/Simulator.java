@@ -63,7 +63,9 @@ public final class Simulator {
 	 * Simulates a design as asked. A quick check of a steady load that runs much longer
 	 * than it takes to settle simulates its warm-up and a steady sample, and answers from
 	 * the sample when its halves agree; the report's {@code simulationMode} says so, or
-	 * why the whole run was simulated instead.
+	 * why the whole run was simulated instead. Everything the request simulates, a quick
+	 * check's sample and the whole run after it, shares its wall-clock limit, and the
+	 * report's {@code provenance.wallSeconds} counts from the request's start.
 	 * @param document the design
 	 * @param request the scenario, seed, mode and limits
 	 * @return the run's report ({@link ReportWriter})
@@ -91,14 +93,14 @@ public final class Simulator {
 	 * @throws SimulationCancelledException when {@code observer} asks it to stop
 	 */
 	public ObjectNode run(JsonNode document, RunRequest request, RunObserver observer) {
+		WallClock wallClock = new WallClock(this.clock, request.limits().maxWallSeconds());
 		if (request.mode() == SimulationMode.SAMPLED) {
-			return runSampled(document, request, observer);
+			return runSampled(document, request, observer, wallClock);
 		}
-		return runWhole(document, request, observer);
+		return runWhole(document, request, observer, wallClock);
 	}
 
-	private ObjectNode runWhole(JsonNode document, RunRequest request, RunObserver observer) {
-		WallClock wallClock = new WallClock(this.clock, request.limits().maxWallSeconds());
+	private ObjectNode runWhole(JsonNode document, RunRequest request, RunObserver observer, WallClock wallClock) {
 		PreparedRun prepared = this.preparer.prepare(document, request.scenarioId(), request.limits(), request.seed());
 		SimulatedRun run = new RunSimulation(this.registry, prepared, wallClock, observer).simulate();
 		ObjectNode report = this.writer.write(run, wallClock.elapsedS());
@@ -108,20 +110,20 @@ public final class Simulator {
 
 	// the warm-up and a steady sample simulated whole, answering for the run when the
 	// sample is steady; else the run simulated whole, saying why
-	private ObjectNode runSampled(JsonNode document, RunRequest request, RunObserver observer) {
+	private ObjectNode runSampled(JsonNode document, RunRequest request, RunObserver observer, WallClock wallClock) {
 		PreparedRun prepared = this.preparer.prepare(document, request.scenarioId(), request.limits(), request.seed());
 		Double simulatedS = prepared.quickCheck().simulatedS();
 		if (simulatedS == null) {
-			return runWhole(document, request, observer);
+			return runWhole(document, request, observer, wallClock);
 		}
 		// a sibling speed the run's resolution wrote is left for the sample's to write
 		// again, so the sample's report says why its parts' vCPUs counted as they did
 		Set<String> written = this.siblingSpeeds.writtenIn(prepared.document(), prepared.resolved());
 		ObjectNode sample = runWhole(Sampling.shortened(prepared.resolved(), simulatedS, written),
-				RunRequest.of(null).withLimits(request.limits()), observer);
+				RunRequest.of(null).withLimits(request.limits()), observer, wallClock);
 		SteadyState steady = Stationarity.judge(RunReport.read(sample));
 		if (!steady.reached()) {
-			ObjectNode full = runWhole(document, request, observer);
+			ObjectNode full = runWhole(document, request, observer, wallClock);
 			full.set("simulationMode", Sampling.wholeInstead(prepared.resolved().workload(), simulatedS, steady));
 			return full;
 		}

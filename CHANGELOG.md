@@ -8,6 +8,15 @@ for when that version changes.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A quick check stays within its wall-clock limit.** When a quick check's sample was not steady,
+  the whole run that followed it started a clock of its own: `archsim run --sampled` could take
+  twice `--max-wall-seconds`, and the MCP server's `simulate` twice `ARCHSIM_MCP_MAX_WALL_SECONDS`;
+  through the API the worker stopped such a run 30 s past the limit and failed it. The sample and
+  the whole run now share one clock, so such a quick check can be stopped where a full run of the
+  same design finishes, and its report's wall time counts the sample too.
+
 ## [1.6.0] - 2026-11-27
 
 The second half of the security fixes 1.5.0 began for a server other people can reach: limits on
