@@ -31,6 +31,10 @@ for when that version changes.
 
 ### Fixed
 
+- **The web server caps a request body at the API's limit, and waits at most five minutes for the
+  API.** Its proxy refuses a larger body before buffering it (413) and answers 504 when the API
+  does not answer in time; the hosting kit's Caddy caps bodies at the same 5 MB.
+
 - **No label is cut short on the canvas or the timeline.** The chaos pads clipped their titles
   ("Lose Catalog…"); they have two columns and room for three lines. A part's card cut a label
   when its value was long ("Max connections per instan…"); the value now wraps under it. The Test
