@@ -23,8 +23,10 @@ that refers to it, whatever deletes the runs?
 - What reads a run's design reads the same JSON as before: `GET /runs/{id}/input`, reruns, share
   links, seed groups' objectives and the worker.
 - No design outlives the last run that refers to it, whether runs are deleted on request, with
-  their project or workspace (the schema cascades), with an expired sandbox or by a later prune,
-  and none of those has to remember it.
+  their project or workspace (the schema cascades), with an expired sandbox or by the hourly prune
+  of the runs past a project's limit
+  ([ADR-0111](0111-prune-the-runs-past-a-projects-limit-and-expired-rows-every-hour.md)), and none
+  of those has to remember it.
 - A run queued with a stored design while that design's last other run is deleted neither fails
   nor loses its design, and neither does the deletion.
 - The designs runs stored before move in the same migration, one copy of each.
@@ -72,7 +74,7 @@ once, and no way of deleting runs, today's or a later one, can leave a design be
 
 - Good, because the database grows with the distinct designs: a seed group, a batch of scenarios
   or a rerun stores one design, and so do the sandboxes that run the same template.
-- Good, because a run's, a project's or a workspace's deletion, sandbox pruning and any later prune
+- Good, because a run's, a project's or a workspace's deletion, sandbox pruning and the hourly prune
   delete the designs they leave behind, in their own transaction, with no change to their code.
 - Good, because a run's design reads as the same JSON as before, so the API, reruns, share links
   and the worker are unchanged.
@@ -83,7 +85,10 @@ once, and no way of deleting runs, today's or a later one, can leave a design be
   is written in the migration, and `RunRepository` says what it does.
 - Bad, because transactions that queue or delete runs of one design take turns on its row until
   they end. They are short, but two transactions can each hold a row the other needs; PostgreSQL
-  then fails one of them, which a request answers with an error.
+  then fails one of them, which a request answers with an error. The hourly prune skips the runs
+  another instance is deleting, but waits for the rows of its runs' designs that another
+  transaction holds, like any other deletion; two prunes delete different runs and lock designs
+  in one order, so they only take turns.
 - Bad, because the migration rewrites the table of runs under a lock: on a database with many
   runs, the upgrade takes a while.
 
@@ -112,8 +117,8 @@ and a run queued afterwards finds a moved design by the same digest.
 
 - Good, because every delete is in the code.
 - Bad, because a project's or a workspace's deletion deletes runs in a cascade the code does not
-  see, so each would first collect its runs' digests, and a new way of deleting runs, such as a
-  prune, would have to know to do the same.
+  see, so each would first collect its runs' digests, and every other way of deleting runs, such as
+  the hourly prune, would have to know to do the same.
 
 ### Designs shared within a workspace only
 

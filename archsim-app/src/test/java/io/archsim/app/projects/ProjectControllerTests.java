@@ -25,7 +25,7 @@ import static org.mockito.BDDMockito.then;
  * The projects' HTTP side: statuses, the workspace a request names, and the JSON of a
  * project.
  */
-@WebMvcTest(ProjectController.class)
+@WebMvcTest({ ProjectController.class, ProjectCreationController.class })
 @Import(SecurityConfiguration.class)
 class ProjectControllerTests {
 

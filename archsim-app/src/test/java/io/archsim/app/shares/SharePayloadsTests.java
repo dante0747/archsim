@@ -32,8 +32,57 @@ class SharePayloadsTests {
 	}
 
 	@Test
-	void hideAddresses_sourceOutsideACalibration_isKept() {
-		JsonNode value = json("{\"source\": \"https://example.com\"}");
+	void hideAddresses_measuredInputsProvenance_losesTheAddressAndKeepsTheQuery() {
+		JsonNode hidden = SharePayloads.hideAddresses(json("""
+				{"provenance": {"nodes/api/serviceTimeMs": {"kind": "measured",
+				  "source": "Prometheus https://user:pass@prom.internal:9090", "query": "rate(requests[5m])"}}}"""));
+
+		assertThat(hidden).isEqualTo(json("""
+				{"provenance": {"nodes/api/serviceTimeMs": {"kind": "measured",
+				  "source": "Prometheus (address hidden)", "query": "rate(requests[5m])"}}}"""));
+	}
+
+	@Test
+	void hideAddresses_reportsUserInputs_loseTheAddress() {
+		JsonNode hidden = SharePayloads.hideAddresses(json("""
+				{"assumptions": {"userInputs": [{"field": "serviceTimeMs",
+				  "provenance": {"kind": "measured", "source": "Prometheus http://10.0.0.7:9090"}}]}}"""));
+
+		assertThat(hidden.at("/assumptions/userInputs/0/provenance/source").asString())
+			.isEqualTo("Prometheus (address hidden)");
+	}
+
+	@Test
+	void hideAddresses_valuesWithoutAnAddress_areKept() {
+		JsonNode value = json("""
+				{"provenance": {"x": {"source": "observed rate over 2 h", "fitError": 0.1, "note": null}}}""");
+
+		assertThat(SharePayloads.hideAddresses(value)).isEqualTo(value);
+	}
+
+	@Test
+	void hideAddresses_aDocumentedInputsLink_isKept() {
+		JsonNode value = json(
+				"""
+						{"assumptions": {"userInputs": [{"field": "gcPauses",
+						  "provenance": {"kind": "documented", "source": "Go 1.8 release notes https://go.dev/doc/go1.8"}}]}}""");
+
+		assertThat(SharePayloads.hideAddresses(value)).isEqualTo(value);
+	}
+
+	@Test
+	void hideAddresses_aFormulasDocumentationLink_isKept() {
+		JsonNode value = json("""
+				{"parts": [{"explain": [{"name": "Little's law",
+				  "source": "https://en.wikipedia.org/wiki/Little%27s_law"}]}]}""");
+
+		assertThat(SharePayloads.hideAddresses(value)).isEqualTo(value);
+	}
+
+	@Test
+	void hideAddresses_anAddressInTheDesignsOwnWords_isKept() {
+		JsonNode value = json("""
+				{"metadata": {"description": "Runbook: https://wiki.example.com/shop"}}""");
 
 		assertThat(SharePayloads.hideAddresses(value)).isEqualTo(value);
 	}

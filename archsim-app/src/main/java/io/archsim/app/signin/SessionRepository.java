@@ -54,4 +54,18 @@ class SessionRepository {
 		this.jdbc.sql("DELETE FROM sessions WHERE user_id = :user").param("user", userId).update();
 	}
 
+	/**
+	 * Deletes some of the sessions that have expired, the first to expire first. Sessions
+	 * another transaction holds are left to it.
+	 * @param now the time
+	 * @param limit how many to delete at most
+	 * @return how many it deleted
+	 */
+	int deleteExpired(Instant now, int limit) {
+		return this.jdbc.sql("""
+				DELETE FROM sessions WHERE id IN (
+				    SELECT id FROM sessions WHERE expires_at <= :now ORDER BY expires_at LIMIT :limit
+				    FOR UPDATE SKIP LOCKED)""").param("now", Timestamp.from(now)).param("limit", limit).update();
+	}
+
 }

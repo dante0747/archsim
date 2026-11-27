@@ -32,7 +32,7 @@ class PrincipalResolverTests {
 	private final SecurityContextHolderStrategy contexts = SecurityContextHolder.getContextHolderStrategy();
 
 	private final PrincipalResolver resolver = new PrincipalResolver(
-			new ClientIps(new TrustedProxies(List.of(), Clock.systemUTC())), this.contexts);
+			new Principals(new ClientIps(new TrustedProxies(List.of(), Clock.systemUTC())), this.contexts));
 
 	@AfterEach
 	void clearContext() {

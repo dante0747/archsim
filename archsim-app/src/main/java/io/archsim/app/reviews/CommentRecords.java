@@ -7,6 +7,7 @@ import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import io.archsim.app.access.Principal;
 import io.archsim.app.audit.AuditLog;
@@ -35,13 +36,14 @@ class CommentRecords {
 	}
 
 	/**
-	 * Stores a new comment.
+	 * Stores a new comment and its line in the history, in one transaction.
 	 * @param project its project
 	 * @param anchor what it is on
 	 * @param text its text
 	 * @param principal who writes it
 	 * @return the comment
 	 */
+	@Transactional
 	StoredComment add(ProjectDesign project, CommentAnchors.Anchor anchor, String text, Principal principal) {
 		StoredComment comment = new StoredComment(Ids.newId(), project.workspaceId(), project.id(), anchor.kind(),
 				anchor.anchorId(), anchor.runId(), anchor.parentId(), principal.userId(), text, Times.now(this.clock),

@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.archsim.app.access.Principal;
+import io.archsim.app.limits.EngineRoute;
 import io.archsim.app.web.ApiBody;
 
 /**
@@ -28,6 +29,7 @@ class ConversionController {
 	 * @return {@code {format, text, suffix, mediaType}}
 	 */
 	@PostMapping("/export")
+	@EngineRoute
 	ResponseEntity<String> export(Principal principal, @ApiBody ExportRequest request) {
 		return this.conversions.export(request).answer();
 	}
@@ -41,6 +43,7 @@ class ConversionController {
 	 * @return {@code {document, report}}
 	 */
 	@PostMapping("/import")
+	@EngineRoute
 	ResponseEntity<String> importDesign(Principal principal, @ApiBody ImportRequest request) {
 		return this.conversions.importDesign(request).answer();
 	}

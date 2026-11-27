@@ -34,7 +34,16 @@ ArchSim runs in one of two modes, chosen with `ARCHSIM_AUTH_MODE`:
   local owner of the `default` workspace, so anyone who can reach the API can read, change and
   delete everything. The API listens on `127.0.0.1` unless told otherwise
   (`--server.address`, `SERVER_ADDRESS`); keep it that way. The Docker Compose file binds ports
-  to `127.0.0.1` for the same reason.
+  to `127.0.0.1` for the same reason. A web page the developer opens is the remaining way in.
+  So the API answers only requests addressed to this machine (`localhost`, `127.x.x.x`, `[::1]`)
+  or to a name `ARCHSIM_ALLOWED_HOSTS` lists, such as compose's `api`: a page that points its own
+  name at `127.0.0.1` gets `403`. It refuses a change whose `Origin` is neither the page it was
+  addressed to nor one `ARCHSIM_CORS_ORIGINS` lists (`403`), and takes only JSON bodies (`415`),
+  which a page cannot send to another site without a preflight the API never grants it. The web
+  app's server passes on the host the browser addressed and the page's origin
+  (`X-ArchSim-Client-Host`, `X-ArchSim-Client-Origin`), so the same checks cover requests made
+  through it (ADR-0107). Pages of the origins `ARCHSIM_CORS_ORIGINS` lists (by default
+  `http://localhost:3000`) can still read and change everything.
 - **`oauth`: hosted, for people other than whoever runs the server.** Sign-in with GitHub or
   Google, workspaces with roles, API tokens, CSRF protection, rate limits and an outbound block
   are on. The rest of this section describes that mode; the notes after it apply to both.
@@ -69,7 +78,8 @@ server at `https://<host>/api/v1`.
 - **Sessions.** `__Host-archsim_session`: HttpOnly, Secure, SameSite=Lax, path `/`, no domain.
   It holds 256 random bits; the database stores only its SHA-256, so a database leak does not
   hand out live sessions. Sessions expire after `ARCHSIM_SESSION_DAYS` (30) and are revoked at
-  once on every instance by signing out (or "sign out everywhere"). Disabled accounts are
+  once on every instance by signing out (or "sign out everywhere"); an expired session's row, with
+  the address and browser it started from, is deleted within about an hour. Disabled accounts are
   refused on their next request.
 - **CSRF.** Every request that changes something with the session cookie must carry
   `X-ArchSim-CSRF` with the value of the `__Host-archsim_csrf` cookie, a random token Spring
@@ -82,22 +92,27 @@ server at `https://<host>/api/v1`.
   need no CSRF token (browsers never add them on their own).
 - **API tokens.** `asim_pat_` plus 256 random bits, shown once, stored as SHA-256. A token acts
   as its owner; `read` tokens are viewers everywhere; a token can be limited to one workspace
-  and can expire. Tokens cannot create tokens, workspaces or invitations, or accept
-  invitations, so a leaked token cannot widen its own access. Revocation is immediate.
+  and can expire. A token cannot manage access: it cannot make, list or revoke tokens, make,
+  rename or delete a workspace, change who belongs to one or their roles (leaving included), or
+  make, revoke or accept invitations; those take the person signed in to the web app, so a leaked
+  token cannot change who belongs to a workspace, or with which role. Revocation is immediate.
 - **Authorization.** Every project and run belongs to a workspace; access needs a membership
   (`viewer` < `editor` < `owner`). Someone without a role in a workspace gets **404** for
   anything in it, exactly like something that does not exist, so ids reveal nothing; a role too
   weak for an action gets 403. Runs of the same design share one stored copy of it, whatever
   their workspaces; it is read only through a run, so only by members of that run's workspace.
   Opening a template only ever reuses your own unedited copy.
-  Invitations are single-use links (256-bit tokens stored as hashes) that expire in at most 30
-  days and can be bound to a verified email; a workspace always keeps an owner.
+  Invitations are single-use links (256-bit tokens stored as hashes) that can be bound to a
+  verified email and expire in at most 30 days, after which they are deleted within about an
+  hour; a workspace always keeps an owner.
 - **Abuse and cost.** Counters in the database (shared by every instance) limit runs per hour
-  per workspace and per person, sign-in attempts and sandbox starts per address, and token, workspace,
-  invitation and calibration creation; over a limit the API answers **429** with
-  `Retry-After`. Each workspace kind has a profile: runs at once (enforced by the queue across
-  all workers, which also keeps workspaces fair), runs per hour, the largest run, the
-  calibration replay's wall clock (20 s) and, for sandboxes, the number of projects.
+  per workspace and per person, sign-in attempts and sandbox starts per address (an IPv6 address
+  counts by its /64, so the addresses of one /64 count once; a larger delegation counts once per
+  /64, [ADR-0106](docs/adr/0106-count-addresses-by-network-and-give-sandboxes-runs-a-budget.md)),
+  and token, workspace, invitation and calibration creation; over a limit the API answers
+  **429** with `Retry-After`. Each workspace kind has a profile: runs at once (enforced by the
+  queue across all workers, which also keeps workspaces fair), runs per hour, the largest run,
+  the calibration replay's wall clock (20 s) and, for sandboxes, the number of projects.
 - **Sandboxes for anonymous visitors (`ARCHSIM_SANDBOXES=true`, off by default).** Anyone on the
   internet may then try ArchSim without signing in
   ([ADR-0079](docs/adr/0079-let-visitors-try-archsim-in-a-sandbox-without-signing-in.md)):
@@ -106,18 +121,25 @@ server at `https://<host>/api/v1`.
   sandbox and everything in it. The start must carry the CSRF header matching the
   `__Host-archsim_csrf` cookie (which `GET /auth/config` sets), so another site cannot make a
   visitor's browser start one and so sign it out of its account; a browser signed in already is
-  refused. Each address starts at most 5 an hour (a rate limit, so not with
-  `ARCHSIM_RATE_LIMITS=false`), and the server keeps at most 500 guests (then
+  refused. Each address starts at most 5 an hour, and the server keeps at most 500 guests (then
   `503` until the first expires), so visitors cannot fill the database. A sandbox has its kind's
   limits (one run at once, 20 an hour, 200,000 requests and 20 s a run, five projects) and never
-  calls out to Prometheus. A guest cannot make team workspaces, API tokens, invitations or share
-  links, or accept an invitation: nothing a guest writes is published, and nothing outlives the
-  sandbox.
+  calls out to Prometheus. Sandboxes' runs also count against their address's 40 an hour and all
+  sandboxes' 300 an hour; these and the 5 starts an hour are rate limits, so not with
+  `ARCHSIM_RATE_LIMITS=false`. Workers take every other workspace's queued runs before a
+  sandbox's, though a run already started is never stopped: a signed-in person's run can wait for
+  a sandbox's run in progress, up to its 20 s. A guest cannot make team workspaces, API tokens,
+  invitations or share links, or accept an invitation: nothing a guest writes is published, and
+  nothing outlives the sandbox.
 - **Share links.** `/r/<slug>` pages are public to anyone with the link: the slug is 128
   random bits, and the page is a frozen copy of one run's report made when the link was
-  created, without request traces and with telemetry addresses (a calibration's Prometheus URL)
-  hidden. Editors make and revoke links; revoking deletes the copy and the page answers 404 at
-  once (the web server never caches it), as do expired and unknown links. Pages are `noindex`,
+  created, without request traces and with telemetry addresses hidden: a calibration names its
+  Prometheus URL, credentials included, in the design's calibration and in every measured input's
+  provenance record, which the report's assumptions repeat, and the copy hides every `scheme://`
+  address in those (a documented input's or a formula's link to public documentation stays).
+  Editors make and revoke links; revoking deletes the copy and the page answers 404 at once (the
+  web server never caches it), as do expired and unknown links, and an expired link's copy is
+  deleted within about an hour. Pages are `noindex`,
   the public endpoint is limited per address (60 a minute) and needs no sign-in, and "Open a
   copy" needs editor access to a workspace of your own.
 - **Outbound requests (SSRF).** `ARCHSIM_OUTBOUND` decides whether `POST /calibrate` may call a
@@ -168,7 +190,14 @@ keep all 500 places taken for a day: the limits bound what that costs, and signi
   of the Java port, and the Java API, workers, CLI and MCP server load none. Component types can
   never be uploaded through the API.
 - **Bounded resource use.** Each request body is capped (`ARCHSIM_MAX_BODY_BYTES`, default
-  5 MB). Documents are limited to 200 nodes, 1,000 edges and 50 scenarios. Every simulation is
+  5 MB; 256 KB from a sandbox's guest; 64 KB on routes that do not take a design). A request with
+  work holds a slot from before its body is read until it is answered. The routes that make the
+  engine work on a design answer `ARCHSIM_MAX_ENGINE_REQUESTS` at once (by default as many as the
+  heap holds), calibrations one per replay thread, and other routes with a body 32. Others wait a
+  second, then get 503 with `Retry-After`. The replay pool's queue holds as many replays as it has
+  threads, for a replay that outlives its request. With the hosted limits each person may send the
+  engine's routes 600 requests a minute (ADR-0108). Documents are limited to 200 nodes,
+  1,000 edges and 50 scenarios. Every simulation is
   bounded by an expected-request limit (`ARCHSIM_MAX_REQUESTS`, default 2,000,000) checked
   before the run starts and a wall-clock limit (`ARCHSIM_MAX_WALL_SECONDS`, default 300 s)
   checked while it runs, then enforced 30 s later by failing the run. Retries are capped at 5
@@ -178,6 +207,13 @@ keep all 500 places taken for a day: the limits bound what that costs, and signi
   The runs share their worker's heap, sized for them (archsim-app's README): one that exhausts
   it stops the worker, whose runs are then requeued, each failed only if its worker stops a
   second time.
+- **Stored data.** A project keeps its newest `ARCHSIM_RUN_HISTORY_LIMIT` runs (200), the ones
+  its list shows: when the API starts and every hour after, it deletes the older runs, except
+  those still queued or running, those with a sign-off or a comment, and the rest of their seed
+  group. The history keeps each change `ARCHSIM_HISTORY_DAYS` (365) days. Expired sessions,
+  invitations and share links' copies are deleted within about an hour
+  ([docs/deployment.md](docs/deployment.md#how-long-the-server-keeps-things) lists what is kept
+  and for how long).
 - **Several instances and workers.** API instances and `archsim-app worker` processes trust each
   other through the database: whoever can write to it can queue, cancel or change runs, so keep
   it reachable only by them. A worker's runs are threads of its own process and end with it.
@@ -198,9 +234,14 @@ keep all 500 places taken for a day: the limits bound what that costs, and signi
 - **Secrets.** The repository contains no credentials. `.env.example` documents variables
   only; never commit a real `.env`. The Docker Compose PostgreSQL password is a local
   development default and must be changed for any shared deployment.
-- **Request size.** Bodies larger than `ARCHSIM_MAX_BODY_BYTES` (default 5 MB) are rejected
-  with 413, and POST/PUT/PATCH requests with a chunked body but no `Content-Length` are
-  rejected with 411 so the limit cannot be bypassed.
+- **Request size.** Bodies larger than `ARCHSIM_MAX_BODY_BYTES` (default 5 MB), than 256 KB from
+  a sandbox's guest, or than 64 KB on a route that takes no design, are rejected with 413, and
+  POST/PUT/PATCH requests with a chunked body but no `Content-Length` are rejected with 411 so the
+  limit cannot be bypassed. The hosting kit caps a body at that default, 5 MB, before the API
+  sees it, twice: Caddy refuses a larger one (`request_body`), and the web server's proxy refuses
+  one that states a larger length unread and stops reading one of no stated length once it passes
+  the limit (give it the API's `ARCHSIM_MAX_BODY_BYTES` if you change it). The proxy waits at most
+  five minutes for the API's answer, then answers 504.
 - **No telemetry.** Neither the API nor the web app phones home. Next.js's own anonymous
   telemetry is switched off: the npm scripts run Next through `apps/web/scripts/run-next.mjs`,
   which sets `NEXT_TELEMETRY_DISABLED=1` unless you set it yourself, and the Docker image sets

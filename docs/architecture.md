@@ -215,9 +215,10 @@ sequenceDiagram
   chunks. The worker writes it to the database at most once per second; the API reads it from
   there, so any instance can answer.
 - **Queue** (`archsim-app`'s `worker` package): the run row is the job. A worker claims as many
-  queued runs as it has free slots, oldest first and every workspace's oldest before any
-  workspace's second, one claim at a time under a PostgreSQL advisory lock, each workspace kept
-  under its cap of runs at once, and leases them; it renews the leases every heartbeat. Progress
+  queued runs as it has free slots: every other workspace's before a sandbox's, then oldest first
+  and every workspace's oldest before any workspace's second, one claim at a time under a
+  PostgreSQL advisory lock, each workspace kept under its cap of runs at once, and leases them; it
+  renews the leases every heartbeat. A run already started is never stopped for another. Progress
   and the outcome are written only while the worker still holds the lease, so a worker that lost
   a run cannot overwrite the one that took it over.
 - **Workers** (`archsim-app worker`), as many as needed, on any host that reaches the database;

@@ -1,16 +1,20 @@
 package io.archsim.app.calibration;
 
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.app.limits.ServerBusy;
 import io.archsim.app.web.ApiException;
 import io.archsim.engine.calibration.ReplaySimulator;
 import io.archsim.engine.simulation.SimulationLimits;
@@ -18,8 +22,8 @@ import io.archsim.engine.simulation.SimulationLimits;
 /**
  * A calibration's replays on platform threads of their own (ADR-0054). The request's
  * virtual thread waits for its replay instead of simulating, so a replay, which never
- * blocks, never holds a carrier the API's other requests need. As many threads as the
- * processors less one, at least one; replays beyond them wait in line.
+ * blocks, never holds a carrier the API's other requests need. As many replays as there
+ * are threads wait in line for one; one more is refused (ADR-0108).
  */
 final class ReplayPool implements ReplaySimulator, AutoCloseable {
 
@@ -33,32 +37,30 @@ final class ReplayPool implements ReplaySimulator, AutoCloseable {
 	/**
 	 * Replays on a pool of daemon platform threads named {@code archsim-replay-N}.
 	 * @param replay the replay each thread runs
-	 * @param threads how many replays run at once
+	 * @param threads how many replays run at once, and how many more may wait
 	 */
 	ReplayPool(ReplaySimulator replay, int threads) {
 		this.replay = replay;
-		this.threads = Executors.newFixedThreadPool(threads,
+		this.threads = new ThreadPoolExecutor(threads, threads, 0, TimeUnit.MILLISECONDS,
+				new ArrayBlockingQueue<>(threads),
 				Thread.ofPlatform().name("archsim-replay-", 1).daemon(true).factory());
 	}
 
 	/**
-	 * How many replays run at once on a machine: one core is left to the API's other
-	 * requests.
-	 * @param processors the processors the JVM sees
-	 * @return the processors less one, at least one
-	 */
-	static int threadsFor(int processors) {
-		return Math.max(1, processors - 1);
-	}
-
-	/**
 	 * Replays a design on a thread of the pool and waits for it.
-	 * @throws ApiException {@code 503} when the request is stopped while it waits; it
-	 * keeps its interrupt
+	 * @throws ApiException {@code 503} with {@code Retry-After} when every thread is busy
+	 * and as many replays wait; {@code 503} when the request is stopped while it waits,
+	 * which keeps its interrupt
 	 */
 	@Override
 	public JsonNode simulate(ObjectNode document, @Nullable SimulationLimits limits) {
-		Future<JsonNode> replayed = this.threads.submit(() -> this.replay.simulate(document, limits));
+		Future<JsonNode> replayed;
+		try {
+			replayed = this.threads.submit(() -> this.replay.simulate(document, limits));
+		}
+		catch (RejectedExecutionException ex) {
+			throw ServerBusy.replays();
+		}
 		try {
 			return replayed.get();
 		}

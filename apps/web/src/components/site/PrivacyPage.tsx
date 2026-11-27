@@ -68,8 +68,8 @@ export function PrivacyPage() {
               you revoke it. It counts how often it was opened, not by whom.
             </li>
             <li>
-              <strong>Rate limits:</strong> counters of recent requests, by IP address (starting a sandbox, opening a share link) or by account
-              (runs, comments). The API deletes each counter once its time window has ended.
+              <strong>Rate limits:</strong> counters of recent requests, by IP address (starting a sandbox, running in one, opening a share
+              link) or by account (runs, comments). The API deletes each counter once its time window has ended.
             </li>
             <li>
               <strong>In your browser:</strong> your theme, panel layout and last workspace, in its own storage. They are not stored on the server.
