@@ -110,6 +110,16 @@ class ArchsimPropertiesBindingTests {
 			.run((context) -> assertThat(context).getFailure().rootCause().hasMessageContaining("historyDays"));
 	}
 
+	// the hosting kit passes the setting on from hosted.env, empty when hosted.env leaves
+	// it out (deploy/compose.yaml)
+	@Test
+	void bind_engineRequestsLeftEmpty_areNotSet() {
+		Map<String, Object> environment = Map.of("ARCHSIM_MAX_ENGINE_REQUESTS", "");
+
+		withEnvironment(environment)
+			.run((context) -> assertThat(context.getBean(ArchsimProperties.class).maxEngineRequests()).isNull());
+	}
+
 	/** Binds the settings as the application does. */
 	@Configuration(proxyBeanMethods = false)
 	@EnableConfigurationProperties(ArchsimProperties.class)

@@ -37,6 +37,16 @@ for when that version changes.
   gets 409 for a new project, design, run or share link until something is deleted. The editor
   titles a refused save "Changed elsewhere" only when another save got there first.
 
+### Fixed
+
+- **The hosting kit passes on the settings its guide names.** `ARCHSIM_MAX_ENGINE_REQUESTS`,
+  `ARCHSIM_RUN_HISTORY_LIMIT`, `ARCHSIM_SESSION_DAYS` and `ARCHSIM_HISTORY_DAYS` in `hosted.env`
+  now reach the API. The kit's Compose file did not name them, so setting them there changed
+  nothing: a kit that raised `ARCHSIM_RUN_HISTORY_LIMIT` before upgrading to 1.5.0 still pruned
+  each project to its newest 200. Read what `hosted.env` says for the four before updating: they
+  apply from the API's next start, when its first prune deletes the runs past the limit and the
+  history older than its days.
+
 ## [1.5.0] - 2026-11-27
 
 Security fixes for a server other people can reach, and screens that lead with the answer. Results
