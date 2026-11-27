@@ -20,6 +20,9 @@ import type {
   Workload,
 } from "./types";
 
+/** The name of a design that has none: the API's, and so the one an empty name field stands for. */
+export const UNTITLED = "Untitled architecture";
+
 export interface ArchNodeData extends Record<string, unknown> {
   type: string;
   label: string;
@@ -263,7 +266,7 @@ export function fromDocument(design: ArchitectureDocument): GraphState & { viewp
     workload: { ...DEFAULT_WORKLOAD, ...(doc.workload ?? {}) },
     scenarios: doc.scenarios ?? [],
     objectives: { ...DEFAULT_OBJECTIVES, ...(doc.objectives ?? {}) },
-    metadata: doc.metadata ?? { name: "Untitled architecture" },
+    metadata: doc.metadata ?? { name: UNTITLED },
     extras: {
       autoSize: doc.architecture.autoSize,
       host: doc.architecture.host ?? null,
@@ -281,7 +284,8 @@ export function toDocument(state: GraphState, viewport?: Viewport | null): Archi
   return {
     schemaVersion: SCHEMA_VERSION,
     kind: "archsim.architecture",
-    metadata: state.metadata,
+    // the name as it is saved: the API reads no design with an empty one, and trims the others
+    metadata: { ...state.metadata, name: state.metadata.name.trim() || UNTITLED },
     architecture: {
       nodes: state.nodes.map((n) => ({
         id: n.id,

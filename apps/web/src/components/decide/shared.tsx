@@ -2,12 +2,11 @@
 
 /** Building blocks shared by the Decide workspace sections. */
 import { CircleAlert, CircleCheck, CircleDashed } from "lucide-react";
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useState } from "react";
 import { fmtRelativeTime } from "@/lib/format";
 import { SWEEP_SCENARIO_PREFIX } from "@/lib/sweep";
 import type { Report, Run } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { ensureReports, useDecide } from "@/store/decide";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
 
@@ -141,34 +140,38 @@ export function useSucceededRuns(includeSweeps = false): Run[] {
   );
 }
 
-/** The run the scorecard and report show: the chosen one, else the run on the canvas, else the newest. */
+/**
+ * The current run and its report: the run on the canvas, which every Results view shows too. A
+ * picker, "View" in the list of runs and a followed run that finishes all move this one run.
+ */
 export function useDecideRun(): { run: Run | null; report: Report | null } {
-  const chosen = useDecide((s) => s.scorecardRunId);
-  const activeRunId = useRuns((s) => s.activeRunId);
-  const runs = useSucceededRuns(true);
-  const run = runs.find((r) => r.id === chosen) ?? runs.find((r) => r.id === activeRunId) ?? runs.find((r) => !isSweepRun(r)) ?? null;
-  const report = useRuns((s) => (run ? (s.reports[run.id] ?? null) : null));
-  useEffect(() => {
-    if (run && !report) void ensureReports([run.id]);
-  }, [run, report]);
+  const run = useRuns((s) => s.runs.find((r) => r.id === s.activeRunId) ?? null);
+  const report = useRuns((s) => (s.activeRunId ? (s.reports[s.activeRunId] ?? null) : null));
   return { run, report };
 }
 
 /**
  * Select which succeeded run a section shows. It is as wide as the label of the run it shows, up
  * to 28rem, and gives way first in a crowded header; a label it cannot fit ends in an ellipsis
- * and stays whole in its tooltip.
+ * and stays whole in its tooltip. While the run just picked loads (`onChange`'s promise), it
+ * shows that run rather than fall back to the one it is still given.
  */
-export function RunPicker({ value, onChange }: { value: string | null; onChange: (id: string) => void }) {
+export function RunPicker({ value, onChange }: { value: string | null; onChange: (id: string) => void | Promise<void> }) {
   const runs = useSucceededRuns();
+  const [picked, setPicked] = useState<string | null>(null);
   if (!runs.length) return null;
-  const shown = runs.find((r) => r.id === value);
+  const showing = picked ?? value;
+  const shown = runs.find((r) => r.id === showing);
+  const pick = (id: string) => {
+    setPicked(id);
+    void Promise.resolve(onChange(id)).finally(() => setPicked((latest) => (latest === id ? null : latest)));
+  };
   return (
     <select
       aria-label="Run"
       title={shown && runOptionText(shown)}
-      value={value ?? ""}
-      onChange={(e) => onChange(e.target.value)}
+      value={showing ?? ""}
+      onChange={(e) => pick(e.target.value)}
       className="field-sizing-content h-8 min-w-0 max-w-md truncate rounded-md border border-line bg-surface-2 px-2 font-mono text-xs text-ink hover:border-line-strong focus-visible:border-accent focus-visible:outline-none"
     >
       {runs.map((r) => (

@@ -25,7 +25,7 @@ which an ArchUnit rule checks, and the digests keep the Python engine's definiti
 ([ADR-0050](../docs/adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)).
 The app simulates on it: a calibration's replay, through `ReplaySimulator.of`, and the runs its
 worker role claims ([ADR-0053](../docs/adr/0053-simulate-runs-in-the-java-apps-worker-role.md)).
-It is engine 1.6.0, and stage 4 is done: its exit is checked off in the port plan.
+It is engine 1.6.1, and stage 4 is done: its exit is checked off in the port plan.
 
 ## Packages
 
@@ -125,11 +125,11 @@ Java gives a result instead (the owner's decision):
   strictly; every other table is the Python's
   (`LatencyFitsTests.fitHistogram_empiricalSharesThatRoundAlike_keepTheLastOfEachSoTheTableIsValid`).
 
-A report differs from the Python engine's in seventeen ways, which leave its result digest as Python
+A report differs from the Python engine's in nineteen ways, which leave its result digest as Python
 defined it ([ADR-0050](../docs/adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)) and
-change its value only where the last seven say:
+change its value only where the last eight say:
 
-- it names its own engine, 1.6.0, where Python's named 0.16.0, so the golden files' `ENGINE_VERSION` is
+- it names its own engine, 1.6.1, where Python's named 0.16.0, so the golden files' `ENGINE_VERSION` is
   not checked (the assumptions page names the engine too, and the golden page is checked
   rendered for 0.16.0, the version its file records; the page also names the command that writes
   it, `./gradlew :archsim-engine:generate` where Python's named `scripts/gen_assumptions.py`, and
@@ -278,6 +278,12 @@ change its value only where the last seven say:
   broker's busy cores at the peak and at the base load, CPU need and memory as Python's once each
   is shown to be the measured broker's at the rates Python's imply, then their words; the
   assumptions page and constants leave the measured rows and their legend out;
+- evenly spaced arrivals fall where the offered rate, added up since the last, reaches one more
+  request, where Python took the gap to the next from the rate at the last arrival (engine
+  1.6.1), so a run with evenly spaced arrivals on a rate that changes (a ramp, a burst or a trace)
+  departs. Two recorded runs do, `aTracedPattern` and `aSetDrainAndAQuietStart`:
+  `departed-runs.json` lists, for each, the parts of its report its requests make, which are the
+  Java's own and pinned by their digest, and the rest of the report is compared with Python's;
 - its design is schema 1.11, which adds `workload.peakHoursPerMonth` (ADR-0074) and leaves it
   out while it is 0, lets an API's price be left unset (ADR-0081), adds
   `objectives.messageAgeP95Ms` (ADR-0084), left out while it is unset, and counts a vCPU as a
@@ -294,7 +300,7 @@ change its value only where the last seven say:
   read recorded documents themselves, and the calibration replays, do the same.
 
 A run comparison of a Python run and a Java run names the two engines, and their two versions
-(0.16.0 and 1.6.0), as it names any two engine versions.
+(0.16.0 and 1.6.1), as it names any two engine versions.
 
 The importers read YAML as PyYAML reads it
 ([ADR-0043](../docs/adr/0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md)), and
@@ -506,7 +512,8 @@ data now, not recorded again.
   or of a run too short to sample), with the scenario, seed and mode simulated and the frozen
   engine's report, which `SimulationCasesTests` replays
   ([ADR-0049](../docs/adr/0049-measure-the-simulator-by-replaying-the-frozen-engines-runs.md)):
-  the whole report must match, digests, counts and events processed exactly, numbers to a
+  the whole report must match (but for the parts of the two runs `departed-runs.json` lists,
+  which are pinned by their digest instead), digests, counts and events processed exactly, numbers to a
   relative 1e-9, and an integer wherever Python wrote one but for a cost line's `instances` and
   an item's `quantity`, leaving out only the engine's and the report's versions and the
   provenance's wall-clock time and runtime (`ReportComparison`, in the test fixtures

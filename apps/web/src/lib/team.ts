@@ -181,6 +181,42 @@ export function describeEvent(e: ActivityEvent, partName: PartName = defaultPart
   }
 }
 
+/** A line of the history: one event, or several saves in a row by one person read as one. */
+export interface HistoryRow {
+  /** The event, or the newest of the saves. */
+  event: ActivityEvent;
+  /** The oldest of the saves, when the row stands for several. */
+  earliest: ActivityEvent | null;
+}
+
+const sameActor = (a: ActivityEvent, b: ActivityEvent) => a.actorKind === b.actorKind && (a.actor?.id ?? null) === (b.actor?.id ?? null);
+
+/**
+ * The history (newest first) as rows: saves that follow one another, by one person and with
+ * nothing else in between, become one row. A design saves itself as it is edited (ADR-0113), so
+ * an hour's work would otherwise be a page of "saved revision N".
+ */
+export function foldSaves(events: ActivityEvent[]): HistoryRow[] {
+  const rows: HistoryRow[] = [];
+  for (const event of events) {
+    const last = rows[rows.length - 1];
+    if (last && event.action === "project.update" && last.event.action === "project.update" && sameActor(last.event, event)) {
+      last.earliest = event;
+    } else {
+      rows.push({ event, earliest: null });
+    }
+  }
+  return rows;
+}
+
+/** One line of history for a row: an event's own sentence, or "saved revisions 4 to 17". */
+export function describeRow(row: HistoryRow, partName: PartName = defaultPartName): { text: string; quote: string | null } {
+  const from = row.earliest?.meta?.revision;
+  const to = row.event.meta?.revision;
+  if (typeof from === "number" && typeof to === "number") return { text: `saved revisions ${from} to ${to}`, quote: null };
+  return describeEvent(row.event, partName);
+}
+
 /** Merges a fresh first page into what is loaded (polling), newest first, without duplicates. */
 export function mergeActivity(loaded: ActivityEvent[], fresh: ActivityEvent[]): ActivityEvent[] {
   const ids = new Set(loaded.map((e) => e.id));

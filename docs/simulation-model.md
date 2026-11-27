@@ -36,8 +36,11 @@ The single traffic source generates requests during `[0, durationS)`:
 - `poisson` (default): exponential inter-arrival times. Non-constant patterns use thinning
   (Lewis and Shedler): candidates are generated at the peak rate and accepted with
   probability `rate(t) / peak`.
-- `deterministic`: evenly spaced arrivals at `1000 / rate(t)` ms. While the rate is 0 the
-  generator advances in 10 ms steps.
+- `deterministic`: evenly spaced arrivals: each one where the rate, added up since the last,
+  reaches one request. Every pattern's rate is linear piece by piece, so the time is found in
+  closed form; at a constant rate the gap is `1000 / rate` ms. A ramp or a trace that starts at 0
+  sends its first request once its rate has added up to one (engine 1.6.1; before, the gap
+  was taken from the rate at the last arrival, so a ramp from 0 sent nothing for most of its run).
 - Patterns: `constant` (`rps`), `ramp` (linear from `startRps` to `endRps` over the run;
   `rps` is ignored), `burst` (`rps` baseline, `burstRps` during
   `[startS, startS + durationS)`).

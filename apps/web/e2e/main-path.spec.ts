@@ -1,7 +1,8 @@
 /**
  * The main path, end to end against a production build and a real API: open the cache-aside
  * starter template, simulate, read the verdict, hit the "lose the cache" chaos pad (which plans
- * the outage and simulates again), compare the two runs, save, reload and find it all still there.
+ * the outage and simulates again), compare the two runs, find the design saved by itself, reload
+ * and find it all still there.
  */
 import { expect, type Page, test } from "@playwright/test";
 
@@ -39,7 +40,7 @@ async function waitForRun(page: Page) {
   await expect(page.getByTestId("run-button")).toBeEnabled();
 }
 
-test("starter: simulate, chaos, compare, save, reload", async ({ page }) => {
+test("starter: simulate, chaos, compare, saved by itself, reload", async ({ page }) => {
   const csp = watchCsp(page);
   // A first visit: skip the guided tour, which would cover the canvas.
   await page.addInitScript(() => {
@@ -96,13 +97,11 @@ test("starter: simulate, chaos, compare, save, reload", async ({ page }) => {
   await expect(page.getByText(/^Input differences \([1-9]\d*\)$/)).toBeVisible();
   await expect(page.getByText("Key metrics (after warm-up)")).toBeVisible();
 
-  // Save the design with its planned outage, then reload.
-  await expect(page.getByLabel("unsaved", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByLabel("saved", { exact: true })).toBeVisible();
+  // The design saved itself with its planned outage while the run went on: reload.
+  await expect(page.getByTestId("save-status")).toHaveText("Saved");
   await page.reload();
   await expect(page.getByTestId("node-cache")).toBeVisible();
-  await expect(page.getByLabel("saved", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("save-status")).toHaveText("Saved");
 
   // Still saved: the pad is still lit (the API filled in the fault's defaults, which the pad
   // ignores), and the stored document holds the outage.

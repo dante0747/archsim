@@ -51,6 +51,22 @@ describe("document conversion", () => {
     expect(doc.layout.nodes.api).toEqual(starter.layout.nodes.api);
   });
 
+  it("toDocument_ofADesignWithNoName_namesItAsTheApiDoes", () => {
+    const g = fromDocument(starter);
+
+    // the API reads no design whose name is empty: a cleared name field must not make one
+    expect(toDocument({ ...g, metadata: { ...g.metadata, name: "" } }).metadata.name).toBe("Untitled architecture");
+    expect(toDocument({ ...g, metadata: { ...g.metadata, name: "   " } }).metadata.name).toBe("Untitled architecture");
+  });
+
+  it("toDocument_ofANamedDesign_keepsItsNameWithoutTheSpacesAroundIt", () => {
+    const g = fromDocument(starter);
+
+    const doc = toDocument({ ...g, metadata: { ...g.metadata, description: "Kept", name: " Checkout " } });
+
+    expect(doc.metadata).toEqual({ ...g.metadata, description: "Kept", name: "Checkout" });
+  });
+
   it("keeps layout separate from topology", () => {
     const g = fromDocument(starter);
     const moved = { ...g, nodes: g.nodes.map((n) => ({ ...n, position: { x: n.position.x + 100, y: 0 } })) };

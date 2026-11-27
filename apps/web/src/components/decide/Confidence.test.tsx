@@ -75,7 +75,7 @@ describe("Results header", () => {
     useEditor.getState().load(structuredClone(project), catalog);
     useEditor.getState().setAnalysis(structuredClone(analysis));
     useEditor.getState().setObjectives({ latencyP95Ms: 300, availability: 0.999 });
-    useDecide.setState({ scorecardRunId: null, section: "answer" });
+    useDecide.setState({ section: "answer" });
   });
   afterEach(() => {
     cleanup();

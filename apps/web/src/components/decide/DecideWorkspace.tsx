@@ -125,7 +125,6 @@ function DetailsPage() {
 export function DecideWorkspace() {
   const section = useDecide((s) => s.section);
   const setSection = useDecide((s) => s.setSection);
-  const setScorecardRunId = useDecide((s) => s.setScorecardRunId);
   const showRun = useRuns((s) => s.showRun);
   const markInsightsSeen = useUi((s) => s.markInsightsSeen);
   const activeRunId = useRuns((s) => s.activeRunId);
@@ -149,12 +148,6 @@ export function DecideWorkspace() {
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0 });
   }, [section]);
-
-  // One run for every tab: picking it also puts it on the canvas.
-  const pickRun = (id: string) => {
-    setScorecardRunId(id);
-    void showRun(id);
-  };
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-page">
@@ -180,7 +173,8 @@ export function DecideWorkspace() {
           );
         })}
         <div className="ml-auto flex min-w-0 items-center gap-2">
-          <RunPicker value={run?.id ?? null} onChange={pickRun} />
+          {/* one run for every tab, the canvas and the Dashboard: picking it here moves them all */}
+          <RunPicker value={run?.id ?? null} onChange={showRun} />
           <ShareButton />
           <Button size="sm" variant={section === "report" ? "soft" : "ghost"} onClick={() => setSection("report")}>
             <FileText /> Report
