@@ -78,7 +78,7 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
       description:
         (report.guessed.length ? `${report.guessed.length} guesses to check. ` : "") +
         (errors ? `${errors} problems to fix before a run. ` : "") +
-        "Undo with Ctrl Z; save to keep it.",
+        "Undo with Ctrl Z.",
     });
     onOpenChange(false);
     setResult(null);

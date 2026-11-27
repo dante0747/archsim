@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@/components/ui/overlays";
 import { initials } from "@/lib/auth-api";
 import type { WorkspaceInfo } from "@/lib/auth-types";
+import { guardLink, leave } from "@/lib/leave";
 import { isGuest, sandboxEndText } from "@/lib/sandbox";
 import { signInPage } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -62,21 +63,25 @@ export function UserMenu({ className, showWorkspace = true }: { className?: stri
     : guest && me.user.expiresAt
       ? `Sandbox, deleted ${sandboxEndText(me.user.expiresAt)}`
       : (me.user.email ?? "No email shared");
+  // Switching and signing out leave the open project: through the guard, which saves it first.
   const onSwitch = (id: string) => {
     if (id === workspace?.id) return;
-    switchWorkspace(id);
-    const next = me.workspaces.find((w) => w.id === id);
-    toast.success(`Switched to ${next?.name ?? "the workspace"}`);
-    if (inEditor) router.push("/projects");
+    leave(() => {
+      switchWorkspace(id);
+      const next = me.workspaces.find((w) => w.id === id);
+      toast.success(`Switched to ${next?.name ?? "the workspace"}`);
+      if (inEditor) router.push("/projects");
+    });
   };
-  const onSignOut = async (everywhere: boolean) => {
-    try {
-      await signOut(everywhere);
-      router.push("/");
-    } catch (e) {
-      toast.error("Could not sign out", { description: e instanceof Error ? e.message : String(e) });
-    }
-  };
+  const onSignOut = (everywhere: boolean) =>
+    leave(async () => {
+      try {
+        await signOut(everywhere);
+        router.push("/");
+      } catch (e) {
+        toast.error("Could not sign out", { description: e instanceof Error ? e.message : String(e) });
+      }
+    });
 
   return (
     <Menu>
@@ -114,7 +119,7 @@ export function UserMenu({ className, showWorkspace = true }: { className?: stri
         ))}
         <MenuSeparator />
         <MenuItem asChild>
-          <Link href="/settings">
+          <Link href="/settings" onNavigate={(e) => guardLink(e, () => router.push("/settings"))}>
             <Settings /> Settings
           </Link>
         </MenuItem>
@@ -125,17 +130,17 @@ export function UserMenu({ className, showWorkspace = true }: { className?: stri
                 <LogIn /> Sign in for a workspace of your own
               </a>
             </MenuItem>
-            <MenuItem onSelect={() => void onSignOut(false)}>
+            <MenuItem onSelect={() => onSignOut(false)}>
               <LogOut /> Leave the sandbox
             </MenuItem>
           </>
         )}
         {me.kind === "session" && !guest && (
           <>
-            <MenuItem onSelect={() => void onSignOut(false)}>
+            <MenuItem onSelect={() => onSignOut(false)}>
               <LogOut /> Sign out
             </MenuItem>
-            <MenuItem onSelect={() => void onSignOut(true)}>
+            <MenuItem onSelect={() => onSignOut(true)}>
               <LogOut /> Sign out everywhere
             </MenuItem>
           </>

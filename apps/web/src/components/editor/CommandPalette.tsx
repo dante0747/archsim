@@ -50,6 +50,7 @@ import { TechIcon } from "@/components/TechIcon";
 import { Kbd } from "@/components/ui/misc";
 import { THEMES, applyTheme, toggleTheme } from "@/components/ui/theme-toggle";
 import { rankCommands } from "@/lib/commands";
+import { leave } from "@/lib/leave";
 import { kindOf } from "@/lib/theme";
 import { offeredWithLabs, tierOf } from "@/lib/tier";
 import { cn, modKey } from "@/lib/utils";
@@ -293,7 +294,7 @@ function useCommands(onShowShortcuts: () => void, onImport: () => void): Command
         icon: <FileInput className={i} />,
         run: () => ui().setImportOpen(true),
       },
-      { id: "home", group: "Project", label: "Back to projects", keywords: "home list", icon: <ArrowLeft className={i} />, run: () => router.push("/projects") },
+      { id: "home", group: "Project", label: "Back to projects", keywords: "home list", icon: <ArrowLeft className={i} />, run: () => leave(() => router.push("/projects")) },
       { id: "theme", group: "Project", label: "Toggle light / dark theme", keywords: "dark mode light mode appearance", icon: <Moon className={i} />, run: toggleTheme },
       ...THEMES.map((t) => ({
         id: `theme-${t.id}`,

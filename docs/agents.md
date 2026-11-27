@@ -58,7 +58,10 @@ itself.
 - Tools exist only while an ArchSim page is open and only act on that page's own state, through
   the same actions as the interface. There is no code execution and no access to anything else.
 - Read-only tools carry `readOnlyHint`; `save_design` carries `consequentialHint`, so agents and
-  browsers can ask before using it. Edits are local until saved and can be undone.
+  browsers can ask before using it. An agent's edits are saved as a person's are: by the editor,
+  a moment after they are made
+  ([ADR-0113](adr/0113-save-a-design-as-it-is-edited-and-on-the-way-out-of-the-editor.md)). Each
+  shows on the canvas and can be undone, and `save_design` saves at once.
 - ArchSim sends nothing to an AI service. The agent is yours (in your browser); it sees only the
   tool results.
 

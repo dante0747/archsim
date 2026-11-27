@@ -54,6 +54,13 @@ export interface SentDesign {
   content: string;
 }
 
+/** Why the last save failed, in the API's words, and whether trying again by itself may help. */
+export interface SaveError {
+  message: string;
+  /** The reason may pass (the network, a busy or restarting server), so the save is tried again. */
+  retry: boolean;
+}
+
 export interface EditorState extends GraphState {
   projectId: string | null;
   revision: number;
@@ -65,6 +72,8 @@ export interface EditorState extends GraphState {
   saving: boolean;
   /** The project was saved elsewhere since this editor opened it: a save from here would replace that version. */
   conflict: boolean;
+  /** Why the last save failed; null once a save goes through. */
+  saveError: SaveError | null;
   dragging: boolean;
   past: GraphState[];
   future: GraphState[];
@@ -110,9 +119,9 @@ export interface EditorState extends GraphState {
   /** A save starts: what it sends, to tell when its answer comes whether the design was edited meanwhile. */
   beginSave: () => SentDesign;
   /** A save was answered: the design is saved only if it is still what the save sent. */
-  markSaved: (sent: SentDesign, saved: Pick<Project, "revision" | "name">) => void;
-  /** A save was refused; `conflict`: because the project was saved elsewhere first. */
-  saveFailed: (sent: SentDesign, conflict: boolean) => void;
+  markSaved: (sent: SentDesign, saved: Pick<Project, "revision">) => void;
+  /** A save was refused: because the project was saved elsewhere first (a conflict), or for `error`. */
+  saveFailed: (sent: SentDesign, failure: { conflict: true } | { conflict: false; error: SaveError }) => void;
   /** Replaces the design with the version saved elsewhere, as one undoable step: undo brings this one back. */
   takeTheirs: (project: Project) => void;
   toDocument: (viewport?: Viewport | null) => ArchitectureDocument;
@@ -156,6 +165,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   dirty: false,
   saving: false,
   conflict: false,
+  saveError: null,
   dragging: false,
   past: [],
   future: [],
@@ -185,6 +195,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       dirty: false,
       saving: false,
       conflict: false,
+      saveError: null,
       past: [],
       future: [],
       issues: [],
@@ -518,19 +529,18 @@ export const useEditor = create<EditorState>()((set, get) => ({
   markSaved: (sent, saved) =>
     set((st) => {
       if (st.loadId !== sent.loadId) return {};
-      const unchanged = savedContent(st) === sent.content;
-      return {
-        revision: saved.revision,
-        saving: false,
-        conflict: false,
-        dirty: !unchanged,
-        // the API's name is the saved one (trimmed, never empty); a name retyped meanwhile is the newer one
-        metadata: unchanged && saved.name !== st.metadata.name ? { ...st.metadata, name: saved.name } : st.metadata,
-      };
+      // The name stays as typed. It is saved trimmed, and as "Untitled architecture" when empty
+      // (toDocument), but a save made by itself must not rewrite a field the person may be typing in:
+      // the saved name shows when the project is opened again, and an empty field shows it as its
+      // placeholder.
+      return { revision: saved.revision, saving: false, conflict: false, saveError: null, dirty: savedContent(st) !== sent.content };
     }),
 
-  saveFailed: (sent, conflict) =>
-    set((st) => (st.loadId === sent.loadId ? { saving: false, conflict: st.conflict || conflict } : {})),
+  saveFailed: (sent, failure) =>
+    set((st) => {
+      if (st.loadId !== sent.loadId) return {};
+      return failure.conflict ? { saving: false, conflict: true, saveError: null } : { saving: false, saveError: failure.error };
+    }),
 
   takeTheirs: (project) => {
     get().pushHistory();
@@ -546,6 +556,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       extras: g.extras,
       dirty: false,
       conflict: false,
+      saveError: null,
       layoutVersion: s.layoutVersion + 1,
     }));
   },
