@@ -71,6 +71,26 @@ put them in `.env.docker` (git ignores it): the API and worker containers read i
 
 The endpoints are in [api.md](api.md#sign-in-workspaces-and-tokens).
 
+## How long the server keeps things
+
+The API deletes what it no longer keeps when it starts and every hour after, in short batches that
+any number of API instances share
+([ADR-0111](adr/0111-prune-the-runs-past-a-projects-limit-and-expired-rows-every-hour.md)):
+
+| What | Kept | Setting |
+| --- | --- | --- |
+| A project's runs | Its newest 200, the ones its list shows, and older runs still queued or running, signed off or commented on, with the rest of their seed group | `ARCHSIM_RUN_HISTORY_LIMIT` |
+| A sign-in session | Until its person signs out, or it expires, 30 days after signing in | `ARCHSIM_SESSION_DAYS` |
+| An invitation | Until it expires (7 days by default, 30 at most), accepted or not | |
+| A share link's copy of the results | Until the link expires or is revoked; the link stays listed, expired | |
+| The history of each workspace | 365 days | `ARCHSIM_HISTORY_DAYS` |
+
+Rate-limit counters go within a minute of the end of their window, and sandboxes 24 hours after
+they start. Designs, comments, sign-offs, accounts and workspaces stay until someone deletes them,
+and API tokens, revoked and expired ones included, for as long as their person's account.
+Before upgrading a server whose projects should keep more runs, raise `ARCHSIM_RUN_HISTORY_LIMIT`:
+the first prune, as the API starts, deletes the runs past it.
+
 ## Before you expose a server
 
 - Use PostgreSQL with a password of your own: the Compose file's `archsim` / `archsim` is a local
@@ -127,6 +147,10 @@ The worker's heap on a big server is the one [archsim-app's README](../archsim-a
 asks: 512 MB a run and 256 MB besides. The default gives each run less, about 384 MB, because runs
 here stop at 1,000,000 requests instead of 2,000,000, and a run's heap shrinks by about 128 MB a
 million. More workers (`--scale worker=2`) need more cores still, each with its own heap.
+
+The disk holds the images, the database and its seven nightly dumps (step 11). The database's
+largest rows are runs, each with its design and report, and a project keeps its newest 200
+([How long the server keeps things](#how-long-the-server-keeps-things)).
 
 ### 2. Docker
 
@@ -341,12 +365,16 @@ address, and the app links to it. A server from this kit stores:
 
 - **For each person who signs in:** the name, email and picture address their GitHub or Google
   account gives, that account's id (and GitHub user name), and what they make in their workspaces
-  (designs, runs, comments, sign-offs, share links) until it is deleted.
+  (designs, runs, comments, sign-offs, share links) until it is deleted: by them, or by the server
+  for the runs past a project's newest 200 and an expired share link's copy
+  ([How long the server keeps things](#how-long-the-server-keeps-things)).
 - **For each sign-in session:** the IP address and browser (user agent) it started from, until
-  the person signs out of it, or out everywhere; an expired session's row stays until then.
+  the person signs out of it, or out everywhere, or about an hour after it expires.
+- **For each invitation:** the email it was sent to, if it names one, until about an hour after it
+  expires (7 days by default, 30 at most), accepted or not.
 - **In each workspace's history:** every change to its projects, runs, reviews and members, who
-  made it and from which IP address (only owners see the address), for as long as the workspace
-  lasts.
+  made it and from which IP address (only owners see the address), for 365 days, or until the
+  workspace is deleted.
 - **With sandboxes on** (`ARCHSIM_SANDBOXES=true`): a guest account with no name of its own and no
   email, its session's address and browser, and everything made in the sandbox, all deleted 24
   hours after the sandbox starts.

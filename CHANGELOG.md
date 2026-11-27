@@ -10,6 +10,15 @@ for when that version changes.
 
 ### Changed
 
+- **The API deletes what it no longer keeps, when it starts and every hour after
+  ([ADR-0111](docs/adr/0111-prune-the-runs-past-a-projects-limit-and-expired-rows-every-hour.md),
+  proposed).** A project keeps its newest `ARCHSIM_RUN_HISTORY_LIMIT` runs (200), the ones its
+  list shows; older runs are deleted, except runs still queued or running, runs with a sign-off or
+  a comment, and the other runs of their seed group. Expired sessions and invitations are deleted,
+  and so are expired share links' copies of the results (the links stay, listed as expired). The
+  history keeps each change `ARCHSIM_HISTORY_DAYS` (365) days. Before upgrading a server that set
+  `ARCHSIM_RUN_HISTORY_LIMIT` low to shorten the list, raise it: the first prune deletes the runs
+  past it.
 - **Results lead with the answer, and every caveat explains itself on demand
   ([ADR-0102](docs/adr/0102-lead-each-screen-with-the-answer-and-make-every-input-explain-itself.md),
   proposed).** Results → Answer is one card: what the verdict rests on ("Misses 2 of 2

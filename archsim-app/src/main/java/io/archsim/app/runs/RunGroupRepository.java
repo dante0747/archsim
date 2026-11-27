@@ -37,6 +37,21 @@ class RunGroupRepository {
 			.update();
 	}
 
+	/**
+	 * Deletes a project's seed groups that have no runs left, whether their runs were
+	 * pruned or someone deleted each of them. Groups another transaction holds are left
+	 * to it.
+	 * @param projectId the project
+	 */
+	void deleteEmpty(String projectId) {
+		this.jdbc.sql("""
+				DELETE FROM run_groups WHERE id IN (
+				    SELECT run_group.id FROM run_groups run_group
+				    WHERE run_group.project_id = :project
+				      AND NOT EXISTS (SELECT 1 FROM simulation_runs WHERE simulation_runs.group_id = run_group.id)
+				    FOR UPDATE SKIP LOCKED)""").param("project", projectId).update();
+	}
+
 	Optional<RunGroup> find(String id) {
 		return this.jdbc.sql("""
 				SELECT id, workspace_id, project_id, kind, base_seed, size, mode, scenario_id, label, created_by,
