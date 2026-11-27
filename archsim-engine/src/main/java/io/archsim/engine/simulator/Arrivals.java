@@ -19,11 +19,12 @@ import io.archsim.model.document.Workload;
 
 /**
  * The workload's user requests, as a routine: open-loop arrivals at the offered rate
- * (Poisson arrivals thinned to the pattern's rate, or evenly spaced ones), each a read or
- * a write of a key, sent by a client group picked by its share. A key is drawn from the
- * workload's Zipf keyspace when a part uses keys, else every request has key 0. Every
- * n-th request is traced, so about 1,200 are, drawing no random number. A workload whose
- * peak rate is not a finite number is refused.
+ * (Poisson arrivals thinned to the pattern's rate, or evenly spaced ones, one where the
+ * rate has added up to another request: {@link EvenSpacing}), each a read or a write of a
+ * key, sent by a client group picked by its share. A key is drawn from the workload's
+ * Zipf keyspace when a part uses keys, else every request has key 0. Every n-th request
+ * is traced, so about 1,200 are, drawing no random number. A workload whose peak rate is
+ * not a finite number is refused.
  */
 final class Arrivals {
 
@@ -31,9 +32,6 @@ final class Arrivals {
 
 	/** How many requests a run traces, sampled evenly. */
 	private static final double TRACE_TARGET = 1200;
-
-	/** How far an evenly spaced workload looks ahead while its rate is 0. */
-	private static final double IDLE_STEP_MS = 10.0;
 
 	private final Simulation simulation;
 
@@ -54,6 +52,8 @@ final class Arrivals {
 	private final long traceEvery;
 
 	private final MessageLosses losses;
+
+	private final EvenSpacing spacing;
 
 	private long sent;
 
@@ -76,6 +76,7 @@ final class Arrivals {
 		this.peak = requireFinite(workload.peakRate());
 		this.durationMs = workload.durationS() * MS_PER_SECOND;
 		this.traceEvery = Math.max(1, (long) FloorDivision.of(workload.expectedArrivals(), TRACE_TARGET));
+		this.spacing = EvenSpacing.of(workload);
 	}
 
 	// the arrival loops end by comparing times with the run's end, and no comparison
@@ -149,17 +150,8 @@ final class Arrivals {
 	}
 
 	private boolean advanceEvenly() {
-		while (true) {
-			double rate = rateAtNext();
-			if (rate > 0) {
-				this.next += MS_PER_SECOND / rate;
-				return this.next < this.durationMs;
-			}
-			this.next += IDLE_STEP_MS;
-			if (this.next >= this.durationMs) {
-				return false;
-			}
-		}
+		this.next = this.spacing.next();
+		return this.next < this.durationMs;
 	}
 
 	private double rateAtNext() {

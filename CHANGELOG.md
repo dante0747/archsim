@@ -8,6 +8,16 @@ for when that version changes.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Evenly spaced arrivals follow a ramp or a trace from its start (engine 1.6.1).** With
+  `arrivalProcess: deterministic`, the gap to the next request was taken from the rate at the
+  last one, so a ramp from 0 to 100 req/s over 120 s sent no request at all, and a trace from 0
+  up to 100 req/s and back sent half its requests. Each request now falls where the rate has
+  added up to one more, so every pattern sends the requests its rate adds up to; evenly spaced
+  requests around a burst's edges move too. Constant rates and Poisson arrivals give the same
+  results as before.
+
 ## [1.6.0] - 2026-11-27
 
 The second half of the security fixes 1.5.0 began for a server other people can reach: limits on
