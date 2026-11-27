@@ -5,10 +5,11 @@
  * loaded after the page): set while the page shows it, and the page's own title put back after.
  */
 import { useEffect } from "react";
+import { UNTITLED } from "@/lib/document";
 
 /** "Checkout · ArchSim": the project first, so tabs of several projects tell apart. */
 export function projectTitle(name: string): string {
-  return `${name.trim() || "Untitled architecture"} · ArchSim`;
+  return `${name.trim() || UNTITLED} · ArchSim`;
 }
 
 /** Shows `title` in the tab; null leaves the page's own until there is one. */

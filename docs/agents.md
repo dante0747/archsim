@@ -47,7 +47,7 @@ In the editor (while a design is open):
 | `get_results` | The same summary for the latest run or a run id (read only). |
 | `tidy_layout` | Arranges the parts along the request flow. |
 | `undo` | Undoes the last design change. |
-| `save_design` | Saves the design to the project (marked consequential). |
+| `save_design` | Saves the design to the project (marked consequential). If the project was saved elsewhere since it was opened, nothing is saved: the tool says so, and the editor asks the person which version to keep. |
 
 Tool results are JSON. Mistakes come back as errors that say what to do instead (an unknown
 setting lists the part's settings; an unknown preset lists the presets), so an agent can correct
@@ -58,7 +58,10 @@ itself.
 - Tools exist only while an ArchSim page is open and only act on that page's own state, through
   the same actions as the interface. There is no code execution and no access to anything else.
 - Read-only tools carry `readOnlyHint`; `save_design` carries `consequentialHint`, so agents and
-  browsers can ask before using it. Edits are local until saved and can be undone.
+  browsers can ask before using it. An agent's edits are saved as a person's are: by the editor,
+  a moment after they are made
+  ([ADR-0113](adr/0113-save-a-design-as-it-is-edited-and-on-the-way-out-of-the-editor.md)). Each
+  shows on the canvas and can be undone, and `save_design` saves at once.
 - ArchSim sends nothing to an AI service. The agent is yours (in your browser); it sees only the
   tool results.
 

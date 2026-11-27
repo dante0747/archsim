@@ -14,7 +14,6 @@ import { fmtClock } from "@/lib/recorder";
 import { KIND_LABEL, kindOf } from "@/lib/theme";
 import type { NodeReport, Run } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { useDecide } from "@/store/decide";
 import { useRuns } from "@/store/runs";
 import { useUi } from "@/store/ui";
 import { useDashView } from "./context";
@@ -174,16 +173,12 @@ function ReplayControl({ endS }: { endS: number }) {
 
 export function DashboardHeader({ runId, endS, running }: { runId: string; endS: number; running: Run | null }) {
   const { zoomed, setRange, zoomOut } = useDashView();
-  const pickRun = (id: string) => {
-    useDecide.getState().setScorecardRunId(id);
-    void useRuns.getState().showRun(id);
-  };
   return (
     <div className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-surface px-3">
       <LayoutDashboard className="size-4 text-accent" aria-hidden />
       <h2 className="mr-1 text-[14px] font-semibold tracking-[-0.01em] text-ink">Dashboard</h2>
       <span className="h-5 w-px bg-line" aria-hidden />
-      <RunPicker value={runId} onChange={pickRun} />
+      <RunPicker value={runId} onChange={(id) => useRuns.getState().showRun(id)} />
       <RangePicker />
       <IconButton label="Zoom out" onClick={zoomOut} disabled={!zoomed}>
         <ZoomOut />

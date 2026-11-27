@@ -10,6 +10,36 @@ for when that version changes.
 
 ### Fixed
 
+- **The editor saves a design as it is edited and on the way out
+  ([ADR-0113](docs/adr/0113-save-a-design-as-it-is-edited-and-on-the-way-out-of-the-editor.md),
+  proposed).** Only Ctrl/⌘ S saved, a small dot was the only sign of unsaved work, and the logo,
+  Settings, a workspace switch, signing out, "Back to projects" and the browser's Back button all
+  left the editor without a word, losing whatever was unsaved. A design now saves itself after a
+  two-second pause in editing. Leaving by the app's own links and commands saves first, and asks
+  only when that save fails; the editor also saves as it closes, which covers the Back button.
+  Under the project's name the top bar says "Saved", "Unsaved changes", "Saving…", "Not saved" or
+  "Changed elsewhere" in words, and the history reads saves that follow one another as one line.
+  A design whose name field is empty saves as "Untitled architecture"; before, every save of it
+  failed. Three things follow from saving without being asked: every pause in editing is a
+  revision, so undo is the only way back from an experiment; a review goes stale at the first
+  edit after it; and an agent's edits are saved without its `save_design` tool.
+- **A save no longer marks as saved what it did not send, and a save conflict is no longer a dead
+  end
+  ([ADR-0112](docs/adr/0112-end-a-save-conflict-with-a-choice-their-version-this-one-or-a-copy.md),
+  proposed).** An edit made while a save was on its way was flagged saved, and a project name
+  retyped meanwhile went back to the one sent: the editor now counts as saved only the design the
+  save sent. When the project was saved elsewhere first, the editor said "Changed elsewhere" and
+  every later save failed; it now asks which version to keep: reload theirs (undo brings yours
+  back), overwrite it, or save yours as a copy. An agent's `save_design` saves the same way and
+  leaves that choice to the person.
+- **Results shows one run, the one on the canvas.** The Results header's run picker kept a choice
+  of its own, which outranked the run on the canvas. After picking a run once and simulating
+  again, Answer, the picker, Calculations, Request traces, the error budget, the Report and Share
+  stayed on the old run while the canvas, the Dashboard and Details' Summary, Over time, Per
+  component and Assumptions showed the new one, as if the change had done nothing. There is one
+  current run now: a picker, "View" in the list of runs and a followed run that finishes all move
+  it, for every view. Deleting the current run makes the newest run left the current one. A
+  picker shows the run just picked while its results load.
 - **Evenly spaced arrivals follow a ramp or a trace from its start (engine 1.6.1).** With
   `arrivalProcess: deterministic`, the gap to the next request was taken from the rate at the
   last one, so a ramp from 0 to 100 req/s over 120 s sent no request at all, and a trace from 0

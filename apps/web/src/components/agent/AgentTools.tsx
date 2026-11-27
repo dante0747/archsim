@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { appTools } from "@/lib/agent/app-tools";
 import { editorTools } from "@/lib/agent/editor-tools";
 import { type ToolCallListener, registerAgentTools } from "@/lib/agent/webmcp";
+import { leave } from "@/lib/leave";
 
 const announce: ToolCallListener = (tool, _input, outcome) => {
   if (tool.annotations?.readOnlyHint && tool.name !== "open_project") return;
@@ -27,7 +28,7 @@ export function AppAgentTools() {
   useEffect(() => {
     const ac = new AbortController();
     registerAgentTools(
-      appTools((path) => router.push(path)),
+      appTools((path) => leave(() => router.push(path))),
       ac.signal,
       announce,
     );

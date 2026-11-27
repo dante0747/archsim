@@ -8,8 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Empty } from "@/components/ui/misc";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/overlays";
 import { fmtRelativeTime } from "@/lib/format";
-import { type PartName, type Thread, actorName, describeEvent } from "@/lib/team";
-import type { ActivityEvent } from "@/lib/team-types";
+import { type HistoryRow, type PartName, type Thread, actorName, describeRow, foldSaves } from "@/lib/team";
 import { cn } from "@/lib/utils";
 import { type ActivityTab, useTeam } from "@/store/team";
 import { showPart, usePartName, useThreads } from "./hooks";
@@ -94,8 +93,9 @@ function CommentsTab() {
   );
 }
 
-function EventRow({ e, partName }: { e: ActivityEvent; partName: PartName }) {
-  const { text, quote } = describeEvent(e, partName);
+function EventRow({ row, partName }: { row: HistoryRow; partName: PartName }) {
+  const e = row.event;
+  const { text, quote } = describeRow(row, partName);
   const who = actorName(e);
   return (
     <li className="flex gap-2.5 py-2" data-testid="activity-event" data-action={e.action}>
@@ -133,8 +133,8 @@ function HistoryTab() {
   return (
     <div className="px-4 pb-4">
       <ul className="divide-y divide-line">
-        {history.map((e) => (
-          <EventRow key={e.id} e={e} partName={partName} />
+        {foldSaves(history).map((row) => (
+          <EventRow key={row.event.id} row={row} partName={partName} />
         ))}
       </ul>
       {before != null && (

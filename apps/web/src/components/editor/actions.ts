@@ -3,8 +3,9 @@
 import { type Viewport, useReactFlow } from "@xyflow/react";
 import { useCallback } from "react";
 import { toast } from "sonner";
-import { api, isRevisionConflict } from "@/lib/api";
+import { api } from "@/lib/api";
 import { slugify } from "@/lib/document";
+import { saveDesign } from "@/lib/save";
 import type { RunMode } from "@/lib/seed-groups";
 import type { ArchitectureDocument } from "@/lib/types";
 import { downloadJson, readJsonFile } from "@/lib/utils";
@@ -22,26 +23,12 @@ export function downloadDesign(viewport?: Viewport) {
 export function useEditorActions() {
   const rf = useReactFlow();
 
+  /** Save the design. When the project was saved elsewhere first, ask which version to keep. */
   const save = useCallback(async () => {
-    const s = useEditor.getState();
-    if (!s.projectId || s.saving) return;
-    s.setSaving(true);
-    try {
-      const doc = s.toDocument(rf.getViewport());
-      const p = await api.updateProject(s.projectId, {
-        name: s.metadata.name.trim() || "Untitled architecture",
-        document: doc,
-        expectedRevision: s.revision,
-      });
-      useEditor.getState().markSaved(p.revision, p.name);
-      toast.success("Saved", { description: `Revision ${p.revision}` });
-    } catch (e) {
-      useEditor.getState().setSaving(false);
-      const msg = e instanceof Error ? e.message : String(e);
-      toast.error(isRevisionConflict(e) ? "Changed elsewhere" : "Save failed", {
-        description: msg,
-      });
-    }
+    const result = await saveDesign({ viewport: rf.getViewport() });
+    if (result.status === "saved") toast.success("Saved", { description: `Revision ${result.revision}` });
+    else if (result.status === "conflict") useUi.getState().setSaveConflictOpen(true);
+    else if (result.status === "failed") toast.error("Save failed", { description: result.message });
   }, [rf]);
 
   /** Simulate the design (or the chosen scenario); ``opts``: a seed group or a quick check. */
@@ -83,7 +70,7 @@ export function useEditorActions() {
       useEditor.getState().replaceDocument(raw);
       const errors = check.issues.filter((i) => i.severity === "error").length;
       toast.success("Imported into this project", {
-        description: errors ? `${errors} problem(s) to fix before simulating. Save to keep it.` : "Save to keep it.",
+        description: errors ? `${errors} problem(s) to fix before simulating. Undo with Ctrl Z.` : "Undo with Ctrl Z.",
       });
     } catch (e) {
       toast.error("Import failed", {

@@ -97,7 +97,7 @@ export function CalibrateDialog({ open, onOpenChange }: { open: boolean; onOpenC
     if (!result) return;
     useEditor.getState().replaceDocument(result.document);
     toast.success(`Calibrated ${result.changes.length} input${result.changes.length === 1 ? "" : "s"} from telemetry`, {
-      description: result.summary ?? "Measured inputs carry a badge in the inspector. Undo with Ctrl Z; save to keep it.",
+      description: result.summary ?? "Measured inputs carry a badge in the inspector. Undo with Ctrl Z.",
     });
     onOpenChange(false);
     setResult(null);
