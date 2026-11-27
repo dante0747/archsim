@@ -83,6 +83,18 @@ class SandboxTests {
 	}
 
 	@Test
+	void start_sixthInAnHourFromOneSlash64_isTooManyRequests(ApiServer server) {
+		String network = ApiServer.nextSlash64();
+		for (int host = 1; host <= 5; host++) {
+			ApiServer.startSandbox(server.client().header("X-ArchSim-Client-IP", network + host)).expectStatus(201);
+		}
+
+		ApiResponse sixth = ApiServer.startSandbox(server.client().header("X-ArchSim-Client-IP", network + "6"));
+
+		assertThat(sixth.status()).isEqualTo(429);
+	}
+
+	@Test
 	void createToken_guest_isForbidden(ApiServer server) {
 		ApiResponse refused = server.guest().post("/tokens", Json.object("name", "CI", "scope", "read"));
 

@@ -85,6 +85,10 @@ sandbox's limits as they are, and marks a guest explicitly, so no rule has to gu
   signs in as usual and starts a personal workspace; the sandbox stays behind until it expires,
   and no message promises otherwise (a refused guest is told "sign in first").
 
+**Status (27 Nov 2026):** renaming a workspace, changing a member's role, removing a member and
+revoking an invitation take a person, as making a workspace or an invitation does, so a guest no
+longer renames the sandbox either.
+
 ### Consequences
 
 - Good, because a visitor tries the real app, with the same API and UI, in one click.

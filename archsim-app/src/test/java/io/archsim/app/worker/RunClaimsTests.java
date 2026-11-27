@@ -28,7 +28,9 @@ import static org.awaitility.Awaitility.await;
  * {@code test_api_queue.py}): the oldest runs first, under a lease, one more attempt
  * counted; never one run to two workers, however many claim at once; never a run the
  * worker is still executing; each workspace under its cap of runs at once, counted across
- * workers; and every workspace's oldest run before anyone's second.
+ * workers; and every workspace's oldest run before anyone's second. Unlike the Python
+ * worker, every other workspace's runs before a sandbox's (ADR-0106), which still get the
+ * slots no one else can take.
  */
 class RunClaimsTests {
 
@@ -223,6 +225,28 @@ class RunClaimsTests {
 		List<ClaimedRun> claimed = this.claims.claim(new ClaimRequest("w", 2, Set.of()), NOW);
 
 		assertThat(claimed).extracting(ClaimedRun::id).containsExactlyInAnyOrder(busy.get(0), late.get(0));
+	}
+
+	@Test
+	void claim_aSandboxsRunQueuedBeforeATeams_goesAfterIt() {
+		this.queue.queue("sand", "sandbox", 1);
+		List<String> team = this.queue.queue("team", 1);
+
+		List<ClaimedRun> claimed = this.claims.claim(new ClaimRequest("w", 1, Set.of()), NOW);
+
+		assertThat(claimed).extracting(ClaimedRun::id).containsExactly(team.get(0));
+	}
+
+	@Test
+	void claim_aSandboxsRunWhileEveryOtherWorkspaceIsAtItsCap_isTaken() {
+		this.queue.queue("team", 2);
+		this.queue.cap("team", 1);
+		this.claims.claim(new ClaimRequest("w1", 1, Set.of()), NOW);
+		List<String> sandbox = this.queue.queue("sand", "sandbox", 1);
+
+		List<ClaimedRun> claimed = this.claims.claim(new ClaimRequest("w2", 1, Set.of()), NOW);
+
+		assertThat(claimed).extracting(ClaimedRun::id).containsExactly(sandbox.get(0));
 	}
 
 	private List<String> claimUntilEmpty(String worker) {

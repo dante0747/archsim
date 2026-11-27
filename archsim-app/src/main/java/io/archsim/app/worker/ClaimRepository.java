@@ -16,6 +16,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import tools.jackson.databind.json.JsonMapper;
 
+import io.archsim.app.limits.WorkspaceLimits;
 import io.archsim.engine.simulator.SimulationMode;
 
 /**
@@ -55,8 +56,10 @@ class ClaimRepository {
 	}
 
 	/**
-	 * The queued runs a claim may take: each workspace's oldest first, then their second
-	 * oldest, and so on, no more than the claim's limit from any one workspace.
+	 * The queued runs a claim may take, no more than the claim's limit from any one
+	 * workspace: every other workspace's before any sandbox's (ADR-0106), and among each,
+	 * every workspace's oldest first, then their second oldest, and so on. A queued
+	 * sandbox run thus comes after every other workspace's queued run.
 	 * @param limit the claim's limit
 	 * @param exclude runs to leave out
 	 * @return the runs, in that order
@@ -69,11 +72,13 @@ class ClaimRepository {
 					          row_number() OVER (PARTITION BY q.workspace_id ORDER BY q.created_at, q.id) AS position
 					      FROM simulation_runs AS q
 					      WHERE q.status = 'queued' %s) AS ranked
+					JOIN workspaces AS w ON w.id = ranked.workspace_id
 					WHERE ranked.position <= :limit
-					ORDER BY ranked.position, ranked.created_at, ranked.id"""
+					ORDER BY w.kind = :sandbox, ranked.position, ranked.created_at, ranked.id"""
 				.formatted(exclude.isEmpty() ? "" : NOT_EXCLUDED))
 			.param("limit", limit)
 			.param("exclude", exclude)
+			.param("sandbox", WorkspaceLimits.SANDBOX)
 			.query((row, number) -> new Candidate(row.getString("id"), row.getString("workspace_id")))
 			.list();
 	}

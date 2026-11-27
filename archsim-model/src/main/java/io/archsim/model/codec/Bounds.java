@@ -39,13 +39,13 @@ record Bounds(@Nullable Double ge, @Nullable Double gt, @Nullable Double le, @Nu
 	}
 
 	/**
-	 * Adds an error for the first bound a float breaks; NaN breaks every bound.
-	 * @param value the float read
+	 * Adds an error for the first bound a float breaks.
+	 * @param value the float read, a finite one: {@link FloatShape} refuses the others
 	 * @param at where it is in the input
 	 * @param errors where the error is added
 	 */
 	void check(double value, Location at, Errors errors) {
-		check(new Checked(Double.isFinite(value) ? new BigDecimal(value) : null, value, false), at, errors);
+		check(new Checked(new BigDecimal(value), false), at, errors);
 	}
 
 	/**
@@ -55,7 +55,7 @@ record Bounds(@Nullable Double ge, @Nullable Double gt, @Nullable Double le, @Nu
 	 * @param errors where the error is added
 	 */
 	void check(BigDecimal value, Location at, Errors errors) {
-		check(new Checked(value, value.doubleValue(), true), at, errors);
+		check(new Checked(value, true), at, errors);
 	}
 
 	/** Checks in pydantic's order: {@code le}, {@code lt}, {@code ge}, {@code gt}. */
@@ -101,28 +101,21 @@ record Bounds(@Nullable Double ge, @Nullable Double gt, @Nullable Double le, @Nu
 	/**
 	 * A number being checked against the bounds.
 	 *
-	 * @param exact its exact value, {@code null} for an infinity or NaN
-	 * @param value its value as a double
+	 * @param exact its exact value
 	 * @param integer whether it was read for an integer field, whose messages write a
 	 * bound as an integer
 	 */
-	private record Checked(@Nullable BigDecimal exact, double value, boolean integer) {
+	private record Checked(BigDecimal exact, boolean integer) {
 
 		/**
 		 * Whether the number compared with {@code bound} passes {@code test}, compared
-		 * exactly as Python compares an int with a float. A NaN passes no test; an
-		 * infinity is beyond any bound.
+		 * exactly as Python compares an int with a float.
 		 * @param bound the bound
 		 * @param test what the comparison's sign must be
 		 * @return whether the number keeps to the bound
 		 */
 		boolean passes(double bound, IntPredicate test) {
-			if (Double.isNaN(this.value)) {
-				return false;
-			}
-			int comparison = (this.exact != null) ? this.exact.compareTo(new BigDecimal(bound))
-					: ((this.value > 0) ? 1 : -1);
-			return test.test(comparison);
+			return test.test(this.exact.compareTo(new BigDecimal(bound)));
 		}
 
 		/**

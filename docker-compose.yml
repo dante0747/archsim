@@ -19,7 +19,7 @@ name: archsim
 
 # archsim-app's image (ADR-0014), started as migrate, api or worker
 x-archsim-app: &archsim-app
-  image: ghcr.io/dante0747/archsim-app:1.4.0
+  image: ghcr.io/dante0747/archsim-app:1.5.0
 
 services:
   postgres:
@@ -63,6 +63,10 @@ services:
       ARCHSIM_DATABASE_URL: postgresql://archsim:archsim@postgres:5432/archsim
       ARCHSIM_AUTO_MIGRATE: "false" # the migrate service did it
       ARCHSIM_CORS_ORIGINS: '["http://localhost:3000"]'
+      # the name the web container calls it by: without sign-in it answers only this machine's
+      # names and these (SECURITY.md). This beats .env.docker; to add a name, set it here or in a
+      # compose override file
+      ARCHSIM_ALLOWED_HOSTS: api
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -106,7 +110,7 @@ services:
     stop_grace_period: 30s
 
   web:
-    image: ghcr.io/dante0747/archsim-web:1.4.0
+    image: ghcr.io/dante0747/archsim-web:1.5.0
     environment:
       ARCHSIM_API_URL: http://api:8000
     depends_on:

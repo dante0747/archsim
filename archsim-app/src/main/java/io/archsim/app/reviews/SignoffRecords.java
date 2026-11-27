@@ -6,6 +6,7 @@ import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import io.archsim.app.access.Principal;
 import io.archsim.app.audit.AuditLog;
@@ -35,13 +36,15 @@ class SignoffRecords {
 	}
 
 	/**
-	 * Stores a sign-off on a run, for the design as saved now.
+	 * Stores a sign-off on a run, for the design as saved now, and its line in the
+	 * history, in one transaction.
 	 * @param project the run's project
 	 * @param run the run
 	 * @param request the decision and its note
 	 * @param principal the reviewer
 	 * @return the sign-off
 	 */
+	@Transactional
 	StoredSignoff add(ProjectDesign project, RunFacts run, SignoffCreate request, Principal principal) {
 		String note = (request.note() != null) ? Text.strip(request.note()) : "";
 		StoredSignoff signoff = new StoredSignoff(Ids.newId(), project.workspaceId(), project.id(), run.id(),

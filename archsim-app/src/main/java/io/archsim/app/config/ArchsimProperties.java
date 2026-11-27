@@ -46,7 +46,13 @@ import org.springframework.validation.annotation.Validated;
  * @param rateLimits whether the limits per workspace, person and address apply (429 with
  * {@code Retry-After}), with the hosted limits per workspace kind; empty for on with
  * sign-in and off without
- * @param runHistoryLimit how many of a project's runs its list shows
+ * @param runHistoryLimit how many of a project's runs its list shows, and it keeps: every
+ * hour the API deletes the older ones, but for those a worker has yet to finish, those a
+ * review refers to, and the rest of their seed groups
+ * @param allowedHosts without sign-in, the host names the API answers to besides this
+ * machine's own, such as the name another container calls it by
+ * @param historyDays how many days the history keeps each change, with who made it and
+ * from which address
  * @param maxEngineRequests requests the engine's routes answer at once; empty for as many
  * as the heap holds, at most 16
  */
@@ -62,10 +68,15 @@ public record ArchsimProperties(
 		@DefaultValue("5000000") @Min(10_000) long maxBodyBytes, @Nullable String publicUrl,
 		@DefaultValue("none") AuthMode authMode, @DefaultValue("127.0.0.1,::1") HostList trustedProxies,
 		@Nullable Boolean rateLimits, @DefaultValue("200") @Min(1) int runHistoryLimit,
+		@DefaultValue("") AllowedHosts allowedHosts,
+		@DefaultValue("365") @Min(1) @Max(MAX_HISTORY_DAYS) int historyDays,
 		@Min(1) @Max(MAX_ENGINE_REQUESTS) @Nullable Integer maxEngineRequests) {
 
 	/** The most runs one worker simulates at once. */
 	static final int MAX_SLOTS = 32;
+
+	/** The longest the history keeps a change: a century, as good as for ever. */
+	static final int MAX_HISTORY_DAYS = 36_500;
 
 	/** The most requests the engine's routes may be set to answer at once. */
 	static final int MAX_ENGINE_REQUESTS = 64;
@@ -258,11 +269,13 @@ public record ArchsimProperties(
 	public String toString() {
 		return ("ArchsimProperties[databaseUrl=%s, examplesDir=%s, pricesDir=%s, corsOrigins=%s, autoMigrate=%s, "
 				+ "maxConcurrentRuns=%s, maxWallSeconds=%s, maxRequests=%s, maxBodyBytes=%s, publicUrl=%s, "
-				+ "authMode=%s, trustedProxies=%s, rateLimits=%s, runHistoryLimit=%s, maxEngineRequests=%s]")
+				+ "authMode=%s, trustedProxies=%s, rateLimits=%s, runHistoryLimit=%s, allowedHosts=%s, "
+				+ "historyDays=%s, maxEngineRequests=%s]")
 			.formatted(DatabaseUrl.masked(this.databaseUrl), this.examplesDir, this.pricesDir,
 					this.corsOrigins.origins(), this.autoMigrate, this.maxConcurrentRuns, this.maxWallSeconds,
 					this.maxRequests, this.maxBodyBytes, this.publicUrl, this.authMode, this.trustedProxies.hosts(),
-					this.rateLimits, this.runHistoryLimit, this.maxEngineRequests);
+					this.rateLimits, this.runHistoryLimit, this.allowedHosts.names(), this.historyDays,
+					this.maxEngineRequests);
 	}
 
 }

@@ -35,7 +35,8 @@ It took the Python worker's place in stage 4: compose, the black-box suite and t
 launcher start it. The rest of the command line is Spring Boot's
 (`--server.port=8000`). The API listens on `127.0.0.1` only, as the Python API did; another
 address (`--server.address=0.0.0.0`, or `SERVER_ADDRESS`) lets other machines in, so read
-[SECURITY.md](../SECURITY.md) first.
+[SECURITY.md](../SECURITY.md) first. Without sign-in it answers only requests addressed to this
+machine or a name `ARCHSIM_ALLOWED_HOSTS` lists, so add the name other machines call it by.
 
 In Docker, every role runs from one image, which Jib builds without a Dockerfile, on Eclipse
 Temurin's Java 25 runtime, with the examples in `/app/examples`. It listens on every interface of
@@ -108,7 +109,9 @@ again with this version.
 
 After `V1`, `V2` adds `users.expires_at`: an account with an expiry is a sandbox's guest's, which
 the API deletes with its sandbox once it expires
-([ADR-0079](../docs/adr/0079-let-visitors-try-archsim-in-a-sandbox-without-signing-in.md)).
+([ADR-0079](../docs/adr/0079-let-visitors-try-archsim-in-a-sandbox-without-signing-in.md)). `V3`
+changes no schema: it hides the telemetry addresses that share links made before stored, as the
+API now hides them.
 
 SQL is written by hand with `JdbcClient`, in repositories only
 ([ADR-0008](../docs/adr/0008-jdbcclient-and-flyway.md)).
@@ -143,9 +146,10 @@ ways.
 | `reviews` | comments (`/projects/{id}/comments`, `/comments/{id}`), sign-offs (`/runs/{id}/signoffs`, `/projects/{id}/signoffs`, `/signoffs/{id}`) and the history pages (`/projects/{id}/activity`, `/workspaces/{id}/activity`) |
 | `shares` | share links: made, listed and revoked (`/runs/{id}/shares`, `/projects/{id}/shares`, `/shares`), opened by anyone (`/public/shares/{slug}`), and copied into a project (`/projects/from-share`) |
 | `audit` | the history of changes, written in the transaction of each change |
-| `worker` | the `worker` role (ADR-0053), its beans under the `worker` profile only: `Worker`, its life from start to stop, registered and beating in `job_workers` (`WorkerRepository`) as a `WorkerIdentity`, on a `PeriodicTask` that outlives a failed beat; `WorkerProperties`, its timings; the queue as the Python worker kept it: `RunClaims` (a `ClaimRequest` answered with `ClaimedRun`s, in turn on an advisory lock, `FairPick` keeping each workspace under its cap, from `ClaimRepository`), and the leases in `LeaseRepository` (a `Renewal`, progress, a `RunOutcome`, a run `Released` at stop, and what a reap settles, `Reaped`); an `Execution`, one claimed run simulated by a `RunSimulator` on a platform thread of the worker's (`RunParts`), observed for its progress and asked to stop, its hard deadline and cancel grace on `RunTimers`, its outcome shaped by `RunOutcomes` and written by a `RunWriter` that tries three times; and the worker at work: `Worker` starts and stops it, a `ClaimLoop` claims runs into its `Executions` on `WorkerThreads` while its `Heart` renews their leases, passes on cancels, beats and reaps, all wired in `WorkerConfiguration` with the Java `Simulator` as its `RunSimulator` and a `WorkerContext` |
+| `worker` | the `worker` role (ADR-0053), its beans under the `worker` profile only: `Worker`, its life from start to stop, registered and beating in `job_workers` (`WorkerRepository`) as a `WorkerIdentity`, on a `PeriodicTask` that outlives a failed beat; `WorkerProperties`, its timings; the queue as the Python worker kept it, but with sandboxes' runs last (ADR-0106): `RunClaims` (a `ClaimRequest` answered with `ClaimedRun`s, in turn on an advisory lock, `FairPick` keeping each workspace under its cap, from `ClaimRepository`), and the leases in `LeaseRepository` (a `Renewal`, progress, a `RunOutcome`, a run `Released` at stop, and what a reap settles, `Reaped`); an `Execution`, one claimed run simulated by a `RunSimulator` on a platform thread of the worker's (`RunParts`), observed for its progress and asked to stop, its hard deadline and cancel grace on `RunTimers`, its outcome shaped by `RunOutcomes` and written by a `RunWriter` that tries three times; and the worker at work: `Worker` starts and stops it, a `ClaimLoop` claims runs into its `Executions` on `WorkerThreads` while its `Heart` renews their leases, passes on cancels, beats and reaps, all wired in `WorkerConfiguration` with the Java `Simulator` as its `RunSimulator` and a `WorkerContext` |
 | `store` | values as the shared database holds them, made as the Python API makes them: `Ids`, `Times` (to the microsecond), `Text` (counted, cut and trimmed as Python does), and the app's clock, `StrictlyIncreasingClock`, which never tells the same microsecond twice, so the rows one server makes sort in the order it made them ([ADR-0041](../docs/adr/0041-application-clock-never-repeats-a-microsecond.md)) |
 | `limits` | what a workspace's kind allows (runs at once and per hour, projects, seeds), the rate limits every instance shares (`rate_limits`), whose ended windows the API role prunes every minute, and the request slots (`RequestSlots`): how many requests with work, the engine's routes (`@EngineRoute`) and other routes with a body, are in memory at once ([ADR-0108](../docs/adr/0108-bound-the-engines-routes-by-slots-per-person-limits-and-a-sandbox-body-cap.md)) |
+| `retention` | rows kept only for a while ([ADR-0111](../docs/adr/0111-prune-the-runs-past-a-projects-limit-and-expired-rows-every-hour.md)): each feature's `Retention` says which and deletes them in batches (`runs`' `RunRetention`, the runs past a project's `ARCHSIM_RUN_HISTORY_LIMIT` that nothing still needs; `signin`'s `SessionRetention`, `workspaces`' `InvitationRetention` and `shares`' `ShareRetention`, expired sessions, invitations and share links' copies; `audit`'s `HistoryRetention`, the history past `ARCHSIM_HISTORY_DAYS`), and `Pruning`, in the `api` role, runs them all when the API starts and every hour after |
 
 ## Endpoints ported
 
@@ -177,6 +181,19 @@ schema Flyway builds with the one Alembic built at its revision 0008 (`parity/sc
 
 ## Differences from the Python API
 
+- A number that is not finite is refused wherever a request body holds a float (a design, a
+  calibration's range and mapping, an imported design), with pydantic's
+  `finite_number` error, "Input should be a finite number", at its place, before any bound: the
+  words `nan`, `inf` and `infinity` in a string, and a number with a fraction or an exponent too
+  large for a double (`1e999`). Python read them as floats and refused them, if at all, by a
+  bound: `less_than_equal`, say, for a calibration `step` of `"inf"`
+  ([ADR-0103](../docs/adr/0103-refuse-a-number-that-is-not-finite-when-a-design-is-read.md)).
+- Without sign-in, the API answers only requests addressed to this machine (`localhost`,
+  `127.x.x.x`, `[::1]`) or a name `ARCHSIM_ALLOWED_HOSTS` lists, and refuses a change whose
+  `Origin` is neither the page it was addressed to nor one `ARCHSIM_CORS_ORIGINS` lists, both with
+  `403`; the web app's proxy passes the browser's host and origin on for these checks. A body
+  must be `application/json` or an `application/*+json` type, else `415`. The Python API served
+  any host and origin, and read a body without a type as JSON.
 - Whole numbers in `GET /components` (cold-start defaults, one `step`) and the bounds of the
   distributions in `GET /schema/architecture` are spelled `600.0` where Python writes `600`, or
   the other way round. Clients read the same number; the golden files compare numbers by value
@@ -305,6 +322,11 @@ schema Flyway builds with the one Alembic built at its revision 0008 (`parity/sc
   256 KB (ADR-0108). The Python API answered every request at once.
 - The API, not the worker, deletes the rate-limit counters of windows that ended (`rate_limits`),
   when it starts and every minute after; the Python worker's reaper did it every reap.
+- When it starts and every hour after, the API deletes the runs past a project's
+  `ARCHSIM_RUN_HISTORY_LIMIT` (but for runs still queued or running, runs with a sign-off or a
+  comment, and the rest of their seed group), expired sessions and invitations, expired share
+  links' copies, and the history older than `ARCHSIM_HISTORY_DAYS` (365 days). The Python API kept
+  them all, and its run limit only shortened a project's list.
 - There is no `--reload`, which `archsim-api serve` had: rebuild the jar, or run the API from an
   IDE.
 - A run's report and input are passed on as PostgreSQL stores them (`0.00001` where Python wrote
@@ -369,6 +391,9 @@ schema Flyway builds with the one Alembic built at its revision 0008 (`parity/sc
 - **A revoke recorded twice.** Python read a share link and then stamped it revoked, so two revokes
   at once (a double click) wrote two `share.revoke` lines in the history. Java stamps it only if it
   is not stamped yet, and records the change only then.
+- **Tokens managing workspaces.** Python let an API token rename a workspace, change a member's
+  role, remove a member or leave (a read token too), and revoke an invitation. Java takes a person
+  for all of them, as for making a workspace or an invitation: a token gets `403`.
 - **One invitation, two members.** Python read an invitation and later marked it accepted, so two
   people accepting the same link at once both joined. Java claims the link before it adds the
   member; the second answers `404`, as for a link already used.
