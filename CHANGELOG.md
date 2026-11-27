@@ -47,6 +47,13 @@ for when that version changes.
   added up to one more, so every pattern sends the requests its rate adds up to; evenly spaced
   requests around a burst's edges move too. Constant rates and Poisson arrivals give the same
   results as before.
+- **A consumer that works no time on a message no longer crashes the run
+  ([ADR-0114](docs/adr/0114-take-a-run-of-steps-that-finish-at-once-in-a-loop-not-on-the-stack.md),
+  proposed).** A consumer whose consumer time is 0 took the messages of a poll, the batches of a
+  poll from its partitions and the messages of a backlog it drained one at a time, each one call
+  deeper than the last, so 20,000 messages a second with a 250 ms fetch overhead, or a poll from
+  2,000 partitions, overflowed the stack and the run failed. It now takes them in a loop; results
+  do not change.
 
 ## [1.6.0] - 2026-11-27
 
