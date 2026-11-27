@@ -179,6 +179,13 @@ schema Flyway builds with the one Alembic built at its revision 0008 (`parity/sc
 
 ## Differences from the Python API
 
+- A number that is not finite is refused wherever a request body holds a float (a design, a
+  calibration's range and mapping, an imported design), with pydantic's
+  `finite_number` error, "Input should be a finite number", at its place, before any bound: the
+  words `nan`, `inf` and `infinity` in a string, and a number with a fraction or an exponent too
+  large for a double (`1e999`). Python read them as floats and refused them, if at all, by a
+  bound: `less_than_equal`, say, for a calibration `step` of `"inf"`
+  ([ADR-0103](../docs/adr/0103-refuse-a-number-that-is-not-finite-when-a-design-is-read.md)).
 - Whole numbers in `GET /components` (cold-start defaults, one `step`) and the bounds of the
   distributions in `GET /schema/architecture` are spelled `600.0` where Python writes `600`, or
   the other way round. Clients read the same number; the golden files compare numbers by value
@@ -366,6 +373,9 @@ schema Flyway builds with the one Alembic built at its revision 0008 (`parity/sc
 - **A revoke recorded twice.** Python read a share link and then stamped it revoked, so two revokes
   at once (a double click) wrote two `share.revoke` lines in the history. Java stamps it only if it
   is not stamped yet, and records the change only then.
+- **Tokens managing workspaces.** Python let an API token rename a workspace, change a member's
+  role, remove a member or leave (a read token too), and revoke an invitation. Java takes a person
+  for all of them, as for making a workspace or an invitation: a token gets `403`.
 - **One invitation, two members.** Python read an invitation and later marked it accepted, so two
   people accepting the same link at once both joined. Java claims the link before it adds the
   member; the second answers `404`, as for a link already used.

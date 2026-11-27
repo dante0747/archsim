@@ -71,14 +71,14 @@ public record Workload(
 
 	/**
 	 * Checks what spans fields: the warm-up ends inside the window, a burst starts inside
-	 * it, and fault ids are unique.
+	 * it, and fault ids are unique. Each comparison is written so that NaN fails it.
 	 */
 	public Workload {
 		faults = List.copyOf(faults);
-		if (warmupS >= durationS) {
+		if (!(warmupS < durationS)) {
 			throw new IllegalArgumentException("warmupS must be shorter than durationS");
 		}
-		if (pattern instanceof BurstPattern burst && burst.startS() >= durationS) {
+		if (pattern instanceof BurstPattern burst && !(burst.startS() < durationS)) {
 			throw new IllegalArgumentException("burst startS must be within durationS");
 		}
 		if (new HashSet<>(faults.stream().map(Fault::id).toList()).size() != faults.size()) {

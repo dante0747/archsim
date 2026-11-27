@@ -82,8 +82,10 @@ server at `https://<host>/api/v1`.
   need no CSRF token (browsers never add them on their own).
 - **API tokens.** `asim_pat_` plus 256 random bits, shown once, stored as SHA-256. A token acts
   as its owner; `read` tokens are viewers everywhere; a token can be limited to one workspace
-  and can expire. Tokens cannot create tokens, workspaces or invitations, or accept
-  invitations, so a leaked token cannot widen its own access. Revocation is immediate.
+  and can expire. A token cannot manage access: it cannot make, list or revoke tokens, make,
+  rename or delete a workspace, change who belongs to one or their roles (leaving included), or
+  make, revoke or accept invitations; those take the person signed in to the web app, so a leaked
+  token cannot change who belongs to a workspace, or with which role. Revocation is immediate.
 - **Authorization.** Every project and run belongs to a workspace; access needs a membership
   (`viewer` < `editor` < `owner`). Someone without a role in a workspace gets **404** for
   anything in it, exactly like something that does not exist, so ids reveal nothing; a role too
@@ -201,7 +203,11 @@ keep all 500 places taken for a day: the limits bound what that costs, and signi
   development default and must be changed for any shared deployment.
 - **Request size.** Bodies larger than `ARCHSIM_MAX_BODY_BYTES` (default 5 MB) are rejected
   with 413, and POST/PUT/PATCH requests with a chunked body but no `Content-Length` are
-  rejected with 411 so the limit cannot be bypassed.
+  rejected with 411 so the limit cannot be bypassed. The hosting kit caps a body at the same size
+  before the API sees it, twice: Caddy refuses a larger one (`request_body`), and the web server's
+  proxy refuses one that states a larger length unread and stops reading one of no stated length
+  once it passes the limit (give it the API's `ARCHSIM_MAX_BODY_BYTES` if you change it). The
+  proxy waits at most five minutes for the API's answer, then answers 504.
 - **No telemetry.** Neither the API nor the web app phones home. Next.js's own anonymous
   telemetry is switched off: the npm scripts run Next through `apps/web/scripts/run-next.mjs`,
   which sets `NEXT_TELEMETRY_DISABLED=1` unless you set it yourself, and the Docker image sets

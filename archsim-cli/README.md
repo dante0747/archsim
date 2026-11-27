@@ -157,6 +157,10 @@ Elsewhere:
   reads only whole pairs in a key; Python read it, and the design was then refused for the object
   holding it (`string_unicode`), as archsim-model refuses a tree holding one. In a value, such an
   escape is read, and refused where pydantic refused it.
+- `calibrate` with a step that is not a finite number (`--step nan`, `--step inf`): `Cannot
+  calibrate: step: Input should be a finite number`, where Python refused it by the step's bound;
+  no number of a design or a range may be NaN or an infinity
+  ([ADR-0103](../docs/adr/0103-refuse-a-number-that-is-not-finite-when-a-design-is-read.md)).
 - `run`: a finding that counts one request says `1 request failed` and `1 client request failed`,
   where Python printed `1 requests` and `1 client requests` (the engine's findings, its README).
   `RunCommandTests` replays the recorded runs with Python's lines read so
