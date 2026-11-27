@@ -49,6 +49,8 @@ import org.springframework.validation.annotation.Validated;
  * @param runHistoryLimit how many of a project's runs its list shows, and it keeps: every
  * hour the API deletes the older ones, but for those a worker has yet to finish, those a
  * review refers to, and the rest of their seed groups
+ * @param allowedHosts without sign-in, the host names the API answers to besides this
+ * machine's own, such as the name another container calls it by
  * @param historyDays how many days the history keeps each change, with who made it and
  * from which address
  */
@@ -64,6 +66,7 @@ public record ArchsimProperties(
 		@DefaultValue("5000000") @Min(10_000) long maxBodyBytes, @Nullable String publicUrl,
 		@DefaultValue("none") AuthMode authMode, @DefaultValue("127.0.0.1,::1") HostList trustedProxies,
 		@Nullable Boolean rateLimits, @DefaultValue("200") @Min(1) int runHistoryLimit,
+		@DefaultValue("") AllowedHosts allowedHosts,
 		@DefaultValue("365") @Min(1) @Max(MAX_HISTORY_DAYS) int historyDays) {
 
 	/** The most runs one worker simulates at once. */
@@ -173,11 +176,12 @@ public record ArchsimProperties(
 	public String toString() {
 		return ("ArchsimProperties[databaseUrl=%s, examplesDir=%s, pricesDir=%s, corsOrigins=%s, autoMigrate=%s, "
 				+ "maxConcurrentRuns=%s, maxWallSeconds=%s, maxRequests=%s, maxBodyBytes=%s, publicUrl=%s, "
-				+ "authMode=%s, trustedProxies=%s, rateLimits=%s, runHistoryLimit=%s, historyDays=%s]")
+				+ "authMode=%s, trustedProxies=%s, rateLimits=%s, runHistoryLimit=%s, allowedHosts=%s, "
+				+ "historyDays=%s]")
 			.formatted(DatabaseUrl.masked(this.databaseUrl), this.examplesDir, this.pricesDir,
 					this.corsOrigins.origins(), this.autoMigrate, this.maxConcurrentRuns, this.maxWallSeconds,
 					this.maxRequests, this.maxBodyBytes, this.publicUrl, this.authMode, this.trustedProxies.hosts(),
-					this.rateLimits, this.runHistoryLimit, this.historyDays);
+					this.rateLimits, this.runHistoryLimit, this.allowedHosts.names(), this.historyDays);
 	}
 
 }

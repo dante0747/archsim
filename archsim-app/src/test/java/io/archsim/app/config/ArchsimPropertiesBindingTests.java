@@ -55,6 +55,24 @@ class ArchsimPropertiesBindingTests {
 	}
 
 	@Test
+	void bind_allowedHostsCommaSeparated_areEachNameInLowerCase() {
+		Map<String, Object> environment = Map.of("ARCHSIM_ALLOWED_HOSTS", " api, Archsim.Lan ,");
+
+		withEnvironment(environment)
+			.run((context) -> assertThat(context.getBean(ArchsimProperties.class).allowedHosts().names())
+				.containsExactly("api", "archsim.lan"));
+	}
+
+	@Test
+	void bind_allowedHostsAsJsonArrayWithABlank_dropsTheBlank() {
+		Map<String, Object> environment = Map.of("ARCHSIM_ALLOWED_HOSTS", "[\"\", \"api\"]");
+
+		withEnvironment(environment)
+			.run((context) -> assertThat(context.getBean(ArchsimProperties.class).allowedHosts().names())
+				.containsExactly("api"));
+	}
+
+	@Test
 	void bind_bodyLimitBelowTheMinimum_failsNamingTheSetting() {
 		Map<String, Object> environment = Map.of("ARCHSIM_MAX_BODY_BYTES", "9999");
 

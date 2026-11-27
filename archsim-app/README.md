@@ -35,7 +35,8 @@ It took the Python worker's place in stage 4: compose, the black-box suite and t
 launcher start it. The rest of the command line is Spring Boot's
 (`--server.port=8000`). The API listens on `127.0.0.1` only, as the Python API did; another
 address (`--server.address=0.0.0.0`, or `SERVER_ADDRESS`) lets other machines in, so read
-[SECURITY.md](../SECURITY.md) first.
+[SECURITY.md](../SECURITY.md) first. Without sign-in it answers only requests addressed to this
+machine or a name `ARCHSIM_ALLOWED_HOSTS` lists, so add the name other machines call it by.
 
 In Docker, every role runs from one image, which Jib builds without a Dockerfile, on Eclipse
 Temurin's Java 25 runtime, with the examples in `/app/examples`. It listens on every interface of
@@ -108,7 +109,9 @@ again with this version.
 
 After `V1`, `V2` adds `users.expires_at`: an account with an expiry is a sandbox's guest's, which
 the API deletes with its sandbox once it expires
-([ADR-0079](../docs/adr/0079-let-visitors-try-archsim-in-a-sandbox-without-signing-in.md)).
+([ADR-0079](../docs/adr/0079-let-visitors-try-archsim-in-a-sandbox-without-signing-in.md)). `V3`
+changes no schema: it hides the telemetry addresses that share links made before stored, as the
+API now hides them.
 
 SQL is written by hand with `JdbcClient`, in repositories only
 ([ADR-0008](../docs/adr/0008-jdbcclient-and-flyway.md)).
@@ -178,6 +181,19 @@ schema Flyway builds with the one Alembic built at its revision 0008 (`parity/sc
 
 ## Differences from the Python API
 
+- A number that is not finite is refused wherever a request body holds a float (a design, a
+  calibration's range and mapping, an imported design), with pydantic's
+  `finite_number` error, "Input should be a finite number", at its place, before any bound: the
+  words `nan`, `inf` and `infinity` in a string, and a number with a fraction or an exponent too
+  large for a double (`1e999`). Python read them as floats and refused them, if at all, by a
+  bound: `less_than_equal`, say, for a calibration `step` of `"inf"`
+  ([ADR-0103](../docs/adr/0103-refuse-a-number-that-is-not-finite-when-a-design-is-read.md)).
+- Without sign-in, the API answers only requests addressed to this machine (`localhost`,
+  `127.x.x.x`, `[::1]`) or a name `ARCHSIM_ALLOWED_HOSTS` lists, and refuses a change whose
+  `Origin` is neither the page it was addressed to nor one `ARCHSIM_CORS_ORIGINS` lists, both with
+  `403`; the web app's proxy passes the browser's host and origin on for these checks. A body
+  must be `application/json` or an `application/*+json` type, else `415`. The Python API served
+  any host and origin, and read a body without a type as JSON.
 - Whole numbers in `GET /components` (cold-start defaults, one `step`) and the bounds of the
   distributions in `GET /schema/architecture` are spelled `600.0` where Python writes `600`, or
   the other way round. Clients read the same number; the golden files compare numbers by value
@@ -370,6 +386,9 @@ schema Flyway builds with the one Alembic built at its revision 0008 (`parity/sc
 - **A revoke recorded twice.** Python read a share link and then stamped it revoked, so two revokes
   at once (a double click) wrote two `share.revoke` lines in the history. Java stamps it only if it
   is not stamped yet, and records the change only then.
+- **Tokens managing workspaces.** Python let an API token rename a workspace, change a member's
+  role, remove a member or leave (a read token too), and revoke an invitation. Java takes a person
+  for all of them, as for making a workspace or an invitation: a token gets `403`.
 - **One invitation, two members.** Python read an invitation and later marked it accepted, so two
   people accepting the same link at once both joined. Java claims the link before it adds the
   member; the second answers `404`, as for a link already used.

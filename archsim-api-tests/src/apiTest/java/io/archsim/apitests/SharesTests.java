@@ -115,6 +115,23 @@ class SharesTests {
 	}
 
 	@Test
+	void share_ofADesignTheEngineCalibrated_publishesNoTelemetryAddress(ApiServer server) {
+		ApiClient client = server.client();
+		ObjectNode calibrated = Shares.calibratedByTheEngine(client);
+		// the engine named the address, credentials included, in every measured input
+		assertThat(calibrated.path("provenance").toString()).contains("hunter2");
+		String runId = Json.id(Runs.finishedRun(client, Json.id(Runs.createProject(client, calibrated))));
+
+		JsonNode made = share(client, runId, Json.object());
+
+		String published = publicShare(client, slug(made)).text();
+		String copied = client.post("/projects/from-share", Json.object("slug", slug(made))).expectStatus(201).text();
+		Object stored = server.db().value("SELECT payload::text FROM shared_reports WHERE id = ?", Json.id(made));
+		assertThat(List.of(published, copied, String.valueOf(stored)))
+			.allSatisfy((text) -> assertThat(text).doesNotContain("hunter2").doesNotContain("prom.internal"));
+	}
+
+	@Test
 	void share_withTitleAndExpiry_keepsThem(ApiClient client) {
 		String runId = Shares.calibratedRun(client);
 		JsonNode never = share(client, runId,

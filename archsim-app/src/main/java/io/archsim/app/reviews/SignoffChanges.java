@@ -1,7 +1,6 @@
 package io.archsim.app.reviews;
 
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import io.archsim.app.access.Principal;
 import io.archsim.app.access.WorkspaceRole;
@@ -37,7 +36,9 @@ class SignoffChanges {
 
 	/**
 	 * Signs off on a finished run. The sign-off applies to the design as saved now (its
-	 * revision) and to the run's input and result digests.
+	 * revision) and to the run's input and result digests. The checks come first, then
+	 * the person's limit, charged before the sign-off's own transaction begins, so the
+	 * request holds one connection at a time (ADR-0105).
 	 * @param principal the reviewer
 	 * @param runId the run
 	 * @param request the decision and its note
@@ -46,7 +47,6 @@ class SignoffChanges {
 	 * read-only token, {@code 409} for a run that has not succeeded, {@code 429} after
 	 * many sign-offs in an hour
 	 */
-	@Transactional
 	ProjectSignoff create(Principal principal, String runId, SignoffCreate request) {
 		RunFacts run = this.runs.require(principal, runId, WorkspaceRole.VIEWER);
 		principal.requireWritable();

@@ -66,7 +66,7 @@ public final class RunPreparer {
 			throw new DocumentInvalidException(result.issues());
 		}
 		double expected = resolved.workload().expectedArrivals();
-		if (expected > limits.maxRequests()) {
+		if (!limits.allowsRequests(expected)) {
 			throw new SimulationLimitException("This run would generate about " + PythonFormat.format(expected, ",.0f")
 					+ " requests, above the limit of " + PythonFormat.format(limits.maxRequests(), ",")
 					+ ". Reduce RPS or duration.");

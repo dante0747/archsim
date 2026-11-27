@@ -39,10 +39,11 @@ Domain errors use one shape:
 | 400 | Contradictory request (e.g. both `document` and `exampleId`). |
 | 400 | Also: a request Spring Security's request firewall refuses (a method other than `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` and `OPTIONS`, a path that is not normalized or holds an encoded `%`, `.` or backslash), answered `{"detail": "Bad Request"}`. |
 | 401 | Sign-in is on, and the request has no valid session cookie or API token where the endpoint needs someone, or carries a wrong API token wherever it goes, public endpoints and unknown paths included (`WWW-Authenticate: Bearer`). A token sent to the sign-in paths of a provider set up here is not read. |
-| 403 | Your role in the workspace is too weak (a viewer editing), a change a session cookie signs in without the right `X-ArchSim-CSRF` header (wherever it is sent), or an API token doing what only a signed-in person may. |
+| 403 | Your role in the workspace is too weak (a viewer editing), a change a session cookie signs in without the right `X-ArchSim-CSRF` header (wherever it is sent), or an API token doing what only a signed-in person may. Without sign-in: a request addressed to a host that is neither this machine nor one `ARCHSIM_ALLOWED_HOSTS` lists, or a change whose `Origin` is neither the page it was addressed to nor one `ARCHSIM_CORS_ORIGINS` lists. |
 | 404 | Unknown project, run, example or workspace, **or one in a workspace you are not a member of** (the same answer, so ids reveal nothing). |
 | 409 | Revision conflict on save; report requested for an unfinished run; comparing unfinished runs; a workspace's last owner leaving; a project past a workspace's project limit. |
 | 413 | Request body larger than `ARCHSIM_MAX_BODY_BYTES`. |
+| 415 | Without sign-in, a body that is not `application/json` (or an `application/*+json` type): send `Content-Type: application/json` with every body. |
 | 422 | Document invalid (with `issues`), run too large, a calibration that cannot be done, or a request body or query that does not fit (a `detail` list with one error per problem: its `type`, where it is (`loc`), the message (`msg`) and the value sent (`input`)). |
 | 429 | A rate limit (runs per hour, sign-in attempts, ...): wait the `Retry-After` seconds. |
 
@@ -215,8 +216,9 @@ makes a guest account (named "Guest", no email) that owns a new sandbox workspac
 browser in as the guest: `201` with what `GET /auth/me` answers, and the session and CSRF cookies,
 which last until the sandbox is deleted, 24 hours later, with the guest and everything in it. A
 guest uses the sandbox as its owner, within its [limits](#limits), but makes no team workspaces,
-API tokens, invitations or share links and accepts no invitation (`403`). Signing in from a
-sandbox starts a normal personal workspace; the sandbox's projects are not moved.
+API tokens, invitations or share links, accepts no invitation and does not rename the sandbox
+(`403`). Signing in from a sandbox starts a normal personal workspace; the sandbox's projects are
+not moved.
 
 **API tokens (CLI, CI, MCP).** Send `Authorization: Bearer asim_pat_...`; no cookie and no CSRF
 header. A token acts as you, as a viewer if its scope is `read`, and only in its workspace if
@@ -253,8 +255,9 @@ so the document is served at the public address it names.
 | POST | `/tokens` | `{name, scope: read|write, workspaceId?, expiresInDays? (default 90; null: never)}`. The answer has the `token` once. |
 | DELETE | `/tokens/{id}` | Revoke at once. |
 
-Tokens cannot manage tokens, workspaces or invitations (403): do that signed in. Neither can a
-sandbox's guest, who also makes no share links.
+Tokens cannot manage access (403): tokens, workspaces (making, renaming, deleting), who belongs to
+a workspace and their roles (leaving included), or invitations (making, revoking, accepting). Do
+that signed in. Neither can a sandbox's guest, who also makes no share links.
 
 ```bash
 export ARCHSIM_TOKEN=asim_pat_...        # Settings → API tokens
@@ -285,8 +288,10 @@ them. Without sign-in the counters are off, and only sandboxes keep their other 
 
 A share link is a frozen, read-only copy of one finished run's results that anyone with the
 link can open on the web app at `/r/<slug>`, without signing in. It holds the report without
-request traces (calibration addresses hidden), the objectives from the run's input document,
-the project name and that document (for "Open a copy"; the public answer leaves it out). It
+request traces, the objectives from the run's input document, the project name and that
+document (for "Open a copy"; the public answer leaves it out), with every address
+(`scheme://...`) in a calibration or a measured input's provenance record, where a calibration
+names its telemetry source, written `(address hidden)`. It
 does not change when the design does and stays when the run or project is deleted, until it
 expires or is revoked. Revoking deletes the copy at once, and the API deletes an expired link's
 copy within about an hour; the link stays in the lists, `expired`. Slugs are 128 random bits in

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.IllegalTransactionStateException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -41,6 +42,10 @@ class RateLimitsTests extends HostedTestSupport {
 
 	@Autowired
 	private PlatformTransactionManager transactions;
+
+	/** The limits as the application wires them, with their transaction rule. */
+	@Autowired
+	private RateLimits proxiedLimits;
 
 	private RateLimits limits;
 
@@ -134,16 +139,24 @@ class RateLimitsTests extends HostedTestSupport {
 	}
 
 	@Test
-	void enforce_inATransactionThatRollsBack_staysCounted() {
+	void enforce_insideATransaction_isRefused() {
 		String key = key();
-		TransactionTemplate failing = new TransactionTemplate(this.transactions);
+		TransactionTemplate transaction = new TransactionTemplate(this.transactions);
 
-		failing.executeWithoutResult((status) -> {
-			this.limits.enforce(key, TWO_A_DAY, "Too many.");
-			status.setRollbackOnly();
-		});
+		assertThatExceptionOfType(IllegalTransactionStateException.class).isThrownBy(() -> transaction
+			.executeWithoutResult((status) -> this.proxiedLimits.enforce(key, TWO_A_DAY, "Too many.")));
+		assertThat(count(key)).isZero();
+	}
 
-		assertThat(count(key)).isEqualTo(1);
+	@Test
+	void enforceAll_insideATransaction_isRefused() {
+		String key = key();
+		TransactionTemplate transaction = new TransactionTemplate(this.transactions);
+		List<Charge> charges = List.of(new Charge(key, TWO_A_DAY, "Too many."));
+
+		assertThatExceptionOfType(IllegalTransactionStateException.class)
+			.isThrownBy(() -> transaction.executeWithoutResult((status) -> this.proxiedLimits.enforceAll(charges, 1)));
+		assertThat(count(key)).isZero();
 	}
 
 	@Test
