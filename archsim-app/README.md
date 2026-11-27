@@ -149,6 +149,7 @@ ways.
 | `worker` | the `worker` role (ADR-0053), its beans under the `worker` profile only: `Worker`, its life from start to stop, registered and beating in `job_workers` (`WorkerRepository`) as a `WorkerIdentity`, on a `PeriodicTask` that outlives a failed beat; `WorkerProperties`, its timings; the queue as the Python worker kept it: `RunClaims` (a `ClaimRequest` answered with `ClaimedRun`s, in turn on an advisory lock, `FairPick` keeping each workspace under its cap, from `ClaimRepository`), and the leases in `LeaseRepository` (a `Renewal`, progress, a `RunOutcome`, a run `Released` at stop, and what a reap settles, `Reaped`); an `Execution`, one claimed run simulated by a `RunSimulator` on a platform thread of the worker's (`RunParts`), observed for its progress and asked to stop, its hard deadline and cancel grace on `RunTimers`, its outcome shaped by `RunOutcomes` and written by a `RunWriter` that tries three times; and the worker at work: `Worker` starts and stops it, a `ClaimLoop` claims runs into its `Executions` on `WorkerThreads` while its `Heart` renews their leases, passes on cancels, beats and reaps, all wired in `WorkerConfiguration` with the Java `Simulator` as its `RunSimulator` and a `WorkerContext` |
 | `store` | values as the shared database holds them, made as the Python API makes them: `Ids`, `Times` (to the microsecond), `Text` (counted, cut and trimmed as Python does), and the app's clock, `StrictlyIncreasingClock`, which never tells the same microsecond twice, so the rows one server makes sort in the order it made them ([ADR-0041](../docs/adr/0041-application-clock-never-repeats-a-microsecond.md)) |
 | `limits` | what a workspace's kind allows (runs at once and per hour, projects, seeds) and the rate limits every instance shares (`rate_limits`), whose ended windows the API role prunes every minute |
+| `retention` | rows kept only for a while ([ADR-0111](../docs/adr/0111-prune-the-runs-past-a-projects-limit-and-expired-rows-every-hour.md)): each feature's `Retention` says which and deletes them in batches (`runs`' `RunRetention`, the runs past a project's `ARCHSIM_RUN_HISTORY_LIMIT` that nothing still needs; `signin`'s `SessionRetention`, `workspaces`' `InvitationRetention` and `shares`' `ShareRetention`, expired sessions, invitations and share links' copies; `audit`'s `HistoryRetention`, the history past `ARCHSIM_HISTORY_DAYS`), and `Pruning`, in the `api` role, runs them all when the API starts and every hour after |
 
 ## Endpoints ported
 
@@ -316,6 +317,11 @@ schema Flyway builds with the one Alembic built at its revision 0008 (`parity/sc
   cap.
 - The API, not the worker, deletes the rate-limit counters of windows that ended (`rate_limits`),
   when it starts and every minute after; the Python worker's reaper did it every reap.
+- When it starts and every hour after, the API deletes the runs past a project's
+  `ARCHSIM_RUN_HISTORY_LIMIT` (but for runs still queued or running, runs with a sign-off or a
+  comment, and the rest of their seed group), expired sessions and invitations, expired share
+  links' copies, and the history older than `ARCHSIM_HISTORY_DAYS` (365 days). The Python API kept
+  them all, and its run limit only shortened a project's list.
 - There is no `--reload`, which `archsim-api serve` had: rebuild the jar, or run the API from an
   IDE.
 - A run's report and input are passed on as PostgreSQL stores them (`0.00001` where Python wrote

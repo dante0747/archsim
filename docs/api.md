@@ -94,7 +94,7 @@ document. Schema-invalid documents (unknown keys, out-of-range link settings, wr
 | --- | --- | --- |
 | POST | `/projects/{id}/runs` | Body `{scenarioId?, label?, document?, seeds?, mode?}`. Validates, then enqueues. `202` with the run. `document` simulates unsaved edits; it is stored with the run. `seeds` (1-10, default 1) above 1 starts a seed group: one run per seed from the document's seed (base) to base + seeds - 1, all of one stored document, each with `groupId` and `seedIndex`; the answer is the first run. A workspace runs at most 5 seeds at once when hosted (10 without sign-in), and the group counts as that many runs against the hourly limits. `mode: "sampled"` is a quick check: the run is answered from a steady sample when it can be (see `/analyze` `quickCheck`; `422` with the reason when the design does not qualify), and its report carries `simulationMode`. Seed and mode are stored with each run. |
 | POST | `/projects/{id}/runs/batch` | Body `{scenarioIds: [..], document?}` (1-10 entries; `null` = base document). Validates all before enqueueing any. `202` with a list. |
-| GET | `/projects/{id}/runs` | Recent runs (newest first, up to `ARCHSIM_RUN_HISTORY_LIMIT`, default 200), without reports. |
+| GET | `/projects/{id}/runs` | The project's runs, newest first, up to `ARCHSIM_RUN_HISTORY_LIMIT` (default 200), without reports. |
 | GET | `/runs/{runId}` | Status, `progress` (0-1), `error`, seed, digests, and a small `summary` once finished. Poll this. |
 | GET | `/runs/{runId}/report` | Full report (`409` unless `succeeded`). See below. |
 | GET | `/runs/{runId}/input` | The exact document submitted for the run (re-importable). |
@@ -107,6 +107,11 @@ Run `status`: `queued`, `running`, `succeeded`, `failed`, `cancelled`. A failed 
 `error.message` and, for document problems, `error.issues`. `progress` is read from the
 database, where the worker simulating the run writes it at most once a second, so every API
 instance reports the same value.
+
+A project keeps its newest `ARCHSIM_RUN_HISTORY_LIMIT` runs, the ones its list shows. When the API
+starts and every hour after, it deletes the older ones, except runs still queued or running, runs
+with a sign-off or a comment, and the other runs of their seed group; a seed group goes with its
+last run. A share link of a deleted run keeps its copy.
 
 ### Background runs and several instances
 
@@ -288,7 +293,9 @@ document (for "Open a copy"; the public answer leaves it out), with every addres
 (`scheme://...`) in a calibration or a measured input's provenance record, where a calibration
 names its telemetry source, written `(address hidden)`. It
 does not change when the design does and stays when the run or project is deleted, until it
-expires or is revoked. Slugs are 128 random bits in base62 (22 characters).
+expires or is revoked. Revoking deletes the copy at once, and the API deletes an expired link's
+copy within about an hour; the link stays in the lists, `expired`. Slugs are 128 random bits in
+base62 (22 characters).
 
 | Method | Path | Description |
 | --- | --- | --- |
@@ -319,7 +326,8 @@ workspace get 404, as for its projects.
 
 Every change to a project, its runs, comments and sign-offs, and to a workspace's members and
 invitations, writes its history row in the same transaction as the change. A project's history
-outlives the project, in its workspace's history.
+outlives the project, in its workspace's history. Each row is kept `ARCHSIM_HISTORY_DAYS` (365)
+days, then deleted.
 
 ## Compare
 

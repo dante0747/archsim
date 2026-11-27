@@ -78,7 +78,8 @@ server at `https://<host>/api/v1`.
 - **Sessions.** `__Host-archsim_session`: HttpOnly, Secure, SameSite=Lax, path `/`, no domain.
   It holds 256 random bits; the database stores only its SHA-256, so a database leak does not
   hand out live sessions. Sessions expire after `ARCHSIM_SESSION_DAYS` (30) and are revoked at
-  once on every instance by signing out (or "sign out everywhere"). Disabled accounts are
+  once on every instance by signing out (or "sign out everywhere"); an expired session's row, with
+  the address and browser it started from, is deleted within about an hour. Disabled accounts are
   refused on their next request.
 - **CSRF.** Every request that changes something with the session cookie must carry
   `X-ArchSim-CSRF` with the value of the `__Host-archsim_csrf` cookie, a random token Spring
@@ -99,8 +100,9 @@ server at `https://<host>/api/v1`.
   (`viewer` < `editor` < `owner`). Someone without a role in a workspace gets **404** for
   anything in it, exactly like something that does not exist, so ids reveal nothing; a role too
   weak for an action gets 403. Opening a template only ever reuses your own unedited copy.
-  Invitations are single-use links (256-bit tokens stored as hashes) that expire in at most 30
-  days and can be bound to a verified email; a workspace always keeps an owner.
+  Invitations are single-use links (256-bit tokens stored as hashes) that can be bound to a
+  verified email and expire in at most 30 days, after which they are deleted within about an
+  hour; a workspace always keeps an owner.
 - **Abuse and cost.** Counters in the database (shared by every instance) limit runs per hour
   per workspace and per person, sign-in attempts and sandbox starts per address, and token, workspace,
   invitation and calibration creation; over a limit the API answers **429** with
@@ -129,7 +131,8 @@ server at `https://<host>/api/v1`.
   provenance record, which the report's assumptions repeat, and the copy hides every `scheme://`
   address in those (a documented input's or a formula's link to public documentation stays).
   Editors make and revoke links; revoking deletes the copy and the page answers 404 at once (the
-  web server never caches it), as do expired and unknown links. Pages are `noindex`,
+  web server never caches it), as do expired and unknown links, and an expired link's copy is
+  deleted within about an hour. Pages are `noindex`,
   the public endpoint is limited per address (60 a minute) and needs no sign-in, and "Open a
   copy" needs editor access to a workspace of your own.
 - **Outbound requests (SSRF).** `ARCHSIM_OUTBOUND` decides whether `POST /calibrate` may call a
@@ -190,6 +193,13 @@ keep all 500 places taken for a day: the limits bound what that costs, and signi
   The runs share their worker's heap, sized for them (archsim-app's README): one that exhausts
   it stops the worker, whose runs are then requeued, each failed only if its worker stops a
   second time.
+- **Stored data.** A project keeps its newest `ARCHSIM_RUN_HISTORY_LIMIT` runs (200), the ones
+  its list shows: when the API starts and every hour after, it deletes the older runs, except
+  those still queued or running, those with a sign-off or a comment, and the rest of their seed
+  group. The history keeps each change `ARCHSIM_HISTORY_DAYS` (365) days. Expired sessions,
+  invitations and share links' copies are deleted within about an hour
+  ([docs/deployment.md](docs/deployment.md#how-long-the-server-keeps-things) lists what is kept
+  and for how long).
 - **Several instances and workers.** API instances and `archsim-app worker` processes trust each
   other through the database: whoever can write to it can queue, cancel or change runs, so keep
   it reachable only by them. A worker's runs are threads of its own process and end with it.
