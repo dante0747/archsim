@@ -36,6 +36,9 @@ for when that version changes.
   proposed).** Such a number was read as a float and could get past the checks that bound a run;
   it is now refused where it stands, with "Input should be a finite number". The schema version
   stays 1.11.
+- **After signing in, the web app goes back only to a page of its own site.** The sign-in page
+  resolves the page to go back to as the browser will, and keeps it only when it stays on the
+  site, as the server already checks it.
 
 - **No label is cut short on the canvas or the timeline.** The chaos pads clipped their titles
   ("Lose Catalog…"); they have two columns and room for three lines. A part's card cut a label
