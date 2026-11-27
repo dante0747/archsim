@@ -62,7 +62,8 @@ public class ProjectService {
 	 * @param update what changes
 	 * @return the project as saved
 	 * @throws ApiException {@code 409} when it was saved elsewhere since the revision the
-	 * update expects
+	 * update expects, or when it sends a design to a workspace that stores its quota or
+	 * more
 	 */
 	@Transactional
 	ProjectView update(Principal principal, String id, ProjectUpdate update) {
@@ -71,7 +72,10 @@ public class ProjectService {
 		if (expected != null && expected != project.revision()) {
 			throw ProjectChanges.modifiedElsewhere(project.revision(), expected);
 		}
-		return ProjectView.of(this.changes.update(project, revision(project, update), principal));
+		Revision revision = revision(project, update);
+		Project saved = (update.document() != null) ? this.changes.updateDesign(project, revision, principal)
+				: this.changes.update(project, revision, principal);
+		return ProjectView.of(saved);
 	}
 
 	@Transactional
@@ -84,6 +88,8 @@ public class ProjectService {
 	 * @param principal who is asking
 	 * @param id the project to copy
 	 * @return the copy
+	 * @throws ApiException {@code 409} when the workspace holds as many projects as it
+	 * may, or stores its quota or more
 	 */
 	@Transactional
 	ProjectView duplicate(Principal principal, String id) {

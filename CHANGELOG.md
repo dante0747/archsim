@@ -31,6 +31,14 @@ for when that version changes.
 
 ### Fixed
 
+- **Each workspace has a project cap and a quota of stored bytes
+  ([ADR-0109](docs/adr/0109-give-each-workspace-a-project-cap-and-a-quota-of-stored-bytes.md), proposed).**
+  A sandbox stores 10 MB; with the hosted limits a personal workspace holds 100 projects and stores
+  100 MB, and a team 500 projects and 250 MB, counting designs, runs' designs and reports, and share
+  links' copies. A workspace at its quota gets 409 for a new project, design, run or share link until
+  something is deleted. The editor titles a refused save "Changed elsewhere" only when another save
+  got there first.
+
 - **No label is cut short on the canvas or the timeline.** The chaos pads clipped their titles
   ("Lose Catalog…"); they have two columns and room for three lines. A part's card cut a label
   when its value was long ("Max connections per instan…"); the value now wraps under it. The Test

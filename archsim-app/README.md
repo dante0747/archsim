@@ -298,6 +298,11 @@ schema Flyway builds with the one Alembic built at its revision 0008 (`parity/sc
 - With the hosted limits on, the Java worker gives a workspace of a kind it does not know the
   personal cap of runs at once (2), as the API's admission does; the Python worker gave it no
   cap.
+- Each workspace has a quota of stored bytes (a sandbox 10 MB; with the hosted limits a personal
+  workspace 100 MB and a team 250 MB) and, with the hosted limits, a project cap (100 and 500); a
+  workspace at its quota gets `409` for a new project, design, run or share link, checked with the
+  workspace locked, except for a share link (ADR-0109). The Python API capped only a sandbox's
+  projects.
 - The API, not the worker, deletes the rate-limit counters of windows that ended (`rate_limits`),
   when it starts and every minute after; the Python worker's reaper did it every reap.
 - There is no `--reload`, which `archsim-api serve` had: rebuild the jar, or run the API from an

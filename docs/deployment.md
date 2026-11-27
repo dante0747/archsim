@@ -305,7 +305,20 @@ Publish a GitHub release once Release images has passed for its tag: the server 
 
 The `backup` service dumps the database every night at 03:00 UTC into the `backups` volume and keeps
 the newest seven (`ARCHSIM_BACKUP_HOUR`, `ARCHSIM_BACKUP_KEEP`). The volume is on the server's disk,
-so copy dumps elsewhere too, or use your provider's volume backups:
+so copy dumps elsewhere too, or use your provider's volume backups.
+
+The database and its seven dumps share that disk, and what the database stores is in each dump
+too. Each workspace has a quota of stored bytes: a personal workspace 100 MB, a team 250 MB and a
+sandbox 10 MB, with at most 100, 500 and 5 projects
+([ADR-0109](adr/0109-give-each-workspace-a-project-cap-and-a-quota-of-stored-bytes.md)). A quota
+bounds each workspace, not their number, so watch the disk as people join:
+
+```bash
+docker compose --env-file hosted.env exec backup psql -c "SELECT pg_size_pretty(pg_database_size('archsim'))"
+df -h /
+```
+
+Dumps and restores:
 
 ```bash
 docker compose --env-file hosted.env exec backup archsim-backup now                # one now

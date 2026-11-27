@@ -166,7 +166,13 @@ keep all 500 places taken for a day: the limits bound what that costs, and signi
   of the Java port, and the Java API, workers, CLI and MCP server load none. Component types can
   never be uploaded through the API.
 - **Bounded resource use.** Each request body is capped (`ARCHSIM_MAX_BODY_BYTES`, default
-  5 MB). Documents are limited to 200 nodes, 1,000 edges and 50 scenarios. Every simulation is
+  5 MB). With the hosted limits a personal workspace holds at most 100 projects and stores
+  100 MB, a team 500 projects and 250 MB, and a sandbox (always) 5 projects and 10 MB: its
+  designs, its runs' designs and reports and its share links' copies. A workspace at its quota
+  takes no new project, design, run or share link until something is deleted. The quota is
+  checked before each write, so a workspace can pass it by what the writes under way store, up
+  to about 100 MB, and by the reports of runs it had queued (ADR-0109).
+  Documents are limited to 200 nodes, 1,000 edges and 50 scenarios. Every simulation is
   bounded by an expected-request limit (`ARCHSIM_MAX_REQUESTS`, default 2,000,000) checked
   before the run starts and a wall-clock limit (`ARCHSIM_MAX_WALL_SECONDS`, default 300 s)
   checked while it runs, then enforced 30 s later by failing the run. Retries are capped at 5

@@ -41,7 +41,7 @@ Domain errors use one shape:
 | 401 | Sign-in is on, and the request has no valid session cookie or API token where the endpoint needs someone, or carries a wrong API token wherever it goes, public endpoints and unknown paths included (`WWW-Authenticate: Bearer`). A token sent to the sign-in paths of a provider set up here is not read. |
 | 403 | Your role in the workspace is too weak (a viewer editing), a change a session cookie signs in without the right `X-ArchSim-CSRF` header (wherever it is sent), or an API token doing what only a signed-in person may. |
 | 404 | Unknown project, run, example or workspace, **or one in a workspace you are not a member of** (the same answer, so ids reveal nothing). |
-| 409 | Revision conflict on save; report requested for an unfinished run; comparing unfinished runs; a workspace's last owner leaving; a project past a workspace's project limit. |
+| 409 | Revision conflict on save; report requested for an unfinished run; comparing unfinished runs; a workspace's last owner leaving; a project past a workspace's project limit; a new project, design, run or share link in a workspace that stores its quota or more. |
 | 413 | Request body larger than `ARCHSIM_MAX_BODY_BYTES`. |
 | 422 | Document invalid (with `issues`), run too large, a calibration that cannot be done, or a request body or query that does not fit (a `detail` list with one error per problem: its `type`, where it is (`loc`), the message (`msg`) and the value sent (`input`)). |
 | 429 | A rate limit (runs per hour, sign-in attempts, ...): wait the `Retry-After` seconds. |
@@ -71,7 +71,7 @@ Domain errors use one shape:
 | POST | `/projects` | Create in the workspace (editors) from `{document}`, `{exampleId}`, or blank. Optional `name`, `description`. `201`. With `{exampleId, reuseUnedited: true}` and no `name`, returns the most recent copy of that example **you** made in this workspace that was never saved and still matches it (`200`) instead of creating another; the web app opens templates this way. Someone else's copy is never handed back. |
 | POST | `/projects/import` | Body: a raw document (older schema versions are migrated). Optional `?name=`. `201`. |
 | GET | `/projects/{id}` | Project with its document and `revision`. |
-| PUT | `/projects/{id}` | Body `{name?, description?, document?, expectedRevision?}`. Increments `revision`; `409` if `expectedRevision` is stale. |
+| PUT | `/projects/{id}` | Body `{name?, description?, document?, expectedRevision?}`. Increments `revision`; `409` if `expectedRevision` is stale, or for a `document` in a workspace that stores its quota or more (see [Limits](#limits)). |
 | DELETE | `/projects/{id}` | Deletes the project and its runs. `204`. |
 | POST | `/projects/{id}/duplicate` | Copy as "Name (copy)". `201`. |
 | GET | `/projects/{id}/export` | The document as a download (`Content-Disposition: attachment`). |
@@ -261,14 +261,22 @@ curl -s https://archsim.example.com/api/v1/projects -H "Authorization: Bearer $A
 With sign-in (or `ARCHSIM_RATE_LIMITS=true`) each workspace kind has limits, which a
 workspace's own `maxConcurrentRuns`/`maxRunsPerHour` replace:
 
-| Kind | Runs at once | Runs per hour | Largest run | Calibration replay | Projects | Seeds per group |
-| --- | --- | --- | --- | --- | --- | --- |
-| personal | 2 | 60 | the server's | 20 s | no limit | 5 |
-| team | 4 | 300 | the server's | 20 s | no limit | 5 |
-| sandbox | 1 | 20 | 200,000 requests, 20 s | 20 s | 5 | 5 |
+| Kind | Runs at once | Runs per hour | Largest run | Calibration replay | Projects | Stored | Seeds per group |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| personal | 2 | 60 | the server's | 20 s | 100 | 100 MB | 5 |
+| team | 4 | 300 | the server's | 20 s | 500 | 250 MB | 5 |
+| sandbox | 1 | 20 | 200,000 requests, 20 s | 20 s | 5 | 10 MB | 5 |
 
 Without sign-in a seed group may run 10 seeds (5 in a sandbox). A visitor's sandbox
 (`POST /auth/sandbox`) has the sandbox's limits, and is deleted 24 hours after it starts.
+
+"Stored" counts a workspace's projects' designs, its runs' designs and reports, and its share
+links' copies, as PostgreSQL stores them. A workspace that stores its quota or more cannot make a
+project, save a design, start runs or make a share link (409) until runs, projects or share links
+are deleted; renaming a project still works. Each check comes before its write, with the workspace
+locked (a share link's without), so a workspace can pass its quota by what the writes under way
+store, up to about 100 MB, and by the reports of runs it had queued
+([ADR-0109](adr/0109-give-each-workspace-a-project-cap-and-a-quota-of-stored-bytes.md)).
 
 Runs at once are counted across every worker (a run waits in the queue until its workspace has
 room; workers take each workspace's oldest run before anyone's second). A person may also start
@@ -287,7 +295,7 @@ expires or is revoked. Slugs are 128 random bits in base62 (22 characters).
 
 | Method | Path | Description |
 | --- | --- | --- |
-| POST | `/runs/{runId}/shares` | Editors: `{title?, expiresInDays? (default 30, at most 365; null: never)}`. `201` with `{id, slug, path: "/r/<slug>", url (when ARCHSIM_PUBLIC_URL is set), title, projectId, runId, createdAt, expiresAt, revokedAt, viewCount, resultDigest, reportVersion, status: active|expired|revoked}`. 409 unless the run succeeded. |
+| POST | `/runs/{runId}/shares` | Editors: `{title?, expiresInDays? (default 30, at most 365; null: never)}`. `201` with `{id, slug, path: "/r/<slug>", url (when ARCHSIM_PUBLIC_URL is set), title, projectId, runId, createdAt, expiresAt, revokedAt, viewCount, resultDigest, reportVersion, status: active|expired|revoked}`. 409 unless the run succeeded, or when its workspace stores its quota or more (see [Limits](#limits)). |
 | GET | `/projects/{id}/shares` | Viewers: the project's links, newest first (revoked and expired ones included). |
 | GET | `/shares` | Viewers: every link of the workspace (`?workspace=`), including those whose project was deleted. |
 | DELETE | `/shares/{id}` | Editors: revoke at once (`204`); the stored copy is deleted. |

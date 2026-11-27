@@ -48,7 +48,7 @@ public class ProjectCreation {
 	 * @param request what to make it from
 	 * @return the project, and whether it is an existing copy
 	 * @throws ApiException {@code 400} for both a design and an example, {@code 404} for
-	 * an unknown example
+	 * an unknown example, {@code 409} for a workspace as full as it may be
 	 */
 	@Transactional
 	Created create(Principal principal, RequestedWorkspace workspace, ProjectCreate request) {

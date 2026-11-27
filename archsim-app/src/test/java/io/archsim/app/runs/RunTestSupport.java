@@ -4,12 +4,15 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.LongFunction;
 
+import javax.sql.DataSource;
+
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -65,6 +68,15 @@ abstract class RunTestSupport {
 
 	JdbcClient jdbc() {
 		return this.jdbc;
+	}
+
+	/**
+	 * Connections of their own to the test database, for a transaction of their own, as
+	 * another request at the same time has.
+	 * @return the source of the connections
+	 */
+	static DataSource anotherDataSource() {
+		return new DriverManagerDataSource(DATABASE);
 	}
 
 	RunPreparation preparation() {

@@ -3,7 +3,7 @@
 import { type Viewport, useReactFlow } from "@xyflow/react";
 import { useCallback } from "react";
 import { toast } from "sonner";
-import { ApiError, api } from "@/lib/api";
+import { api, isRevisionConflict } from "@/lib/api";
 import { slugify } from "@/lib/document";
 import type { RunMode } from "@/lib/seed-groups";
 import type { ArchitectureDocument } from "@/lib/types";
@@ -38,7 +38,7 @@ export function useEditorActions() {
     } catch (e) {
       useEditor.getState().setSaving(false);
       const msg = e instanceof Error ? e.message : String(e);
-      toast.error(e instanceof ApiError && e.status === 409 ? "Changed elsewhere" : "Save failed", {
+      toast.error(isRevisionConflict(e) ? "Changed elsewhere" : "Save failed", {
         description: msg,
       });
     }
