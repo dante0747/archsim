@@ -45,6 +45,10 @@ for when that version changes.
 - **An API token cannot change a workspace's members, their roles or its invitations, or rename
   it.** These take the person signed in to the web app, as making a workspace or an invitation
   already did; a sandbox's guest cannot rename the sandbox either.
+- **A share link hides a calibrated design's telemetry address wherever the design names it.** It
+  was hidden in the design's calibration only; it is now hidden in every measured input's
+  provenance and in the report's assumptions too, and links already made are rewritten by a
+  migration.
 
 - **No label is cut short on the canvas or the timeline.** The chaos pads clipped their titles
   ("Lose Catalog…"); they have two columns and room for three lines. A part's card cut a label

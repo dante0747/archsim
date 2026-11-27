@@ -115,9 +115,12 @@ server at `https://<host>/api/v1`.
   sandbox.
 - **Share links.** `/r/<slug>` pages are public to anyone with the link: the slug is 128
   random bits, and the page is a frozen copy of one run's report made when the link was
-  created, without request traces and with telemetry addresses (a calibration's Prometheus URL)
-  hidden. Editors make and revoke links; revoking deletes the copy and the page answers 404 at
-  once (the web server never caches it), as do expired and unknown links. Pages are `noindex`,
+  created, without request traces and with telemetry addresses hidden: a calibration names its
+  Prometheus URL, credentials included, in the design's calibration and in every measured input's
+  provenance record, which the report's assumptions repeat, and the copy hides every `scheme://`
+  address in those (a documented input's or a formula's link to public documentation stays).
+  Editors make and revoke links; revoking deletes the copy and the page answers 404 at once (the
+  web server never caches it), as do expired and unknown links. Pages are `noindex`,
   the public endpoint is limited per address (60 a minute) and needs no sign-in, and "Open a
   copy" needs editor access to a workspace of your own.
 - **Outbound requests (SSRF).** `ARCHSIM_OUTBOUND` decides whether `POST /calibrate` may call a

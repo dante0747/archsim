@@ -282,8 +282,10 @@ them. Without sign-in the counters are off, and only sandboxes keep their other 
 
 A share link is a frozen, read-only copy of one finished run's results that anyone with the
 link can open on the web app at `/r/<slug>`, without signing in. It holds the report without
-request traces (calibration addresses hidden), the objectives from the run's input document,
-the project name and that document (for "Open a copy"; the public answer leaves it out). It
+request traces, the objectives from the run's input document, the project name and that
+document (for "Open a copy"; the public answer leaves it out), with every address
+(`scheme://...`) in a calibration or a measured input's provenance record, where a calibration
+names its telemetry source, written `(address hidden)`. It
 does not change when the design does and stays when the run or project is deleted, until it
 expires or is revoked. Slugs are 128 random bits in base62 (22 characters).
 
