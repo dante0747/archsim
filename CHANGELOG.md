@@ -8,37 +8,18 @@ for when that version changes.
 
 ## [Unreleased]
 
-### Changed
+## [1.5.0] - 2026-11-27
 
-- **The API deletes what it no longer keeps, when it starts and every hour after
-  ([ADR-0111](docs/adr/0111-prune-the-runs-past-a-projects-limit-and-expired-rows-every-hour.md),
-  proposed).** A project keeps its newest `ARCHSIM_RUN_HISTORY_LIMIT` runs (200), the ones its
-  list shows; older runs are deleted, except runs still queued or running, runs with a sign-off or
-  a comment, and the other runs of their seed group. Expired sessions and invitations are deleted,
-  and so are expired share links' copies of the results (the links stay, listed as expired). The
-  history keeps each change `ARCHSIM_HISTORY_DAYS` (365) days. Before upgrading a server that set
-  `ARCHSIM_RUN_HISTORY_LIMIT` low to shorten the list, raise it: the first prune deletes the runs
-  past it.
-- **Results lead with the answer, and every caveat explains itself on demand
-  ([ADR-0102](docs/adr/0102-lead-each-screen-with-the-answer-and-make-every-input-explain-itself.md),
-  proposed).** Results → Answer is one card: what the verdict rests on ("Misses 2 of 2
-  objectives"), the headline, the bottleneck, and the objectives with a target as tiles, with one
-  tile to add the others. Under it, "How sure is this" gives each caveat a line (the seeds, the
-  confidence, experimental parts, what queueing formulas predict, a quick check's sample), its
-  explanation in a popover. Then four key numbers, what to fix first by title with what to try
-  and its evidence under "Why", the month's cost as one bar split by part, and a compact review.
-  "Show on canvas" now opens Design with the part selected; before, it selected the part behind
-  the Results page.
-- **Every input says what it is and where its value comes from.** A setting's label shows in
-  full, with a one-line help under it, a tag from the design's analysis (measured, documented
-  with the vendor's site, your estimate, or default: an illustrative default, as the confidence
-  counts it) and a reset to the part's default when its value differs. The side panel is 352 px
-  wide. A part's resources fold why the auto size, what it needs and which price the cost uses
-  under one line, and its facts from the run read one a line.
-- **The parts library lists parts by their full names**, with what each is beneath, instead of a
-  grid of tiles that cut long names short.
+Security fixes for a server other people can reach, and screens that lead with the answer. Results
+do not change: the engine stays 1.6.0 and designs stay on schema 1.11. Upgrade a shared server;
+the entries under Security say what each fix changes. Four things to know first: the database gets
+one migration, which rewrites the copies share links keep; the API now deletes a project's runs
+past its newest `ARCHSIM_RUN_HISTORY_LIMIT` (200), so raise it before upgrading a server that
+should keep more; an API token no longer changes a workspace's members, roles, invitations or
+name; and without sign-in the API answers only requests addressed to this machine or to a name
+`ARCHSIM_ALLOWED_HOSTS` lists.
 
-### Fixed
+### Security
 
 - **A design's numbers must be finite
   ([ADR-0103](docs/adr/0103-refuse-a-number-that-is-not-finite-when-a-design-is-read.md),
@@ -71,12 +52,50 @@ for when that version changes.
   The web app's proxy passes the browser's host and origin on, so requests made through it are
   checked the same way. Compose's API allows `api`, the name the web container calls it by.
 
+### Changed
+
+- **The API deletes what it no longer keeps, when it starts and every hour after
+  ([ADR-0111](docs/adr/0111-prune-the-runs-past-a-projects-limit-and-expired-rows-every-hour.md),
+  proposed).** A project keeps its newest `ARCHSIM_RUN_HISTORY_LIMIT` runs (200), the ones its
+  list shows; older runs are deleted, except runs still queued or running, runs with a sign-off or
+  a comment, and the other runs of their seed group. Expired sessions and invitations are deleted,
+  and so are expired share links' copies of the results (the links stay, listed as expired). The
+  history keeps each change `ARCHSIM_HISTORY_DAYS` (365) days. Before upgrading a server that set
+  `ARCHSIM_RUN_HISTORY_LIMIT` low to shorten the list, raise it: the first prune deletes the runs
+  past it.
+- **Results lead with the answer, and every caveat explains itself on demand
+  ([ADR-0102](docs/adr/0102-lead-each-screen-with-the-answer-and-make-every-input-explain-itself.md),
+  proposed).** Results → Answer is one card: what the verdict rests on ("Misses 2 of 2
+  objectives"), the headline, the bottleneck, and the objectives with a target as tiles, with one
+  tile to add the others. Under it, "How sure is this" gives each caveat a line (the seeds, the
+  confidence, experimental parts, what queueing formulas predict, a quick check's sample), its
+  explanation in a popover. Then four key numbers, what to fix first by title with what to try
+  and its evidence under "Why", the month's cost as one bar split by part, and a compact review.
+  "Show on canvas" now opens Design with the part selected; before, it selected the part behind
+  the Results page.
+- **Every input says what it is and where its value comes from.** A setting's label shows in
+  full, with a one-line help under it, a tag from the design's analysis (measured, documented
+  with the vendor's site, your estimate, or default: an illustrative default, as the confidence
+  counts it) and a reset to the part's default when its value differs. The side panel is 352 px
+  wide. A part's resources fold why the auto size, what it needs and which price the cost uses
+  under one line, and its facts from the run read one a line.
+- **The parts library lists parts by their full names**, with what each is beneath, instead of a
+  grid of tiles that cut long names short.
+- **archsim.io loads one stylesheet of its own
+  ([ADR-0100](docs/adr/0100-give-the-website-a-stylesheet-of-its-own-built-from-the-files-it-renders.md),
+  proposed).** Every page waited for the app's stylesheet, with Tailwind's classes from every file
+  of the web app and React Flow's styles, which the site never shows. The site's own sheet holds
+  only the classes its pages render. It was 12 KB gzipped when it replaced the three sheets every
+  page loaded (the app's, the site's and the fonts'), which were 22 KB, and on a throttled phone
+  the home page's first contentful paint fell from 4.6 s to 3.6 s.
+
+### Fixed
+
 - **No label is cut short on the canvas or the timeline.** The chaos pads clipped their titles
   ("Lose Catalog…"); they have two columns and room for three lines. A part's card cut a label
   when its value was long ("Max connections per instan…"); the value now wraps under it. The Test
   timeline printed the traffic scale on top of the drain band's label ("2K/sdrain"); the scale
   ends where the band starts. The lanes' legend sits above the playhead.
-
 - **The run picker in Results and on the Dashboard shows the whole label of its run.** Since a
   run's label names its short id ("Current design · run 3f9a2c1d · seed 42 · 43s ago"), the picker
   cut it off mid-word at common desktop widths ("· 12s a"), in the app and in the README's and
@@ -638,7 +657,8 @@ cost, and publishes how accurate it is. Start with [Getting started](docs/gettin
 - Exports are scaffolding to review, not production configuration.
 - The editor is designed for desktop screens.
 
-[Unreleased]: https://github.com/dante0747/archsim/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/dante0747/archsim/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/dante0747/archsim/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/dante0747/archsim/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/dante0747/archsim/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/dante0747/archsim/compare/v1.1.0...v1.2.0
