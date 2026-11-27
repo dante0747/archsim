@@ -13,13 +13,16 @@ import io.archsim.model.component.standard.StandardComponents;
 import io.archsim.model.issue.DocumentInvalidException;
 import io.archsim.model.pricing.PriceSnapshots;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * What the recorded cases cannot show: a run stopped by its wall-clock limit, at the
  * simulated time the Python engine stops it (its message taken from the frozen engine
- * with a limit of 0 s), and a design with a number that is not finite refused before
- * anything is simulated. {@code SimulationCasesTests} checks the reports.
+ * with a limit of 0 s); a quick check whose sample is not steady, which simulates the
+ * whole run within the same limit and reports the time both took; and a design with a
+ * number that is not finite refused before anything is simulated.
+ * {@code SimulationCasesTests} checks the reports.
  */
 class SimulatorTests {
 
@@ -29,6 +32,13 @@ class SimulatorTests {
 	private static final long REFUSED_WITHIN_S = 30;
 
 	private static final RunRequest NO_TIME = RunRequest.of(null).withLimits(new SimulationLimits(2_000_000, 0.0));
+
+	private static final SimulationLimits UNLIMITED_TIME = new SimulationLimits(2_000_000, Double.POSITIVE_INFINITY);
+
+	/**
+	 * The recorded quick check whose sample is not steady, so the run is simulated whole.
+	 */
+	private static final String NOT_STEADY = "aSampleNotSteadySoTheRunIsSimulatedWhole";
 
 	// each look at the clock finds a second gone
 	private final AtomicLong nanos = new AtomicLong();
@@ -69,6 +79,30 @@ class SimulatorTests {
 	}
 
 	@Test
+	void run_aQuickCheckWhoseSampleIsNotSteady_isStoppedByALimitItsWholeRunKeepsWithin() {
+		JsonNode recorded = recorded(NOT_STEADY);
+		RunRequest quickCheck = SimulationCases.request(recorded).withLimits(UNLIMITED_TIME);
+		double wholeRunS = wallSeconds(
+				this.simulator.run(recorded.get("design"), quickCheck.withMode(SimulationMode.FULL)));
+
+		assertThatExceptionOfType(SimulationLimitException.class)
+			.isThrownBy(() -> this.simulator.run(recorded.get("design"),
+					quickCheck.withLimits(new SimulationLimits(UNLIMITED_TIME.maxRequests(), wholeRunS))));
+	}
+
+	@Test
+	void run_aQuickCheckWhoseSampleIsNotSteady_reportsTheSampleInItsWallSeconds() {
+		JsonNode recorded = recorded(NOT_STEADY);
+		RunRequest quickCheck = SimulationCases.request(recorded).withLimits(UNLIMITED_TIME);
+		double wholeRunS = wallSeconds(
+				this.simulator.run(recorded.get("design"), quickCheck.withMode(SimulationMode.FULL)));
+
+		double quickCheckS = wallSeconds(this.simulator.run(recorded.get("design"), quickCheck));
+
+		assertThat(quickCheckS).isGreaterThan(wholeRunS);
+	}
+
+	@Test
 	void run_aQuickCheckPastItsWallClockLimit_isStoppedInItsSample() {
 		JsonNode design = SmallDesigns.clientsCallingAnApi("""
 				{"seed": 7, "warmupS": 2, "durationS": 30, "rps": 5000, "arrivalProcess": "deterministic"}""");
@@ -77,6 +111,18 @@ class SimulatorTests {
 			.isThrownBy(() -> this.simulator.run(design, NO_TIME.withMode(SimulationMode.SAMPLED)))
 			.withMessage("Simulation exceeded the wall-clock limit of 0 s at simulated time 0.1 s. "
 					+ "Reduce RPS, duration, fan-out or model size.");
+	}
+
+	private static JsonNode recorded(String name) {
+		return SimulationCases.recorded()
+			.stream()
+			.filter((recorded) -> name.equals(recorded.get("name").stringValue()))
+			.findFirst()
+			.orElseThrow();
+	}
+
+	private static double wallSeconds(JsonNode report) {
+		return report.path("provenance").path("wallSeconds").doubleValue();
 	}
 
 }

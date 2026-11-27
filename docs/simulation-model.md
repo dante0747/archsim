@@ -983,8 +983,10 @@ against full runs: [performance.md](performance.md).
 The API and the web app call it a *quick check* (`mode: "sampled"`, Simulate menu → "Quick check
 (estimated)"). It is offered only when `QuickCheck.of(workload)` (in `/analyze` as `quickCheck`) says
 the design qualifies, and otherwise says why. When a sample turns out not steady, the whole run is
-simulated and `simulationMode` is `{kind: "full", requestedMode: "sampled", note}`. The web app
-labels a sampled report "Estimated" and its charts say they cover only the sample.
+simulated, within the same wall-clock limit as the sample, and `simulationMode` is
+`{kind: "full", requestedMode: "sampled", note}`; the report's `provenance.wallSeconds` counts
+both. The web app labels a sampled report "Estimated" and its charts say they cover only the
+sample.
 
 ## Seeds and seed groups
 
