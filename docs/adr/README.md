@@ -145,3 +145,4 @@ what the repository shows.
 | [0101](0101-show-the-held-out-runs-against-the-simple-estimates-on-the-accuracy-page.md) | Show the held-out runs against the simple estimates on the accuracy page, each experiment one vote | Proposed | 2026-11-25 |
 | [0102](0102-lead-each-screen-with-the-answer-and-make-every-input-explain-itself.md) | Lead each screen with the answer, and make every input explain itself | Proposed | 2026-11-26 |
 | [0103](0103-refuse-a-number-that-is-not-finite-when-a-design-is-read.md) | Refuse a number that is not finite when a design is read, where the frozen engine took it | Proposed | 2026-11-27 |
+| [0104](0104-restart-a-worker-whose-run-outlives-its-hard-deadline.md) | Restart a worker whose run outlives its hard deadline | Proposed | 2026-11-27 |
