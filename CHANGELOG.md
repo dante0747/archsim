@@ -8,6 +8,18 @@ for when that version changes.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A save no longer marks as saved what it did not send, and a save conflict is no longer a dead
+  end
+  ([ADR-0112](docs/adr/0112-end-a-save-conflict-with-a-choice-their-version-this-one-or-a-copy.md),
+  proposed).** An edit made while a save was on its way was flagged saved, and a project name
+  retyped meanwhile went back to the one sent: the editor now counts as saved only the design the
+  save sent. When the project was saved elsewhere first, the editor said "Changed elsewhere" and
+  every later save failed; it now asks which version to keep: reload theirs (undo brings yours
+  back), overwrite it, or save yours as a copy. An agent's `save_design` saves the same way and
+  leaves that choice to the person.
+
 ## [1.6.0] - 2026-11-27
 
 The second half of the security fixes 1.5.0 began for a server other people can reach: limits on

@@ -5,11 +5,13 @@
  */
 import { api } from "@/lib/api";
 import { freeSpot } from "@/lib/placement";
+import { saveDesign } from "@/lib/save";
 import { evaluateSlo } from "@/lib/slo";
 import { partTier } from "@/lib/tier";
 import type { ComponentType, EdgeConfig, Report, Workload } from "@/lib/types";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
+import { useUi } from "@/store/ui";
 import type { AgentTool } from "./webmcp";
 
 const ed = () => useEditor.getState();
@@ -494,20 +496,21 @@ export function editorTools(): AgentTool[] {
       inputSchema: { type: "object", properties: {} },
       annotations: { consequentialHint: true },
       execute: async () => {
-        const s = ed();
-        if (!s.projectId) throw new Error("No project is open.");
-        s.setSaving(true);
-        try {
-          const p = await api.updateProject(s.projectId, {
-            name: s.metadata.name.trim() || "Untitled architecture",
-            document: s.toDocument(),
-            expectedRevision: s.revision,
-          });
-          ed().markSaved(p.revision, p.name);
-          return { revision: p.revision, summary: `saved revision ${p.revision}` };
-        } catch (e) {
-          ed().setSaving(false);
-          throw e;
+        if (!ed().projectId) throw new Error("No project is open.");
+        const result = await saveDesign();
+        switch (result.status) {
+          case "saved":
+            return { revision: result.revision, summary: `saved revision ${result.revision}` };
+          case "conflict":
+            // the choice is the person's: show it to them
+            useUi.getState().setSaveConflictOpen(true);
+            throw new Error(
+              "The project was saved elsewhere since it was opened, so nothing was saved. The editor now asks the user whether to reload that version, overwrite it or save a copy.",
+            );
+          case "failed":
+            throw new Error(result.message);
+          case "skipped":
+            throw new Error("A save is already on its way; try again in a moment.");
         }
       },
     },
