@@ -48,13 +48,23 @@ const COALESCE_MS = 1000;
 
 export type RightTab = "inspect" | "workload" | "scenarios";
 
+/** What a save sent: which opening of the project it belongs to, and the design as it was then. */
+export interface SentDesign {
+  loadId: number;
+  content: string;
+}
+
 export interface EditorState extends GraphState {
   projectId: string | null;
   revision: number;
+  /** Counts the projects opened here: the answer to a save made before the last one is not this design's. */
+  loadId: number;
   catalog: Catalog | null;
   initialViewport: Viewport | null;
   dirty: boolean;
   saving: boolean;
+  /** The project was saved elsewhere since this editor opened it: a save from here would replace that version. */
+  conflict: boolean;
   dragging: boolean;
   past: GraphState[];
   future: GraphState[];
@@ -97,9 +107,20 @@ export interface EditorState extends GraphState {
   setIssues: (issues: Issue[], state: EditorState["validation"]) => void;
   setAnalysis: (analysis: Analysis | null) => void;
   setRightTab: (tab: RightTab) => void;
-  setSaving: (saving: boolean) => void;
-  markSaved: (revision: number, name?: string) => void;
+  /** A save starts: what it sends, to tell when its answer comes whether the design was edited meanwhile. */
+  beginSave: () => SentDesign;
+  /** A save was answered: the design is saved only if it is still what the save sent. */
+  markSaved: (sent: SentDesign, saved: Pick<Project, "revision" | "name">) => void;
+  /** A save was refused; `conflict`: because the project was saved elsewhere first. */
+  saveFailed: (sent: SentDesign, conflict: boolean) => void;
+  /** Replaces the design with the version saved elsewhere, as one undoable step: undo brings this one back. */
+  takeTheirs: (project: Project) => void;
   toDocument: (viewport?: Viewport | null) => ArchitectureDocument;
+}
+
+/** A design as a save sends it, as text; the viewport is left out, as panning is not an edit. */
+function savedContent(s: GraphState): string {
+  return JSON.stringify(toDocument(s));
 }
 
 function snapshot(s: GraphState): GraphState {
@@ -123,6 +144,7 @@ function linkDefaultsFrom(s: Pick<EditorState, "catalog" | "nodes">, sourceId: s
 export const useEditor = create<EditorState>()((set, get) => ({
   projectId: null,
   revision: 0,
+  loadId: 0,
   catalog: null,
   nodes: [],
   edges: [],
@@ -133,6 +155,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   initialViewport: null,
   dirty: false,
   saving: false,
+  conflict: false,
   dragging: false,
   past: [],
   future: [],
@@ -146,9 +169,10 @@ export const useEditor = create<EditorState>()((set, get) => ({
 
   load: (project, catalog) => {
     const g = fromDocument(project.document);
-    set({
+    set((s) => ({
       projectId: project.id,
       revision: project.revision,
+      loadId: s.loadId + 1,
       catalog,
       nodes: g.nodes,
       edges: g.edges,
@@ -159,13 +183,15 @@ export const useEditor = create<EditorState>()((set, get) => ({
       extras: g.extras,
       initialViewport: g.viewport,
       dirty: false,
+      saving: false,
+      conflict: false,
       past: [],
       future: [],
       issues: [],
       validation: "idle",
       analysis: null,
       rightTab: "inspect",
-    });
+    }));
   },
 
   replaceDocument: (doc) => {
@@ -483,14 +509,47 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setIssues: (issues, validation) => set({ issues, validation }),
   setAnalysis: (analysis) => set({ analysis }),
   setRightTab: (rightTab) => set({ rightTab }),
-  setSaving: (saving) => set({ saving }),
-  markSaved: (revision, name) =>
-    set((st) => ({
-      revision,
+
+  beginSave: () => {
+    set({ saving: true });
+    return { loadId: get().loadId, content: savedContent(get()) };
+  },
+
+  markSaved: (sent, saved) =>
+    set((st) => {
+      if (st.loadId !== sent.loadId) return {};
+      const unchanged = savedContent(st) === sent.content;
+      return {
+        revision: saved.revision,
+        saving: false,
+        conflict: false,
+        dirty: !unchanged,
+        // the API's name is the saved one (trimmed, never empty); a name retyped meanwhile is the newer one
+        metadata: unchanged && saved.name !== st.metadata.name ? { ...st.metadata, name: saved.name } : st.metadata,
+      };
+    }),
+
+  saveFailed: (sent, conflict) =>
+    set((st) => (st.loadId === sent.loadId ? { saving: false, conflict: st.conflict || conflict } : {})),
+
+  takeTheirs: (project) => {
+    get().pushHistory();
+    const g = fromDocument(project.document);
+    set((s) => ({
+      revision: project.revision,
+      nodes: g.nodes,
+      edges: g.edges,
+      workload: g.workload,
+      scenarios: g.scenarios,
+      objectives: g.objectives,
+      metadata: { ...g.metadata, name: project.name },
+      extras: g.extras,
       dirty: false,
-      saving: false,
-      metadata: name ? { ...st.metadata, name } : st.metadata,
-    })),
+      conflict: false,
+      layoutVersion: s.layoutVersion + 1,
+    }));
+  },
+
   toDocument: (viewport) => toDocument(get(), viewport),
 }));
 

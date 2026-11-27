@@ -253,7 +253,9 @@ The tables a run goes through (the others hold people, workspaces, reviews and s
 **`projects`** - `id`, `name`, `description`, `document` (JSON/JSONB), `schema_version`,
 `revision`, timestamps. `revision` increments on each update; clients can send
 `expectedRevision` and receive `409 Conflict` if someone else saved in between (optimistic
-concurrency). Documents that are schema-valid but fail graph validation (for example a missing
+concurrency). The editor then asks which version to keep: theirs, yours, or yours as a copy
+([ADR-0112](adr/0112-end-a-save-conflict-with-a-choice-their-version-this-one-or-a-copy.md)).
+Documents that are schema-valid but fail graph validation (for example a missing
 link) can be saved, so work in progress is never lost; they cannot be simulated until fixed.
 
 **`simulation_runs`** - status, progress, error, seed, engine version, input/result digests, a

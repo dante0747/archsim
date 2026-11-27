@@ -47,7 +47,7 @@ In the editor (while a design is open):
 | `get_results` | The same summary for the latest run or a run id (read only). |
 | `tidy_layout` | Arranges the parts along the request flow. |
 | `undo` | Undoes the last design change. |
-| `save_design` | Saves the design to the project (marked consequential). |
+| `save_design` | Saves the design to the project (marked consequential). If the project was saved elsewhere since it was opened, nothing is saved: the tool says so, and the editor asks the person which version to keep. |
 
 Tool results are JSON. Mistakes come back as errors that say what to do instead (an unknown
 setting lists the part's settings; an unknown preset lists the presets), so an agent can correct

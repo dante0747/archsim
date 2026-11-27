@@ -236,6 +236,9 @@ read-only copy of one run's results that anyone with the link can open. The endp
   (`/projects`).
 - Projects live in PostgreSQL, documents import and export as versioned JSON, and every run stores
   its input, seed, engine version and result digest so it can be re-run and verified bit for bit.
+- Save (Ctrl/⌘ S) stores the design as the project's next revision. A save that finds the project
+  saved elsewhere since you opened it, in another tab or by a teammate, asks which version to
+  keep: reload theirs (undo brings yours back), overwrite it, or save yours as a copy.
 
 ![The templates gallery in the dark theme: its counts (25 templates, 125 scenarios to compare, 40 technologies used), category filters with theirs (All 25, Scale 3, Data 6 and more) and search, and the featured Black Friday on Kubernetes template, marked Labs, drawn as logo tiles (Shoppers, Kong API gateway, Go checkout, Redis catalog cache, PostgreSQL orders, payments API) beside its description and Built with list](images/templates.jpg)
 

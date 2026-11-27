@@ -43,6 +43,8 @@ export interface UiState {
   importOpen: boolean;
   /** The guided tour of the editor is showing. */
   tourOpen: boolean;
+  /** The choices that end a save conflict (reload theirs, overwrite, save a copy) are showing. */
+  saveConflictOpen: boolean;
   /** Workflow progress the user has seen (drives the step indicator and next-step hint). */
   trafficVisited: boolean;
   insightsSeenFor: string | null;
@@ -58,6 +60,7 @@ export interface UiState {
   setCalibrateOpen: (v: boolean) => void;
   setImportOpen: (v: boolean) => void;
   setTourOpen: (v: boolean) => void;
+  setSaveConflictOpen: (v: boolean) => void;
   markTrafficVisited: () => void;
   markInsightsSeen: (runId: string) => void;
   dismissHint: (key: string) => void;
@@ -76,6 +79,7 @@ export const useUi = create<UiState>()((set) => ({
   calibrateOpen: false,
   importOpen: false,
   tourOpen: false,
+  saveConflictOpen: false,
   trafficVisited: false,
   insightsSeenFor: null,
   dismissedHint: null,
@@ -96,10 +100,21 @@ export const useUi = create<UiState>()((set) => ({
   setCalibrateOpen: (calibrateOpen) => set({ calibrateOpen }),
   setImportOpen: (importOpen) => set({ importOpen }),
   setTourOpen: (tourOpen) => set({ tourOpen }),
+  setSaveConflictOpen: (saveConflictOpen) => set({ saveConflictOpen }),
   markTrafficVisited: () => set({ trafficVisited: true }),
   markInsightsSeen: (insightsSeenFor) => set({ insightsSeenFor }),
   dismissHint: (dismissedHint) => set({ dismissedHint }),
-  resetForProject: () => set({ trafficVisited: false, insightsSeenFor: null, dismissedHint: null, paletteOpen: false, mode: "build", playhead: null, playing: false }),
+  resetForProject: () =>
+    set({
+      trafficVisited: false,
+      insightsSeenFor: null,
+      dismissedHint: null,
+      paletteOpen: false,
+      saveConflictOpen: false,
+      mode: "build",
+      playhead: null,
+      playing: false,
+    }),
 }));
 
 export function prefersReducedMotion(): boolean {

@@ -19,6 +19,7 @@ import { CommandPalette } from "@/components/editor/CommandPalette";
 import { GuidedTour, hasSeenTour } from "@/components/editor/GuidedTour";
 import { Inspector } from "@/components/editor/Inspector";
 import { PartsPanel } from "@/components/editor/Palette";
+import { SaveConflictDialog } from "@/components/editor/SaveConflictDialog";
 import { TopBar } from "@/components/editor/TopBar";
 import { NextStepPill } from "@/components/editor/WorkspaceBar";
 import { openDecide } from "@/components/editor/workflow";
@@ -337,6 +338,7 @@ function EditorShell() {
       <ExportDialog open={exportOpen} onOpenChange={setExportOpen} />
       <CalibrateDialog open={calibrateOpen} onOpenChange={setCalibrateOpen} />
       <ImportDialog open={importOpen} onOpenChange={setImportOpen} />
+      <SaveConflictDialog />
       <GuidedTour />
       <EditorAgentTools />
     </div>
