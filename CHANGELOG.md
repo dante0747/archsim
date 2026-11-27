@@ -31,6 +31,13 @@ for when that version changes.
 
 ### Fixed
 
+- **Without sign-in, the API answers only this machine's own clients
+  ([ADR-0107](docs/adr/0107-without-sign-in-answer-only-this-machines-own-clients.md), proposed).**
+  It refuses a request addressed to a host name other than this machine's or one
+  `ARCHSIM_ALLOWED_HOSTS` lists, a change from another site's page, and a body that is not JSON.
+  The web app's proxy passes the browser's host and origin on, so requests made through it are
+  checked the same way. Compose's API allows `api`, the name the web container calls it by.
+
 - **No label is cut short on the canvas or the timeline.** The chaos pads clipped their titles
   ("Lose Catalog…"); they have two columns and room for three lines. A part's card cut a label
   when its value was long ("Max connections per instan…"); the value now wraps under it. The Test

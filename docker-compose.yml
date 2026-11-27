@@ -63,6 +63,10 @@ services:
       ARCHSIM_DATABASE_URL: postgresql://archsim:archsim@postgres:5432/archsim
       ARCHSIM_AUTO_MIGRATE: "false" # the migrate service did it
       ARCHSIM_CORS_ORIGINS: '["http://localhost:3000"]'
+      # the name the web container calls it by: without sign-in it answers only this machine's
+      # names and these (SECURITY.md). This beats .env.docker; to add a name, set it here or in a
+      # compose override file
+      ARCHSIM_ALLOWED_HOSTS: api
     depends_on:
       migrate:
         condition: service_completed_successfully

@@ -144,3 +144,4 @@ what the repository shows.
 | [0100](0100-give-the-website-a-stylesheet-of-its-own-built-from-the-files-it-renders.md) | Give the website a stylesheet of its own, built from the files it renders | Proposed | 2026-11-25 |
 | [0101](0101-show-the-held-out-runs-against-the-simple-estimates-on-the-accuracy-page.md) | Show the held-out runs against the simple estimates on the accuracy page, each experiment one vote | Proposed | 2026-11-25 |
 | [0102](0102-lead-each-screen-with-the-answer-and-make-every-input-explain-itself.md) | Lead each screen with the answer, and make every input explain itself | Proposed | 2026-11-26 |
+| [0107](0107-without-sign-in-answer-only-this-machines-own-clients.md) | Without sign-in, answer only this machine's own clients | Proposed | 2026-11-27 |

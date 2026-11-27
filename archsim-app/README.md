@@ -35,7 +35,8 @@ It took the Python worker's place in stage 4: compose, the black-box suite and t
 launcher start it. The rest of the command line is Spring Boot's
 (`--server.port=8000`). The API listens on `127.0.0.1` only, as the Python API did; another
 address (`--server.address=0.0.0.0`, or `SERVER_ADDRESS`) lets other machines in, so read
-[SECURITY.md](../SECURITY.md) first.
+[SECURITY.md](../SECURITY.md) first. Without sign-in it answers only requests addressed to this
+machine or a name `ARCHSIM_ALLOWED_HOSTS` lists, so add the name other machines call it by.
 
 In Docker, every role runs from one image, which Jib builds without a Dockerfile, on Eclipse
 Temurin's Java 25 runtime, with the examples in `/app/examples`. It listens on every interface of
@@ -177,6 +178,12 @@ schema Flyway builds with the one Alembic built at its revision 0008 (`parity/sc
 
 ## Differences from the Python API
 
+- Without sign-in, the API answers only requests addressed to this machine (`localhost`,
+  `127.x.x.x`, `[::1]`) or a name `ARCHSIM_ALLOWED_HOSTS` lists, and refuses a change whose
+  `Origin` is neither the page it was addressed to nor one `ARCHSIM_CORS_ORIGINS` lists, both with
+  `403`; the web app's proxy passes the browser's host and origin on for these checks. A body
+  must be `application/json` or an `application/*+json` type, else `415`. The Python API served
+  any host and origin, and read a body without a type as JSON.
 - Whole numbers in `GET /components` (cold-start defaults, one `step`) and the bounds of the
   distributions in `GET /schema/architecture` are spelled `600.0` where Python writes `600`, or
   the other way round. Clients read the same number; the golden files compare numbers by value
