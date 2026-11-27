@@ -53,6 +53,13 @@ for when that version changes.
   through the API the worker stopped such a run 30 s past the limit and failed it. The sample and
   the whole run now share one clock, so such a quick check can be stopped where a full run of the
   same design finishes, and its report's wall time counts the sample too.
+- **The SLO label in the Test timeline reads whole wherever the p95 curve goes.** The latency lane
+  named the objective's dashed line at its right end, under the curve, so a p95 that climbed through
+  it there struck the label through: as Black Friday's run drains, its p95 spike made "SLO 500 ms"
+  read "SLO 500/ms" in the README's and archsim.io's main screenshot. The label now sits at
+  whichever end of its line, above or below it, the curve leaves clear, and over the curve with a
+  halo when the curve crosses every such place. That screenshot and its renditions for the website
+  are retaken.
 
 ## [1.6.0] - 2026-11-27
 
