@@ -31,6 +31,13 @@ for when that version changes.
 
 ### Fixed
 
+- **A request holds one database connection at a time
+  ([ADR-0105](docs/adr/0105-charge-every-rate-limit-before-its-transaction-begins.md), proposed).**
+  Comments, sign-offs, share links, invitations and team workspaces charge their rate limit before
+  their transaction begins, as sandbox starts do, and a charge made inside a transaction is
+  refused. The connection pool stays at ten connections, for the API and the worker alike, now set
+  explicitly.
+
 - **No label is cut short on the canvas or the timeline.** The chaos pads clipped their titles
   ("Lose Catalog…"); they have two columns and room for three lines. A part's card cut a label
   when its value was long ("Max connections per instan…"); the value now wraps under it. The Test

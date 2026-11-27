@@ -128,6 +128,12 @@ asks: 512 MB a run and 256 MB besides. The default gives each run less, about 38
 here stop at 1,000,000 requests instead of 2,000,000, and a run's heap shrinks by about 128 MB a
 million. More workers (`--scale worker=2`) need more cores still, each with its own heap.
 
+Each API instance and each worker keeps at most ten connections to PostgreSQL
+(`SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE`,
+[ADR-0105](adr/0105-charge-every-rate-limit-before-its-transaction-begins.md)). A request holds one
+at a time; in a burst, a request waits up to 10 s for one to come free, then fails. The kit's API
+and worker keep 20 of PostgreSQL's 100, room for more workers and the nightly dump.
+
 ### 2. Docker
 
 Docker Engine 27 or later, with its Compose plugin, from Docker's own packages

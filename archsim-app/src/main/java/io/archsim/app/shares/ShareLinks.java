@@ -1,7 +1,6 @@
 package io.archsim.app.shares;
 
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 
 import io.archsim.app.access.Principal;
@@ -41,7 +40,9 @@ class ShareLinks {
 	}
 
 	/**
-	 * A share link to a finished run.
+	 * A share link to a finished run. The checks come first, then the person's limit,
+	 * charged before the link's own transaction begins, so the request holds one
+	 * connection at a time (ADR-0105).
 	 * @param principal who makes it
 	 * @param runId the run
 	 * @param request its title and how long it works
@@ -50,7 +51,6 @@ class ShareLinks {
 	 * unpublished) or a viewer, {@code 404} for a run the asker may not see, {@code 409}
 	 * for a run without a report, {@code 429} after many links in a day
 	 */
-	@Transactional
 	StoredShare create(Principal principal, String runId, ShareCreate request) {
 		principal.requireAccount();
 		RunResults run = this.runs.withResults(principal, runId, WorkspaceRole.EDITOR);
@@ -58,9 +58,9 @@ class ShareLinks {
 		if (!run.facts().succeeded() || report == null) {
 			throw ApiException.conflict("Run is " + run.facts().status() + "; only finished runs can be shared");
 		}
+		ProjectDesign project = this.projects.design(principal, run.facts().projectId(), WorkspaceRole.VIEWER);
 		this.limits.enforce("user:" + principal.userId() + ":shares", RateLimit.SHARES_PER_USER,
 				"You have made many share links today.");
-		ProjectDesign project = this.projects.design(principal, run.facts().projectId(), WorkspaceRole.VIEWER);
 		String projectName = project.name();
 		String title = (request.title() != null) ? Text.strip(request.title()) : "";
 		NewShare share = new NewShare(project.workspaceId(), run.facts(),

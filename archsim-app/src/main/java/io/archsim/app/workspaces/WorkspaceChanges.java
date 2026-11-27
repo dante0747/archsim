@@ -1,9 +1,11 @@
 package io.archsim.app.workspaces;
 
 import java.util.Map;
+import java.util.Objects;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
 
 import io.archsim.app.access.Access;
 import io.archsim.app.access.Person;
@@ -33,25 +35,37 @@ class WorkspaceChanges {
 
 	private final AuditLog audit;
 
-	WorkspaceChanges(Workspaces workspaces, RateLimits limits, AuditLog audit) {
+	private final TransactionOperations transactions;
+
+	WorkspaceChanges(Workspaces workspaces, RateLimits limits, AuditLog audit, TransactionOperations transactions) {
 		this.workspaces = workspaces;
 		this.limits = limits;
 		this.audit = audit;
+		this.transactions = transactions;
 	}
 
 	/**
-	 * A new team workspace, with its maker as its owner.
+	 * A new team workspace, with its maker as its owner. The person's limit is charged
+	 * before the workspace's transaction begins, so the request holds one connection at a
+	 * time (ADR-0105).
 	 * @param person who makes it
 	 * @param request its name
 	 * @return the workspace
 	 * @throws ApiException {@code 429} after many workspaces in a day
 	 */
-	@Transactional
 	WorkspaceView create(Person person, WorkspaceCreate request) {
 		this.limits.enforce("user:" + person.userId() + ":workspaces", RateLimit.WORKSPACES_PER_USER,
 				"You have made many workspaces today.");
 		String name = request.name().strip();
-		String id = this.workspaces.create(name.isEmpty() ? DEFAULT_NAME : name, Workspaces.TEAM, person.userId());
+		// one transaction, written out: the charge above must commit before it
+		// begins, and a call to a private method would not go through the proxy
+		return Objects.requireNonNull(
+				this.transactions.execute((status) -> createTeam(name.isEmpty() ? DEFAULT_NAME : name, person)));
+	}
+
+	// the workspace, its owner and its line in the history
+	private WorkspaceView createTeam(String name, Person person) {
+		String id = this.workspaces.create(name, Workspaces.TEAM, person.userId());
 		WorkspaceView made = this.workspaces.view(id, WorkspaceRole.OWNER);
 		this.audit.workspace("workspace.create", WorkspaceTarget.of(id), Map.of("name", made.name()),
 				person.principal());
