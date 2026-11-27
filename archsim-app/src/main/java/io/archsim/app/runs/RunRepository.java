@@ -16,9 +16,12 @@ import tools.jackson.databind.json.JsonMapper;
 import io.archsim.engine.version.EngineVersions;
 
 /**
- * The {@code simulation_runs} table: each row is a run and its own job. The API queues
- * runs and asks for them to stop; the workers claim them, record their progress and
- * outcome.
+ * The {@code simulation_runs} table, with the designs its runs simulate in
+ * {@code run_designs}: each run is a row and its own job, and each design is stored once,
+ * under its digest, however many runs simulate it. The API queues runs and asks for them
+ * to stop; the workers claim them, record their progress and outcome. Whatever deletes
+ * runs, here or with their project or workspace, the schema deletes with them the designs
+ * no run refers to any more (V4's trigger, ADR-0110).
  */
 @Repository
 class RunRepository {
@@ -27,6 +30,35 @@ class RunRepository {
 			id, project_id, workspace_id, label, scenario_id, scenario_name, status, progress, error, seed,
 			engine_version, input_digest, result_digest, summary, wall_seconds, created_at, started_at, finished_at,
 			group_id, seed_index, mode""";
+
+	/**
+	 * Stores a run and its design in one statement. A new design is stored under the
+	 * digest of its JSON as PostgreSQL writes {@code jsonb} out, as V4 computed it for
+	 * the designs it moved. A stored one is updated to itself instead, which locks its
+	 * row until the transaction ends: under READ COMMITTED, the deletion of the design's
+	 * last other run waits for this run, then keeps the design for it (V4's trigger). So
+	 * any statement that makes a run refer to a design stores the design this way: one
+	 * that only copied a digest would lock the design only in its foreign-key check,
+	 * after its row is written, and would then fail on the foreign key where this stores
+	 * the design again.
+	 */
+	private static final String QUEUE_WITH_DESIGN = """
+			WITH design AS (
+			    INSERT INTO run_designs (digest, document)
+			    SELECT encode(sha256(convert_to(document::text, 'UTF8')), 'hex'), document
+			    FROM (SELECT CAST(:document AS jsonb) AS document) AS given
+			    ON CONFLICT (digest) DO UPDATE SET digest = EXCLUDED.digest
+			    RETURNING digest)
+			INSERT INTO simulation_runs (id, project_id, workspace_id, created_by, label, scenario_id,
+			    scenario_name, status, progress, seed, engine_version, design_digest, max_requests,
+			    max_wall_seconds, mode, group_id, seed_index, attempts, created_at)
+			VALUES (:id, :project, :workspace, :createdBy, :label, :scenarioId, :scenarioName, 'queued', 0,
+			    :seed, :engine, (SELECT digest FROM design), :maxRequests, :maxWallSeconds, :mode, :group,
+			    :index, 0, :now)""";
+
+	/** Runs, each with the design it simulates. */
+	private static final String RUNS_WITH_DESIGNS = """
+			simulation_runs AS run JOIN run_designs AS design ON design.digest = run.design_digest""";
 
 	private final JdbcClient jdbc;
 
@@ -38,19 +70,14 @@ class RunRepository {
 	}
 
 	/**
-	 * Queues a run: any worker may claim it from now on.
+	 * Queues a run: any worker may claim it from now on. Its design is stored with it,
+	 * unless a run of the same design stored it already.
 	 * @param queued the run, who starts it and when
 	 */
 	void add(QueuedRun queued) {
 		NewRun run = queued.run();
 		GroupPlace group = queued.group();
-		this.jdbc.sql("""
-				INSERT INTO simulation_runs (id, project_id, workspace_id, created_by, label, scenario_id,
-				    scenario_name, status, progress, seed, engine_version, input_document, max_requests,
-				    max_wall_seconds, mode, group_id, seed_index, attempts, created_at)
-				VALUES (:id, :project, :workspace, :createdBy, :label, :scenarioId, :scenarioName, 'queued', 0,
-				    :seed, :engine, CAST(:document AS jsonb), :maxRequests, :maxWallSeconds, :mode, :group,
-				    :index, 0, :now)""")
+		this.jdbc.sql(QUEUE_WITH_DESIGN)
 			.param("id", queued.id())
 			.param("project", run.destination().projectId())
 			.param("workspace", run.destination().workspaceId())
@@ -121,7 +148,7 @@ class RunRepository {
 	 * @return the design's JSON
 	 */
 	String input(String id) {
-		return this.jdbc.sql("SELECT input_document::text FROM simulation_runs WHERE id = :id")
+		return this.jdbc.sql("SELECT design.document::text FROM " + RUNS_WITH_DESIGNS + " WHERE run.id = :id")
 			.param("id", id)
 			.query(String.class)
 			.single();
@@ -160,6 +187,11 @@ class RunRepository {
 		return this.json.readTree(input(id));
 	}
 
+	/**
+	 * Deletes a run, and with it its design when no other run simulates it (V4's
+	 * trigger).
+	 * @param id the run
+	 */
 	void delete(String id) {
 		this.jdbc.sql("DELETE FROM simulation_runs WHERE id = :id").param("id", id).update();
 	}
@@ -185,8 +217,8 @@ class RunRepository {
 	 */
 	Optional<JsonNode> objectives(String id) {
 		return this.jdbc
-			.sql("SELECT (input_document -> 'objectives')::text FROM simulation_runs WHERE id = :id "
-					+ "AND jsonb_typeof(input_document -> 'objectives') = 'object'")
+			.sql("SELECT (design.document -> 'objectives')::text FROM " + RUNS_WITH_DESIGNS + " WHERE run.id = :id "
+					+ "AND jsonb_typeof(design.document -> 'objectives') = 'object'")
 			.param("id", id)
 			.query(String.class)
 			.optional()
