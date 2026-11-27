@@ -47,6 +47,19 @@ public record RateLimit(int limit, long windowSeconds) {
 	/** Share links one person makes per day. */
 	public static final RateLimit SHARES_PER_USER = new RateLimit(100, DAY);
 
+	/**
+	 * Runs started in sandboxes from one address: 40 an hour, two sandboxes' own hours,
+	 * however many sandboxes the address holds.
+	 */
+	public static final RateLimit SANDBOX_RUNS_PER_IP = new RateLimit(40, HOUR);
+
+	/**
+	 * Runs started in all sandboxes together: 300 an hour. At a sandbox's 20 s a run they
+	 * take at most 100 minutes of simulation, less than the 120 an hour of the hosting
+	 * kit's worker, which runs two at once (ADR-0106).
+	 */
+	public static final RateLimit SANDBOX_RUNS = new RateLimit(300, HOUR);
+
 	/** Share pages opened from one address: 60 a minute. */
 	public static final RateLimit PUBLIC_VIEWS_PER_IP = new RateLimit(60, MINUTE);
 

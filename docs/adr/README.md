@@ -147,5 +147,6 @@ what the repository shows.
 | [0103](0103-refuse-a-number-that-is-not-finite-when-a-design-is-read.md) | Refuse a number that is not finite when a design is read, where the frozen engine took it | Proposed | 2026-11-27 |
 | [0104](0104-restart-a-worker-whose-run-outlives-its-hard-deadline.md) | Restart a worker whose run outlives its hard deadline | Proposed | 2026-11-27 |
 | [0105](0105-charge-every-rate-limit-before-its-transaction-begins.md) | Charge every rate limit before its transaction begins, and size the connection pool explicitly | Proposed | 2026-11-27 |
+| [0106](0106-count-addresses-by-network-and-give-sandboxes-runs-a-budget.md) | Count addresses by network, and give sandboxes' runs a budget and the back of the queue | Proposed | 2026-11-27 |
 | [0107](0107-without-sign-in-answer-only-this-machines-own-clients.md) | Without sign-in, answer only this machine's own clients | Proposed | 2026-11-27 |
 | [0111](0111-prune-the-runs-past-a-projects-limit-and-expired-rows-every-hour.md) | Prune the runs past a project's limit, and the rows that expired, every hour | Proposed | 2026-11-27 |

@@ -98,6 +98,17 @@ public record Principal(String userId, PrincipalKind kind, @Nullable String ip, 
 	}
 
 	/**
+	 * The address the request comes from as a limit per address counts it: an IPv6
+	 * address by its /64, the least a subscriber is given, so that the addresses of one
+	 * /64 count once.
+	 * @return the IPv4 address or the IPv6 address's /64, or {@code unknown} when the
+	 * request does not tell it
+	 */
+	public String countedAddress() {
+		return CountedAddress.of(this.ip);
+	}
+
+	/**
 	 * The one workspace a token is limited to: it sees no other.
 	 * @return the workspace's id, or empty when the principal is not limited to one
 	 */

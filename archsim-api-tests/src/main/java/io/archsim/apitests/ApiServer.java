@@ -36,8 +36,17 @@ public final class ApiServer {
 	/** The bits in one byte of an address. */
 	private static final int BITS_PER_BYTE = 8;
 
+	/** Picks one 16-bit group of an IPv6 address. */
+	private static final int GROUP_MASK = 0xFFFF;
+
+	/** The bits in one group of an IPv6 address. */
+	private static final int BITS_PER_GROUP = 16;
+
 	private static final AtomicInteger ADDRESSES = new AtomicInteger(
 			ThreadLocalRandom.current().nextInt(HOST_MASK + 1));
+
+	/** The 32 bits after 2001:db8::/32 of the next /64, from a random start. */
+	private static final AtomicInteger NETWORKS = new AtomicInteger(ThreadLocalRandom.current().nextInt());
 
 	private static final AtomicInteger PEOPLE = new AtomicInteger();
 
@@ -91,6 +100,17 @@ public final class ApiServer {
 	public static String nextAddress() {
 		int host = ADDRESSES.getAndIncrement() & HOST_MASK;
 		return "198.18." + (host >> BITS_PER_BYTE) + "." + (host & BYTE_MASK);
+	}
+
+	/**
+	 * Returns an IPv6 /64 no other client of this test run has, for the limits that count
+	 * an IPv6 address by its /64.
+	 * @return its first 64 bits and {@code ::}, from 2001:db8::/32, a range for
+	 * documentation, to which a host is added: {@code 2001:db8:1a2b:3c4d::} and {@code 7}
+	 */
+	public static String nextSlash64() {
+		int network = NETWORKS.getAndIncrement();
+		return "2001:db8:%x:%x::".formatted(network >>> BITS_PER_GROUP, network & GROUP_MASK);
 	}
 
 	/**

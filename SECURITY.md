@@ -104,11 +104,13 @@ server at `https://<host>/api/v1`.
   verified email and expire in at most 30 days, after which they are deleted within about an
   hour; a workspace always keeps an owner.
 - **Abuse and cost.** Counters in the database (shared by every instance) limit runs per hour
-  per workspace and per person, sign-in attempts and sandbox starts per address, and token, workspace,
-  invitation and calibration creation; over a limit the API answers **429** with
-  `Retry-After`. Each workspace kind has a profile: runs at once (enforced by the queue across
-  all workers, which also keeps workspaces fair), runs per hour, the largest run, the
-  calibration replay's wall clock (20 s) and, for sandboxes, the number of projects.
+  per workspace and per person, sign-in attempts and sandbox starts per address (an IPv6 address
+  counts by its /64, so the addresses of one /64 count once; a larger delegation counts once per
+  /64, [ADR-0106](docs/adr/0106-count-addresses-by-network-and-give-sandboxes-runs-a-budget.md)),
+  and token, workspace, invitation and calibration creation; over a limit the API answers
+  **429** with `Retry-After`. Each workspace kind has a profile: runs at once (enforced by the
+  queue across all workers, which also keeps workspaces fair), runs per hour, the largest run,
+  the calibration replay's wall clock (20 s) and, for sandboxes, the number of projects.
 - **Sandboxes for anonymous visitors (`ARCHSIM_SANDBOXES=true`, off by default).** Anyone on the
   internet may then try ArchSim without signing in
   ([ADR-0079](docs/adr/0079-let-visitors-try-archsim-in-a-sandbox-without-signing-in.md)):
@@ -117,13 +119,16 @@ server at `https://<host>/api/v1`.
   sandbox and everything in it. The start must carry the CSRF header matching the
   `__Host-archsim_csrf` cookie (which `GET /auth/config` sets), so another site cannot make a
   visitor's browser start one and so sign it out of its account; a browser signed in already is
-  refused. Each address starts at most 5 an hour (a rate limit, so not with
-  `ARCHSIM_RATE_LIMITS=false`), and the server keeps at most 500 guests (then
+  refused. Each address starts at most 5 an hour, and the server keeps at most 500 guests (then
   `503` until the first expires), so visitors cannot fill the database. A sandbox has its kind's
   limits (one run at once, 20 an hour, 200,000 requests and 20 s a run, five projects) and never
-  calls out to Prometheus. A guest cannot make team workspaces, API tokens, invitations or share
-  links, or accept an invitation: nothing a guest writes is published, and nothing outlives the
-  sandbox.
+  calls out to Prometheus. Sandboxes' runs also count against their address's 40 an hour and all
+  sandboxes' 300 an hour; these and the 5 starts an hour are rate limits, so not with
+  `ARCHSIM_RATE_LIMITS=false`. Workers take every other workspace's queued runs before a
+  sandbox's, though a run already started is never stopped: a signed-in person's run can wait for
+  a sandbox's run in progress, up to its 20 s. A guest cannot make team workspaces, API tokens,
+  invitations or share links, or accept an invitation: nothing a guest writes is published, and
+  nothing outlives the sandbox.
 - **Share links.** `/r/<slug>` pages are public to anyone with the link: the slug is 128
   random bits, and the page is a frozen copy of one run's report made when the link was
   created, without request traces and with telemetry addresses hidden: a calibration names its

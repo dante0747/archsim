@@ -8,6 +8,14 @@ for when that version changes.
 
 ## [Unreleased]
 
+### Security
+
+- **Limits per address count an IPv6 address by its /64, and sandboxes' runs have budgets of
+  their own** ([ADR-0106](docs/adr/0106-count-addresses-by-network-and-give-sandboxes-runs-a-budget.md),
+  proposed). An IPv4 address mapped into IPv6 counts as itself. Sandboxes' runs count against
+  their address's 40 an hour and all sandboxes' 300 an hour, and workers take every other
+  workspace's queued runs before a sandbox's.
+
 ## [1.5.0] - 2026-11-27
 
 Security fixes for a server other people can reach, and screens that lead with the answer. Results

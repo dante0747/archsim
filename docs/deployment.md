@@ -288,8 +288,8 @@ nc -zv -w 5 <server address> 5432                          # from elsewhere: ref
 
 Then sign in with GitHub with the email in `ARCHSIM_ADMIN_EMAILS`, open a template and simulate it.
 To see that rate limits count visitors and not the proxy, list the addresses the sign-in limit has
-counted, a few minutes after signing in at most (ended windows are cleared); yours should be there,
-not a `172.` address of Docker's:
+counted, a few minutes after signing in at most (ended windows are cleared); yours (over IPv6, its
+/64) should be there, not a `172.` address of Docker's:
 
 ```bash
 docker compose --env-file hosted.env exec backup psql -Atc "select key from rate_limits where key like 'ip:%'"
@@ -384,8 +384,9 @@ address, and the app links to it. A server from this kit stores:
 - **With sandboxes on** (`ARCHSIM_SANDBOXES=true`): a guest account with no name of its own and no
   email, its session's address and browser, and everything made in the sandbox, all deleted 24
   hours after the sandbox starts.
-- **Rate-limit counters by IP address** (sign-ins, sandbox starts and public share views), deleted
-  within a minute of the end of their window, which lasts an hour at most.
+- **Rate-limit counters by IP address**, an IPv6 address's /64 rather than the address (sign-ins,
+  sandbox starts, sandboxes' runs and public share views), deleted within a minute of the end of
+  their window, which lasts an hour at most.
 - **In the nightly backups:** all of the above as it was that night. The newest seven dumps are
   kept (`ARCHSIM_BACKUP_KEEP`), so whatever is deleted from the database, an expired sandbox
   included, stays in them for up to 7 days, and in any copies you keep elsewhere for as long as

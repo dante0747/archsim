@@ -12,11 +12,13 @@ import org.jspecify.annotations.Nullable;
 public record Visitor(@Nullable String ip, @Nullable String userAgent) {
 
 	/**
-	 * The visitor's address, as a limit per address counts it.
-	 * @return the address, or {@code unknown} when the request does not tell it
+	 * The visitor's address as a limit per address counts it: an IPv6 address by its /64,
+	 * the least a subscriber is given, so that the addresses of one /64 count once.
+	 * @return the IPv4 address or the IPv6 address's /64, or {@code unknown} when the
+	 * request does not tell it
 	 */
-	public String ipOrUnknown() {
-		return (this.ip != null) ? this.ip : "unknown";
+	public String countedAddress() {
+		return CountedAddress.of(this.ip);
 	}
 
 }
