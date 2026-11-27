@@ -31,6 +31,10 @@ for when that version changes.
 
 ### Fixed
 
+- **After signing in, the web app goes back only to a page of its own site.** The sign-in page
+  resolves the page to go back to as the browser will, and keeps it only when it stays on the
+  site, as the server already checks it.
+
 - **No label is cut short on the canvas or the timeline.** The chaos pads clipped their titles
   ("Lose Catalog…"); they have two columns and room for three lines. A part's card cut a label
   when its value was long ("Max connections per instan…"); the value now wraps under it. The Test
