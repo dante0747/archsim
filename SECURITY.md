@@ -99,7 +99,9 @@ server at `https://<host>/api/v1`.
 - **Authorization.** Every project and run belongs to a workspace; access needs a membership
   (`viewer` < `editor` < `owner`). Someone without a role in a workspace gets **404** for
   anything in it, exactly like something that does not exist, so ids reveal nothing; a role too
-  weak for an action gets 403. Opening a template only ever reuses your own unedited copy.
+  weak for an action gets 403. Runs of the same design share one stored copy of it, whatever
+  their workspaces; it is read only through a run, so only by members of that run's workspace.
+  Opening a template only ever reuses your own unedited copy.
   Invitations are single-use links (256-bit tokens stored as hashes) that can be bound to a
   verified email and expire in at most 30 days, after which they are deleted within about an
   hour; a workspace always keeps an owner.

@@ -150,4 +150,5 @@ what the repository shows.
 | [0106](0106-count-addresses-by-network-and-give-sandboxes-runs-a-budget.md) | Count addresses by network, and give sandboxes' runs a budget and the back of the queue | Proposed | 2026-11-27 |
 | [0107](0107-without-sign-in-answer-only-this-machines-own-clients.md) | Without sign-in, answer only this machine's own clients | Proposed | 2026-11-27 |
 | [0108](0108-bound-the-engines-routes-by-slots-per-person-limits-and-a-sandbox-body-cap.md) | Bound the engine's routes with slots, a limit per person and a sandbox body cap | Proposed | 2026-11-27 |
+| [0110](0110-store-a-runs-design-once-per-digest-and-delete-it-with-its-last-run.md) | Store a run's design once per digest, and delete it with its last run | Proposed | 2026-11-27 |
 | [0111](0111-prune-the-runs-past-a-projects-limit-and-expired-rows-every-hour.md) | Prune the runs past a project's limit, and the rows that expired, every hour | Proposed | 2026-11-27 |

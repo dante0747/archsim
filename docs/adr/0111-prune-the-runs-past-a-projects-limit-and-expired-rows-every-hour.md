@@ -27,7 +27,7 @@ once?
 - Personal data (a session's address and browser, an invitee's email, the addresses in the
   history) has an end that a privacy notice can state.
 - Several API instances prune at once: deletes are idempotent and short, and no instance waits
-  for another.
+  for the rows another is pruning.
 - No migration: the queries use the indexes there are.
 
 ## Considered Options
@@ -73,12 +73,14 @@ delete is a short transaction.
 - **The job.** `Pruning`, in the API role only, runs each feature's `Retention` when the API
   starts and every hour after (a fixed delay). A retention deletes in batches (100 runs or copies,
   1,000 of the smaller rows), each one statement, so a transaction of its own, which selects its
-  rows `FOR UPDATE SKIP LOCKED`: instances pruning at once share the rows, never wait for each
-  other, and find nothing the other deleted. A retention the database fails is logged and tried
-  again at the next prune; the others still run. Hourly, because nothing here is urgent and each
-  query is cheap: a project passes its limit by an hour's runs at most, and an expired row stays
-  an hour at most. The rate-limit counters and the sandboxes keep their minute: a guest's sandbox
-  must go on time, and the counters churn.
+  rows `FOR UPDATE SKIP LOCKED`: instances pruning at once share the rows rather than wait for
+  them, and find nothing the other deleted. A batch of runs still waits for a transaction that
+  holds one of their designs, until that transaction ends, as a design goes with its last run
+  ([ADR-0110](0110-store-a-runs-design-once-per-digest-and-delete-it-with-its-last-run.md)). A
+  retention the database fails is logged and tried again at the next prune; the others still run.
+  Hourly, because nothing here is urgent and each query is cheap: a project passes its limit by an
+  hour's runs at most, and an expired row stays an hour at most. The rate-limit counters and the
+  sandboxes keep their minute: a guest's sandbox must go on time, and the counters churn.
 - **No migration.** Sessions go through `ix_sessions_expires_at`; runs through
   `ix_runs_project_created`, `ix_simulation_runs_group_id`, `ix_review_signoffs_run_id` and
   `ix_comments_run_id`; the history through its primary key. Invitations and share links are small

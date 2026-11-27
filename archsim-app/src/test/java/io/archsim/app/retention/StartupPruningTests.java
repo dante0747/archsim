@@ -13,6 +13,7 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import io.archsim.app.ArchsimApplication;
 import io.archsim.app.Role;
 import io.archsim.app.database.TestDatabases;
+import io.archsim.app.support.StoredDesigns;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -100,10 +101,11 @@ class StartupPruningTests {
 				VALUES ('lab', 'default', 'Lab', '{}', '1.7', 1, now(), now())""").update();
 		this.seed.sql("""
 				INSERT INTO simulation_runs (id, project_id, workspace_id, status, progress, seed, engine_version,
-				                             input_document, created_at)
-				VALUES ('oldest', 'lab', 'default', 'succeeded', 1, 1, 'test', '{}', now() - interval '3 minutes'),
-				       ('middle', 'lab', 'default', 'succeeded', 1, 1, 'test', '{}', now() - interval '2 minutes'),
-				       ('newest', 'lab', 'default', 'succeeded', 1, 1, 'test', '{}', now() - interval '1 minute')""")
+				                             design_digest, created_at)
+				VALUES ('oldest', 'lab', 'default', 'succeeded', 1, 1, 'test', :design, now() - interval '3 minutes'),
+				       ('middle', 'lab', 'default', 'succeeded', 1, 1, 'test', :design, now() - interval '2 minutes'),
+				       ('newest', 'lab', 'default', 'succeeded', 1, 1, 'test', :design, now() - interval '1 minute')""")
+			.param("design", StoredDesigns.store(this.seed, "{}"))
 			.update();
 
 		try (ConfigurableApplicationContext api = startApi("--archsim.run-history-limit=2")) {

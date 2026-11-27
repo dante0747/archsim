@@ -23,6 +23,12 @@ for when that version changes.
   request that finds no slot free gets 503 with `Retry-After`. With the hosted limits on, each
   person may send the engine's routes 600 requests a minute, and a sandbox's guest sends bodies of
   up to 256 KB.
+- **A design is stored once, however many runs simulate it
+  ([ADR-0110](docs/adr/0110-store-a-runs-design-once-per-digest-and-delete-it-with-its-last-run.md),
+  proposed).** Each run stored a copy of its design, so the database grew with every run of the
+  same design. Runs now refer to one stored copy, which is deleted with the last run that refers to
+  it, however the runs are deleted. A migration moves the copies runs stored before, keeping one of
+  each; it rewrites the table of runs, so on a database with many runs the upgrade takes a while.
 
 ## [1.5.0] - 2026-11-27
 

@@ -12,6 +12,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import io.archsim.app.config.TestProperties;
 import io.archsim.app.database.TestDatabases;
+import io.archsim.app.support.StoredDesigns;
 
 /**
  * What the tests of pruning runs share: a database for each test, as a prune reaches
@@ -64,7 +65,7 @@ abstract class RunRetentionTestSupport {
 	}
 
 	/**
-	 * A run of a project that succeeded.
+	 * A run of a project that succeeded, of the one design these runs share.
 	 * @param projectId the project
 	 * @param minutesAgo how long ago it was queued
 	 * @return its id
@@ -74,24 +75,61 @@ abstract class RunRetentionTestSupport {
 	}
 
 	/**
-	 * A run of a project, as a worker leaves it.
+	 * A run of a project, as a worker leaves it, of the one design these runs share.
 	 * @param projectId the project
 	 * @param minutesAgo how long ago it was queued
 	 * @param status its status
 	 * @return its id
 	 */
 	String run(String projectId, int minutesAgo, String status) {
+		return run(projectId, minutesAgo, status, "{}");
+	}
+
+	private String run(String projectId, int minutesAgo, String status, String design) {
 		String id = newId();
 		this.jdbc.sql("""
 				INSERT INTO simulation_runs (id, project_id, workspace_id, status, progress, seed, engine_version,
-				                             input_document, created_at)
-				VALUES (:id, :project, 'default', :status, 1, 1, 'test', '{}', now() - make_interval(mins => :age))""")
+				                             design_digest, created_at)
+				VALUES (:id, :project, 'default', :status, 1, 1, 'test', :design,
+				        now() - make_interval(mins => :age))""")
 			.param("id", id)
 			.param("project", projectId)
 			.param("status", status)
+			.param("design", StoredDesigns.store(this.jdbc, design))
 			.param("age", minutesAgo)
 			.update();
 		return id;
+	}
+
+	/**
+	 * A run of a project that succeeded, of a design named as given.
+	 * @param projectId the project
+	 * @param minutesAgo how long ago it was queued
+	 * @param designName the design's name: runs of the same name simulate the same design
+	 * @return its id
+	 */
+	String runOfDesign(String projectId, int minutesAgo, String designName) {
+		return run(projectId, minutesAgo, "succeeded", "{\"metadata\": {\"name\": \"" + designName + "\"}}");
+	}
+
+	/**
+	 * The design a run simulates.
+	 * @param runId the run
+	 * @return the design's digest
+	 */
+	String designOf(String runId) {
+		return this.jdbc.sql("SELECT design_digest FROM simulation_runs WHERE id = :id")
+			.param("id", runId)
+			.query(String.class)
+			.single();
+	}
+
+	/**
+	 * The designs stored for runs.
+	 * @return their digests
+	 */
+	List<String> storedDesigns() {
+		return this.jdbc.sql("SELECT digest FROM run_designs").query((rows, number) -> rows.getString("digest")).list();
 	}
 
 	/**

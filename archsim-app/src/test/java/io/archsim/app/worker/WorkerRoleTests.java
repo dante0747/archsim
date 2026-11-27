@@ -87,7 +87,7 @@ class WorkerRoleTests {
 
 		assertThatException().isThrownBy(() -> startWorker(database))
 			.havingRootCause()
-			.withMessage("the database has no schema history yet, this worker needs V3; start the API first");
+			.withMessage("the database has no schema history yet, this worker needs V4; start the API first");
 	}
 
 	@Test

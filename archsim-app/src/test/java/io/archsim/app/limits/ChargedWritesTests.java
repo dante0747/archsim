@@ -17,6 +17,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 import io.archsim.app.support.HostedTestSupport;
+import io.archsim.app.support.StoredDesigns;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -131,12 +132,13 @@ class ChargedWritesTests extends HostedTestSupport {
 		String id = newId();
 		jdbc().sql("""
 				INSERT INTO simulation_runs (id, project_id, workspace_id, label, status, progress, seed,
-				                             engine_version, input_digest, result_digest, input_document, report,
+				                             engine_version, input_digest, result_digest, design_digest, report,
 				                             created_at)
 				SELECT :id, p.id, p.workspace_id, 'Baseline', 'succeeded', 1, 7, '1.6.0', 'in-digest', 'out-digest',
-				       p.document, CAST(:report AS jsonb), now()
+				       :design, CAST(:report AS jsonb), now()
 				FROM projects p WHERE p.id = :project""")
 			.param("id", id)
+			.param("design", StoredDesigns.storeProjectsDesign(jdbc(), projectId))
 			.param("report", "{\"reportVersion\": \"1.21\", \"summary\": {\"latencyP95Ms\": 120}}")
 			.param("project", projectId)
 			.update();

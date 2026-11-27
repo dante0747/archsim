@@ -12,7 +12,7 @@ import java.util.function.IntSupplier;
  * A retention deletes in batches ({@link #inBatches}), each one statement, so a
  * transaction of its own, which selects its rows {@code FOR UPDATE SKIP LOCKED}: it locks
  * them only while it runs, and leaves the rows another transaction holds to it, so API
- * instances pruning at once share the rows and never wait for each other.
+ * instances pruning at once share the rows rather than wait for them.
  */
 public interface Retention {
 

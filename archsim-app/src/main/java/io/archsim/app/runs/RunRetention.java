@@ -19,7 +19,10 @@ import io.archsim.app.retention.Retention;
 @Component
 class RunRetention implements Retention {
 
-	/** The most runs one statement deletes: each takes its design and report with it. */
+	/**
+	 * The most runs one statement deletes: each takes its report with it, and its design
+	 * when no other run simulates it.
+	 */
 	private static final int BATCH = 100;
 
 	private final RunRepository runs;

@@ -257,12 +257,16 @@ concurrency). Documents that are schema-valid but fail graph validation (for exa
 link) can be saved, so work in progress is never lost; they cannot be simulated until fixed.
 
 **`simulation_runs`** - status, progress, error, seed, engine version, input/result digests, a
-small denormalised `summary` for fast listing, timestamps, plus two large **deferred**
-columns: `input_document` (exactly what was submitted) and `report` (the full result). Deferred
-columns are not loaded when listing runs. The report is written once, when the run finishes.
-Deleting a project deletes its runs (`ON DELETE CASCADE`). Queue columns: `attempts`,
-`lease_owner`, `lease_expires_at`, `cancel_requested_at`, with an index on
-`(status, created_at)`.
+small denormalised `summary` for fast listing, timestamps, the `design_digest` of the design it
+simulates, plus one large **deferred** column, `report` (the full result), which is not loaded
+when listing runs. The report is written once, when the run finishes. Deleting a project deletes
+its runs (`ON DELETE CASCADE`). Queue columns: `attempts`, `lease_owner`, `lease_expires_at`,
+`cancel_requested_at`, with an index on `(status, created_at)`.
+
+**`run_designs`** - each design a run simulates, exactly as it was submitted, stored once under
+its `digest` (SHA-256 of its `jsonb` text) however many runs refer to it. A trigger deletes a
+design with the last run that refers to it, whatever deletes the runs
+([ADR-0110](adr/0110-store-a-runs-design-once-per-digest-and-delete-it-with-its-last-run.md)).
 
 **`job_workers`** - one row per worker: host, process id, slots, runs in flight, status
 (`running` or `draining`) and its latest heartbeat.

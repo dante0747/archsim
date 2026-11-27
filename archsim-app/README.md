@@ -111,7 +111,10 @@ After `V1`, `V2` adds `users.expires_at`: an account with an expiry is a sandbox
 the API deletes with its sandbox once it expires
 ([ADR-0079](../docs/adr/0079-let-visitors-try-archsim-in-a-sandbox-without-signing-in.md)). `V3`
 changes no schema: it hides the telemetry addresses that share links made before stored, as the
-API now hides them.
+API now hides them. `V4` stores each run's design once, in `run_designs` under its digest, instead
+of a copy in every run (`simulation_runs.input_document`, which it moves and drops); a trigger
+deletes a design with the last run that refers to it, however the runs are deleted
+([ADR-0110](../docs/adr/0110-store-a-runs-design-once-per-digest-and-delete-it-with-its-last-run.md)).
 
 SQL is written by hand with `JdbcClient`, in repositories only
 ([ADR-0008](../docs/adr/0008-jdbcclient-and-flyway.md)).
