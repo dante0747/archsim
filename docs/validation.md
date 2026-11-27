@@ -319,7 +319,7 @@ The notes below were written on 19 Nov 2026, for the runs up to then:
 ## The Java engine
 
 <!-- BEGIN GENERATED: java-engine -->
-Re-simulated, in-sample: on the inputs 0.16.0 derived (whole cores, no cost law, no host machine), engine 1.6.0 (Java) gives exactly 0.16.0's knees on all 65 calibrations the two engines were compared on; the predictions shown for the latest runs use its own inputs instead ([java-parity.md](validation/java-parity.md)).
+Re-simulated, in-sample: on the inputs 0.16.0 derived (whole cores, no cost law, no host machine), engine 1.6.1 (Java) gives exactly 0.16.0's knees on all 65 calibrations the two engines were compared on; the predictions shown for the latest runs use its own inputs instead ([java-parity.md](validation/java-parity.md)).
 <!-- END GENERATED: java-engine -->
 
 ## Reproduce

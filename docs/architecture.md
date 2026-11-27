@@ -79,7 +79,7 @@ API calls it directly, in the API's process, and since stage 4 simulates on it t
 calibration's replay runs on its `Simulator` through `ReplaySimulator.of`, on the API's pool of
 replay threads ([ADR-0054](adr/0054-replay-calibrations-on-a-pool-of-platform-threads.md)), and
 the worker role simulates the runs it claims
-([ADR-0053](adr/0053-simulate-runs-in-the-java-apps-worker-role.md)). It is engine 1.6.0: 1.0.0
+([ADR-0053](adr/0053-simulate-runs-in-the-java-apps-worker-role.md)). It is engine 1.6.1: 1.0.0
 replays the frozen engine 0.16.0's runs figure for figure
 ([java-parity.md](validation/java-parity.md)), 1.1.0 changes only how the cost counts
 autoscaled parts and prices the peak
@@ -100,10 +100,11 @@ as work on its cores
 ([ADR-0089](adr/0089-count-a-commits-log-flush-as-a-wait-in-the-instant-estimate.md)), 1.5.2
 spreads a cache's commands over every shard's cores in that estimate and counts a read-through
 cache's fills in its slots and CPU
-([ADR-0092](adr/0092-spread-a-caches-commands-over-its-shards-and-count-its-fills.md)), and 1.6.0
+([ADR-0092](adr/0092-spread-a-caches-commands-over-its-shards-and-count-its-fills.md)), 1.6.0
 counts the vCPUs of a service, database or cache as hyperthread pairs at 0.6 from schema 1.11
 unless the part, the design, its instance family or its platform says they are whole cores
-([ADR-0091](adr/0091-count-a-vcpu-as-a-hyperthread-unless-the-design-or-its-instance-family-says-otherwise.md)).
+([ADR-0091](adr/0091-count-a-vcpu-as-a-hyperthread-unless-the-design-or-its-instance-family-says-otherwise.md)),
+and 1.6.1 places evenly spaced arrivals where the offered rate has added up to one more request.
 
 That frozen engine was the Python package `archsim_engine` (`packages/engine`, on SimPy and
 Pydantic), frozen at 0.16.0 for the port

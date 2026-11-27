@@ -40,6 +40,13 @@ for when that version changes.
   current run now: a picker, "View" in the list of runs and a followed run that finishes all move
   it, for every view. Deleting the current run makes the newest run left the current one. A
   picker shows the run just picked while its results load.
+- **Evenly spaced arrivals follow a ramp or a trace from its start (engine 1.6.1).** With
+  `arrivalProcess: deterministic`, the gap to the next request was taken from the rate at the
+  last one, so a ramp from 0 to 100 req/s over 120 s sent no request at all, and a trace from 0
+  up to 100 req/s and back sent half its requests. Each request now falls where the rate has
+  added up to one more, so every pattern sends the requests its rate adds up to; evenly spaced
+  requests around a burst's edges move too. Constant rates and Poisson arrivals give the same
+  results as before.
 
 ## [1.6.0] - 2026-11-27
 

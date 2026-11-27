@@ -117,7 +117,7 @@ class EnginesTests {
 		List<JsonNode> engines = COMMITTED.entries();
 
 		assertThat(engines).extracting((engine) -> engine.get("version").stringValue())
-			.containsExactly("0.14.0", "0.16.0", "1.5.2", EngineVersions.ENGINE);
+			.containsExactly("0.14.0", "0.16.0", "1.5.2", "1.6.0", EngineVersions.ENGINE);
 		assertThat(engines).allSatisfy((engine) -> assertThat(engine.propertyNames()).contains("version", "engineTree",
 				"frozenAt", "tag", "tunedOn"));
 	}
