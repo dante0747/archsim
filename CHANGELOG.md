@@ -29,6 +29,13 @@ for when that version changes.
   same design. Runs now refer to one stored copy, which is deleted with the last run that refers to
   it, however the runs are deleted. A migration moves the copies runs stored before, keeping one of
   each; it rewrites the table of runs, so on a database with many runs the upgrade takes a while.
+- **Each workspace has a project cap and a quota of stored bytes
+  ([ADR-0109](docs/adr/0109-give-each-workspace-a-project-cap-and-a-quota-of-stored-bytes.md), proposed).**
+  A sandbox stores 10 MB; with the hosted limits a personal workspace holds 100 projects and stores
+  100 MB, and a team 500 projects and 250 MB, counting its projects' designs, the designs its runs
+  simulate (each once), its runs' reports and its share links' copies. A workspace at its quota
+  gets 409 for a new project, design, run or share link until something is deleted. The editor
+  titles a refused save "Changed elsewhere" only when another save got there first.
 
 ## [1.5.0] - 2026-11-27
 

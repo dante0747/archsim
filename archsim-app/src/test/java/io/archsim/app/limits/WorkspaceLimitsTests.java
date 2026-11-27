@@ -43,8 +43,38 @@ class WorkspaceLimitsTests {
 	}
 
 	@Test
-	void maxProjects_personal_isNone() {
-		assertThat(this.hosted.maxProjects("personal")).isEmpty();
+	void maxProjects_personalWithLimitsOn_isAHundred() {
+		assertThat(this.hosted.maxProjects("personal")).hasValue(100);
+	}
+
+	@Test
+	void maxProjects_teamWithLimitsOn_isFiveHundred() {
+		assertThat(this.hosted.maxProjects("team")).hasValue(500);
+	}
+
+	@Test
+	void maxProjects_personalWithoutLimits_isNone() {
+		assertThat(this.local.maxProjects("personal")).isEmpty();
+	}
+
+	@Test
+	void maxStoredBytes_sandboxWithoutLimits_isTenMegabytes() {
+		assertThat(this.local.maxStoredBytes("sandbox")).hasValue(10_000_000);
+	}
+
+	@Test
+	void maxStoredBytes_personalWithLimitsOn_isAHundredMegabytes() {
+		assertThat(this.hosted.maxStoredBytes("personal")).hasValue(100_000_000);
+	}
+
+	@Test
+	void maxStoredBytes_teamWithLimitsOn_isTwoHundredAndFiftyMegabytes() {
+		assertThat(this.hosted.maxStoredBytes("team")).hasValue(250_000_000);
+	}
+
+	@Test
+	void maxStoredBytes_teamWithoutLimits_isNone() {
+		assertThat(this.local.maxStoredBytes("team")).isEmpty();
 	}
 
 	@Test

@@ -22,6 +22,16 @@ abstract class ShareTestSupport extends HostedTestSupport {
 	 * @return the project's id
 	 */
 	String project(SignedIn owner) {
+		return project(owner, owner.workspaceId());
+	}
+
+	/**
+	 * A project in a workspace of its maker's.
+	 * @param owner who makes it
+	 * @param workspaceId the workspace it is in
+	 * @return the project's id
+	 */
+	String project(SignedIn owner, String workspaceId) {
 		String id = newId();
 		this.jdbc()
 			.sql("""
@@ -29,7 +39,7 @@ abstract class ShareTestSupport extends HostedTestSupport {
 					                      created_at, updated_at)
 					VALUES (:id, :workspace, :user, 'Shop', CAST(:document AS jsonb), '1.7', 1, now(), now())""")
 			.param("id", id)
-			.param("workspace", owner.workspaceId())
+			.param("workspace", workspaceId)
 			.param("user", owner.userId())
 			.param("document", DOCUMENT)
 			.update();

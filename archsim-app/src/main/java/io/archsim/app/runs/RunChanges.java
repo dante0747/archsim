@@ -36,7 +36,8 @@ class RunChanges {
 	 * @param principal who asks
 	 * @param runId the run to reproduce
 	 * @return the new run, naming the one it reproduces
-	 * @throws ApiException {@code 429} over the hourly limits
+	 * @throws ApiException {@code 409} when the workspace stores its quota or more,
+	 * {@code 429} over the hourly limits
 	 */
 	RunView rerun(Principal principal, String runId) {
 		StoredRun original = this.runs.require(principal, runId, WorkspaceRole.EDITOR);

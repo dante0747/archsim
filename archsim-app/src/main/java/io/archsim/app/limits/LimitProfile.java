@@ -15,10 +15,12 @@ import org.jspecify.annotations.Nullable;
  * @param calibrateWallSeconds wall-clock seconds of the replay inside
  * {@code POST /calibrate}, which answers while the request waits
  * @param maxProjects projects the workspace holds
+ * @param maxStoredBytes bytes the workspace stores: its projects' designs, its runs'
+ * designs and reports, and its share links' copies (ADR-0109)
  * @param maxSeeds runs in one seed group
  */
 public record LimitProfile(@Nullable Integer maxConcurrentRuns, @Nullable Integer runsPerHour,
 		@Nullable Long maxRequests, @Nullable Double maxWallSeconds, @Nullable Double calibrateWallSeconds,
-		@Nullable Integer maxProjects, int maxSeeds) {
+		@Nullable Integer maxProjects, @Nullable Long maxStoredBytes, int maxSeeds) {
 
 }

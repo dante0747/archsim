@@ -34,8 +34,9 @@ class SeedGroups {
 	 * @param start the design prepared with its own seed, the group's base
 	 * @param request how many seeds, and the label and mode
 	 * @return the group's first run
-	 * @throws ApiException {@code 422} when the group is bigger than the workspace runs
-	 * or its seeds go past the largest
+	 * @throws ApiException {@code 409} when the workspace stores its quota or more,
+	 * {@code 422} when the group is bigger than the workspace runs or its seeds go past
+	 * the largest, {@code 429} over the hourly limits
 	 */
 	RunView start(Principal principal, RunStart start, RunCreate request) {
 		RunPlanner.Plan plan = start.plan();

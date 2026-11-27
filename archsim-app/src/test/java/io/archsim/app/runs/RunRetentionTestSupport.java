@@ -8,9 +8,7 @@ import javax.sql.DataSource;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
-import tools.jackson.databind.json.JsonMapper;
 
-import io.archsim.app.config.TestProperties;
 import io.archsim.app.database.TestDatabases;
 import io.archsim.app.support.StoredDesigns;
 
@@ -32,8 +30,7 @@ abstract class RunRetentionTestSupport {
 
 	private final JdbcClient jdbc = JdbcClient.create(new DriverManagerDataSource(this.database));
 
-	private final RunRetention retention = new RunRetention(new RunRepository(this.jdbc, JsonMapper.builder().build()),
-			new RunGroupRepository(this.jdbc), TestProperties.with("run-history-limit=" + KEPT));
+	private final RunRetention retention = RunPrunes.retention(this.jdbc, KEPT);
 
 	RunRetention retention() {
 		return this.retention;

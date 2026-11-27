@@ -196,8 +196,14 @@ keep all 500 places taken for a day: the limits bound what that costs, and signi
   heap holds), calibrations one per replay thread, and other routes with a body 32. Others wait a
   second, then get 503 with `Retry-After`. The replay pool's queue holds as many replays as it has
   threads, for a replay that outlives its request. With the hosted limits each person may send the
-  engine's routes 600 requests a minute (ADR-0108). Documents are limited to 200 nodes,
-  1,000 edges and 50 scenarios. Every simulation is
+  engine's routes 600 requests a minute (ADR-0108). With the hosted limits a personal workspace
+  holds at most 100 projects and stores 100 MB, a team 500 projects and 250 MB, and a sandbox
+  (always) 5 projects and 10 MB: its designs, the designs its runs simulate (each once), its runs'
+  reports and its share links' copies. A workspace at its quota takes no new project, design, run
+  or share link until something is deleted. The quota is checked before each write, with the
+  workspace locked, so a workspace can pass it only by the one write that found it below its quota
+  (about 5 MB at most) and by the reports of runs it had queued (ADR-0109). Documents are limited
+  to 200 nodes, 1,000 edges and 50 scenarios. Every simulation is
   bounded by an expected-request limit (`ARCHSIM_MAX_REQUESTS`, default 2,000,000) checked
   before the run starts and a wall-clock limit (`ARCHSIM_MAX_WALL_SECONDS`, default 300 s)
   checked while it runs, then enforced 30 s later by failing the run. Retries are capped at 5

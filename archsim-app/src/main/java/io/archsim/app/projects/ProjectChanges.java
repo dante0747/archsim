@@ -44,8 +44,8 @@ class ProjectChanges {
 	 * @param project the project to make
 	 * @param principal who makes it
 	 * @return the project
-	 * @throws io.archsim.app.web.ApiException {@code 409} when its workspace holds as
-	 * many projects as it may
+	 * @throws ApiException {@code 409} when its workspace holds as many projects as it
+	 * may, or stores its quota or more
 	 */
 	@Transactional(propagation = Propagation.MANDATORY)
 	Project create(NewProject project, Principal principal) {
@@ -54,6 +54,22 @@ class ProjectChanges {
 		this.projects.insert(made);
 		this.audit.project("project.create", target(made), meta("fromExample", made.sourceExample()), principal);
 		return made;
+	}
+
+	/**
+	 * Saves a project's next revision with a design the save sends, which needs room in
+	 * the workspace's quota whatever its size (ADR-0109).
+	 * @param project the project as stored
+	 * @param revision what the revision saves
+	 * @param principal who saves it
+	 * @return the project as saved
+	 * @throws ApiException {@code 409} when the workspace stores its quota or more, or
+	 * when another save got there first
+	 */
+	@Transactional(propagation = Propagation.MANDATORY)
+	Project updateDesign(Project project, Revision revision, Principal principal) {
+		this.room.checkDesign(project.workspaceId());
+		return update(project, revision, principal);
 	}
 
 	/**

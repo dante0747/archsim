@@ -65,4 +65,19 @@ class ProjectRacesTests extends ProjectTestSupport {
 		});
 	}
 
+	@Test
+	void checkDesign_withinATransaction_locksTheWorkspaceUntilItEnds() {
+		workspace("locked2", "sandbox", "owner");
+		JdbcClient other = JdbcClient.create(new DriverManagerDataSource(DATABASE));
+
+		this.transactions.executeWithoutResult((status) -> {
+			this.room.checkDesign("locked2");
+
+			assertThatExceptionOfType(DataAccessException.class)
+				.isThrownBy(() -> other.sql("SELECT id FROM workspaces WHERE id = 'locked2' FOR UPDATE NOWAIT")
+					.query((rows, number) -> rows.getString(1))
+					.list());
+		});
+	}
+
 }

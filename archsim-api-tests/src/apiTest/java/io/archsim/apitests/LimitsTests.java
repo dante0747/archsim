@@ -13,7 +13,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Limits: 429 with Retry-After, workspace profiles, project quotas, calling Prometheus
  * only where allowed, and the API's security headers. From
- * {@code services/api/tests/test_api_limits.py}.
+ * {@code services/api/tests/test_api_limits.py}; the quota of stored bytes (ADR-0109) is
+ * the Java API's own.
  *
  * <p>
  * The hosted server has a hosted server's limits; each person signed in is new, with a
@@ -36,6 +37,16 @@ class LimitsTests {
 	/** One histogram query, so calibrating has to call the server. */
 	private static final String MAPPING = "nodes: {api: {serviceTimeMs: "
 			+ "{histogram: 'sum by (le) (rate(x_bucket[1m]))', unit: s}}}";
+
+	/** What a sandbox that stores its quota answers a write that would store more. */
+	private static final String FULL_SANDBOX = "This workspace stores as much as it may (10 MB): "
+			+ "delete runs, projects or share links first.";
+
+	/**
+	 * A sandbox's quota, 10 MB, in MD5s of 32 hex characters, which PostgreSQL cannot
+	 * compress.
+	 */
+	private static final int SANDBOX_QUOTA_IN_MD5S = 10_000_000 / 32 + 1;
 
 	// -- 429 on enqueue
 
@@ -166,6 +177,33 @@ class LimitsTests {
 		assertThat(response.message()).contains("at most 5 projects");
 	}
 
+	@Test
+	void createProject_inSandboxStoringItsQuota_isConflict(ApiServer server) {
+		ApiClient ada = server.signedIn("ada");
+		String sandbox = Workspaces.insert(server.db(), "sandbox", Workspaces.userId(ada));
+		fill(server.db(), Json.id(Runs.createProject(ada, sandbox, Examples.starter())));
+
+		ApiResponse response = ada.post(ApiClient.query("/projects", "workspace", sandbox),
+				Json.object("document", Examples.starter()));
+
+		assertThat(response.status()).as(response.text()).isEqualTo(409);
+		assertThat(response.message()).isEqualTo(FULL_SANDBOX);
+	}
+
+	@Test
+	void startRun_inSandboxStoringItsQuota_isConflict(ApiServer server) {
+		ApiClient ada = server.signedIn("ada");
+		String sandbox = Workspaces.insert(server.db(), "sandbox", Workspaces.userId(ada));
+		String stored = Json.id(Runs.createProject(ada, sandbox, Examples.starter()));
+		String project = Json.id(Runs.createProject(ada, sandbox, Examples.starter(4, 1)));
+		fill(server.db(), stored);
+
+		ApiResponse response = ada.post("/projects/" + project + "/runs", Json.object());
+
+		assertThat(response.status()).as(response.text()).isEqualTo(409);
+		assertThat(response.message()).isEqualTo(FULL_SANDBOX);
+	}
+
 	// -- calling Prometheus
 
 	@Test
@@ -253,6 +291,16 @@ class LimitsTests {
 			throw new IllegalArgumentException(column);
 		}
 		db.update("UPDATE workspaces SET " + column + " = ? WHERE id = ?", value, workspace);
+	}
+
+	/**
+	 * Pads a project's design (the test's own) until it alone stores a sandbox's quota.
+	 */
+	private static void fill(Db db, String project) {
+		db.update(
+				"UPDATE projects SET document = jsonb_set(document, '{metadata,padding}', to_jsonb("
+						+ "(SELECT string_agg(md5(random()::text), '') FROM generate_series(1, ?)))) WHERE id = ?",
+				SANDBOX_QUOTA_IN_MD5S, project);
 	}
 
 	/** A run's stored limits, {@code max_requests} and {@code max_wall_seconds}. */

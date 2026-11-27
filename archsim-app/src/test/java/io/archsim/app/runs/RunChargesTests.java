@@ -11,6 +11,7 @@ import org.springframework.test.context.TestPropertySource;
 import io.archsim.app.access.Principal;
 import io.archsim.app.limits.RateLimit;
 import io.archsim.app.limits.RateLimits.Charge;
+import io.archsim.app.support.FullWorkspaces;
 import io.archsim.app.support.UsedUpLimits;
 import io.archsim.app.workspaces.WorkspaceInfo;
 import io.archsim.engine.run.SimulationLimitException;
@@ -178,6 +179,30 @@ class RunChargesTests extends RunTestSupport {
 		prepares(42, null, true);
 
 		assertThat(start(project, "{\"seeds\": 3}")).hasStatus(202);
+	}
+
+	@Test
+	void create_inASandboxStoringItsQuota_isNotCountedAgainstTheHour() {
+		prepares(42, null, true);
+		String project = project("sandbox", "owner");
+		runsPerHour(project, 1);
+		FullWorkspaces.fillSandbox(jdbc(), project);
+		assertThat(start(project, "{}")).hasStatus(409);
+		FullWorkspaces.removePadding(jdbc(), project);
+
+		assertThat(start(project, "{}")).hasStatus(202);
+	}
+
+	@Test
+	void create_seedGroupInASandboxStoringItsQuota_isNotCountedAgainstTheHour() {
+		prepares(42, null, true);
+		String project = project("sandbox", "owner");
+		runsPerHour(project, 2);
+		FullWorkspaces.fillSandbox(jdbc(), project);
+		assertThat(start(project, "{\"seeds\": 2}")).hasStatus(409);
+		FullWorkspaces.removePadding(jdbc(), project);
+
+		assertThat(start(project, "{\"seeds\": 2}")).hasStatus(202);
 	}
 
 }

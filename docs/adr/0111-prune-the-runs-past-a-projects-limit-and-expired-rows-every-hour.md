@@ -101,7 +101,8 @@ delete is a short transaction.
   shorten the list loses its older runs at the first prune after the upgrade, which the
   changelog says.
 - Bad, because the runs a review refers to still have no ceiling: a project whose every run has a
-  comment keeps them all. The workspace's storage quota, another change, bounds them.
+  comment keeps them all. The workspace's quota of stored bytes
+  ([ADR-0109](0109-give-each-workspace-a-project-cap-and-a-quota-of-stored-bytes.md)) bounds them.
 - Bad, because the first prune after the upgrade may delete many rows. The batches keep each
   transaction short; the nightly dumps keep what it deleted for seven days. Spring runs every
   fixed-delay task on one scheduler thread, so the minute prunes of the rate-limit counters and

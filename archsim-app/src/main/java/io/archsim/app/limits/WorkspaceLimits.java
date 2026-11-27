@@ -2,6 +2,7 @@ package io.archsim.app.limits;
 
 import java.util.Map;
 import java.util.OptionalInt;
+import java.util.OptionalLong;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,9 @@ public class WorkspaceLimits {
 	/** The kind of workspace a visitor tries ArchSim in. */
 	public static final String SANDBOX = "sandbox";
 
+	/** A megabyte, as the limits on stored bytes count it. */
+	static final long MEGABYTE = 1_000_000;
+
 	/** The kind of workspace each person has. */
 	private static final String PERSONAL = "personal";
 
@@ -33,22 +37,24 @@ public class WorkspaceLimits {
 	private static final double CALIBRATE_SECONDS = 20.0;
 
 	/** No limits beyond the server's own (local use), and ten seeds a group. */
-	private static final LimitProfile UNLIMITED = new LimitProfile(null, null, null, null, null, null, 10);
+	private static final LimitProfile UNLIMITED = new LimitProfile(null, null, null, null, null, null, null, 10);
 
 	/**
 	 * A sandbox's limits, with or without the hosted ones: one run at once, 20 an hour,
-	 * at most 200,000 requests and 20 seconds a run, five projects.
+	 * at most 200,000 requests and 20 seconds a run, five projects, 10 MB stored.
 	 */
-	private static final LimitProfile SANDBOXED = new LimitProfile(1, 20, 200_000L, 20.0, CALIBRATE_SECONDS, 5, SEEDS);
+	private static final LimitProfile SANDBOXED = new LimitProfile(1, 20, 200_000L, 20.0, CALIBRATE_SECONDS, 5,
+			10 * MEGABYTE, SEEDS);
 
 	/**
-	 * A personal workspace's hosted limits, and those of a kind the API does not know.
+	 * A personal workspace's hosted limits, and those of a kind the API does not know:
+	 * 100 projects and 100 MB stored.
 	 */
-	private static final LimitProfile HOSTED_PERSONAL = hosted(2, 60);
+	private static final LimitProfile HOSTED_PERSONAL = hosted(2, 60, 100, 100 * MEGABYTE);
 
-	/** The hosted profile of each kind. */
-	private static final Map<String, LimitProfile> HOSTED = Map.of(PERSONAL, HOSTED_PERSONAL, TEAM, hosted(4, 300),
-			SANDBOX, SANDBOXED);
+	/** The hosted profile of each kind; a team holds 500 projects and stores 250 MB. */
+	private static final Map<String, LimitProfile> HOSTED = Map.of(PERSONAL, HOSTED_PERSONAL, TEAM,
+			hosted(4, 300, 500, 250 * MEGABYTE), SANDBOX, SANDBOXED);
 
 	private final ArchsimProperties properties;
 
@@ -80,6 +86,16 @@ public class WorkspaceLimits {
 	 */
 	public OptionalInt maxProjects(String kind) {
 		return optional(profile(kind).maxProjects());
+	}
+
+	/**
+	 * The most bytes a workspace of a kind stores (ADR-0109).
+	 * @param kind the workspace's kind
+	 * @return the quota, or empty when there is none
+	 */
+	public OptionalLong maxStoredBytes(String kind) {
+		Long quota = profile(kind).maxStoredBytes();
+		return (quota != null) ? OptionalLong.of(quota) : OptionalLong.empty();
 	}
 
 	/**
@@ -156,14 +172,16 @@ public class WorkspaceLimits {
 	}
 
 	/**
-	 * A personal or team workspace's hosted limits: runs at once and per hour; the
-	 * server's own run sizes, any number of projects.
+	 * A personal or team workspace's hosted limits: runs at once and per hour, projects
+	 * and stored bytes; the server's own run sizes.
 	 * @param atOnce runs simulated at once
 	 * @param perHour runs started per hour
+	 * @param projects projects held
+	 * @param storedBytes bytes stored
 	 * @return the profile
 	 */
-	private static LimitProfile hosted(int atOnce, int perHour) {
-		return new LimitProfile(atOnce, perHour, null, null, CALIBRATE_SECONDS, null, SEEDS);
+	private static LimitProfile hosted(int atOnce, int perHour, int projects, long storedBytes) {
+		return new LimitProfile(atOnce, perHour, null, null, CALIBRATE_SECONDS, projects, storedBytes, SEEDS);
 	}
 
 	private static OptionalInt optional(@Nullable Integer limit) {

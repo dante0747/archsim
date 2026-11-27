@@ -38,8 +38,9 @@ class Batches {
 	 * @param projectId the project
 	 * @param request the scenarios, and the design if not the saved one
 	 * @return the runs, in the scenarios' order
-	 * @throws ApiException {@code 422} naming a scenario that cannot be simulated, before
-	 * any is queued
+	 * @throws ApiException {@code 409} when the workspace stores its quota or more,
+	 * {@code 422} naming a scenario that cannot be simulated, before any is queued,
+	 * {@code 429} over the hourly limits
 	 */
 	List<RunView> start(Principal principal, String projectId, BatchRunCreate request) {
 		ProjectDesign project = this.projects.design(principal, projectId, WorkspaceRole.EDITOR);

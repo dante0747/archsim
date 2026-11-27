@@ -79,7 +79,9 @@ once, and no way of deleting runs, today's or a later one, can leave a design be
 - Good, because a run's design reads as the same JSON as before, so the API, reruns, share links
   and the worker are unchanged.
 - Neutral, because one stored design can be shared by runs in several workspaces: it is read only
-  through a run, which its workspace's membership guards, as before.
+  through a run, which its workspace's membership guards, as before, and each of those workspaces'
+  quotas counts it in full
+  ([ADR-0109](0109-give-each-workspace-a-project-cap-and-a-quota-of-stored-bytes.md)).
 - Bad, because a delete on `simulation_runs` does more than its SQL says, where
   [ADR-0008](0008-jdbcclient-and-flyway.md) wants what runs to be what the code says. The trigger
   is written in the migration, and `RunRepository` says what it does.

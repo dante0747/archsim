@@ -25,6 +25,15 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Whether a save lost to one made elsewhere, which reloading resolves. A save can be refused with 409 for
+ * other reasons too (a workspace that stores its quota), and the API's error body carries no reason code,
+ * so this reads the revision conflict's own message.
+ */
+export function isRevisionConflict(e: unknown): boolean {
+  return e instanceof ApiError && e.status === 409 && e.message.startsWith("Project was modified elsewhere");
+}
+
 const BASE = "/api/v1";
 
 /** One API call: JSON in and out, the current workspace attached; errors become ApiError. */

@@ -323,6 +323,10 @@ schema Flyway builds with the one Alembic built at its revision 0008 (`parity/sc
   at once. Another request gets `503` with `Retry-After`. With the hosted limits on, a person may
   send the engine's routes 600 requests a minute, and a sandbox's guest sends bodies of up to
   256 KB (ADR-0108). The Python API answered every request at once.
+- Each workspace has a quota of stored bytes (a sandbox 10 MB; with the hosted limits a personal
+  workspace 100 MB and a team 250 MB) and, with the hosted limits, a project cap (100 and 500); a
+  workspace at its quota gets `409` for a new project, design, run or share link, checked with the
+  workspace locked (ADR-0109). The Python API capped only a sandbox's projects.
 - The API, not the worker, deletes the rate-limit counters of windows that ended (`rate_limits`),
   when it starts and every minute after; the Python worker's reaper did it every reap.
 - When it starts and every hour after, the API deletes the runs past a project's

@@ -40,8 +40,9 @@ class RunStarts {
 	 * @param projectId the project
 	 * @param request what to run
 	 * @return the run, or the group's first run
-	 * @throws ApiException {@code 422} when the design cannot be simulated or the group
-	 * is too big, {@code 429} over the hourly limits
+	 * @throws ApiException {@code 409} when the workspace stores its quota or more,
+	 * {@code 422} when the design cannot be simulated or the group is too big,
+	 * {@code 429} over the hourly limits
 	 */
 	RunView create(Principal principal, String projectId, RunCreate request) {
 		RunStart start = prepare(principal, projectId, request);
