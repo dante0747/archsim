@@ -108,7 +108,9 @@ again with this version.
 
 After `V1`, `V2` adds `users.expires_at`: an account with an expiry is a sandbox's guest's, which
 the API deletes with its sandbox once it expires
-([ADR-0079](../docs/adr/0079-let-visitors-try-archsim-in-a-sandbox-without-signing-in.md)).
+([ADR-0079](../docs/adr/0079-let-visitors-try-archsim-in-a-sandbox-without-signing-in.md)). `V3`
+changes no schema: it hides the telemetry addresses that share links made before stored, as the
+API now hides them.
 
 SQL is written by hand with `JdbcClient`, in repositories only
 ([ADR-0008](../docs/adr/0008-jdbcclient-and-flyway.md)).

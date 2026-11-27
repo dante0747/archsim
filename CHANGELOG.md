@@ -31,6 +31,11 @@ for when that version changes.
 
 ### Fixed
 
+- **A share link hides a calibrated design's telemetry address wherever the design names it.** It
+  was hidden in the design's calibration only; it is now hidden in every measured input's
+  provenance and in the report's assumptions too, and links already made are rewritten by a
+  migration.
+
 - **No label is cut short on the canvas or the timeline.** The chaos pads clipped their titles
   ("Lose Catalog…"); they have two columns and room for three lines. A part's card cut a label
   when its value was long ("Max connections per instan…"); the value now wraps under it. The Test
