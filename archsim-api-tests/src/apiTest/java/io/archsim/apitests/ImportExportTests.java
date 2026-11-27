@@ -62,12 +62,13 @@ class ImportExportTests {
 	}
 
 	/**
-	 * A CPU figure of 10,000 digits, which Python's {@code float()} read as infinity: the
-	 * design comes back without the figure and with the issue it raised, as the Python
-	 * API answered, not with an error of the server's.
+	 * A CPU figure of 10,000 digits, which Python's {@code float()} reads as infinity:
+	 * the design comes back without the figure and with the issue it raises, not with an
+	 * error of the server's. The issue says the figure is not finite (ADR-0103), where
+	 * the Python API named the setting's bound.
 	 */
 	@Test
-	void import_cpuFigureOfTenThousandDigits_isNullWithTheLimitIssue(ApiClient client) {
+	void import_cpuFigureOfTenThousandDigits_isNullWithTheIssueThatItIsNotFinite(ApiClient client) {
 		String text = """
 				services:
 				  api:
@@ -84,7 +85,7 @@ class ImportExportTests {
 		JsonNode api = response.json().path("document").path("architecture").path("nodes").path(0);
 		assertThat(api.path("config").path("cpuCores")).isEqualTo(NullNode.getInstance());
 		assertThat(Json.strings(response.json().path("report").path("issues"), "message"))
-			.containsExactly("api: 'cpuCores' input should be less than or equal to 512");
+			.containsExactly("api: 'cpuCores' input should be a finite number");
 	}
 
 	@Test
