@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.app.config.TestProperties;
 import io.archsim.engine.simulation.SimulationLimits;
 import io.archsim.engine.simulator.RunRequest;
 import io.archsim.engine.simulator.Simulator;
@@ -28,7 +29,7 @@ class ReplayConfigurationTests {
 		ObjectNode report = JsonNodeFactory.instance.objectNode().put("replayed", true);
 		given(simulator.run(DESIGN, RunRequest.of(null).withLimits(LIMITS))).willReturn(report);
 
-		try (ReplayPool replay = new ReplayConfiguration().replaySimulator(simulator)) {
+		try (ReplayPool replay = new ReplayConfiguration().replaySimulator(simulator, TestProperties.with())) {
 			assertThat(replay.simulate(DESIGN, LIMITS)).isSameAs(report);
 		}
 	}

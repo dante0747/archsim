@@ -7,8 +7,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.Timeout.ThreadMode;
 import org.springframework.http.HttpStatus;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.JsonNodeFactory;
@@ -21,10 +21,12 @@ import io.archsim.model.issue.Issue;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.awaitility.Awaitility.await;
 
 /**
  * A calibration's replays on platform threads of their own (ADR-0054): never on the
- * virtual thread of the request that asks, its failures in their own words.
+ * virtual thread of the request that asks, its failures in their own words, and no more
+ * waiting for a thread than there are threads (ADR-0108).
  */
 class ReplayPoolTests {
 
@@ -104,10 +106,32 @@ class ReplayPoolTests {
 		assertThat(interrupted.get()).isTrue();
 	}
 
-	@ParameterizedTest
-	@CsvSource({ "8, 7", "2, 1", "1, 1" })
-	void threadsFor_processors_isOneLessButAtLeastOne(int processors, int threads) {
-		assertThat(ReplayPool.threadsFor(processors)).isEqualTo(threads);
+	@Test
+	@Timeout(value = 20, threadMode = ThreadMode.SEPARATE_THREAD)
+	void simulate_everyThreadBusyAndAsManyReplaysWaiting_isRefusedWithRetryAfter() throws InterruptedException {
+		CountDownLatch started = new CountDownLatch(1);
+		CountDownLatch done = new CountDownLatch(1);
+
+		try (ReplayPool pool = new ReplayPool((document, limits) -> {
+			started.countDown();
+			return waitFor(done);
+		}, 1)) {
+			Thread.ofVirtual().start(() -> pool.simulate(DESIGN, null));
+			assertThat(started.await(A_WHILE.toSeconds(), TimeUnit.SECONDS)).isTrue();
+			Thread waiting = Thread.ofVirtual().start(() -> pool.simulate(DESIGN, null));
+			await().atMost(A_WHILE).until(() -> waiting.getState() == Thread.State.WAITING);
+			try {
+				assertThatExceptionOfType(ApiException.class).isThrownBy(() -> pool.simulate(DESIGN, null))
+					.satisfies((ex) -> {
+						assertThat(ex.status()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+						assertThat(ex.headers().getFirst("Retry-After")).isEqualTo("10");
+					})
+					.withMessage("The server is replaying other calibrations: calibrate again in a moment");
+			}
+			finally {
+				done.countDown();
+			}
+		}
 	}
 
 	private static JsonNode waitFor(CountDownLatch latch) {

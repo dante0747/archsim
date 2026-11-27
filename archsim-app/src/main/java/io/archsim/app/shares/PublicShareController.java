@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import io.archsim.app.access.Principal;
 import io.archsim.app.access.RequestedWorkspace;
 import io.archsim.app.access.Visitor;
+import io.archsim.app.limits.EngineRoute;
 import io.archsim.app.projects.ProjectView;
 import io.archsim.app.web.ApiBody;
 import io.archsim.app.web.QueryParameters;
@@ -69,6 +70,7 @@ class PublicShareController {
 	 * @return {@code 201} with the project
 	 */
 	@PostMapping("/projects/from-share")
+	@EngineRoute
 	ResponseEntity<ProjectView> copy(Principal principal, @ApiBody CopyFromShare request,
 			RequestedWorkspace workspace) {
 		return ResponseEntity.status(HttpStatus.CREATED).body(this.copies.copy(principal, workspace, request));

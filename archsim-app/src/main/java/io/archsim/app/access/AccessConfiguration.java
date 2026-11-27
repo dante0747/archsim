@@ -16,19 +16,20 @@ import io.archsim.app.config.ArchsimProperties;
 /**
  * Lets a controller take the request's {@link Principal}, {@link Visitor} and
  * {@link RequestedWorkspace} as parameters, and gives code outside Spring MVC the same
- * {@link Visitors}.
+ * {@link Visitors} and {@link Principals}.
  */
 @Configuration(proxyBeanMethods = false)
 class AccessConfiguration implements WebMvcConfigurer {
 
 	private final Visitors visitors;
 
-	private final SecurityContextHolderStrategy contexts;
+	private final Principals principals;
 
 	AccessConfiguration(ArchsimProperties properties, ObjectProvider<Clock> clock,
 			ObjectProvider<SecurityContextHolderStrategy> contexts) {
 		this.visitors = new Visitors(properties, clock.getIfAvailable(Clock::systemUTC));
-		this.contexts = contexts.getIfAvailable(SecurityContextHolder::getContextHolderStrategy);
+		this.principals = new Principals(this.visitors.clientIps(),
+				contexts.getIfAvailable(SecurityContextHolder::getContextHolderStrategy));
 	}
 
 	/**
@@ -41,9 +42,19 @@ class AccessConfiguration implements WebMvcConfigurer {
 		return this.visitors;
 	}
 
+	/**
+	 * Who is asking, as the controllers' parameters read it, for what runs before them:
+	 * the request slots count a person's requests to the engine before the body is read.
+	 * @return the principals
+	 */
+	@Bean
+	Principals principals() {
+		return this.principals;
+	}
+
 	@Override
 	public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
-		resolvers.add(new PrincipalResolver(this.visitors.clientIps(), this.contexts));
+		resolvers.add(new PrincipalResolver(this.principals));
 		resolvers.add(new VisitorResolver(this.visitors));
 		resolvers.add(new RequestedWorkspaceResolver());
 	}

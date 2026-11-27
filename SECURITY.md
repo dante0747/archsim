@@ -188,7 +188,14 @@ keep all 500 places taken for a day: the limits bound what that costs, and signi
   of the Java port, and the Java API, workers, CLI and MCP server load none. Component types can
   never be uploaded through the API.
 - **Bounded resource use.** Each request body is capped (`ARCHSIM_MAX_BODY_BYTES`, default
-  5 MB). Documents are limited to 200 nodes, 1,000 edges and 50 scenarios. Every simulation is
+  5 MB; 256 KB from a sandbox's guest; 64 KB on routes that do not take a design). A request with
+  work holds a slot from before its body is read until it is answered. The routes that make the
+  engine work on a design answer `ARCHSIM_MAX_ENGINE_REQUESTS` at once (by default as many as the
+  heap holds), calibrations one per replay thread, and other routes with a body 32. Others wait a
+  second, then get 503 with `Retry-After`. The replay pool's queue holds as many replays as it has
+  threads, for a replay that outlives its request. With the hosted limits each person may send the
+  engine's routes 600 requests a minute (ADR-0108). Documents are limited to 200 nodes,
+  1,000 edges and 50 scenarios. Every simulation is
   bounded by an expected-request limit (`ARCHSIM_MAX_REQUESTS`, default 2,000,000) checked
   before the run starts and a wall-clock limit (`ARCHSIM_MAX_WALL_SECONDS`, default 300 s)
   checked while it runs, then enforced 30 s later by failing the run. Retries are capped at 5
@@ -225,13 +232,14 @@ keep all 500 places taken for a day: the limits bound what that costs, and signi
 - **Secrets.** The repository contains no credentials. `.env.example` documents variables
   only; never commit a real `.env`. The Docker Compose PostgreSQL password is a local
   development default and must be changed for any shared deployment.
-- **Request size.** Bodies larger than `ARCHSIM_MAX_BODY_BYTES` (default 5 MB) are rejected
-  with 413, and POST/PUT/PATCH requests with a chunked body but no `Content-Length` are
-  rejected with 411 so the limit cannot be bypassed. The hosting kit caps a body at the same size
-  before the API sees it, twice: Caddy refuses a larger one (`request_body`), and the web server's
-  proxy refuses one that states a larger length unread and stops reading one of no stated length
-  once it passes the limit (give it the API's `ARCHSIM_MAX_BODY_BYTES` if you change it). The
-  proxy waits at most five minutes for the API's answer, then answers 504.
+- **Request size.** Bodies larger than `ARCHSIM_MAX_BODY_BYTES` (default 5 MB), than 256 KB from
+  a sandbox's guest, or than 64 KB on a route that takes no design, are rejected with 413, and
+  POST/PUT/PATCH requests with a chunked body but no `Content-Length` are rejected with 411 so the
+  limit cannot be bypassed. The hosting kit caps a body at that default, 5 MB, before the API
+  sees it, twice: Caddy refuses a larger one (`request_body`), and the web server's proxy refuses
+  one that states a larger length unread and stops reading one of no stated length once it passes
+  the limit (give it the API's `ARCHSIM_MAX_BODY_BYTES` if you change it). The proxy waits at most
+  five minutes for the API's answer, then answers 504.
 - **No telemetry.** Neither the API nor the web app phones home. Next.js's own anonymous
   telemetry is switched off: the npm scripts run Next through `apps/web/scripts/run-next.mjs`,
   which sets `NEXT_TELEMETRY_DISABLED=1` unless you set it yourself, and the Docker image sets

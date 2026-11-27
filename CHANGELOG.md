@@ -15,6 +15,14 @@ for when that version changes.
   proposed). An IPv4 address mapped into IPv6 counts as itself. Sandboxes' runs count against
   their address's 40 an hour and all sandboxes' 300 an hour, and workers take every other
   workspace's queued runs before a sandbox's.
+- **The engine's routes answer a bounded number of requests at once
+  ([ADR-0108](docs/adr/0108-bound-the-engines-routes-by-slots-per-person-limits-and-a-sandbox-body-cap.md), proposed).**
+  Validating, analyzing, exporting, importing, saving, duplicating or copying a design, and starting
+  or rerunning runs share `ARCHSIM_MAX_ENGINE_REQUESTS` slots, by default sized from the API's heap,
+  and calibrations one per replay thread; other routes with a body take up to 64 KB, 32 at once. A
+  request that finds no slot free gets 503 with `Retry-After`. With the hosted limits on, each
+  person may send the engine's routes 600 requests a minute, and a sandbox's guest sends bodies of
+  up to 256 KB.
 
 ## [1.5.0] - 2026-11-27
 

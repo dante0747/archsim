@@ -7,6 +7,8 @@ import java.util.List;
 
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -25,6 +27,40 @@ class ArchsimPropertiesTests {
 		ArchsimProperties properties = TestProperties.with("max-concurrent-runs=3");
 
 		assertThat(properties.concurrentRuns()).isEqualTo(3);
+	}
+
+	@Test
+	void engineRequests_set_isTheSetting() {
+		ArchsimProperties properties = TestProperties.with("max-engine-requests=3");
+
+		assertThat(properties.engineRequests()).isEqualTo(3);
+	}
+
+	// the heaps as JDK 25 reports -Xmx512m and -Xmx1g with the serial collector, which a
+	// container of the hosting kit's size gets, then round sizes and a larger body cap
+	@ParameterizedTest
+	@CsvSource({ "518979584, 1, 5000000, 1", "1037959168, 3, 5000000, 3", "536870912, 1, 5000000, 1",
+			"2147483648, 3, 5000000, 12", "4294967296, 7, 5000000, 16", "268435456, 1, 5000000, 1",
+			"1073741824, 3, 50000000, 1" })
+	void engineRequestsFor_heapReplaysAndBodyCap_isWhatTheHeapHoldsWithinBounds(long heap, int replays, long body,
+			int requests) {
+		assertThat(ArchsimProperties.engineRequestsFor(heap, replays, body)).isEqualTo(requests);
+	}
+
+	// the kit (two cores), four or eight cores on its 512 MB or 1 GB heap, and a small
+	// heap
+	@ParameterizedTest
+	@CsvSource({ "518979584, 1, 5000000, 1", "518979584, 3, 5000000, 1", "1037959168, 3, 5000000, 3",
+			"1037959168, 7, 5000000, 5", "268435456, 3, 5000000, 1", "4294967296, 7, 5000000, 7" })
+	void replaySlotsFor_heapThreadsAndBodyCap_isWhatTheHeapHoldsUpToTheThreads(long heap, int threads, long body,
+			int slots) {
+		assertThat(ArchsimProperties.replaySlotsFor(heap, threads, body)).isEqualTo(slots);
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "8, 7", "2, 1", "1, 1" })
+	void replayThreadsFor_processors_isOneLessButAtLeastOne(int processors, int threads) {
+		assertThat(ArchsimProperties.replayThreadsFor(processors)).isEqualTo(threads);
 	}
 
 	@Test
