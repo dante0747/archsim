@@ -177,6 +177,13 @@ schema Flyway builds with the one Alembic built at its revision 0008 (`parity/sc
 
 ## Differences from the Python API
 
+- A number that is not finite is refused wherever a request body holds a float (a design, a
+  calibration's range and mapping, an imported design), with pydantic's
+  `finite_number` error, "Input should be a finite number", at its place, before any bound: the
+  words `nan`, `inf` and `infinity` in a string, and a number with a fraction or an exponent too
+  large for a double (`1e999`). Python read them as floats and refused them, if at all, by a
+  bound: `less_than_equal`, say, for a calibration `step` of `"inf"`
+  ([ADR-0103](../docs/adr/0103-refuse-a-number-that-is-not-finite-when-a-design-is-read.md)).
 - Whole numbers in `GET /components` (cold-start defaults, one `step`) and the bounds of the
   distributions in `GET /schema/architecture` are spelled `600.0` where Python writes `600`, or
   the other way round. Clients read the same number; the golden files compare numbers by value

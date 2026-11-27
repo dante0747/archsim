@@ -31,6 +31,11 @@ for when that version changes.
 
 ### Fixed
 
+- **A design's numbers must be finite
+  ([ADR-0103](docs/adr/0103-refuse-a-number-that-is-not-finite-when-a-design-is-read.md),
+  proposed).** Such a number was read as a float and could get past the checks that bound a run;
+  it is now refused where it stands, with "Input should be a finite number". The schema version
+  stays 1.11.
 - **After signing in, the web app goes back only to a page of its own site.** The sign-in page
   resolves the page to go back to as the browser will, and keeps it only when it stays on the
   site, as the server already checks it.
