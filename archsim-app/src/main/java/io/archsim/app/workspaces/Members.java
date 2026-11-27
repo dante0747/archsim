@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import io.archsim.app.access.Access;
+import io.archsim.app.access.Person;
 import io.archsim.app.access.Principal;
 import io.archsim.app.access.RequestedWorkspace;
 import io.archsim.app.access.WorkspaceAccess;
@@ -49,7 +50,7 @@ class Members {
 
 	/**
 	 * Changes a member's role (owners only). The last owner stays an owner.
-	 * @param principal who is asking
+	 * @param person who is asking
 	 * @param workspaceId the workspace
 	 * @param userId the member
 	 * @param role the new role
@@ -57,7 +58,8 @@ class Members {
 	 * @throws ApiException {@code 409} when the last owner would stop being one
 	 */
 	@Transactional
-	MemberView changeRole(Principal principal, String workspaceId, String userId, WorkspaceRole role) {
+	MemberView changeRole(Person person, String workspaceId, String userId, WorkspaceRole role) {
+		Principal principal = person.principal();
 		lockedFor(principal, workspaceId).require(WorkspaceRole.OWNER);
 		MemberView member = member(workspaceId, userId);
 		if (WorkspaceRole.OWNER.json().equals(member.role()) && role != WorkspaceRole.OWNER) {
@@ -71,13 +73,14 @@ class Members {
 
 	/**
 	 * Removes a member (owners only), or leaves (anyone, for themselves).
-	 * @param principal who is asking
+	 * @param person who is asking
 	 * @param workspaceId the workspace
 	 * @param userId the member
 	 * @throws ApiException {@code 409} for a personal workspace's owner or the last owner
 	 */
 	@Transactional
-	void remove(Principal principal, String workspaceId, String userId) {
+	void remove(Person person, String workspaceId, String userId) {
+		Principal principal = person.principal();
 		boolean leaving = userId.equals(principal.userId());
 		WorkspaceAccess where = lockedFor(principal, workspaceId);
 		where.require(leaving ? WorkspaceRole.VIEWER : WorkspaceRole.OWNER);

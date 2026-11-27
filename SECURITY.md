@@ -82,8 +82,10 @@ server at `https://<host>/api/v1`.
   need no CSRF token (browsers never add them on their own).
 - **API tokens.** `asim_pat_` plus 256 random bits, shown once, stored as SHA-256. A token acts
   as its owner; `read` tokens are viewers everywhere; a token can be limited to one workspace
-  and can expire. Tokens cannot create tokens, workspaces or invitations, or accept
-  invitations, so a leaked token cannot widen its own access. Revocation is immediate.
+  and can expire. A token cannot manage access: it cannot make, list or revoke tokens, make,
+  rename or delete a workspace, change who belongs to one or their roles (leaving included), or
+  make, revoke or accept invitations; those take the person signed in to the web app, so a leaked
+  token cannot change who belongs to a workspace, or with which role. Revocation is immediate.
 - **Authorization.** Every project and run belongs to a workspace; access needs a membership
   (`viewer` < `editor` < `owner`). Someone without a role in a workspace gets **404** for
   anything in it, exactly like something that does not exist, so ids reveal nothing; a role too

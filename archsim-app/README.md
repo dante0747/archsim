@@ -371,6 +371,9 @@ schema Flyway builds with the one Alembic built at its revision 0008 (`parity/sc
 - **A revoke recorded twice.** Python read a share link and then stamped it revoked, so two revokes
   at once (a double click) wrote two `share.revoke` lines in the history. Java stamps it only if it
   is not stamped yet, and records the change only then.
+- **Tokens managing workspaces.** Python let an API token rename a workspace, change a member's
+  role, remove a member or leave (a read token too), and revoke an invitation. Java takes a person
+  for all of them, as for making a workspace or an invitation: a token gets `403`.
 - **One invitation, two members.** Python read an invitation and later marked it accepted, so two
   people accepting the same link at once both joined. Java claims the link before it adds the
   member; the second answers `404`, as for a link already used.

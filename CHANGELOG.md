@@ -42,6 +42,9 @@ for when that version changes.
 - **The web server caps a request body at the API's limit, and waits at most five minutes for the
   API.** Its proxy refuses a larger body before buffering it (413) and answers 504 when the API
   does not answer in time; the hosting kit's Caddy caps bodies at the same 5 MB.
+- **An API token cannot change a workspace's members, their roles or its invitations, or rename
+  it.** These take the person signed in to the web app, as making a workspace or an invitation
+  already did; a sandbox's guest cannot rename the sandbox either.
 
 - **No label is cut short on the canvas or the timeline.** The chaos pads clipped their titles
   ("Lose Catalog…"); they have two columns and room for three lines. A part's card cut a label

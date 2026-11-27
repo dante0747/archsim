@@ -39,30 +39,31 @@ class MemberController {
 	}
 
 	/**
-	 * Change a member's role (owners only). The last owner stays an owner.
-	 * @param principal who is asking
+	 * Change a member's role (owners only, in person: not with an API token or as a
+	 * sandbox's guest). The last owner stays an owner.
+	 * @param person who is asking
 	 * @param workspaceId the workspace
 	 * @param userId the member
 	 * @param request the new role
 	 * @return the member
 	 */
 	@PatchMapping("/{workspaceId}/members/{userId}")
-	MemberView changeRole(Principal principal, @PathVariable String workspaceId, @PathVariable String userId,
+	MemberView changeRole(Person person, @PathVariable String workspaceId, @PathVariable String userId,
 			@ApiBody MemberUpdate request) {
-		return this.members.changeRole(principal, workspaceId, userId, request.role());
+		return this.members.changeRole(person, workspaceId, userId, request.role());
 	}
 
 	/**
-	 * Remove a member (owners), or leave (anyone, for themselves). The last owner cannot.
-	 * @param principal who is asking
+	 * Remove a member (owners), or leave (anyone, for themselves), in person: not with an
+	 * API token or as a sandbox's guest. The last owner cannot.
+	 * @param person who is asking
 	 * @param workspaceId the workspace
 	 * @param userId the member
 	 * @return {@code 204}
 	 */
 	@DeleteMapping("/{workspaceId}/members/{userId}")
-	ResponseEntity<Void> removeMember(Principal principal, @PathVariable String workspaceId,
-			@PathVariable String userId) {
-		this.members.remove(principal, workspaceId, userId);
+	ResponseEntity<Void> removeMember(Person person, @PathVariable String workspaceId, @PathVariable String userId) {
+		this.members.remove(person, workspaceId, userId);
 		return ResponseEntity.noContent().build();
 	}
 
@@ -91,10 +92,18 @@ class MemberController {
 		return ResponseEntity.status(HttpStatus.CREATED).body(this.invitations.create(person, workspaceId, request));
 	}
 
+	/**
+	 * Revoke an invitation (owners only, in person: not with an API token or as a
+	 * sandbox's guest).
+	 * @param person who is asking
+	 * @param workspaceId the workspace
+	 * @param invitationId the invitation
+	 * @return {@code 204}
+	 */
 	@DeleteMapping("/{workspaceId}/invitations/{invitationId}")
-	ResponseEntity<Void> revokeInvitation(Principal principal, @PathVariable String workspaceId,
+	ResponseEntity<Void> revokeInvitation(Person person, @PathVariable String workspaceId,
 			@PathVariable String invitationId) {
-		this.invitations.revoke(principal, workspaceId, invitationId);
+		this.invitations.revoke(person, workspaceId, invitationId);
 		return ResponseEntity.noContent().build();
 	}
 
