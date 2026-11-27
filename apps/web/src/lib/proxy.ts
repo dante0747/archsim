@@ -28,6 +28,15 @@ export const FORWARD_RESPONSE_HEADERS = [
 
 export const CLIENT_IP_HEADER = "x-archsim-client-ip";
 
+/**
+ * Browser -> API, without sign-in: the host the browser addressed and the page it came from, so
+ * the API refuses a page that points its own name at this machine, or a change from another site,
+ * as it would have refused the browser itself (ADR-0107). Always this request's own Host and
+ * Origin, never what the browser sent in these headers.
+ */
+export const CLIENT_HOST_HEADER = "x-archsim-client-host";
+export const CLIENT_ORIGIN_HEADER = "x-archsim-client-origin";
+
 const IP_CHARS = /^[0-9A-Fa-f:.]{2,45}$/;
 
 /**
@@ -57,6 +66,10 @@ export function forwardRequestHeaders(incoming: Headers, hops: number): Headers 
   }
   const ip = clientIp(incoming.get("x-forwarded-for"), hops);
   if (ip) out.set(CLIENT_IP_HEADER, ip);
+  const host = incoming.get("host");
+  if (host) out.set(CLIENT_HOST_HEADER, host);
+  const origin = incoming.get("origin");
+  if (origin) out.set(CLIENT_ORIGIN_HEADER, origin);
   return out;
 }
 

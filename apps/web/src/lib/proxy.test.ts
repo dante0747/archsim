@@ -125,6 +125,29 @@ describe("forwarded headers", () => {
     expect(out.get("x-forwarded-for")).toBeNull();
   });
 
+  it("tells the API the name the browser addressed and the page it came from, not what the page claims", () => {
+    const out = forwardRequestHeaders(
+      new Headers({
+        host: "localhost:3000",
+        origin: "http://localhost:3000",
+        "x-archsim-client-host": "forged.example",
+        "x-archsim-client-origin": "http://forged.example",
+      }),
+      0,
+    );
+    expect(out.get("x-archsim-client-host")).toBe("localhost:3000");
+    expect(out.get("x-archsim-client-origin")).toBe("http://localhost:3000");
+    expect(out.get("origin")).toBeNull();
+  });
+
+  it("sends no page for a request that came from none", () => {
+    const out = forwardRequestHeaders(
+      new Headers({ host: "localhost:3000", "x-archsim-client-origin": "http://forged.example" }),
+      0,
+    );
+    expect(out.get("x-archsim-client-origin")).toBeNull();
+  });
+
   it("keeps every Set-Cookie and the redirect and retry headers", () => {
     const incoming = new Headers();
     incoming.append("set-cookie", "__Host-archsim_session=s; Path=/; Secure; HttpOnly");

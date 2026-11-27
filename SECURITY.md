@@ -34,7 +34,16 @@ ArchSim runs in one of two modes, chosen with `ARCHSIM_AUTH_MODE`:
   local owner of the `default` workspace, so anyone who can reach the API can read, change and
   delete everything. The API listens on `127.0.0.1` unless told otherwise
   (`--server.address`, `SERVER_ADDRESS`); keep it that way. The Docker Compose file binds ports
-  to `127.0.0.1` for the same reason.
+  to `127.0.0.1` for the same reason. A web page the developer opens is the remaining way in.
+  So the API answers only requests addressed to this machine (`localhost`, `127.x.x.x`, `[::1]`)
+  or to a name `ARCHSIM_ALLOWED_HOSTS` lists, such as compose's `api`: a page that points its own
+  name at `127.0.0.1` gets `403`. It refuses a change whose `Origin` is neither the page it was
+  addressed to nor one `ARCHSIM_CORS_ORIGINS` lists (`403`), and takes only JSON bodies (`415`),
+  which a page cannot send to another site without a preflight the API never grants it. The web
+  app's server passes on the host the browser addressed and the page's origin
+  (`X-ArchSim-Client-Host`, `X-ArchSim-Client-Origin`), so the same checks cover requests made
+  through it (ADR-0107). Pages of the origins `ARCHSIM_CORS_ORIGINS` lists (by default
+  `http://localhost:3000`) can still read and change everything.
 - **`oauth`: hosted, for people other than whoever runs the server.** Sign-in with GitHub or
   Google, workspaces with roles, API tokens, CSRF protection, rate limits and an outbound block
   are on. The rest of this section describes that mode; the notes after it apply to both.

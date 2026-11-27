@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 
 import io.archsim.model.issue.Issue;
 
@@ -69,6 +70,19 @@ public final class ApiException extends RuntimeException {
 		HttpHeaders headers = new HttpHeaders();
 		headers.set(HttpHeaders.RETRY_AFTER, Long.toString(retryAfterSeconds));
 		return new ApiException(HttpStatus.TOO_MANY_REQUESTS, message, List.of(), headers);
+	}
+
+	/**
+	 * A body of a type the server does not read: {@code 415} with {@code Accept} naming
+	 * the one it does.
+	 * @param message what was refused, and what to send instead
+	 * @param accepted the type the server reads
+	 * @return the refusal
+	 */
+	public static ApiException unsupportedMediaType(String message, MediaType accepted) {
+		HttpHeaders headers = new HttpHeaders();
+		headers.setAccept(List.of(accepted));
+		return new ApiException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, message, List.of(), headers);
 	}
 
 	/**
