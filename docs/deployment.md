@@ -307,7 +307,7 @@ Take a backup (below), then move the kit to the release's tag:
 ```bash
 cd ~/archsim/deploy
 docker compose --env-file hosted.env exec backup archsim-backup now
-./update.sh v1.5.0
+./update.sh v1.6.0
 ```
 
 `update.sh` checks the kit out at the tag, pulls its images, migrates the database and restarts what
