@@ -11,12 +11,12 @@ for when that version changes.
 ### Security
 
 - **Limits per address count an IPv6 address by its /64, and sandboxes' runs have budgets of
-  their own** ([ADR-0106](docs/adr/0106-count-addresses-by-network-and-give-sandboxes-runs-a-budget.md),
-  proposed). An IPv4 address mapped into IPv6 counts as itself. Sandboxes' runs count against
+  their own** ([ADR-0106](docs/adr/0106-count-addresses-by-network-and-give-sandboxes-runs-a-budget.md)).
+  An IPv4 address mapped into IPv6 counts as itself. Sandboxes' runs count against
   their address's 40 an hour and all sandboxes' 300 an hour, and workers take every other
   workspace's queued runs before a sandbox's.
 - **The engine's routes answer a bounded number of requests at once
-  ([ADR-0108](docs/adr/0108-bound-the-engines-routes-by-slots-per-person-limits-and-a-sandbox-body-cap.md), proposed).**
+  ([ADR-0108](docs/adr/0108-bound-the-engines-routes-by-slots-per-person-limits-and-a-sandbox-body-cap.md)).**
   Validating, analyzing, exporting, importing, saving, duplicating or copying a design, and starting
   or rerunning runs share `ARCHSIM_MAX_ENGINE_REQUESTS` slots, by default sized from the API's heap,
   and calibrations one per replay thread; other routes with a body take up to 64 KB, 32 at once. A
@@ -24,13 +24,13 @@ for when that version changes.
   person may send the engine's routes 600 requests a minute, and a sandbox's guest sends bodies of
   up to 256 KB.
 - **A design is stored once, however many runs simulate it
-  ([ADR-0110](docs/adr/0110-store-a-runs-design-once-per-digest-and-delete-it-with-its-last-run.md),
-  proposed).** Each run stored a copy of its design, so the database grew with every run of the
+  ([ADR-0110](docs/adr/0110-store-a-runs-design-once-per-digest-and-delete-it-with-its-last-run.md)).**
+  Each run stored a copy of its design, so the database grew with every run of the
   same design. Runs now refer to one stored copy, which is deleted with the last run that refers to
   it, however the runs are deleted. A migration moves the copies runs stored before, keeping one of
   each; it rewrites the table of runs, so on a database with many runs the upgrade takes a while.
 - **Each workspace has a project cap and a quota of stored bytes
-  ([ADR-0109](docs/adr/0109-give-each-workspace-a-project-cap-and-a-quota-of-stored-bytes.md), proposed).**
+  ([ADR-0109](docs/adr/0109-give-each-workspace-a-project-cap-and-a-quota-of-stored-bytes.md)).**
   A sandbox stores 10 MB; with the hosted limits a personal workspace holds 100 projects and stores
   100 MB, and a team 500 projects and 250 MB, counting its projects' designs, the designs its runs
   simulate (each once), its runs' reports and its share links' copies. A workspace at its quota
