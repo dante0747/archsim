@@ -55,11 +55,59 @@ class ArchsimPropertiesBindingTests {
 	}
 
 	@Test
+	void bind_allowedHostsCommaSeparated_areEachNameInLowerCase() {
+		Map<String, Object> environment = Map.of("ARCHSIM_ALLOWED_HOSTS", " api, Archsim.Lan ,");
+
+		withEnvironment(environment)
+			.run((context) -> assertThat(context.getBean(ArchsimProperties.class).allowedHosts().names())
+				.containsExactly("api", "archsim.lan"));
+	}
+
+	@Test
+	void bind_allowedHostsAsJsonArrayWithABlank_dropsTheBlank() {
+		Map<String, Object> environment = Map.of("ARCHSIM_ALLOWED_HOSTS", "[\"\", \"api\"]");
+
+		withEnvironment(environment)
+			.run((context) -> assertThat(context.getBean(ArchsimProperties.class).allowedHosts().names())
+				.containsExactly("api"));
+	}
+
+	@Test
 	void bind_bodyLimitBelowTheMinimum_failsNamingTheSetting() {
 		Map<String, Object> environment = Map.of("ARCHSIM_MAX_BODY_BYTES", "9999");
 
 		withEnvironment(environment)
 			.run((context) -> assertThat(context).getFailure().rootCause().hasMessageContaining("maxBodyBytes"));
+	}
+
+	@Test
+	void bind_noHistoryDays_keepsTheHistoryAYear() {
+		withEnvironment(Map.of())
+			.run((context) -> assertThat(context.getBean(ArchsimProperties.class).historyDays()).isEqualTo(365));
+	}
+
+	@Test
+	void bind_historyDays_isTheVariable() {
+		Map<String, Object> environment = Map.of("ARCHSIM_HISTORY_DAYS", "90");
+
+		withEnvironment(environment)
+			.run((context) -> assertThat(context.getBean(ArchsimProperties.class).historyDays()).isEqualTo(90));
+	}
+
+	@Test
+	void bind_historyDaysBelowOne_failsNamingTheSetting() {
+		Map<String, Object> environment = Map.of("ARCHSIM_HISTORY_DAYS", "0");
+
+		withEnvironment(environment)
+			.run((context) -> assertThat(context).getFailure().rootCause().hasMessageContaining("historyDays"));
+	}
+
+	@Test
+	void bind_historyDaysPastACentury_failsNamingTheSetting() {
+		Map<String, Object> environment = Map.of("ARCHSIM_HISTORY_DAYS", "36501");
+
+		withEnvironment(environment)
+			.run((context) -> assertThat(context).getFailure().rootCause().hasMessageContaining("historyDays"));
 	}
 
 	/** Binds the settings as the application does. */

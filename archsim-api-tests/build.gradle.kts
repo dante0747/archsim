@@ -30,6 +30,9 @@ testing {
                     // a run of the suite says something about the servers, not about these files
                     outputs.upToDateWhen { false }
                     systemProperty("archsim.repoRoot", rootDir.absolutePath)
+                    // the tests of a server without sign-in send a Host of another name, which
+                    // Java's HTTP client sets only when allowed to
+                    systemProperty("jdk.httpclient.allowRestrictedHeaders", "host")
                     // started servers run and log here: build/api-servers/<profile>.log
                     systemProperty(
                         "archsim.serversDir",

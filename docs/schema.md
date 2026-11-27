@@ -11,6 +11,14 @@ Conventions: keys are camelCase; unknown keys are rejected; times in component a
 settings are **milliseconds** (`...Ms`), workload times are **seconds** (`...S`), rates are
 requests per second.
 
+Numbers are finite. A number may be written as a numeric string (`"1.5"`, `"1_000"`), but one
+that is not finite is refused where it stands, with "Input should be a finite number": the words
+`nan`, `inf` and `infinity` in any case, and a number with a fraction or an exponent too large for
+a double (`1e999`), as a number or as a string
+([ADR-0103](adr/0103-refuse-a-number-that-is-not-finite-when-a-design-is-read.md)); a whole number
+too large for a double, written as a JSON number, is "Input should be a valid number". For "no
+limit", leave the setting out where it is optional, or name a large number.
+
 ## Annotated example
 
 A trimmed version of `examples/cache-aside-starter.json` (comments are not valid JSON; they

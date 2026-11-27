@@ -1,6 +1,7 @@
 package io.archsim.app;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -133,6 +134,16 @@ class ComposeFileTests {
 		JsonNode api = services(HOSTED).path("api");
 
 		assertThat(api.at("/environment/ARCHSIM_TRUSTED_PROXIES").asString()).isEqualTo("web");
+	}
+
+	// without sign-in the API answers only this machine's names and the ones it lists
+	// (ADR-0107), so it lists the name the web container calls it by
+	@Test
+	void releaseCompose_theApi_answersTheNameTheWebServerCallsItBy() throws IOException {
+		JsonNode services = services(RELEASE);
+		URI api = URI.create(services.path("web").at("/environment/ARCHSIM_API_URL").asString());
+
+		assertThat(services.path("api").at("/environment/ARCHSIM_ALLOWED_HOSTS").asString()).isEqualTo(api.getHost());
 	}
 
 	// the web app links to the operator's privacy notice when hosted.env names one, and

@@ -7,7 +7,6 @@ import java.util.OptionalInt;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
@@ -29,19 +28,20 @@ class RateLimitRepository {
 	}
 
 	/**
-	 * Adds to several keys' counts, in a transaction of their own, unless that takes one
-	 * of them over its limit: then none is added. Each is one upsert, so instances
-	 * sharing the database count together.
+	 * Adds to several keys' counts, in a transaction of their own (no other is open:
+	 * {@link RateLimits} charges outside one), unless that takes one of them over its
+	 * limit: then none is added. Each is one upsert, so instances sharing the database
+	 * count together.
 	 * @param counts what to add, in the order the keys are locked
 	 * @return the index in {@code counts} of the first count that would go over its
 	 * limit, or empty when all were added
 	 */
-	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	@Transactional
 	OptionalInt addAll(List<Count> counts) {
 		for (int i = 0; i < counts.size(); i++) {
 			if (!add(counts.get(i))) {
-				// undoes the counts added before it; called through the proxy, so this
-				// transaction is the method's own
+				// undoes the counts added before it; the transaction is the method's own,
+				// since RateLimits never charges inside one
 				TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
 				return OptionalInt.of(i);
 			}

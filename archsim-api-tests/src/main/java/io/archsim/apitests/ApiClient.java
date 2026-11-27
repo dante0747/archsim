@@ -170,6 +170,18 @@ public final class ApiClient {
 		return send("POST", path, json, extraHeaders);
 	}
 
+	/**
+	 * Sends a POST whose body says nothing of its type, as a page's fetch of a Blob, or a
+	 * beacon, may: no {@code Content-Type} at all.
+	 * @param path the path under {@value #API}, with any query string
+	 * @param text the body
+	 * @return the server's answer
+	 */
+	public ApiResponse postWithoutType(String path, String text) {
+		byte[] body = text.getBytes(StandardCharsets.UTF_8);
+		return exchange("POST", this.base.resolve(API + path), body, mergedHeaders(Map.of()));
+	}
+
 	public ApiResponse put(String path, Object json) {
 		return send("PUT", path, json, Map.of());
 	}
@@ -204,7 +216,7 @@ public final class ApiClient {
 	 */
 	public ApiResponse send(String method, String path, @Nullable Object json, Map<String, String> extraHeaders) {
 		byte[] body = (json != null) ? Json.write(json).getBytes(StandardCharsets.UTF_8) : null;
-		return exchange(method, this.base.resolve(API + path), body, extraHeaders);
+		return exchange(method, this.base.resolve(API + path), body, requestHeaders(body, extraHeaders));
 	}
 
 	/**
@@ -224,11 +236,11 @@ public final class ApiClient {
 		if (!path.startsWith("/") || path.startsWith("//")) {
 			throw new AssertionError("not a location on this server: " + location);
 		}
-		return exchange("GET", this.base.resolve(path), null, Map.of());
+		return exchange("GET", this.base.resolve(path), null, requestHeaders(null, Map.of()));
 	}
 
-	private ApiResponse exchange(String method, URI uri, byte @Nullable [] body, Map<String, String> extraHeaders) {
-		HttpRequest request = request(method, uri, body, extraHeaders);
+	private ApiResponse exchange(String method, URI uri, byte @Nullable [] body, Map<String, String> headers) {
+		HttpRequest request = request(method, uri, body, headers);
 		try {
 			HttpResponse<String> response = HTTP.send(request, BodyHandlers.ofString(StandardCharsets.UTF_8));
 			remember(response.headers().allValues("set-cookie"));
@@ -243,11 +255,11 @@ public final class ApiClient {
 		}
 	}
 
-	private HttpRequest request(String method, URI uri, byte @Nullable [] body, Map<String, String> extraHeaders) {
+	private HttpRequest request(String method, URI uri, byte @Nullable [] body, Map<String, String> headers) {
 		HttpRequest.Builder request = HttpRequest.newBuilder(uri)
 			.timeout(TIMEOUT)
 			.method(method, (body != null) ? BodyPublishers.ofByteArray(body) : BodyPublishers.noBody());
-		requestHeaders(body, extraHeaders).forEach(request::header);
+		headers.forEach(request::header);
 		if (!this.cookies.isEmpty()) {
 			request.header("Cookie", cookieHeader());
 		}
@@ -255,21 +267,31 @@ public final class ApiClient {
 	}
 
 	/**
-	 * Merges the headers of one request.
+	 * The headers of one request with a JSON body, if it has one.
 	 * @param body the request's body, or null for none
 	 * @param extraHeaders the request's own headers
 	 * @return the default headers, overridden by the request's own, and a JSON content
 	 * type for a body when they name none
 	 */
 	private Map<String, String> requestHeaders(byte @Nullable [] body, Map<String, String> extraHeaders) {
+		Map<String, String> all = mergedHeaders(extraHeaders);
+		if (body != null && all.keySet().stream().noneMatch(CONTENT_TYPE::equalsIgnoreCase)) {
+			all.put(CONTENT_TYPE, "application/json");
+		}
+		return all;
+	}
+
+	/**
+	 * The default headers, overridden by a request's own.
+	 * @param extraHeaders the request's own headers
+	 * @return the headers, which the caller may add to
+	 */
+	private Map<String, String> mergedHeaders(Map<String, String> extraHeaders) {
 		Map<String, String> all = new LinkedHashMap<>(this.headers);
 		extraHeaders.forEach((name, value) -> {
 			removeHeader(all, name);
 			all.put(name, value);
 		});
-		if (body != null && all.keySet().stream().noneMatch(CONTENT_TYPE::equalsIgnoreCase)) {
-			all.put(CONTENT_TYPE, "application/json");
-		}
 		return all;
 	}
 

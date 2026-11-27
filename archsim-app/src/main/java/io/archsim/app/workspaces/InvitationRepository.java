@@ -119,6 +119,20 @@ class InvitationRepository {
 	}
 
 	/**
+	 * Deletes some of the invitations that have expired, accepted or not, the first to
+	 * expire first. Invitations another transaction holds are left to it.
+	 * @param now the time it is
+	 * @param limit how many to delete at most
+	 * @return how many it deleted
+	 */
+	int deleteExpired(Instant now, int limit) {
+		return this.jdbc.sql("""
+				DELETE FROM invitations WHERE id IN (
+				    SELECT id FROM invitations WHERE expires_at <= :now ORDER BY expires_at LIMIT :limit
+				    FOR UPDATE SKIP LOCKED)""").param("now", Timestamp.from(now)).param("limit", limit).update();
+	}
+
+	/**
 	 * The emails a person has verified, through any provider account.
 	 * @param userId the person
 	 * @return the emails, lower case

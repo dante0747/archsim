@@ -44,10 +44,12 @@ export function limitsText(atOnce: number | null, perHour: number | null): strin
   return parts.length ? `Limits: ${parts.join(", ")}.` : "No run limits beyond the server's own.";
 }
 
-function WorkspaceCard({ workspace }: { workspace: WorkspaceInfo }) {
+/** `guest`: a sandbox's guest, who may not rename a workspace: that takes an account (as the API says). */
+function WorkspaceCard({ workspace, guest }: { workspace: WorkspaceInfo; guest: boolean }) {
   const [name, setName] = useState(workspace.name);
   const [busy, setBusy] = useState(false);
   const owner = workspace.role === "owner";
+  const canRename = owner && !guest;
   const router = useRouter();
 
   const rename = async () => {
@@ -87,9 +89,9 @@ function WorkspaceCard({ workspace }: { workspace: WorkspaceInfo }) {
       <div className="flex flex-wrap items-end gap-2">
         <div className="min-w-56 flex-1 space-y-1">
           <Label htmlFor="ws-name">Name</Label>
-          <Input id="ws-name" value={name} onChange={(e) => setName(e.target.value)} disabled={!owner} maxLength={120} />
+          <Input id="ws-name" value={name} onChange={(e) => setName(e.target.value)} disabled={!canRename} maxLength={120} />
         </div>
-        {owner && (
+        {canRename && (
           <Button onClick={() => void rename()} disabled={busy || !name.trim() || name.trim() === workspace.name}>
             {busy ? <LoaderCircle className="animate-spin" /> : <Check />} Save
           </Button>
@@ -108,9 +110,11 @@ function WorkspaceCard({ workspace }: { workspace: WorkspaceInfo }) {
   );
 }
 
-function MembersCard({ workspace, meId }: { workspace: WorkspaceInfo; meId: string }) {
+/** `guest`: a sandbox's guest, who changes no roles and does not leave: both take an account (as the API says). */
+function MembersCard({ workspace, meId, guest }: { workspace: WorkspaceInfo; meId: string; guest: boolean }) {
   const [members, setMembers] = useState<Member[] | null>(null);
   const owner = workspace.role === "owner";
+  const manages = owner && !guest;
   const router = useRouter();
   const refresh = useCallback(() => {
     authApi.members(workspace.id).then(setMembers, fail("Could not load members"));
@@ -155,7 +159,7 @@ function MembersCard({ workspace, meId }: { workspace: WorkspaceInfo; meId: stri
                 </p>
                 <p className="truncate text-xs text-ink-3">{m.email ?? "no email"}</p>
               </div>
-              {owner && workspace.kind !== "personal" ? (
+              {manages && workspace.kind !== "personal" ? (
                 <NativeSelect
                   aria-label={`Role of ${m.name}`}
                   value={m.role}
@@ -171,7 +175,7 @@ function MembersCard({ workspace, meId }: { workspace: WorkspaceInfo; meId: stri
               ) : (
                 <Badge>{m.role}</Badge>
               )}
-              {workspace.kind !== "personal" && (owner || m.userId === meId) && (
+              {!guest && workspace.kind !== "personal" && (owner || m.userId === meId) && (
                 <Button variant="ghost" size="icon-sm" aria-label={m.userId === meId ? "Leave workspace" : `Remove ${m.name}`} onClick={() => void remove(m)}>
                   <UserMinus />
                 </Button>
@@ -349,8 +353,8 @@ export function SettingsPage() {
           </p>
         ) : (
           <>
-            <WorkspaceCard key={`${workspace.id}:${workspace.name}`} workspace={workspace} />
-            <MembersCard workspace={workspace} meId={me.user.id} />
+            <WorkspaceCard key={`${workspace.id}:${workspace.name}`} workspace={workspace} guest={guest} />
+            <MembersCard workspace={workspace} meId={me.user.id} guest={guest} />
             {me.kind !== "local" && workspace.role === "owner" && workspace.kind === "team" && <InvitationsCard workspace={workspace} />}
             {!guest && <NewWorkspaceCard />}
             {me.kind === "session" && !guest && <TokensSection workspaces={me.workspaces} />}

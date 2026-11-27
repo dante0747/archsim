@@ -17,8 +17,8 @@ import io.archsim.engine.version.EngineVersions;
 
 /**
  * The {@code simulation_runs} table: each row is a run and its own job. The API queues
- * runs and asks for them to stop; the workers claim them, record their progress and
- * outcome.
+ * runs, asks for them to stop and prunes the runs a project no longer keeps; the workers
+ * claim them, record their progress and outcome.
  */
 @Repository
 class RunRepository {
@@ -27,6 +27,33 @@ class RunRepository {
 			id, project_id, workspace_id, label, scenario_id, scenario_name, status, progress, error, seed,
 			engine_version, input_digest, result_digest, summary, wall_seconds, created_at, started_at, finished_at,
 			group_id, seed_index, mode""";
+
+	/**
+	 * Deletes, oldest first, a project's runs older than its newest {@code :keep} (in the
+	 * order its list shows them) whose unit, the run itself or its seed group, has no run
+	 * it keeps: one among its newest, one a worker has yet to finish, or one a review
+	 * refers to. The review's tables are read here, in the statement that deletes, as the
+	 * reviews build on runs and cannot be asked, and so that a sign-off or comment
+	 * already written is seen.
+	 */
+	private static final String PRUNE_PAST_LIMIT = """
+			WITH oldest_kept AS (
+			    SELECT created_at, id FROM simulation_runs WHERE project_id = :project
+			    ORDER BY created_at DESC, id DESC OFFSET :keep - 1 LIMIT 1)
+			DELETE FROM simulation_runs WHERE id IN (
+			    SELECT run.id FROM simulation_runs run
+			    WHERE run.project_id = :project
+			      AND (run.created_at, run.id) < (SELECT created_at, id FROM oldest_kept)
+			      AND NOT EXISTS (
+			          SELECT 1 FROM simulation_runs kept
+			          WHERE (kept.id = run.id OR kept.group_id = run.group_id)
+			            AND ((kept.created_at, kept.id) >= (SELECT created_at, id FROM oldest_kept)
+			                 OR kept.status IN ('queued', 'running')
+			                 OR EXISTS (SELECT 1 FROM review_signoffs WHERE review_signoffs.run_id = kept.id)
+			                 OR EXISTS (SELECT 1 FROM comments WHERE comments.run_id = kept.id)))
+			    ORDER BY run.created_at, run.id
+			    LIMIT :limit
+			    FOR UPDATE OF run SKIP LOCKED)""";
 
 	private final JdbcClient jdbc;
 
@@ -162,6 +189,35 @@ class RunRepository {
 
 	void delete(String id) {
 		this.jdbc.sql("DELETE FROM simulation_runs WHERE id = :id").param("id", id).update();
+	}
+
+	/**
+	 * The projects with more runs than they keep.
+	 * @param kept the runs a project keeps
+	 * @return their ids
+	 */
+	List<String> projectsWithMoreRunsThan(int kept) {
+		return this.jdbc.sql("SELECT project_id FROM simulation_runs GROUP BY project_id HAVING count(*) > :kept")
+			.param("kept", kept)
+			.query((rows, number) -> rows.getString("project_id"))
+			.list();
+	}
+
+	/**
+	 * Deletes some of a project's runs past its newest, oldest first: those it no longer
+	 * needs ({@link RunRetention} says which). Runs another transaction holds, as another
+	 * instance's prune does, are left to it.
+	 * @param projectId the project
+	 * @param kept how many runs it keeps
+	 * @param limit how many runs to delete at most
+	 * @return how many it deleted
+	 */
+	int prunePastLimit(String projectId, int kept, int limit) {
+		return this.jdbc.sql(PRUNE_PAST_LIMIT)
+			.param("project", projectId)
+			.param("keep", kept)
+			.param("limit", limit)
+			.update();
 	}
 
 	/**
