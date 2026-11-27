@@ -64,27 +64,35 @@ async function saveOverTheirs(page: Page, name: string) {
 test("an edit made while a save is on its way stays unsaved", async ({ page }) => {
   const id = await newProject(page.request, "Save in flight");
   await open(page, id);
-  let release!: () => void;
-  const held = new Promise<void>((resolve) => (release = resolve));
+  // each save waits for the test to answer it, and says which name it carried
+  const answers: (() => void)[] = [];
+  const sent: string[] = [];
   await page.route(`**/api/v1/projects/${id}`, async (route) => {
-    if (route.request().method() === "PUT") await held;
+    if (route.request().method() === "PUT") {
+      sent.push((route.request().postDataJSON() as { name: string }).name);
+      await new Promise<void>((answer) => answers.push(answer));
+    }
     await route.continue();
   });
   const name = page.getByLabel("Project name");
 
   await name.fill("First");
-  const answered = page.waitForResponse((r) => r.request().method() === "PUT" && r.url().endsWith(`/projects/${id}`));
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(saveStatus(page)).toHaveText("Saving…");
   await name.fill("Second");
-  release();
+  await expect.poll(() => sent.length).toBe(1);
+  const answered = page.waitForResponse((r) => r.request().method() === "PUT" && r.url().endsWith(`/projects/${id}`));
+  answers[0]();
   await answered;
 
-  // what the save sent is stored; what was typed meanwhile is still on screen, and unsaved
-  await expect(name).toHaveValue("Second");
-  await expect(saveStatus(page)).toHaveText("Unsaved changes");
+  // what the save sent is stored; what was typed meanwhile is still on screen, and not saved
+  expect(sent[0]).toBe("First");
   expect((await stored(page.request, id)).name).toBe("First");
+  await expect(name).toHaveValue("Second");
+  await expect(saveStatus(page)).toHaveText(/^(Unsaved changes|Saving…)$/);
   // ...until the editor saves it by itself
+  await expect.poll(() => sent.length).toBe(2);
+  answers[1]();
   await expect(saveStatus(page)).toHaveText("Saved");
   expect((await stored(page.request, id)).name).toBe("Second");
 });

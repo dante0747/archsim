@@ -67,7 +67,8 @@ test("review: comment, reply, approve, stale after save, history, detached, reso
   const drawer = page.getByTestId("activity-drawer");
   await drawer.getByRole("tab", { name: "History" }).click();
   const events = drawer.getByTestId("activity-event");
-  await expect(events.first()).toContainText("saved revision 2");
+  // "saved revision 2", or "saved revisions 2 to 3" where the editor's own save came before the click
+  await expect(events.first()).toContainText(/saved revisions? 2/);
   await expect(drawer).toContainText("approved the design (revision 1)");
   await expect(drawer).toContainText("replied on");
   await expect(drawer).toContainText("commented on");

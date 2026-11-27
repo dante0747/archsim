@@ -33,8 +33,23 @@ async function open(page: Page, id: string) {
   await expect(page.getByTestId("node-cache")).toBeVisible();
 }
 
-/** The words beside the project's name that say whether the design is saved. */
+/** The words under the project's name that say whether the design is saved. */
 const saveStatus = (page: Page) => page.getByTestId("save-status");
+
+/**
+ * Holds every save of a project back until the returned function is called, so that a test can
+ * look at the editor before the save is answered however late the test gets there.
+ */
+async function holdSaves(page: Page, id: string): Promise<() => void> {
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route(`**/api/v1/projects/${id}`, async (route) => {
+    if (route.request().method() === "PUT") await held;
+    await route.continue();
+  });
+  return release;
+}
+
 const projectName = (page: Page) => page.getByLabel("Project name");
 const logo = (page: Page) => page.getByRole("link", { name: "Back to projects" });
 /** A project's row in the projects list, which opens it without loading a new page. */
@@ -44,10 +59,15 @@ test("an edit is saved by itself after a short pause, and the top bar says so in
   const id = await newProject(page.request, "Saves by itself");
   await open(page, id);
   await expect(saveStatus(page)).toHaveText("Saved");
+  const answerTheSave = await holdSaves(page, id);
 
   await projectName(page).fill("Saved without a click");
 
-  await expect(saveStatus(page)).toHaveText("Unsaved changes");
+  // unsaved until the editor's own save, which nobody asked for, is answered
+  await expect(saveStatus(page)).toHaveText(/^(Unsaved changes|Saving…)$/);
+  await expect(saveStatus(page)).toHaveText("Saving…");
+  expect(await storedName(page.request, id)).toBe("Saves by itself");
+  answerTheSave();
   await expect(saveStatus(page)).toHaveText("Saved");
   expect(await storedName(page.request, id)).toBe("Saved without a click");
 });
