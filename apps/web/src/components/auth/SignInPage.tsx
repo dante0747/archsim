@@ -22,10 +22,25 @@ const ERRORS: Record<string, string> = {
   disabled: "This account is turned off on this server. Ask one of its owners.",
 };
 
-/** A path on this site to come back to; anything else goes to the projects page. */
+/** Stands in for this site's origin while a path is resolved; no page is ever served from it. */
+const SITE = "https://site.invalid";
+
+/**
+ * A path on this site to come back to; anything else goes to the projects page. The path is
+ * resolved as the browser will resolve it, which drops tabs and line breaks and reads a backslash
+ * as a slash, and kept only when it stays on this site: a check of its first characters alone let
+ * "/\t/evil.example" through, which the browser reads as "//evil.example", another site.
+ */
 export function safeNext(next: string | null | undefined): string {
-  if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return "/projects";
-  return next;
+  if (!next?.startsWith("/")) return "/projects";
+  let resolved: URL;
+  try {
+    resolved = new URL(next, SITE);
+  } catch {
+    return "/projects";
+  }
+  if (resolved.origin !== SITE) return "/projects";
+  return resolved.pathname + resolved.search + resolved.hash;
 }
 
 function ProviderIcon({ provider }: { provider: string }) {

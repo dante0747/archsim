@@ -32,20 +32,21 @@ public record Empirical(@MinItems(2) @MaxItems(200) List<Quantile> quantiles) im
 
 	public Empirical {
 		quantiles = List.copyOf(quantiles);
+		// each comparison below is written so that NaN fails it
 		if (quantiles.getFirst().p() != 0.0 || quantiles.getLast().p() != 1.0) {
 			throw new IllegalArgumentException("empirical quantiles must start at p = 0 and end at p = 1");
 		}
 		for (int i = 1; i < quantiles.size(); i++) {
-			if (quantiles.get(i).p() <= quantiles.get(i - 1).p()) {
+			if (!(quantiles.get(i).p() > quantiles.get(i - 1).p())) {
 				throw new IllegalArgumentException("empirical quantile probabilities must rise strictly");
 			}
 		}
 		for (int i = 1; i < quantiles.size(); i++) {
-			if (quantiles.get(i).ms() < quantiles.get(i - 1).ms()) {
+			if (!(quantiles.get(i).ms() >= quantiles.get(i - 1).ms())) {
 				throw new IllegalArgumentException("empirical quantile values must not fall");
 			}
 		}
-		if (quantiles.getFirst().ms() < 0 || quantiles.getLast().ms() > MAX_SAMPLE_MS) {
+		if (!(quantiles.getFirst().ms() >= 0 && quantiles.getLast().ms() <= MAX_SAMPLE_MS)) {
 			throw new IllegalArgumentException(
 					"empirical values must be between 0 and %s ms".formatted(PythonFormat.format(MAX_SAMPLE_MS, "g")));
 		}

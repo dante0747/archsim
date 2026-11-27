@@ -31,6 +31,17 @@ for when that version changes.
 
 ### Fixed
 
+- **A design's numbers must be finite
+  ([ADR-0103](docs/adr/0103-refuse-a-number-that-is-not-finite-when-a-design-is-read.md),
+  proposed).** Such a number was read as a float and could get past the checks that bound a run;
+  it is now refused where it stands, with "Input should be a finite number". The schema version
+  stays 1.11.
+- **After signing in, the web app goes back only to a page of its own site.** The sign-in page
+  resolves the page to go back to as the browser will, and keeps it only when it stays on the
+  site, as the server already checks it.
+- **The web server caps a request body at the API's limit, and waits at most five minutes for the
+  API.** Its proxy refuses a larger body before buffering it (413) and answers 504 when the API
+  does not answer in time; the hosting kit's Caddy caps bodies at the same 5 MB.
 - **An API token cannot change a workspace's members, their roles or its invitations, or rename
   it.** These take the person signed in to the web app, as making a workspace or an invitation
   already did; a sandbox's guest cannot rename the sandbox either.
