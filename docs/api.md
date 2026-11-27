@@ -271,10 +271,13 @@ Without sign-in a seed group may run 10 seeds (5 in a sandbox). A visitor's sand
 (`POST /auth/sandbox`) has the sandbox's limits, and is deleted 24 hours after it starts.
 
 Runs at once are counted across every worker (a run waits in the queue until its workspace has
-room; workers take each workspace's oldest run before anyone's second). A person may also start
-300 runs an hour. Starting runs past a limit answers 429 with `Retry-After`, and a batch is
-refused whole. The counters live in the database (`rate_limits`), so every API instance shares
-them. Without sign-in the counters are off, and only sandboxes keep their other limits.
+room; workers take every other workspace's queued runs before a sandbox's, and each workspace's
+oldest run before anyone's second). A person may also start 300 runs an hour, and sandboxes' runs
+count against their address's 40 an hour and all sandboxes' 300 an hour. A limit per address
+counts an IPv6 address by its /64. Starting runs past a limit answers 429 with `Retry-After`, and
+a batch is refused whole. The counters live in the database (`rate_limits`), so every API
+instance shares them. Without sign-in the counters are off, and only sandboxes keep their other
+limits.
 
 ## Share links
 

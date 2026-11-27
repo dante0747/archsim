@@ -31,6 +31,12 @@ for when that version changes.
 
 ### Fixed
 
+- **Limits per address count an IPv6 address by its /64, and sandboxes' runs have budgets of
+  their own** ([ADR-0106](docs/adr/0106-count-addresses-by-network-and-give-sandboxes-runs-a-budget.md),
+  proposed). An IPv4 address mapped into IPv6 counts as itself. Sandboxes' runs count against
+  their address's 40 an hour and all sandboxes' 300 an hour, and workers take every other
+  workspace's queued runs before a sandbox's.
+
 - **No label is cut short on the canvas or the timeline.** The chaos pads clipped their titles
   ("Lose Catalog…"); they have two columns and room for three lines. A part's card cut a label
   when its value was long ("Max connections per instan…"); the value now wraps under it. The Test

@@ -16,11 +16,12 @@ import org.springframework.transaction.support.TransactionOperations;
 import io.archsim.app.limits.WorkspaceLimits;
 
 /**
- * Claims on the run queue, as the Python worker made them (ADR-0053): the oldest runs
- * first, but every workspace's oldest before anyone's second, each workspace under its
- * cap of runs at once counted on every worker, the caps those the API admits runs by.
- * Claims take turns on an advisory lock, in one transaction each, so two never take one
- * run or count past a cap.
+ * Claims on the run queue, as the Python worker made them (ADR-0053), with sandboxes last
+ * (ADR-0106): every other workspace's runs before a sandbox's, the oldest first, but
+ * every workspace's oldest before anyone's second, each workspace under its cap of runs
+ * at once counted on every worker, the caps those the API admits runs by. Claims take
+ * turns on an advisory lock, in one transaction each, so two never take one run or count
+ * past a cap.
  */
 @Component
 @Profile("worker")

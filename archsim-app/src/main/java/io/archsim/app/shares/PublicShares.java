@@ -40,7 +40,7 @@ class PublicShares {
 	 * @throws ApiException {@code 429} after many pages in a minute
 	 */
 	void admit(Visitor visitor) {
-		this.limits.enforce("ip:" + visitor.ipOrUnknown() + ":shares", RateLimit.PUBLIC_VIEWS_PER_IP,
+		this.limits.enforce("ip:" + visitor.countedAddress() + ":shares", RateLimit.PUBLIC_VIEWS_PER_IP,
 				"Too many share pages opened from your address.");
 	}
 

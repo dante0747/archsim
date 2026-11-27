@@ -56,9 +56,10 @@ public class RateLimits {
 
 	/**
 	 * Counts some hits against several keys at once, all or none: when one key is over
-	 * its limit, no key is counted. The keys' counters are locked in the order given, so
-	 * callers that charge the same keys must list them in the same order (a person's
-	 * before a workspace's): two requests locking them in opposite orders could deadlock.
+	 * its limit, no key is counted. The keys' counters are locked in the order given, and
+	 * two requests locking them in opposite orders could deadlock, so every caller lists
+	 * at most one key of each kind, in one order of kinds: a person's, an address's, all
+	 * sandboxes', a workspace's.
 	 * @param charges the keys, in that order
 	 * @param cost how many hits against each
 	 * @throws ApiException {@code 429} with {@code Retry-After}, in the words of the

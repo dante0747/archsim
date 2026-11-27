@@ -98,7 +98,7 @@ class SignInStarts implements OAuth2AuthorizationRequestResolver {
 		if (provider == null) {
 			return null;
 		}
-		this.limits.enforce("ip:" + this.visitors.of(request).ipOrUnknown() + ":login", RateLimit.LOGINS_PER_IP,
+		this.limits.enforce("ip:" + this.visitors.of(request).countedAddress() + ":login", RateLimit.LOGINS_PER_IP,
 				"Too many sign-in attempts.");
 		OAuth2AuthorizationRequest signIn = this.signIns.resolve(request, registrationId);
 		if (signIn == null) {
