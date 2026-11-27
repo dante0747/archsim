@@ -1,7 +1,6 @@
 package io.archsim.app.reviews;
 
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import io.archsim.app.access.Principal;
 import io.archsim.app.access.WorkspaceRole;
@@ -35,7 +34,9 @@ class CommentWriter {
 	}
 
 	/**
-	 * Writes a comment.
+	 * Writes a comment. The checks come first, then the person's limit, charged before
+	 * the comment's own transaction begins, so the request holds one connection at a time
+	 * (ADR-0105).
 	 * @param principal who writes it
 	 * @param projectId the project
 	 * @param request what it says and what it is on
@@ -44,7 +45,6 @@ class CommentWriter {
 	 * no part named, {@code 404} for a run or thread of another project, {@code 429}
 	 * after many comments in an hour
 	 */
-	@Transactional
 	ProjectComment create(Principal principal, String projectId, CommentCreate request) {
 		ProjectDesign project = this.projects.design(principal, projectId, WorkspaceRole.VIEWER);
 		principal.requireWritable();

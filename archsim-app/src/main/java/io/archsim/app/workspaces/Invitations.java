@@ -1,7 +1,6 @@
 package io.archsim.app.workspaces;
 
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,8 +9,6 @@ import io.archsim.app.access.Access;
 import io.archsim.app.access.Person;
 import io.archsim.app.access.Principal;
 import io.archsim.app.access.WorkspaceAccess;
-import io.archsim.app.audit.AuditLog;
-import io.archsim.app.audit.WorkspaceTarget;
 import io.archsim.app.limits.RateLimit;
 import io.archsim.app.limits.RateLimits;
 import io.archsim.app.web.ApiException;
@@ -29,13 +26,10 @@ class Invitations {
 
 	private final RateLimits limits;
 
-	private final AuditLog audit;
-
-	Invitations(InvitationLinks links, Workspaces workspaces, RateLimits limits, AuditLog audit) {
+	Invitations(InvitationLinks links, Workspaces workspaces, RateLimits limits) {
 		this.links = links;
 		this.workspaces = workspaces;
 		this.limits = limits;
-		this.audit = audit;
 	}
 
 	/**
@@ -50,7 +44,9 @@ class Invitations {
 	}
 
 	/**
-	 * A new invitation link. The token is in this answer only.
+	 * A new invitation link. The token is in this answer only. The checks come first,
+	 * then the workspace's limit, charged before the link's own transaction begins, so
+	 * the request holds one connection at a time (ADR-0105).
 	 * @param person who sends it
 	 * @param workspaceId the workspace
 	 * @param request the role, email and days it is good for
@@ -58,7 +54,6 @@ class Invitations {
 	 * @throws ApiException {@code 409} for a workspace that is not a team's, {@code 429}
 	 * after many invitations in a day
 	 */
-	@Transactional
 	InvitationCreated create(Person person, String workspaceId, InvitationCreate request) {
 		WorkspaceAccess where = this.workspaces.owned(person.principal(), workspaceId);
 		if (!Workspaces.TEAM.equals(where.workspace().kind())) {
@@ -66,10 +61,7 @@ class Invitations {
 		}
 		this.limits.enforce("ws:" + workspaceId + ":invitations", RateLimit.INVITES_PER_WORKSPACE,
 				"This workspace has sent many invitations today.");
-		InvitationCreated created = this.links.issue(workspaceId, request, person.userId());
-		this.audit.workspace("invitation.create", new WorkspaceTarget(workspaceId, created.id()),
-				Map.of("role", created.role()), person.principal());
-		return created;
+		return this.links.issue(workspaceId, request, person);
 	}
 
 	/**
@@ -86,9 +78,7 @@ class Invitations {
 		InvitationView invitation = this.links.find(invitationId)
 			.filter((found) -> found.workspaceId().equals(workspaceId))
 			.orElseThrow(() -> Access.notFound("Invitation"));
-		this.audit.workspace("invitation.revoke", new WorkspaceTarget(workspaceId, invitationId),
-				Map.of("role", invitation.role()), principal);
-		this.links.revoke(invitationId);
+		this.links.revoke(invitation, principal);
 	}
 
 }
