@@ -5,21 +5,28 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import io.archsim.app.access.Access;
+import io.archsim.app.access.Person;
 import io.archsim.app.access.Principal;
 import io.archsim.app.access.Secrets;
+import io.archsim.app.audit.AuditLog;
+import io.archsim.app.audit.WorkspaceTarget;
 import io.archsim.app.store.Ids;
 import io.archsim.app.store.Times;
 import io.archsim.app.web.ApiException;
 
 /**
  * Invitation links: a random token, shown once and stored as its SHA-256, that stays open
- * for a number of days or until someone accepts it.
+ * for a number of days or until someone accepts it. A link issued or revoked has its line
+ * in the workspace's history, written with it.
  */
 @Component
 class InvitationLinks {
@@ -29,10 +36,13 @@ class InvitationLinks {
 
 	private final InvitationRepository repository;
 
+	private final AuditLog audit;
+
 	private final Clock clock;
 
-	InvitationLinks(InvitationRepository repository, Clock clock) {
+	InvitationLinks(InvitationRepository repository, AuditLog audit, Clock clock) {
 		this.repository = repository;
+		this.audit = audit;
 		this.clock = clock;
 	}
 
@@ -71,19 +81,23 @@ class InvitationLinks {
 	}
 
 	/**
-	 * A new link, open from now for the days asked.
+	 * A new link, open from now for the days asked, and its line in the history, in one
+	 * transaction.
 	 * @param workspaceId the workspace it joins
 	 * @param request the role, email and days
-	 * @param createdBy who sends it
+	 * @param person who sends it
 	 * @return the invitation, with its token
 	 */
-	InvitationCreated issue(String workspaceId, InvitationCreate request, String createdBy) {
+	@Transactional
+	InvitationCreated issue(String workspaceId, InvitationCreate request, Person person) {
 		String token = Secrets.newSecret(PREFIX);
 		String email = (request.email() != null) ? request.email().strip().toLowerCase(Locale.ROOT) : null;
 		Instant now = Times.now(this.clock);
 		InvitationView invitation = this.repository
 			.add(new NewInvitation(Ids.newId(), Secrets.sha256Hex(token), workspaceId, request.role().json(), email,
-					createdBy, now, now.plus(Duration.ofDays(request.expiresInDays()))));
+					person.userId(), now, now.plus(Duration.ofDays(request.expiresInDays()))));
+		this.audit.workspace("invitation.create", new WorkspaceTarget(workspaceId, invitation.id()),
+				Map.of("role", invitation.role()), person.principal());
 		return InvitationCreated.of(invitation, token);
 	}
 
@@ -98,8 +112,16 @@ class InvitationLinks {
 		return this.repository.claim(id, userId, Times.now(this.clock));
 	}
 
-	void revoke(String id) {
-		this.repository.delete(id);
+	/**
+	 * Revokes an invitation, its line in the history first, in the caller's transaction.
+	 * @param invitation the invitation
+	 * @param principal who revokes it
+	 */
+	@Transactional(propagation = Propagation.MANDATORY)
+	void revoke(InvitationView invitation, Principal principal) {
+		this.audit.workspace("invitation.revoke", new WorkspaceTarget(invitation.workspaceId(), invitation.id()),
+				Map.of("role", invitation.role()), principal);
+		this.repository.delete(invitation.id());
 	}
 
 	/**

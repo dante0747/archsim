@@ -18,8 +18,12 @@ public record Uniform(@Description("Minimum in ms") @Ge(0) @Le(MAX_SAMPLE_MS) do
 
 		@Description("Maximum in ms") @Ge(0) @Le(MAX_SAMPLE_MS) double max) implements Distribution {
 
+	/**
+	 * Checks the maximum is at least the minimum; the comparison is written so that NaN
+	 * fails it.
+	 */
 	public Uniform {
-		if (max < min) {
+		if (!(max >= min)) {
 			throw new IllegalArgumentException("uniform distribution requires max >= min");
 		}
 	}

@@ -15,6 +15,10 @@ spring:
       order: -2147483647
   datasource:
     hikari:
+      # Hikari's default, set rather than left to it: a request holds one connection at a time
+      # (rate limits are charged before a transaction begins), so the pool bounds how many use
+      # the database at once (ADR-0105; docs/deployment.md sizes it for the hosting kit)
+      maximum-pool-size: 10
       # fail a health check within 10 s rather than 30, as the Python API's connect timeout
       connection-timeout: 10000
       # start without the database; /health says when it is unreachable

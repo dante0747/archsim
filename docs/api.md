@@ -211,8 +211,9 @@ makes a guest account (named "Guest", no email) that owns a new sandbox workspac
 browser in as the guest: `201` with what `GET /auth/me` answers, and the session and CSRF cookies,
 which last until the sandbox is deleted, 24 hours later, with the guest and everything in it. A
 guest uses the sandbox as its owner, within its [limits](#limits), but makes no team workspaces,
-API tokens, invitations or share links and accepts no invitation (`403`). Signing in from a
-sandbox starts a normal personal workspace; the sandbox's projects are not moved.
+API tokens, invitations or share links, accepts no invitation and does not rename the sandbox
+(`403`). Signing in from a sandbox starts a normal personal workspace; the sandbox's projects are
+not moved.
 
 **API tokens (CLI, CI, MCP).** Send `Authorization: Bearer asim_pat_...`; no cookie and no CSRF
 header. A token acts as you, as a viewer if its scope is `read`, and only in its workspace if
@@ -249,8 +250,9 @@ so the document is served at the public address it names.
 | POST | `/tokens` | `{name, scope: read|write, workspaceId?, expiresInDays? (default 90; null: never)}`. The answer has the `token` once. |
 | DELETE | `/tokens/{id}` | Revoke at once. |
 
-Tokens cannot manage tokens, workspaces or invitations (403): do that signed in. Neither can a
-sandbox's guest, who also makes no share links.
+Tokens cannot manage access (403): tokens, workspaces (making, renaming, deleting), who belongs to
+a workspace and their roles (leaving included), or invitations (making, revoking, accepting). Do
+that signed in. Neither can a sandbox's guest, who also makes no share links.
 
 ```bash
 export ARCHSIM_TOKEN=asim_pat_...        # Settings → API tokens
@@ -281,8 +283,10 @@ them. Without sign-in the counters are off, and only sandboxes keep their other 
 
 A share link is a frozen, read-only copy of one finished run's results that anyone with the
 link can open on the web app at `/r/<slug>`, without signing in. It holds the report without
-request traces (calibration addresses hidden), the objectives from the run's input document,
-the project name and that document (for "Open a copy"; the public answer leaves it out). It
+request traces, the objectives from the run's input document, the project name and that
+document (for "Open a copy"; the public answer leaves it out), with every address
+(`scheme://...`) in a calibration or a measured input's provenance record, where a calibration
+names its telemetry source, written `(address hidden)`. It
 does not change when the design does and stays when the run or project is deleted, until it
 expires or is revoked. Slugs are 128 random bits in base62 (22 characters).
 

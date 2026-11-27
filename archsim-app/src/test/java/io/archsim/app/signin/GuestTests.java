@@ -10,8 +10,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * What a sandbox's guest may do: design and simulate in their sandbox, within its limits;
- * not what takes an account of one's own (API tokens, team workspaces, invitations) or
- * publishes the sandbox's results (share links).
+ * not what takes an account of one's own (API tokens, team workspaces, invitations,
+ * renaming a workspace) or publishes the sandbox's results (share links).
  */
 class GuestTests extends SandboxTestSupport {
 
@@ -46,6 +46,19 @@ class GuestTests extends SandboxTestSupport {
 
 		MvcTestResult refused = send(guest, HttpMethod.POST,
 				"/api/v1/workspaces/" + guest.workspaceId() + "/invitations", "{\"role\": \"viewer\"}");
+
+		assertThat(refused).hasStatus(403)
+			.bodyJson()
+			.extractingPath("$.detail.message")
+			.isEqualTo(Principal.GUESTS_CANNOT);
+	}
+
+	@Test
+	void renameWorkspace_guest_isForbidden() {
+		SignedIn guest = guest();
+
+		MvcTestResult refused = send(guest, HttpMethod.PATCH, "/api/v1/workspaces/" + guest.workspaceId(),
+				"{\"name\": \"Mine\"}");
 
 		assertThat(refused).hasStatus(403)
 			.bodyJson()

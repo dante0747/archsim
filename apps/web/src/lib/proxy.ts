@@ -91,30 +91,78 @@ export const API_URL = (process.env.ARCHSIM_API_URL ?? "http://127.0.0.1:8000").
 const TRUSTED_HOPS = Number(process.env.ARCHSIM_TRUSTED_HOPS ?? "0");
 
 /**
- * Sends a browser's request on to the API at `target`, with the headers that cross, and the API's
- * answer back; a 502 in the API's error shape when the API cannot be reached.
+ * The largest body passed on to the API: the API's own limit, ARCHSIM_MAX_BODY_BYTES (5,000,000
+ * bytes unless set; give both servers the same value). A larger one is refused before it is read
+ * into memory, as the API would refuse it.
  */
-export async function forwardTo(req: Request, target: string): Promise<Response> {
-  const hasBody = !["GET", "HEAD"].includes(req.method);
+export const MAX_BODY_BYTES = Number(process.env.ARCHSIM_MAX_BODY_BYTES ?? "5000000");
+
+/**
+ * How long the API has to answer in full: longer than any request it answers at once, of which a
+ * calibration, its Prometheus queries and its replay, is the longest. Runs are queued, not waited
+ * for.
+ */
+export const API_TIMEOUT_MS = 300_000;
+
+/** An answer in the API's error shape. */
+function apiError(status: number, message: string): Response {
+  return Response.json({ detail: { message, issues: [] } }, { status });
+}
+
+/**
+ * A request's body, read only while it stays within MAX_BODY_BYTES: a stated length over it is
+ * refused unread, and a body of no stated length is read chunk by chunk and dropped once it passes
+ * it. Null when it is too large.
+ */
+async function boundedBody(req: Request): Promise<Uint8Array<ArrayBuffer> | null> {
+  if (Number(req.headers.get("content-length") ?? "0") > MAX_BODY_BYTES) return null;
+  if (!req.body) return new Uint8Array();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  const reader = req.body.getReader();
+  for (let read = await reader.read(); !read.done; read = await reader.read()) {
+    size += read.value.byteLength;
+    if (size > MAX_BODY_BYTES) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(read.value);
+  }
+  const body = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return body;
+}
+
+/**
+ * Sends a browser's request on to the API at `target`, with the headers that cross, and the API's
+ * answer back: a 413 for a body larger than the API takes, a 504 when the API does not answer
+ * within `timeoutMs`, and a 502 when it cannot be reached, each in the API's error shape.
+ */
+export async function forwardTo(req: Request, target: string, timeoutMs = API_TIMEOUT_MS): Promise<Response> {
+  const body = ["GET", "HEAD"].includes(req.method) ? undefined : await boundedBody(req);
+  if (body === null) return apiError(413, "Request body too large");
   try {
     const res = await fetch(target, {
       method: req.method,
       headers: forwardRequestHeaders(req.headers, TRUSTED_HOPS),
-      body: hasBody ? await req.arrayBuffer() : undefined,
+      body,
       cache: "no-store",
       redirect: "manual",
+      signal: AbortSignal.timeout(timeoutMs),
     });
-    const body = res.status === 204 || res.status === 304 ? null : res.body;
-    return new Response(body, { status: res.status, headers: forwardResponseHeaders(res.headers) });
-  } catch {
-    return Response.json(
-      {
-        detail: {
-          message: `Cannot reach the ArchSim API at ${API_URL}. Start it as the README's quick start shows, or set ARCHSIM_API_URL to where it runs.`,
-          issues: [],
-        },
-      },
-      { status: 502 },
+    const answer = res.status === 204 || res.status === 304 ? null : res.body;
+    return new Response(answer, { status: res.status, headers: forwardResponseHeaders(res.headers) });
+  } catch (e) {
+    if (e instanceof Error && e.name === "TimeoutError") {
+      return apiError(504, "The ArchSim API did not answer in time. Try again in a moment.");
+    }
+    return apiError(
+      502,
+      `Cannot reach the ArchSim API at ${API_URL}. Start it as the README's quick start shows, or set ARCHSIM_API_URL to where it runs.`,
     );
   }
 }

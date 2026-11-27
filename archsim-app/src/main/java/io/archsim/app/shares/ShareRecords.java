@@ -8,6 +8,7 @@ import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import io.archsim.app.access.Principal;
 import io.archsim.app.audit.AuditLog;
@@ -35,11 +36,13 @@ class ShareRecords {
 	}
 
 	/**
-	 * Stores a new share link, with a new slug.
+	 * Stores a new share link, with a new slug, and its line in the history, in one
+	 * transaction.
 	 * @param share what it shares
 	 * @param principal who makes it
 	 * @return the share
 	 */
+	@Transactional
 	StoredShare add(NewShare share, Principal principal) {
 		Instant now = Times.now(this.clock);
 		Integer days = share.expiresInDays();
