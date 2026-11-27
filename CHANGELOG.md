@@ -31,6 +31,10 @@ for when that version changes.
 
 ### Fixed
 
+- **An API token cannot change a workspace's members, their roles or its invitations, or rename
+  it.** These take the person signed in to the web app, as making a workspace or an invitation
+  already did; a sandbox's guest cannot rename the sandbox either.
+
 - **No label is cut short on the canvas or the timeline.** The chaos pads clipped their titles
   ("Lose Catalog…"); they have two columns and room for three lines. A part's card cut a label
   when its value was long ("Max connections per instan…"); the value now wraps under it. The Test
