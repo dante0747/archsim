@@ -58,7 +58,7 @@ test("review: comment, reply, approve, stale after save, history, detached, reso
   await page.getByRole("tablist", { name: "Results" }).getByRole("tab", { name: "Answer" }).click();
   await page.getByLabel("Project name").fill("Cache-aside, reviewed");
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByLabel("saved", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("save-status")).toHaveText("Saved");
   await expect(review.getByTestId("signoff-state")).toHaveText("Design changed since review");
   await expect(review.getByTestId("signoff-entry")).toHaveAttribute("data-stale", "true");
 
@@ -67,7 +67,8 @@ test("review: comment, reply, approve, stale after save, history, detached, reso
   const drawer = page.getByTestId("activity-drawer");
   await drawer.getByRole("tab", { name: "History" }).click();
   const events = drawer.getByTestId("activity-event");
-  await expect(events.first()).toContainText("saved revision 2");
+  // "saved revision 2", or "saved revisions 2 to 3" where the editor's own save came before the click
+  await expect(events.first()).toContainText(/saved revisions? 2/);
   await expect(drawer).toContainText("approved the design (revision 1)");
   await expect(drawer).toContainText("replied on");
   await expect(drawer).toContainText("commented on");

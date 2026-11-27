@@ -3,6 +3,8 @@ import {
   actorName,
   anchorKey,
   describeEvent,
+  describeRow,
+  foldSaves,
   isDetached,
   latestByReviewer,
   mergeActivity,
@@ -161,5 +163,49 @@ describe("history", () => {
     const loaded = [event({ id: 5 }), event({ id: 4 }), event({ id: 1 })];
     const merged = mergeActivity(loaded, [event({ id: 7 }), event({ id: 6 }), event({ id: 5 })]);
     expect(merged.map((e) => e.id)).toEqual([7, 6, 5, 4, 1]);
+  });
+});
+
+describe("the history's saves", () => {
+  const save = (id: number, revision: number, over: Partial<ActivityEvent> = {}) =>
+    event({ id, action: "project.update", meta: { name: "Shop", revision }, ...over });
+  const bob = { id: "bob", name: "Bob", avatarUrl: null };
+
+  it("foldSaves_ofSavesInARowByOnePerson_makesOneRowThatNamesTheRevisions", () => {
+    const rows = foldSaves([save(9, 7), save(8, 6), save(7, 5)]);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].event.id).toBe(9);
+    expect(describeRow(rows[0]).text).toBe("saved revisions 5 to 7");
+  });
+
+  it("foldSaves_ofOneSave_keepsItsOwnSentence", () => {
+    const rows = foldSaves([save(9, 7)]);
+
+    expect(rows).toEqual([{ event: expect.objectContaining({ id: 9 }), earliest: null }]);
+    expect(describeRow(rows[0]).text).toBe("saved revision 7");
+  });
+
+  it("foldSaves_keepsSavesApartThatSomethingElseSeparates", () => {
+    const rows = foldSaves([save(9, 7), save(8, 6), event({ id: 7, action: "run.create", meta: { label: "Baseline" } }), save(6, 5), save(5, 4)]);
+
+    expect(rows.map((row) => describeRow(row).text)).toEqual(["saved revisions 6 to 7", "simulated Baseline", "saved revisions 4 to 5"]);
+  });
+
+  it("foldSaves_keepsSavesApartThatDifferentPeopleMade", () => {
+    const rows = foldSaves([save(9, 7), save(8, 6, { actor: bob }), save(7, 5, { actor: bob }), save(6, 4, { actorKind: "token" })]);
+
+    expect(rows.map((row) => [actorName(row.event), describeRow(row).text])).toEqual([
+      ["Ann", "saved revision 7"],
+      ["Bob", "saved revisions 5 to 6"],
+      ["Ann (API token)", "saved revision 4"],
+    ]);
+  });
+
+  it("foldSaves_leavesEveryOtherEventARowOfItsOwn", () => {
+    const rows = foldSaves([event({ id: 3 }), event({ id: 2 }), event({ id: 1 })]);
+
+    expect(rows.map((row) => row.event.id)).toEqual([3, 2, 1]);
+    expect(describeRow(rows[0], (kind, id) => `${kind} ${id}`)).toEqual({ text: "commented on node cache", quote: "Why 2 GB?" });
   });
 });

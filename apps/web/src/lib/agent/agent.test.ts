@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { api } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
 import analysisJson from "@/test/fixtures/analysis-starter.json";
 import catalogJson from "@/test/fixtures/catalog.json";
 import starterJson from "@/test/fixtures/starter.json";
 import type { Analysis, ArchitectureDocument, Catalog, Project } from "@/lib/types";
 import { useEditor } from "@/store/editor";
+import { useUi } from "@/store/ui";
 import { editorTools } from "./editor-tools";
 import { type AgentTool, modelContext, registerAgentTools } from "./webmcp";
 
@@ -108,6 +109,7 @@ describe("editor tools", () => {
   const call = (name: string, input: Record<string, unknown> = {}) => tools[name].execute(input) as Promise<Record<string, unknown>>;
   beforeEach(() => {
     useEditor.getState().load(structuredClone(project), catalog);
+    useUi.getState().resetForProject();
     // sizes and review come from the engine (POST /analyze): its real output for the starter
     vi.spyOn(api, "analyze").mockResolvedValue(analysisJson as unknown as Analysis);
   });
@@ -173,5 +175,28 @@ describe("editor tools", () => {
     expect(Array.isArray(review)).toBe(true);
     await call("remove", { ids: ["cache"] });
     expect(useEditor.getState().nodes.some((n) => n.id === "cache")).toBe(false);
+  });
+
+  it("saves the design as the editor's Save does, and reports the revision", async () => {
+    await call("update_part", { id: "api", settings: { replicas: 3 } });
+    const update = vi.spyOn(api, "updateProject").mockResolvedValue({ ...project, revision: 2 });
+
+    const saved = await call("save_design");
+
+    expect(saved).toEqual({ revision: 2, summary: "saved revision 2" });
+    expect(update).toHaveBeenCalledWith("p1", expect.objectContaining({ expectedRevision: 1 }));
+    expect(useEditor.getState()).toMatchObject({ dirty: false, revision: 2 });
+  });
+
+  it("saves nothing when the project was saved elsewhere, and leaves the choice to the person", async () => {
+    await call("update_part", { id: "api", settings: { replicas: 3 } });
+    vi.spyOn(api, "updateProject").mockRejectedValue(
+      new ApiError("Project was modified elsewhere (revision 2, you had 1). Reload before saving.", 409),
+    );
+
+    await expect(call("save_design")).rejects.toThrow(/saved elsewhere since it was opened, so nothing was saved/);
+
+    expect(useEditor.getState()).toMatchObject({ conflict: true, dirty: true, revision: 1 });
+    expect(useUi.getState().saveConflictOpen).toBe(true);
   });
 });

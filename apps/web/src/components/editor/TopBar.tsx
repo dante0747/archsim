@@ -26,8 +26,10 @@ import {
   Upload,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useRef } from "react";
 import { useEditorActions } from "@/components/editor/actions";
+import { SaveStatus } from "@/components/editor/SaveStatus";
 import { startTour } from "@/components/editor/GuidedTour";
 import { LogoMark } from "@/components/brand";
 import { Button } from "@/components/ui/button";
@@ -48,6 +50,8 @@ import { ActivityButton } from "@/components/team/ActivityButton";
 import { WorkspaceSwitch } from "@/components/editor/WorkspaceBar";
 import { SimulateOptionItems } from "@/components/editor/SimulateOptions";
 import { TransportButtons, TransportLcd } from "@/components/editor/Transport";
+import { UNTITLED } from "@/lib/document";
+import { guardLink } from "@/lib/leave";
 import { cn, modKey } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 import { useRuns } from "@/store/runs";
@@ -121,7 +125,7 @@ function RunControl() {
           <button
             type="button"
             aria-label="Choose what to simulate"
-            className="flex max-w-32 items-center gap-1 rounded-r-[9px] 2xl:max-w-40 border border-line-strong bg-surface-2 px-2 text-[13px] text-ink-2 transition-colors hover:bg-surface-3 hover:text-ink"
+            className="flex max-w-24 items-center gap-1 rounded-r-[9px] min-[1366px]:max-w-32 2xl:max-w-40 border border-line-strong bg-surface-2 px-2 text-[13px] text-ink-2 transition-colors hover:bg-surface-3 hover:text-ink"
           >
             {target ? <span className="truncate">{target.name}</span> : <span className="sr-only">Current design</span>}
             <ChevronDown className="size-3.5 shrink-0" />
@@ -164,7 +168,7 @@ function RunControl() {
 /**
  * The project's name, edited in place. It is as wide as its text, up to 20rem, and is what gives
  * way when the top bar is short of room: cut short, it ends in an ellipsis and shows in full on
- * hover.
+ * hover. Whether the design is saved is said under it, so the words take no room from the bar.
  */
 function ProjectName({ name, onChange }: { name: string; onChange: (name: string) => void }) {
   const text = "border border-transparent px-1.5 text-[14px] font-semibold tracking-[-0.01em]";
@@ -174,18 +178,20 @@ function ProjectName({ name, onChange }: { name: string; onChange: (name: string
     // 20 characters would widen the column).
     <span className="grid min-w-16 max-w-[20rem] grid-cols-[minmax(0,auto)]">
       <span aria-hidden className={cn(text, "invisible col-start-1 row-start-1 overflow-hidden whitespace-pre")}>
-        {name || " "}
+        {name || UNTITLED}
       </span>
       <input
         value={name}
         onChange={(e) => onChange(e.target.value)}
         aria-label="Project name"
+        // a design saved without a name is given this one
+        placeholder={UNTITLED}
         title={name}
         maxLength={120}
         size={1}
         className={cn(
           text,
-          "col-start-1 row-start-1 h-7 w-full min-w-0 truncate rounded-md bg-transparent text-ink transition-colors hover:border-line focus-visible:border-accent focus-visible:bg-surface-2 focus-visible:outline-none",
+          "col-start-1 row-start-1 h-6 w-full min-w-0 truncate rounded-md bg-transparent text-ink transition-colors hover:border-line focus-visible:border-accent focus-visible:bg-surface-2 focus-visible:outline-none",
         )}
       />
     </span>
@@ -256,6 +262,7 @@ export function TopBar({
   const setMetadata = useEditor((s) => s.setMetadata);
   const dirty = useEditor((s) => s.dirty);
   const saving = useEditor((s) => s.saving);
+  const router = useRouter();
   const canUndo = useEditor((s) => s.past.length > 0);
   const canRedo = useEditor((s) => s.future.length > 0);
   const undo = useEditor((s) => s.undo);
@@ -273,19 +280,30 @@ export function TopBar({
   // Only the project name gives way when the bar is short of room: the groups beside it keep their
   // width, so the workspace tabs, the transport and the run controls never run into one another.
   // Below 2xl (1536 px) they make room for it: the theme moves into the menu, the scenario's name
-  // and the transport's display get shorter.
+  // and the transport's display get shorter. The name cannot give way below the words under it
+  // that say whether the design is saved, so below 1366 px the scenario's name is cut at 6rem
+  // rather than 8: without that the bar is some 15 px too wide for a 1280 px window where text
+  // is drawn widest (Linux).
   return (
     <header className="island relative z-30 flex h-[60px] shrink-0 items-center gap-3 !overflow-visible border-b border-line px-3">
       <div className="flex shrink items-center gap-1.5">
         <Tip content="All projects">
-          <Link href="/projects" aria-label="Back to projects" className="shrink-0 rounded-md p-1 hover:bg-surface-2">
+          <Link
+            href="/projects"
+            onNavigate={(e) => guardLink(e, () => router.push("/projects"))}
+            aria-label="Back to projects"
+            className="shrink-0 rounded-md p-1 hover:bg-surface-2"
+          >
             <LogoMark className="size-6" />
           </Link>
         </Tip>
-        <ProjectName name={name} onChange={(value) => setMetadata({ name: value }, "name")} />
-        <Tip content={saving ? "Saving…" : dirty ? "Unsaved changes" : "All changes saved"}>
-          <span className={cn("size-1.5 shrink-0 rounded-full", saving ? "bg-accent pulse-soft" : dirty ? "bg-warning" : "bg-ink-3/50")} aria-label={saving ? "saving" : dirty ? "unsaved" : "saved"} />
-        </Tip>
+        <div className="flex min-w-0 flex-col items-start gap-0.5" data-testid="project-title">
+          <ProjectName name={name} onChange={(value) => setMetadata({ name: value }, "name")} />
+          {/* in line with the name's text, inside its border and padding */}
+          <span className="pl-[7px]">
+            <SaveStatus />
+          </span>
+        </div>
         <span className="ml-2 hidden shrink-0 xl:block">
           <WorkspaceSwitch />
         </span>

@@ -1,8 +1,9 @@
 /**
  * The editor's top bar at common desktop widths: the project name, the workspace tabs, the
  * transport and the run controls sit side by side, never on top of one another, in every
- * workspace and with a scenario chosen to simulate. A long project name ends in an ellipsis and
- * keeps its full text in a tooltip.
+ * workspace and with a scenario chosen to simulate. The words that say whether the design is
+ * saved sit under the name, whole, and take no room from the rest. A long project name ends in an
+ * ellipsis and keeps its full text in a tooltip.
  */
 import { type APIRequestContext, expect, type Locator, type Page, test } from "@playwright/test";
 
@@ -51,7 +52,7 @@ async function topBar(page: Page) {
   const activity = page.getByTestId("activity-button");
   const controls = (await activity.isVisible()) ? activity : page.getByTestId("run-button");
   return [
-    await box(page.getByLabel("Project name"), "the project name"),
+    await box(page.getByTestId("project-title"), "the project name and its save status"),
     await box(page.getByRole("tablist", { name: "Workspaces" }).filter({ visible: true }), "the workspace tabs"),
     await box(page.getByRole("group", { name: "Replay" }).filter({ visible: true }), "the replay buttons"),
     await box(page.getByTestId("transport-lcd"), "the transport display"),
@@ -77,8 +78,22 @@ for (const width of [1280, 1366, 1440, 1536]) {
         expect(groups[i - 1].right, `${key}: ${groups[i - 1].what} ends before ${groups[i].what}`).toBeLessThanOrEqual(groups[i].left);
       }
       expect(groups[groups.length - 1].right, `${key}: the top bar fits the window`).toBeLessThanOrEqual(width);
+      await expectSaveStatusWhole(page, key);
     }
   });
+}
+
+/** The save status reads in full, under the project's name and inside the top bar. */
+async function expectSaveStatusWhole(page: Page, key: string) {
+  const status = page.getByTestId("save-status");
+  await expect(status, `${key}: the save status`).toHaveText(/^(Saved|Unsaved changes|Saving…)$/);
+  const words = await status.evaluate((el: HTMLElement) => ({ shown: el.clientWidth, needed: el.scrollWidth }));
+  expect(words.needed, `${key}: the save status is not cut short`).toBeLessThanOrEqual(words.shown);
+  const name = (await page.getByLabel("Project name").boundingBox())!;
+  const below = (await status.boundingBox())!;
+  const bar = (await page.getByRole("banner").boundingBox())!;
+  expect(below.y, `${key}: the save status sits under the name`).toBeGreaterThanOrEqual(name.y + name.height);
+  expect(below.y + below.height, `${key}: the save status sits inside the top bar`).toBeLessThanOrEqual(bar.y + bar.height);
 }
 
 test("a long project name ends in an ellipsis and keeps its full text in a tooltip", async ({ page }) => {
