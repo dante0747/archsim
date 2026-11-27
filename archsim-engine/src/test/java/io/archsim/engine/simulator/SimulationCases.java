@@ -52,16 +52,7 @@ public final class SimulationCases {
 	 * the mode Python simulated
 	 */
 	public static ObjectNode simulate(JsonNode recorded) {
-		JsonNode scenario = recorded.get("scenarioId");
-		RunRequest request = RunRequest.of(scenario.isNull() ? null : scenario.stringValue());
-		JsonNode seed = recorded.path("seed");
-		if (seed.isIntegralNumber()) {
-			request = request.withSeed(seed.longValue());
-		}
-		if ("sampled".equals(recorded.path("mode").asString())) {
-			request = request.withMode(SimulationMode.SAMPLED);
-		}
-		return SIMULATOR.run(recorded.get("design"), request);
+		return SIMULATOR.run(recorded.get("design"), request(recorded));
 	}
 
 	/**
@@ -73,6 +64,24 @@ public final class SimulationCases {
 	 */
 	static ObjectNode simulate(JsonNode design, JsonNode scenarioId) {
 		return SIMULATOR.run(design, RunRequest.of(scenarioId.isNull() ? null : scenarioId.stringValue()));
+	}
+
+	/**
+	 * What a recorded case asks a run for.
+	 * @param recorded the case
+	 * @return the run's request: the scenario, the seed and the mode Python simulated
+	 */
+	static RunRequest request(JsonNode recorded) {
+		JsonNode scenario = recorded.get("scenarioId");
+		RunRequest request = RunRequest.of(scenario.isNull() ? null : scenario.stringValue());
+		JsonNode seed = recorded.path("seed");
+		if (seed.isIntegralNumber()) {
+			request = request.withSeed(seed.longValue());
+		}
+		if ("sampled".equals(recorded.path("mode").asString())) {
+			request = request.withMode(SimulationMode.SAMPLED);
+		}
+		return request;
 	}
 
 }

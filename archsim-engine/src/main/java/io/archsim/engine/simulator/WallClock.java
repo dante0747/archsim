@@ -6,7 +6,9 @@ import io.archsim.engine.run.SimulationLimitException;
 import io.archsim.model.text.PythonFormat;
 
 /**
- * The wall-clock time a run has taken since it started, against the most it may take.
+ * The wall-clock time a request to simulate has taken since it started, against the most
+ * it may take: one clock for a run, or for a quick check's sample and the whole run after
+ * it.
  */
 final class WallClock {
 
@@ -21,9 +23,9 @@ final class WallClock {
 	private final double limitS;
 
 	/**
-	 * A run's clock, started now.
+	 * A request's clock, started now.
 	 * @param clock the wall clock, in nanoseconds, as {@link System#nanoTime()} reads it
-	 * @param limitS the most seconds the run may take
+	 * @param limitS the most seconds the request may take
 	 */
 	WallClock(LongSupplier clock, double limitS) {
 		this.clock = clock;
@@ -32,7 +34,7 @@ final class WallClock {
 	}
 
 	/**
-	 * The time the run has taken so far.
+	 * The time the request has taken so far.
 	 * @return seconds
 	 */
 	double elapsedS() {
@@ -40,7 +42,7 @@ final class WallClock {
 	}
 
 	/**
-	 * Stops a run that has taken longer than it may.
+	 * Stops a request that has taken longer than it may.
 	 * @param simulatedMs the simulated time it has reached
 	 * @throws SimulationLimitException when it is past its limit, in the Python engine's
 	 * words
