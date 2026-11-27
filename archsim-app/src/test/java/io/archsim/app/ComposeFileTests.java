@@ -13,6 +13,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.JsonNode;
 
 import io.archsim.apitests.Examples;
+import io.archsim.app.config.TestProperties;
 import io.archsim.engine.version.ArchsimVersion;
 import io.archsim.engine.yaml.YamlDocuments;
 
@@ -153,6 +154,30 @@ class ComposeFileTests {
 		JsonNode web = services(HOSTED).path("web");
 
 		assertThat(web.at("/environment/ARCHSIM_PRIVACY_URL").asString()).isEqualTo("${ARCHSIM_PRIVACY_URL:-}");
+	}
+
+	// the guide tells whoever runs the kit to set this in hosted.env (deployment.md).
+	// Left out there, it reaches the API empty, which sizes the slots from its heap
+	@Test
+	void hostedCompose_theApi_takesItsEngineSlotsFromHostedEnv() throws IOException {
+		JsonNode api = services(HOSTED).path("api");
+
+		assertThat(api.at("/environment/ARCHSIM_MAX_ENGINE_REQUESTS").asString())
+			.isEqualTo("${ARCHSIM_MAX_ENGINE_REQUESTS:-}");
+	}
+
+	// the guide tells whoever runs the kit to set these in hosted.env too: how long the
+	// server keeps runs, sign-ins and its history. A number cannot be passed on empty, so
+	// the kit names each default, which must stay the application's own
+	@Test
+	void hostedCompose_whatTheApiKeeps_comesFromHostedEnvOrTheApplicationsDefaults() throws IOException {
+		JsonNode environment = services(HOSTED).path("api").path("environment");
+
+		assertThat(List.of("ARCHSIM_RUN_HISTORY_LIMIT", "ARCHSIM_SESSION_DAYS", "ARCHSIM_HISTORY_DAYS"))
+			.extracting((name) -> environment.path(name).asString())
+			.containsExactly("${ARCHSIM_RUN_HISTORY_LIMIT:-" + TestProperties.with().runHistoryLimit() + "}",
+					"${ARCHSIM_SESSION_DAYS:-" + TestProperties.signIn().sessionDays() + "}",
+					"${ARCHSIM_HISTORY_DAYS:-" + TestProperties.with().historyDays() + "}");
 	}
 
 	@Test

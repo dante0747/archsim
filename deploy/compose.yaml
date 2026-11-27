@@ -111,6 +111,14 @@ services:
       ARCHSIM_CORS_ORIGINS: '["https://${ARCHSIM_DOMAIN}"]'
       ARCHSIM_TRUSTED_PROXIES: web
       ARCHSIM_OUTBOUND: "off"
+      # requests the engine's routes answer at once: left out of hosted.env, as many as the heap
+      # holds, one at 512 MB (ADR-0108)
+      ARCHSIM_MAX_ENGINE_REQUESTS: ${ARCHSIM_MAX_ENGINE_REQUESTS:-}
+      # how many of a project's runs the server keeps, and for how many days a sign-in and each
+      # workspace's history (docs/deployment.md); the defaults are the application's own
+      ARCHSIM_RUN_HISTORY_LIMIT: ${ARCHSIM_RUN_HISTORY_LIMIT:-200}
+      ARCHSIM_SESSION_DAYS: ${ARCHSIM_SESSION_DAYS:-30}
+      ARCHSIM_HISTORY_DAYS: ${ARCHSIM_HISTORY_DAYS:-365}
       # calibrations replay in the API's process, as many at once as the cores less one
       JAVA_TOOL_OPTIONS: -Xmx${ARCHSIM_API_HEAP:-512m}
     depends_on:

@@ -89,7 +89,8 @@ Rate-limit counters go within a minute of the end of their window, and sandboxes
 they start. Designs, comments, sign-offs, accounts and workspaces stay until someone deletes them,
 and API tokens, revoked and expired ones included, for as long as their person's account.
 Before upgrading a server whose projects should keep more runs, raise `ARCHSIM_RUN_HISTORY_LIMIT`:
-the first prune, as the API starts, deletes the runs past it.
+the first prune, as the API starts, deletes the runs past it. The hosting kit takes the table's
+three settings from `hosted.env`, and `docker-compose.yml` from `.env.docker`.
 
 ## Before you expose a server
 
@@ -145,7 +146,7 @@ server, give the JVMs more in `hosted.env` (a container's memory limit is its he
 
 The API's heap also sets how many requests the engine's routes answer at once, each with a design
 in memory: one on 512 MB with two cores, three on 1 GB with four (`ARCHSIM_MAX_ENGINE_REQUESTS`
-overrides it; [ADR-0108](adr/0108-bound-the-engines-routes-by-slots-per-person-limits-and-a-sandbox-body-cap.md)).
+in `hosted.env` overrides it; [ADR-0108](adr/0108-bound-the-engines-routes-by-slots-per-person-limits-and-a-sandbox-body-cap.md)).
 
 The worker's heap on a big server is the one [archsim-app's README](../archsim-app/README.md#the-workers-heap)
 asks: 512 MB a run and 256 MB besides. The default gives each run less, about 384 MB, because runs
