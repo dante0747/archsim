@@ -31,6 +31,12 @@ for when that version changes.
 
 ### Fixed
 
+- **A design's numbers must be finite
+  ([ADR-0103](docs/adr/0103-refuse-a-number-that-is-not-finite-when-a-design-is-read.md),
+  proposed).** Such a number was read as a float and could get past the checks that bound a run;
+  it is now refused where it stands, with "Input should be a finite number". The schema version
+  stays 1.11.
+
 - **No label is cut short on the canvas or the timeline.** The chaos pads clipped their titles
   ("Lose Catalog…"); they have two columns and room for three lines. A part's card cut a label
   when its value was long ("Max connections per instan…"); the value now wraps under it. The Test

@@ -28,8 +28,12 @@ public record LogNormal(@Description("Median (p50) in ms") @Gt(0) @Le(MAX_SAMPLE
 	 */
 	public static final double Z95 = 1.6448536269514722;
 
+	/**
+	 * Checks the p95 is at least the median; the comparison is written so that NaN fails
+	 * it.
+	 */
 	public LogNormal {
-		if (p95 < median) {
+		if (!(p95 >= median)) {
 			throw new IllegalArgumentException("lognormal distribution requires p95 >= median");
 		}
 	}

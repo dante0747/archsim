@@ -30,7 +30,8 @@ public record TracePattern(@MinItems(2) @MaxItems(2000) List<TracePoint> points,
 
 	/**
 	 * Copies the points, and checks the curve starts at {@code t = 0}, its times rise
-	 * strictly and its rates are within bounds.
+	 * strictly and its rates are within bounds. Each comparison is written so that NaN
+	 * fails it.
 	 */
 	public TracePattern {
 		points = List.copyOf(points);
@@ -38,7 +39,7 @@ public record TracePattern(@MinItems(2) @MaxItems(2000) List<TracePoint> points,
 			throw new IllegalArgumentException("a trace starts at t = 0");
 		}
 		for (int i = 1; i < points.size(); i++) {
-			if (points.get(i).t() <= points.get(i - 1).t()) {
+			if (!(points.get(i).t() > points.get(i - 1).t())) {
 				throw new IllegalArgumentException("trace times must rise strictly");
 			}
 		}

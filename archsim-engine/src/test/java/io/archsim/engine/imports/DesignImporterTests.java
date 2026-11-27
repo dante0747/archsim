@@ -79,10 +79,11 @@ class DesignImporterTests {
 	/**
 	 * Python's {@code float()} reads a figure of any length, past the largest float as
 	 * infinity, which the design's JSON writes as {@code null}, as pydantic's JSON mode
-	 * wrote a float a component's settings held.
+	 * wrote a float a component's settings held. The setting's type refuses it as not
+	 * finite, before its limit (ADR-0103).
 	 */
 	@Test
-	void importDesign_cpuFigureOfTenThousandDigits_isNullWithTheLimitIssue() {
+	void importDesign_cpuFigureOfTenThousandDigits_isNullWithTheIssueThatItIsNotFinite() {
 		String compose = """
 				services:
 				  api:
@@ -97,7 +98,7 @@ class DesignImporterTests {
 
 		assertThat(imported.document().at("/architecture/nodes/0/config/cpuCores")).isEqualTo(NullNode.getInstance());
 		assertThat(imported.report().issues()).extracting((issue) -> issue.path("message").stringValue())
-			.containsExactly("api: 'cpuCores' input should be less than or equal to 512");
+			.containsExactly("api: 'cpuCores' input should be a finite number");
 	}
 
 }

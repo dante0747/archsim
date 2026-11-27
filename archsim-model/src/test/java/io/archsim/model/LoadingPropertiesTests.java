@@ -18,15 +18,18 @@ import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
+import io.archsim.model.codec.RecordCodec;
 import io.archsim.model.document.ArchitectureDocument;
 import io.archsim.model.issue.DocumentInvalidException;
+import io.archsim.model.validation.DocumentValidator;
 import io.archsim.parity.Repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Whatever JSON comes in, loading either reads a document or says what is wrong with it:
- * no other exception, and a document read is one that writes and reads back the same.
+ * no other exception, and a document read is one that writes and reads back the same,
+ * with no number in it that is NaN or an infinity.
  */
 class LoadingPropertiesTests {
 
@@ -40,6 +43,18 @@ class LoadingPropertiesTests {
 			"points", "latencyMs", "requestTypes", "scenarios", "overrides", "value", "layout", "provenance", "pricing",
 			"families", "host", "zz");
 
+	/**
+	 * Numbers no design means, and the largest and smallest a double holds: as floats,
+	 * and as the words and digits the codec reads a float from.
+	 */
+	private static final List<JsonNode> EXTREMES = List.of(NODES.numberNode(Double.NaN),
+			NODES.numberNode(Double.POSITIVE_INFINITY), NODES.numberNode(Double.NEGATIVE_INFINITY),
+			NODES.numberNode(Double.MAX_VALUE), NODES.numberNode(-Double.MAX_VALUE), NODES.numberNode(Double.MIN_VALUE),
+			NODES.stringNode("nan"), NODES.stringNode("inf"), NODES.stringNode("-inf"), NODES.stringNode("Infinity"),
+			NODES.stringNode("1e999"), NODES.stringNode("-1e999"), NODES.stringNode("1e308"));
+
+	private static final DocumentValidator VALIDATOR = DocumentValidator.standard();
+
 	@Property(tries = 300)
 	void load_anyJson_readsOrIsRefusedWithIssues(@ForAll("anyJson") JsonNode json) {
 		assertLoadsOrIsRefused(json);
@@ -51,6 +66,12 @@ class LoadingPropertiesTests {
 		assertLoadsOrIsRefused(replaceOneValue(example, replacement, seed));
 	}
 
+	@Property(tries = 1000)
+	void load_exampleWithOneNumberMadeExtreme_readsNoNumberThatIsNotFinite(@ForAll("examples") JsonNode example,
+			@ForAll("extremes") JsonNode extreme, @ForAll long seed) {
+		assertThat(floatsRead(replaceOneNumber(example, extreme, seed))).allMatch(Double::isFinite);
+	}
+
 	private static void assertLoadsOrIsRefused(JsonNode json) {
 		try {
 			ArchitectureDocument document = DesignDocuments.load(json);
@@ -59,6 +80,41 @@ class LoadingPropertiesTests {
 		catch (DocumentInvalidException refused) {
 			assertThat(refused.issues()).isNotEmpty();
 		}
+	}
+
+	/**
+	 * The floats a design is simulated with: the document's own, its parts' settings as
+	 * their types read them, and the arrivals its workload expects. None when the design
+	 * is refused.
+	 */
+	private static List<Double> floatsRead(JsonNode json) {
+		List<Double> floats = new ArrayList<>();
+		try {
+			ArchitectureDocument document = DesignDocuments.load(json);
+			collectFloats(DesignDocuments.toJson(document), floats);
+			VALIDATOR.validate(document)
+				.configs()
+				.values()
+				.forEach((config) -> collectFloats(RecordCodec.write(config), floats));
+			floats.add(document.workload().expectedArrivals());
+			floats.add(document.workload().peakRate());
+		}
+		catch (DocumentInvalidException refused) {
+			assertThat(refused.issues()).isNotEmpty();
+		}
+		return floats;
+	}
+
+	private static void collectFloats(JsonNode node, List<Double> floats) {
+		if (node.isFloatingPointNumber()) {
+			floats.add(node.doubleValue());
+		}
+		node.values().forEach((child) -> collectFloats(child, floats));
+	}
+
+	@Provide
+	Arbitrary<JsonNode> extremes() {
+		return Arbitraries.of(EXTREMES);
 	}
 
 	@Provide
@@ -118,6 +174,34 @@ class LoadingPropertiesTests {
 			array.set(Math.floorMod(seed / 7, array.size()), replacement);
 		}
 		return copy;
+	}
+
+	/** The example with one of its numbers, picked by {@code seed}, replaced. */
+	private static JsonNode replaceOneNumber(JsonNode example, JsonNode replacement, long seed) {
+		JsonNode copy = example.deepCopy();
+		List<Runnable> replacements = new ArrayList<>();
+		collectNumbers(copy, replacement, replacements);
+		replacements.get(Math.floorMod(seed, replacements.size())).run();
+		return copy;
+	}
+
+	// what would replace each number of a tree, where it is
+	private static void collectNumbers(JsonNode node, JsonNode replacement, List<Runnable> replacements) {
+		if (node instanceof ObjectNode object) {
+			object.properties()
+				.stream()
+				.filter((property) -> property.getValue().isNumber())
+				.forEach((property) -> replacements.add(() -> object.set(property.getKey(), replacement)));
+		}
+		if (node instanceof ArrayNode array) {
+			for (int index = 0; index < array.size(); index++) {
+				int position = index;
+				if (array.get(position).isNumber()) {
+					replacements.add(() -> array.set(position, replacement));
+				}
+			}
+		}
+		node.values().forEach((child) -> collectNumbers(child, replacement, replacements));
 	}
 
 	private static void collect(JsonNode node, List<JsonNode> containers) {

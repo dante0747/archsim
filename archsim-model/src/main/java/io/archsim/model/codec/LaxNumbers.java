@@ -9,7 +9,8 @@ import java.util.regex.Pattern;
 /**
  * How pydantic's lax mode reads numbers out of strings: {@code "1.5"}, {@code " 2 "} and
  * {@code "1_000"} are numbers, {@code "inf"} and {@code "nan"} floats, {@code "5.0"} the
- * integer 5.
+ * integer 5. A float field then refuses a float that is not finite ({@link FloatShape}),
+ * so the words are read here only to be named as what they are.
  */
 final class LaxNumbers {
 
