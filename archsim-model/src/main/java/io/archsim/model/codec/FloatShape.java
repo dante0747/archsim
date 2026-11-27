@@ -9,7 +9,13 @@ import tools.jackson.databind.node.ObjectNode;
 
 /**
  * A Python {@code float}, a Java {@code double}. Lax as pydantic is: an integer, a
- * boolean or a numeric string ({@code "1.5"}, {@code "inf"}) is a number too.
+ * boolean or a numeric string ({@code "1.5"}) is a number too.
+ *
+ * <p>
+ * Stricter than pydantic's lax mode in one thing: a float that is not finite is refused,
+ * however the input writes it ({@code "nan"}, {@code "inf"}, {@code 1e999}). No setting
+ * of a design means NaN or an infinity, and a comparison with NaN is false whichever way
+ * it asks, so a bound or a limit checked later would let one through.
  *
  * @param bounds the bounds the number must keep to
  */
@@ -19,6 +25,10 @@ record FloatShape(Bounds bounds) implements Shape {
 	public @Nullable Object read(JsonNode in, Location at, Errors errors) {
 		Optional<Double> number = number(in, at, errors);
 		if (number.isEmpty()) {
+			return null;
+		}
+		if (!Double.isFinite(number.get())) {
+			errors.add("finite_number", at, Messages.FINITE_NUMBER);
 			return null;
 		}
 		this.bounds.check(number.get(), at, errors);

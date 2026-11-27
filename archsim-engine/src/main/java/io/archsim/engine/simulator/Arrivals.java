@@ -22,7 +22,8 @@ import io.archsim.model.document.Workload;
  * (Poisson arrivals thinned to the pattern's rate, or evenly spaced ones), each a read or
  * a write of a key, sent by a client group picked by its share. A key is drawn from the
  * workload's Zipf keyspace when a part uses keys, else every request has key 0. Every
- * n-th request is traced, so about 1,200 are, drawing no random number.
+ * n-th request is traced, so about 1,200 are, drawing no random number. A workload whose
+ * peak rate is not a finite number is refused.
  */
 final class Arrivals {
 
@@ -72,9 +73,19 @@ final class Arrivals {
 		this.clients = clients;
 		this.streams = new Streams(context);
 		this.keys = keys(context, workload);
-		this.peak = workload.peakRate();
+		this.peak = requireFinite(workload.peakRate());
 		this.durationMs = workload.durationS() * MS_PER_SECOND;
 		this.traceEvery = Math.max(1, (long) FloorDivision.of(workload.expectedArrivals(), TRACE_TARGET));
+	}
+
+	// the arrival loops end by comparing times with the run's end, and no comparison
+	// with NaN ends one: a peak that is not a finite number must not reach them
+	private static double requireFinite(double peak) {
+		if (!Double.isFinite(peak)) {
+			throw new IllegalArgumentException(
+					"the workload's peak rate is not a finite number of requests per second");
+		}
+		return peak;
 	}
 
 	/**
