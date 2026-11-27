@@ -199,8 +199,9 @@ failures) through every hop, wait, lock, log flush and GC pause on a waterfall.
 - **In the browser (WebMCP).** The app registers [WebMCP](https://webmachinelearning.github.io/webmcp/)
   tools, so an agent in your browser can open a template, read the design, add and connect parts,
   set traffic and objectives, run the design review, simulate and read the verdict, without
-  clicking. Every agent edit shows on the canvas, is announced in a toast and can be undone. WebMCP
-  is an experimental draft standard; see [agents.md](agents.md) for the tools and browser support.
+  clicking. Every agent edit shows on the canvas, is announced in a toast, is saved as yours are
+  and can be undone. WebMCP is an experimental draft standard; see [agents.md](agents.md) for the
+  tools and browser support.
 - **In your coding agent (MCP).** `archsim-mcp` is an MCP server over stdio for Claude Code, Claude
   Desktop, Cursor and others: list part types and templates, validate, analyze, simulate (with the
   verdict, findings and result digest), compare, find the breaking point, export, import and
@@ -236,9 +237,13 @@ read-only copy of one run's results that anyone with the link can open. The endp
   (`/projects`).
 - Projects live in PostgreSQL, documents import and export as versioned JSON, and every run stores
   its input, seed, engine version and result digest so it can be re-run and verified bit for bit.
-- Save (Ctrl/⌘ S) stores the design as the project's next revision. A save that finds the project
-  saved elsewhere since you opened it, in another tab or by a teammate, asks which version to
-  keep: reload theirs (undo brings yours back), overwrite it, or save yours as a copy.
+- A design saves itself: two seconds after you stop editing, before a link or a command takes you
+  out of the editor, and as the editor closes. Under the project's name the top bar says "Saved",
+  "Unsaved changes" or "Saving…", and "Not saved" with the reason when a save fails; leaving asks
+  first only when your changes could not be saved. Save (Ctrl/⌘ S) saves at once. Each save is the
+  project's next revision, so undo is the way back from an experiment. A save that finds the
+  project saved elsewhere since you opened it, in another tab or by a teammate, asks which version
+  to keep: reload theirs (undo brings yours back), overwrite it, or save yours as a copy.
 
 ![The templates gallery in the dark theme: its counts (25 templates, 125 scenarios to compare, 40 technologies used), category filters with theirs (All 25, Scale 3, Data 6 and more) and search, and the featured Black Friday on Kubernetes template, marked Labs, drawn as logo tiles (Shoppers, Kong API gateway, Go checkout, Redis catalog cache, PostgreSQL orders, payments API) beside its description and Built with list](images/templates.jpg)
 

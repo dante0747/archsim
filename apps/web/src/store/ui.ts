@@ -21,6 +21,16 @@ function writeFlag(key: string, v: boolean) {
 /** The workspaces of the editor, shown as Design, Test, Results and Dashboard. */
 export type Workspace = "build" | "stress" | "decide" | "dashboard";
 
+/** A move away from the editor that waits for the person: stay, or leave without the unsaved work. */
+export interface LeaveHeld {
+  /** Why the design is not saved. */
+  reason: string;
+  /** The project was saved elsewhere, and the person has not chosen which version to keep. */
+  conflict: boolean;
+  /** Makes the move. */
+  go: () => void;
+}
+
 export interface UiState {
   /** Current workspace. */
   mode: Workspace;
@@ -45,6 +55,8 @@ export interface UiState {
   tourOpen: boolean;
   /** The choices that end a save conflict (reload theirs, overwrite, save a copy) are showing. */
   saveConflictOpen: boolean;
+  /** A move away from the editor held back because the design could not be saved: why, and the move. */
+  leaveHeld: LeaveHeld | null;
   /** Workflow progress the user has seen (drives the step indicator and next-step hint). */
   trafficVisited: boolean;
   insightsSeenFor: string | null;
@@ -61,6 +73,7 @@ export interface UiState {
   setImportOpen: (v: boolean) => void;
   setTourOpen: (v: boolean) => void;
   setSaveConflictOpen: (v: boolean) => void;
+  setLeaveHeld: (v: LeaveHeld | null) => void;
   markTrafficVisited: () => void;
   markInsightsSeen: (runId: string) => void;
   dismissHint: (key: string) => void;
@@ -80,6 +93,7 @@ export const useUi = create<UiState>()((set) => ({
   importOpen: false,
   tourOpen: false,
   saveConflictOpen: false,
+  leaveHeld: null,
   trafficVisited: false,
   insightsSeenFor: null,
   dismissedHint: null,
@@ -101,6 +115,7 @@ export const useUi = create<UiState>()((set) => ({
   setImportOpen: (importOpen) => set({ importOpen }),
   setTourOpen: (tourOpen) => set({ tourOpen }),
   setSaveConflictOpen: (saveConflictOpen) => set({ saveConflictOpen }),
+  setLeaveHeld: (leaveHeld) => set({ leaveHeld }),
   markTrafficVisited: () => set({ trafficVisited: true }),
   markInsightsSeen: (insightsSeenFor) => set({ insightsSeenFor }),
   dismissHint: (dismissedHint) => set({ dismissedHint }),
@@ -111,6 +126,7 @@ export const useUi = create<UiState>()((set) => ({
       dismissedHint: null,
       paletteOpen: false,
       saveConflictOpen: false,
+      leaveHeld: null,
       mode: "build",
       playhead: null,
       playing: false,

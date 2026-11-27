@@ -154,3 +154,4 @@ what the repository shows.
 | [0110](0110-store-a-runs-design-once-per-digest-and-delete-it-with-its-last-run.md) | Store a run's design once per digest, and delete it with its last run | Accepted | 2026-11-27 |
 | [0111](0111-prune-the-runs-past-a-projects-limit-and-expired-rows-every-hour.md) | Prune the runs past a project's limit, and the rows that expired, every hour | Accepted | 2026-11-27 |
 | [0112](0112-end-a-save-conflict-with-a-choice-their-version-this-one-or-a-copy.md) | End a save conflict with a choice: their version, this one or a copy | Proposed | 2026-11-27 |
+| [0113](0113-save-a-design-as-it-is-edited-and-on-the-way-out-of-the-editor.md) | Save a design as it is edited and on the way out of the editor | Proposed | 2026-11-27 |

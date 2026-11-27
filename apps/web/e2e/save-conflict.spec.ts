@@ -1,7 +1,8 @@
 /**
- * Saving, where it could lose work. An edit made while a save is on its way stays unsaved. A save
- * over a version saved elsewhere is not a dead end: it offers to reload that version, to overwrite
- * it or to save a copy, and each choice leaves an editor that saves again.
+ * Saving, where it could lose work. An edit made while a save is on its way stays unsaved, until
+ * the editor saves it too. A save over a version saved elsewhere is not a dead end: it offers to
+ * reload that version, to overwrite it or to save a copy, and each choice leaves an editor that
+ * saves again.
  */
 import { type APIRequestContext, expect, type Page, test } from "@playwright/test";
 
@@ -40,6 +41,9 @@ async function open(page: Page, id: string) {
   await expect(page.getByTestId("node-cache")).toBeVisible();
 }
 
+/** The words beside the project's name that say whether the design is saved. */
+const saveStatus = (page: Page) => page.getByTestId("save-status");
+
 /** Someone else saves the project, renamed and with more API replicas: the stored revision moves on. */
 async function saveElsewhere(request: APIRequestContext, id: string, name: string) {
   const theirs = await stored(request, id);
@@ -71,14 +75,18 @@ test("an edit made while a save is on its way stays unsaved", async ({ page }) =
   await name.fill("First");
   const answered = page.waitForResponse((r) => r.request().method() === "PUT" && r.url().endsWith(`/projects/${id}`));
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByLabel("saving", { exact: true })).toBeVisible();
+  await expect(saveStatus(page)).toHaveText("Saving…");
   await name.fill("Second");
   release();
   await answered;
 
+  // what the save sent is stored; what was typed meanwhile is still on screen, and unsaved
   await expect(name).toHaveValue("Second");
-  await expect(page.getByLabel("unsaved", { exact: true })).toBeVisible();
+  await expect(saveStatus(page)).toHaveText("Unsaved changes");
   expect((await stored(page.request, id)).name).toBe("First");
+  // ...until the editor saves it by itself
+  await expect(saveStatus(page)).toHaveText("Saved");
+  expect((await stored(page.request, id)).name).toBe("Second");
 });
 
 test("a save over a version saved elsewhere offers to reload theirs", async ({ page }) => {
@@ -91,7 +99,7 @@ test("a save over a version saved elsewhere offers to reload theirs", async ({ p
 
   await expect(choices).toBeHidden();
   await expect(page.getByLabel("Project name")).toHaveValue("Theirs");
-  await expect(page.getByLabel("saved", { exact: true })).toBeVisible();
+  await expect(saveStatus(page)).toHaveText("Saved");
   // not a dead end: the next save goes through, on top of their version
   await page.getByLabel("Project name").fill("Theirs, then mine");
   await page.getByRole("button", { name: "Save", exact: true }).click();
@@ -109,7 +117,7 @@ test("a save over a version saved elsewhere offers to overwrite it", async ({ pa
   await choices.getByRole("button", { name: "Overwrite" }).click();
 
   await expect(choices).toBeHidden();
-  await expect(page.getByLabel("saved", { exact: true })).toBeVisible();
+  await expect(saveStatus(page)).toHaveText("Saved");
   const after = await stored(page.request, id);
   expect(after.name).toBe("Mine");
   expect(apiReplicas(after)).toBe(mine);
@@ -132,7 +140,7 @@ test("a save over a version saved elsewhere offers to save a copy", async ({ pag
   await page.waitForURL((url) => /\/projects\/[^/]+$/.test(url.pathname) && !url.pathname.endsWith(id));
   const copyId = page.url().split("/").pop()!;
   await expect(page.getByLabel("Project name")).toHaveValue("Mine (copy)");
-  await expect(page.getByLabel("saved", { exact: true })).toBeVisible();
+  await expect(saveStatus(page)).toHaveText("Saved");
   const copy = await stored(page.request, copyId);
   expect(copy.name).toBe("Mine (copy)");
   expect(apiReplicas(copy)).toBe(mine);

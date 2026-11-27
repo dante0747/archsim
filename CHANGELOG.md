@@ -10,6 +10,19 @@ for when that version changes.
 
 ### Fixed
 
+- **The editor saves a design as it is edited and on the way out
+  ([ADR-0113](docs/adr/0113-save-a-design-as-it-is-edited-and-on-the-way-out-of-the-editor.md),
+  proposed).** Only Ctrl/⌘ S saved, a small dot was the only sign of unsaved work, and the logo,
+  Settings, a workspace switch, signing out, "Back to projects" and the browser's Back button all
+  left the editor without a word, losing whatever was unsaved. A design now saves itself after a
+  two-second pause in editing. Leaving by the app's own links and commands saves first, and asks
+  only when that save fails; the editor also saves as it closes, which covers the Back button.
+  Under the project's name the top bar says "Saved", "Unsaved changes", "Saving…", "Not saved" or
+  "Changed elsewhere" in words, and the history reads saves that follow one another as one line.
+  A design whose name field is empty saves as "Untitled architecture"; before, every save of it
+  failed. Three things follow from saving without being asked: every pause in editing is a
+  revision, so undo is the only way back from an experiment; a review goes stale at the first
+  edit after it; and an agent's edits are saved without its `save_design` tool.
 - **A save no longer marks as saved what it did not send, and a save conflict is no longer a dead
   end
   ([ADR-0112](docs/adr/0112-end-a-save-conflict-with-a-choice-their-version-this-one-or-a-copy.md),

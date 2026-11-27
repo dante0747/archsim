@@ -81,7 +81,7 @@ describe("saving a design, before and after the project was saved elsewhere", ()
 
     const result = await saveDesign({ overwrite: true });
 
-    expect(result).toEqual({ status: "failed", message: "This workspace stores as much as it may (100 MB)." });
+    expect(result).toEqual({ status: "failed", message: "This workspace stores as much as it may (100 MB).", retry: false });
     expect(useEditor.getState()).toMatchObject({ conflict: true, dirty: true, saving: false, revision: 3 });
   });
 

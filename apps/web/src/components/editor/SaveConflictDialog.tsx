@@ -12,7 +12,7 @@ import { useId, useState } from "react";
 import { toast } from "sonner";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/overlays";
-import { copyName, reloadTheirs, saveCopy, saveDesign } from "@/lib/save";
+import { copyName, leaveWithoutSaving, reloadTheirs, saveCopy, saveDesign } from "@/lib/save";
 import { useEditor } from "@/store/editor";
 import { useUi } from "@/store/ui";
 
@@ -88,6 +88,8 @@ export function SaveConflictDialog() {
     choose("copy", "Could not save a copy", async () => {
       const project = await saveCopy(rf.getViewport());
       toast.success("Saved as a copy", { description: project.name });
+      // the copy holds this version: the project is left as it is stored, with nothing more to save
+      leaveWithoutSaving();
       router.push(`/projects/${project.id}`);
       return true;
     });

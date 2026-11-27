@@ -18,6 +18,8 @@ import { Canvas } from "@/components/editor/Canvas";
 import { CommandPalette } from "@/components/editor/CommandPalette";
 import { GuidedTour, hasSeenTour } from "@/components/editor/GuidedTour";
 import { Inspector } from "@/components/editor/Inspector";
+import { useKeepUnsavedWork } from "@/components/editor/keeping";
+import { LeaveDialog } from "@/components/editor/LeaveDialog";
 import { PartsPanel } from "@/components/editor/Palette";
 import { SaveConflictDialog } from "@/components/editor/SaveConflictDialog";
 import { TopBar } from "@/components/editor/TopBar";
@@ -30,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/misc";
 import { ApiError, api } from "@/lib/api";
 import { projectTitle, useDocumentTitle } from "@/lib/document-title";
+import { whenClosed } from "@/lib/save";
 import { signInPage } from "@/lib/session";
 import { isEditableTarget } from "@/lib/utils";
 import { useDecide } from "@/store/decide";
@@ -50,6 +53,9 @@ export function EditorApp({ projectId }: { projectId: string }) {
     let cancelled = false;
     (async () => {
       try {
+        // the editor saves as it closes: a project opened again right after must read that save
+        await whenClosed();
+        if (cancelled) return;
         const [project, catalog] = await Promise.all([api.getProject(projectId), api.components()]);
         if (cancelled) return;
         useEditor.getState().load(project, catalog);
@@ -217,6 +223,7 @@ function EditorShell() {
   const { save, run } = useEditorActions();
   useLiveValidation();
   useWorkspaceWiring();
+  useKeepUnsavedWork();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -276,16 +283,6 @@ function EditorShell() {
     return () => window.clearTimeout(t);
   }, []);
 
-  useEffect(() => {
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (useEditor.getState().dirty) {
-        e.preventDefault();
-      }
-    };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, []);
-
   return (
     <div className="flex h-full flex-col overflow-hidden bg-page" data-workspace={mode}>
       <TopBar
@@ -339,6 +336,7 @@ function EditorShell() {
       <CalibrateDialog open={calibrateOpen} onOpenChange={setCalibrateOpen} />
       <ImportDialog open={importOpen} onOpenChange={setImportOpen} />
       <SaveConflictDialog />
+      <LeaveDialog />
       <GuidedTour />
       <EditorAgentTools />
     </div>

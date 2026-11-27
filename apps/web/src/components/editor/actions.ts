@@ -70,7 +70,7 @@ export function useEditorActions() {
       useEditor.getState().replaceDocument(raw);
       const errors = check.issues.filter((i) => i.severity === "error").length;
       toast.success("Imported into this project", {
-        description: errors ? `${errors} problem(s) to fix before simulating. Save to keep it.` : "Save to keep it.",
+        description: errors ? `${errors} problem(s) to fix before simulating. Undo with Ctrl Z.` : "Undo with Ctrl Z.",
       });
     } catch (e) {
       toast.error("Import failed", {
