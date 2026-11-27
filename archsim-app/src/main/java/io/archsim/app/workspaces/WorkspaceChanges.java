@@ -74,13 +74,14 @@ class WorkspaceChanges {
 
 	/**
 	 * Renames a workspace (owners only).
-	 * @param principal who is asking
+	 * @param person who is asking
 	 * @param workspaceId the workspace
 	 * @param request its new name, if any
 	 * @return the workspace
 	 */
 	@Transactional
-	WorkspaceView update(Principal principal, String workspaceId, WorkspaceUpdate request) {
+	WorkspaceView update(Person person, String workspaceId, WorkspaceUpdate request) {
+		Principal principal = person.principal();
 		WorkspaceAccess where = this.workspaces.owned(principal, workspaceId);
 		String requested = request.name();
 		if (requested != null) {

@@ -66,13 +66,14 @@ class Invitations {
 
 	/**
 	 * Revokes an invitation.
-	 * @param principal who is asking
+	 * @param person who is asking
 	 * @param workspaceId the workspace
 	 * @param invitationId the invitation
 	 * @throws ApiException {@code 404} for an invitation of no such workspace
 	 */
 	@Transactional
-	void revoke(Principal principal, String workspaceId, String invitationId) {
+	void revoke(Person person, String workspaceId, String invitationId) {
+		Principal principal = person.principal();
 		this.workspaces.owned(principal, workspaceId);
 		InvitationView invitation = this.links.find(invitationId)
 			.filter((found) -> found.workspaceId().equals(workspaceId))

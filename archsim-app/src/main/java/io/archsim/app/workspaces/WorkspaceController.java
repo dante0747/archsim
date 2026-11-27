@@ -59,9 +59,17 @@ class WorkspaceController {
 		return this.workspaces.seenBy(principal, workspaceId);
 	}
 
+	/**
+	 * Rename a workspace (owners only, in person: not with an API token or as a sandbox's
+	 * guest).
+	 * @param person who is asking
+	 * @param workspaceId the workspace
+	 * @param request its new name, if any
+	 * @return the workspace
+	 */
 	@PatchMapping("/{workspaceId}")
-	WorkspaceView update(Principal principal, @PathVariable String workspaceId, @ApiBody WorkspaceUpdate request) {
-		return this.changes.update(principal, workspaceId, request);
+	WorkspaceView update(Person person, @PathVariable String workspaceId, @ApiBody WorkspaceUpdate request) {
+		return this.changes.update(person, workspaceId, request);
 	}
 
 	/**

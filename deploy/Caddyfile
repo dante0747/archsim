@@ -19,5 +19,11 @@
 		-Server
 	}
 
+	# No body larger than the API takes (ARCHSIM_MAX_BODY_BYTES, 5,000,000 bytes by default): a
+	# larger one is refused with 413 here, before the web server buffers it.
+	request_body {
+		max_size 5MB
+	}
+
 	reverse_proxy web:3000
 }

@@ -1,5 +1,86 @@
-import { describe, expect, it } from "vitest";
-import { clientIp, forwardRequestHeaders, forwardResponseHeaders } from "./proxy";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { MAX_BODY_BYTES, clientIp, forwardRequestHeaders, forwardResponseHeaders, forwardTo } from "./proxy";
+
+const TARGET = "http://api.test/api/v1/import";
+
+const repo = (path: string) => readFileSync(resolve(process.cwd(), "../..", path), "utf8");
+
+/** A browser's POST whose body is a stream, sent without its length, as a chunked upload is. */
+function streamed(bytes: number): Request {
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (let sent = 0; sent < bytes; sent += 65536) controller.enqueue(new Uint8Array(Math.min(65536, bytes - sent)));
+      controller.close();
+    },
+  });
+  return new Request(TARGET, { method: "POST", body, duplex: "half" } as RequestInit);
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("forwardTo", () => {
+  it("refuses a body that says it is larger than the API takes, without reading it or calling the API", async () => {
+    const api = vi.fn();
+    vi.stubGlobal("fetch", api);
+    const req = new Request(TARGET, {
+      method: "POST",
+      headers: { "content-length": String(MAX_BODY_BYTES + 1), "content-type": "application/json" },
+      body: "{}",
+    });
+
+    const res = await forwardTo(req, TARGET);
+
+    expect(res.status).toBe(413);
+    expect(await res.json()).toEqual({ detail: { message: "Request body too large", issues: [] } });
+    expect(api).not.toHaveBeenCalled();
+  });
+
+  it("refuses a body of no stated length once it passes what the API takes", async () => {
+    const api = vi.fn();
+    vi.stubGlobal("fetch", api);
+
+    const res = await forwardTo(streamed(MAX_BODY_BYTES + 1), TARGET);
+
+    expect(res.status).toBe(413);
+    expect(api).not.toHaveBeenCalled();
+  });
+
+  it("passes on a body within what the API takes", async () => {
+    const api = vi.fn(async (_url: string, init: RequestInit) => new Response(String((init.body as Uint8Array).byteLength)));
+    vi.stubGlobal("fetch", api);
+
+    const res = await forwardTo(streamed(1000), TARGET);
+
+    expect(await res.text()).toBe("1000");
+  });
+
+  it("answers 504 when the API does not answer in time", async () => {
+    vi.stubGlobal(
+      "fetch",
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => init.signal?.addEventListener("abort", () => reject(init.signal?.reason))),
+    );
+
+    const res = await forwardTo(new Request(TARGET), TARGET, 20);
+
+    expect(res.status).toBe(504);
+    expect((await res.json()).detail.message).toMatch(/did not answer/);
+  });
+});
+
+describe("the body limit", () => {
+  it("is the API's own by default, and the hosting kit's Caddy caps bodies at it too", () => {
+    const apiDefault = Number(/@DefaultValue\("(\d+)"\)[^,]*long maxBodyBytes/.exec(repo("archsim-app/src/main/java/io/archsim/app/config/ArchsimProperties.java"))?.[1]);
+    const caddy = /request_body \{\s*max_size (\d+)MB\s*\}/.exec(repo("deploy/Caddyfile"))?.[1];
+
+    expect(MAX_BODY_BYTES).toBe(apiDefault);
+    expect(Number(caddy) * 1_000_000).toBe(apiDefault);
+  });
+});
 
 describe("clientIp", () => {
   it("believes nothing with no proxy in front", () => {

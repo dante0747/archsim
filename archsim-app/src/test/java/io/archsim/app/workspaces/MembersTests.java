@@ -11,6 +11,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.JsonNode;
 
+import io.archsim.app.access.Person;
 import io.archsim.app.access.Principal;
 import io.archsim.app.access.WorkspaceRole;
 import io.archsim.app.support.HistoryEvent;
@@ -96,7 +97,7 @@ class MembersTests extends WorkspaceTestSupport {
 		member(team, bob.userId(), "owner");
 
 		this.transactions.executeWithoutResult((status) -> {
-			this.members.changeRole(Principal.session(ada.userId(), "s", null), team, bob.userId(),
+			this.members.changeRole(new Person(Principal.session(ada.userId(), "s", null)), team, bob.userId(),
 					WorkspaceRole.EDITOR);
 
 			assertLockedForAnotherChange(team);
@@ -111,7 +112,7 @@ class MembersTests extends WorkspaceTestSupport {
 		member(team, bob.userId(), "owner");
 
 		this.transactions.executeWithoutResult((status) -> {
-			this.members.remove(Principal.session(ada.userId(), "s", null), team, bob.userId());
+			this.members.remove(new Person(Principal.session(ada.userId(), "s", null)), team, bob.userId());
 
 			assertLockedForAnotherChange(team);
 		});

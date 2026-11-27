@@ -15,8 +15,11 @@ import io.archsim.app.runs.RunResults;
  * without its request traces (they name every hop of sample requests and make up most of
  * the size), the objectives of the run's design, the project's name, and the design
  * itself (so "Open a copy" can make a project from it; the public answer leaves it out).
- * Addresses of telemetry sources (a calibration's Prometheus URL) are hidden before
- * anything is stored.
+ * Telemetry addresses are hidden before anything is stored: a calibration names its
+ * source, credentials included when its URL has them, in the design's calibration and in
+ * every measured input's provenance record, which the report's assumptions repeat. Other
+ * addresses are kept: documented inputs and the report's formulas link the public
+ * documentation they come from.
  */
 final class SharePayloads {
 
@@ -29,6 +32,14 @@ final class SharePayloads {
 	 * another script is hidden too; Python's Unicode ones kept it.
 	 */
 	private static final Pattern ADDRESS = Pattern.compile("\\b[a-z][a-z0-9+.-]*://\\S+", Pattern.CASE_INSENSITIVE);
+
+	/** The key of a design's calibration, which names its telemetry source. */
+	private static final String CALIBRATION = "calibration";
+
+	/**
+	 * The kind of a provenance record a calibration writes, naming its telemetry source.
+	 */
+	private static final String MEASURED = "measured";
 
 	private static final JsonNodeFactory NODES = JsonNodeFactory.instance;
 
@@ -71,35 +82,61 @@ final class SharePayloads {
 	}
 
 	/**
-	 * A copy with every calibration's {@code source} stripped of addresses: "Prometheus
-	 * https://user:pass@prom.internal:9090" becomes "Prometheus (address hidden)".
+	 * A copy with the telemetry addresses hidden: every address in a value under a
+	 * {@code calibration} and in a provenance record of kind {@code measured}, however
+	 * deep: "Prometheus https://user:pass@prom.internal:9090" becomes "Prometheus
+	 * (address hidden)". Other addresses are kept: a documented input's link to its
+	 * vendor's documentation, a formula's link to its source, the design's own words.
 	 * @param value any JSON
 	 * @return the copy
 	 */
 	static JsonNode hideAddresses(JsonNode value) {
 		if (value.isArray()) {
-			ArrayNode copy = NODES.arrayNode();
-			value.forEach((item) -> copy.add(hideAddresses(item)));
-			return copy;
+			ArrayNode items = NODES.arrayNode();
+			value.forEach((item) -> items.add(hideAddresses(item)));
+			return items;
 		}
 		if (!value.isObject()) {
 			return value.deepCopy();
 		}
-		ObjectNode copy = NODES.objectNode();
-		for (Map.Entry<String, JsonNode> field : value.properties()) {
-			copy.set(field.getKey(), hidden(field.getKey(), field.getValue()));
+		if (MEASURED.equals(value.path("kind").stringValue(""))) {
+			return withoutAddresses(value);
 		}
-		return copy;
+		ObjectNode fields = NODES.objectNode();
+		for (Map.Entry<String, JsonNode> field : value.properties()) {
+			fields.set(field.getKey(), hidden(field.getKey(), field.getValue()));
+		}
+		return fields;
 	}
 
+	// a calibration's value loses every address; any other field is looked through
 	private static JsonNode hidden(String key, JsonNode value) {
-		JsonNode source = value.path("source");
-		if ("calibration".equals(key) && value.isObject() && source.isString()) {
-			ObjectNode calibration = ((ObjectNode) value).deepCopy();
-			calibration.put("source", ADDRESS.matcher(source.stringValue()).replaceAll("(address hidden)"));
-			return hideAddresses(calibration);
+		if (CALIBRATION.equals(key)) {
+			return withoutAddresses(value);
 		}
 		return hideAddresses(value);
+	}
+
+	/**
+	 * A copy with every string stripped of addresses, however deep.
+	 * @param value any JSON
+	 * @return the copy
+	 */
+	private static JsonNode withoutAddresses(JsonNode value) {
+		if (value.isString()) {
+			return NODES.stringNode(ADDRESS.matcher(value.stringValue()).replaceAll("(address hidden)"));
+		}
+		if (value.isArray()) {
+			ArrayNode items = NODES.arrayNode();
+			value.forEach((item) -> items.add(withoutAddresses(item)));
+			return items;
+		}
+		if (!value.isObject()) {
+			return value.deepCopy();
+		}
+		ObjectNode fields = NODES.objectNode();
+		value.properties().forEach((field) -> fields.set(field.getKey(), withoutAddresses(field.getValue())));
+		return fields;
 	}
 
 }
