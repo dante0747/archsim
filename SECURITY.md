@@ -198,7 +198,11 @@ keep all 500 places taken for a day: the limits bound what that costs, and signi
   development default and must be changed for any shared deployment.
 - **Request size.** Bodies larger than `ARCHSIM_MAX_BODY_BYTES` (default 5 MB) are rejected
   with 413, and POST/PUT/PATCH requests with a chunked body but no `Content-Length` are
-  rejected with 411 so the limit cannot be bypassed.
+  rejected with 411 so the limit cannot be bypassed. The hosting kit caps a body at the same size
+  before the API sees it, twice: Caddy refuses a larger one (`request_body`), and the web server's
+  proxy refuses one that states a larger length unread and stops reading one of no stated length
+  once it passes the limit (give it the API's `ARCHSIM_MAX_BODY_BYTES` if you change it). The
+  proxy waits at most five minutes for the API's answer, then answers 504.
 - **No telemetry.** Neither the API nor the web app phones home. Next.js's own anonymous
   telemetry is switched off: the npm scripts run Next through `apps/web/scripts/run-next.mjs`,
   which sets `NEXT_TELEMETRY_DISABLED=1` unless you set it yourself, and the Docker image sets
