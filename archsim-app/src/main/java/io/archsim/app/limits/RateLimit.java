@@ -50,4 +50,11 @@ public record RateLimit(int limit, long windowSeconds) {
 	/** Share pages opened from one address: 60 a minute. */
 	public static final RateLimit PUBLIC_VIEWS_PER_IP = new RateLimit(60, MINUTE);
 
+	/**
+	 * Requests one person makes to the engine's routes: 600 a minute, about 1.75 times
+	 * the most the editor sends, a validation and an analysis after each pause of 350 ms
+	 * (ADR-0108).
+	 */
+	public static final RateLimit ENGINE_REQUESTS_PER_USER = new RateLimit(600, MINUTE);
+
 }

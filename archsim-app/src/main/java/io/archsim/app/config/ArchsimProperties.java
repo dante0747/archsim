@@ -47,6 +47,8 @@ import org.springframework.validation.annotation.Validated;
  * {@code Retry-After}), with the hosted limits per workspace kind; empty for on with
  * sign-in and off without
  * @param runHistoryLimit how many of a project's runs its list shows
+ * @param maxEngineRequests requests the engine's routes answer at once; empty for as many
+ * as the heap holds, at most 16
  */
 @ConfigurationProperties("archsim")
 @Validated
@@ -59,10 +61,30 @@ public record ArchsimProperties(
 		@DefaultValue("2000000") @Min(1) @Max(20_000_000) long maxRequests,
 		@DefaultValue("5000000") @Min(10_000) long maxBodyBytes, @Nullable String publicUrl,
 		@DefaultValue("none") AuthMode authMode, @DefaultValue("127.0.0.1,::1") HostList trustedProxies,
-		@Nullable Boolean rateLimits, @DefaultValue("200") @Min(1) int runHistoryLimit) {
+		@Nullable Boolean rateLimits, @DefaultValue("200") @Min(1) int runHistoryLimit,
+		@Min(1) @Max(MAX_ENGINE_REQUESTS) @Nullable Integer maxEngineRequests) {
 
 	/** The most runs one worker simulates at once. */
 	static final int MAX_SLOTS = 32;
+
+	/** The most requests the engine's routes may be set to answer at once. */
+	static final int MAX_ENGINE_REQUESTS = 64;
+
+	/**
+	 * The most requests the engine's routes answer at once by the heap, without the
+	 * setting.
+	 */
+	static final int MAX_HEAP_SIZED_ENGINE_REQUESTS = 16;
+
+	/** The heap the rest of the API keeps, beside the engine's requests: 256 MiB. */
+	private static final long API_HEAP = 256L << 20;
+
+	/**
+	 * The heap an engine request, or a calibration's replay, is given for each byte of
+	 * the largest body: a body read and loaded holds about 16 times its size (a 5 MB
+	 * design about 77 MB), and its analysis or replay more (ADR-0108).
+	 */
+	private static final long HEAP_PER_BODY_BYTE = 25;
 
 	private static final String EXAMPLES = "examples";
 
@@ -76,6 +98,77 @@ public record ArchsimProperties(
 			return this.maxConcurrentRuns;
 		}
 		return Math.clamp(Runtime.getRuntime().availableProcessors() - 1, 1, MAX_SLOTS);
+	}
+
+	/**
+	 * Requests the engine's routes answer at once, each with a design in memory
+	 * (ADR-0108): the setting, else as many as this process's heap holds.
+	 * @return the requests answered at once
+	 */
+	public int engineRequests() {
+		if (this.maxEngineRequests != null) {
+			return this.maxEngineRequests;
+		}
+		return engineRequestsFor(Runtime.getRuntime().maxMemory(), replaySlots(), this.maxBodyBytes);
+	}
+
+	/**
+	 * Requests the engine's routes answer at once on a heap. Each is given 25 bytes of
+	 * heap per byte of the largest body (125 MB at 5 MB); the rest of the API keeps 256
+	 * MiB, and each replay slot as much as a request. The count is rounded to the
+	 * nearest, since a JVM reports a little less than its {@code -Xmx}, and kept between
+	 * 1 and {@value #MAX_HEAP_SIZED_ENGINE_REQUESTS}.
+	 * @param maxHeapBytes the most heap the process may use, as the JVM reports it
+	 * @param replays the replay slots
+	 * @param maxBodyBytes the largest request body
+	 * @return the requests answered at once
+	 */
+	static int engineRequestsFor(long maxHeapBytes, int replays, long maxBodyBytes) {
+		double perRequest = (double) maxBodyBytes * HEAP_PER_BODY_BYTE;
+		double left = maxHeapBytes - API_HEAP - replays * perRequest;
+		return Math.clamp(Math.round(left / perRequest), 1, MAX_HEAP_SIZED_ENGINE_REQUESTS);
+	}
+
+	/**
+	 * Calibrations the API replays at once, each on a platform thread of its own
+	 * (ADR-0054): one per CPU this process may use less one, left to its other requests.
+	 * @return the replay threads
+	 */
+	public int replayThreads() {
+		return replayThreadsFor(Runtime.getRuntime().availableProcessors());
+	}
+
+	/**
+	 * Calibrations the API answers at once (ADR-0108): one per replay thread, but no more
+	 * than this process's heap holds beside the rest of the API and one engine request.
+	 * @return the replay slots
+	 */
+	public int replaySlots() {
+		return replaySlotsFor(Runtime.getRuntime().maxMemory(), replayThreads(), this.maxBodyBytes);
+	}
+
+	/**
+	 * Calibrations answered at once on a heap: as many replays as fit, each given what an
+	 * engine request is, beside the 256 MiB the rest of the API keeps and one engine
+	 * request, rounded to the nearest, between 1 and the replay threads.
+	 * @param maxHeapBytes the most heap the process may use, as the JVM reports it
+	 * @param threads the replay threads
+	 * @param maxBodyBytes the largest request body
+	 * @return the replay slots
+	 */
+	static int replaySlotsFor(long maxHeapBytes, int threads, long maxBodyBytes) {
+		double perRequest = (double) maxBodyBytes * HEAP_PER_BODY_BYTE;
+		double left = maxHeapBytes - API_HEAP - perRequest;
+		return Math.clamp(Math.round(left / perRequest), 1, threads);
+	}
+
+	/**
+	 * Calibrations replayed at once on a machine.
+	 * @param processors the processors the JVM sees
+	 * @return the processors less one, at least one
+	 */
+	static int replayThreadsFor(int processors) {
+		return Math.max(1, processors - 1);
 	}
 
 	/**
@@ -165,11 +258,11 @@ public record ArchsimProperties(
 	public String toString() {
 		return ("ArchsimProperties[databaseUrl=%s, examplesDir=%s, pricesDir=%s, corsOrigins=%s, autoMigrate=%s, "
 				+ "maxConcurrentRuns=%s, maxWallSeconds=%s, maxRequests=%s, maxBodyBytes=%s, publicUrl=%s, "
-				+ "authMode=%s, trustedProxies=%s, rateLimits=%s, runHistoryLimit=%s]")
+				+ "authMode=%s, trustedProxies=%s, rateLimits=%s, runHistoryLimit=%s, maxEngineRequests=%s]")
 			.formatted(DatabaseUrl.masked(this.databaseUrl), this.examplesDir, this.pricesDir,
 					this.corsOrigins.origins(), this.autoMigrate, this.maxConcurrentRuns, this.maxWallSeconds,
 					this.maxRequests, this.maxBodyBytes, this.publicUrl, this.authMode, this.trustedProxies.hosts(),
-					this.rateLimits, this.runHistoryLimit);
+					this.rateLimits, this.runHistoryLimit, this.maxEngineRequests);
 	}
 
 }

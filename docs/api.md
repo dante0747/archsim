@@ -42,9 +42,10 @@ Domain errors use one shape:
 | 403 | Your role in the workspace is too weak (a viewer editing), a change a session cookie signs in without the right `X-ArchSim-CSRF` header (wherever it is sent), or an API token doing what only a signed-in person may. |
 | 404 | Unknown project, run, example or workspace, **or one in a workspace you are not a member of** (the same answer, so ids reveal nothing). |
 | 409 | Revision conflict on save; report requested for an unfinished run; comparing unfinished runs; a workspace's last owner leaving; a project past a workspace's project limit. |
-| 413 | Request body larger than `ARCHSIM_MAX_BODY_BYTES`. |
+| 413 | Request body larger than `ARCHSIM_MAX_BODY_BYTES`, than 256 KB from a sandbox's guest, or than 64 KB on a route that takes no design. |
 | 422 | Document invalid (with `issues`), run too large, a calibration that cannot be done, or a request body or query that does not fit (a `detail` list with one error per problem: its `type`, where it is (`loc`), the message (`msg`) and the value sent (`input`)). |
 | 429 | A rate limit (runs per hour, sign-in attempts, ...): wait the `Retry-After` seconds. |
+| 503 | The server has no room for the request now (the request slots in [Limits](#limits) are all taken, every sandbox place is, or the server is stopping): wait the `Retry-After` seconds when it is given. |
 
 ## Meta
 
@@ -275,6 +276,17 @@ room; workers take each workspace's oldest run before anyone's second). A person
 300 runs an hour. Starting runs past a limit answers 429 with `Retry-After`, and a batch is
 refused whole. The counters live in the database (`rate_limits`), so every API instance shares
 them. Without sign-in the counters are off, and only sandboxes keep their other limits.
+
+The routes that make the engine work on a design answer a few requests at once, each with a
+design in memory: `/validate`, `/analyze`, `/export`, `/import`, creating, importing, saving,
+duplicating or copying a project, and starting or rerunning runs. Their number is
+`ARCHSIM_MAX_ENGINE_REQUESTS`, by default as many as the API's heap holds (one on a 512 MB heap,
+three on 1 GB with four processors). Another request waits a second for one to finish, then gets
+503 with `Retry-After: 1`. `/calibrate` replays on a thread of its own, one per processor less one,
+and is answered 503 with `Retry-After: 10` when every one is busy. Every other route that reads a
+body takes up to 64 KB (413 beyond), and 32 such requests are answered at once. With the counters
+on, a person may send the engine's routes 600 requests a minute, and a sandbox's guest sends bodies
+of up to 256 KB to any route ([ADR-0108](adr/0108-bound-the-engines-routes-by-slots-per-person-limits-and-a-sandbox-body-cap.md)).
 
 ## Share links
 

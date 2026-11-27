@@ -3,6 +3,7 @@ package io.archsim.app.calibration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import io.archsim.app.config.ArchsimProperties;
 import io.archsim.engine.calibration.ReplaySimulator;
 import io.archsim.engine.simulator.Simulator;
 
@@ -14,9 +15,8 @@ import io.archsim.engine.simulator.Simulator;
 class ReplayConfiguration {
 
 	@Bean
-	ReplayPool replaySimulator(Simulator simulator) {
-		return new ReplayPool(ReplaySimulator.of(simulator),
-				ReplayPool.threadsFor(Runtime.getRuntime().availableProcessors()));
+	ReplayPool replaySimulator(Simulator simulator, ArchsimProperties properties) {
+		return new ReplayPool(ReplaySimulator.of(simulator), properties.replayThreads());
 	}
 
 }

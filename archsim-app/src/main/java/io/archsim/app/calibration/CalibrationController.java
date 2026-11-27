@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import io.archsim.app.access.Principal;
 import io.archsim.app.access.RequestedWorkspace;
+import io.archsim.app.limits.EngineRoute;
 import io.archsim.app.web.ApiBody;
 
 /**
@@ -32,6 +33,7 @@ class CalibrationController {
 	 * @return the calibration
 	 */
 	@PostMapping("/calibrate")
+	@EngineRoute(replay = true)
 	ResponseEntity<String> calibrate(Principal principal, @ApiBody CalibrateRequest request,
 			RequestedWorkspace workspace) {
 		return this.calibrations.calibrate(principal, workspace, request).answer();

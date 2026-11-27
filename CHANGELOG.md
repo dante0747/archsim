@@ -31,6 +31,15 @@ for when that version changes.
 
 ### Fixed
 
+- **The engine's routes answer a bounded number of requests at once
+  ([ADR-0108](docs/adr/0108-bound-the-engines-routes-by-slots-per-person-limits-and-a-sandbox-body-cap.md), proposed).**
+  Validating, analyzing, exporting, importing, saving, duplicating or copying a design, and starting
+  or rerunning runs share `ARCHSIM_MAX_ENGINE_REQUESTS` slots, by default sized from the API's heap,
+  and calibrations one per replay thread; other routes with a body take up to 64 KB, 32 at once. A
+  request that finds no slot free gets 503 with `Retry-After`. With the hosted limits on, each
+  person may send the engine's routes 600 requests a minute, and a sandbox's guest sends bodies of
+  up to 256 KB.
+
 - **No label is cut short on the canvas or the timeline.** The chaos pads clipped their titles
   ("Lose Catalog…"); they have two columns and room for three lines. A part's card cut a label
   when its value was long ("Max connections per instan…"); the value now wraps under it. The Test

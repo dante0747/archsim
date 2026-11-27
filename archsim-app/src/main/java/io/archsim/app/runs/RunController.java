@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import io.archsim.app.access.Principal;
 import io.archsim.app.access.WorkspaceRole;
+import io.archsim.app.limits.EngineRoute;
 import io.archsim.app.web.ApiBody;
 
 /**
@@ -48,6 +49,7 @@ class RunController {
 	 * @return {@code 202} with the run
 	 */
 	@PostMapping("/projects/{projectId}/runs")
+	@EngineRoute
 	ResponseEntity<RunView> create(Principal principal, @PathVariable String projectId, @ApiBody RunCreate request) {
 		return ResponseEntity.status(HttpStatus.ACCEPTED).body(this.starts.create(principal, projectId, request));
 	}
@@ -60,6 +62,7 @@ class RunController {
 	 * @return {@code 202} with the runs
 	 */
 	@PostMapping("/projects/{projectId}/runs/batch")
+	@EngineRoute
 	ResponseEntity<List<RunView>> batch(Principal principal, @PathVariable String projectId,
 			@ApiBody BatchRunCreate request) {
 		return ResponseEntity.status(HttpStatus.ACCEPTED).body(this.batches.start(principal, projectId, request));
@@ -112,6 +115,7 @@ class RunController {
 	 * @return {@code 202} with the new run
 	 */
 	@PostMapping("/runs/{runId}/rerun")
+	@EngineRoute
 	ResponseEntity<RunView> rerun(Principal principal, @PathVariable String runId) {
 		return ResponseEntity.status(HttpStatus.ACCEPTED).body(this.changes.rerun(principal, runId));
 	}

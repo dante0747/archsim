@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.archsim.app.access.Principal;
+import io.archsim.app.limits.EngineRoute;
 import io.archsim.app.web.ApiBody;
 
 /**
@@ -28,6 +29,7 @@ class AnalysisController {
 	 * @return {@code {valid, issues}}
 	 */
 	@PostMapping("/validate")
+	@EngineRoute
 	ResponseEntity<String> validate(Principal principal, @ApiBody AnalysisRequest request) {
 		return this.analysis.validate(request).answer();
 	}
@@ -41,6 +43,7 @@ class AnalysisController {
 	 * @return the analysis
 	 */
 	@PostMapping("/analyze")
+	@EngineRoute
 	ResponseEntity<String> analyze(Principal principal, @ApiBody AnalysisRequest request) {
 		return this.analysis.analyze(request).answer();
 	}
