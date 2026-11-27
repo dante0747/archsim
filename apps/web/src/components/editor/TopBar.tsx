@@ -125,7 +125,7 @@ function RunControl() {
           <button
             type="button"
             aria-label="Choose what to simulate"
-            className="flex max-w-32 items-center gap-1 rounded-r-[9px] 2xl:max-w-40 border border-line-strong bg-surface-2 px-2 text-[13px] text-ink-2 transition-colors hover:bg-surface-3 hover:text-ink"
+            className="flex max-w-24 items-center gap-1 rounded-r-[9px] min-[1366px]:max-w-32 2xl:max-w-40 border border-line-strong bg-surface-2 px-2 text-[13px] text-ink-2 transition-colors hover:bg-surface-3 hover:text-ink"
           >
             {target ? <span className="truncate">{target.name}</span> : <span className="sr-only">Current design</span>}
             <ChevronDown className="size-3.5 shrink-0" />
@@ -280,7 +280,10 @@ export function TopBar({
   // Only the project name gives way when the bar is short of room: the groups beside it keep their
   // width, so the workspace tabs, the transport and the run controls never run into one another.
   // Below 2xl (1536 px) they make room for it: the theme moves into the menu, the scenario's name
-  // and the transport's display get shorter.
+  // and the transport's display get shorter. The name cannot give way below the words under it
+  // that say whether the design is saved, so below 1366 px the scenario's name is cut at 6rem
+  // rather than 8: without that the bar is some 15 px too wide for a 1280 px window where text
+  // is drawn widest (Linux).
   return (
     <header className="island relative z-30 flex h-[60px] shrink-0 items-center gap-3 !overflow-visible border-b border-line px-3">
       <div className="flex shrink items-center gap-1.5">
