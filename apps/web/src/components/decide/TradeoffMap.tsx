@@ -200,7 +200,6 @@ export function TradeoffMap() {
   const showRun = useRuns((s) => s.showRun);
   const objectives = useEditor((s) => s.objectives);
   const scenarioCount = useEditor((s) => s.scenarios.length);
-  const setScorecardRunId = useDecide((s) => s.setScorecardRunId);
   const setSection = useDecide((s) => s.setSection);
   const boxRef = useRef<HTMLDivElement>(null);
   const width = useElementWidth(boxRef, 720);
@@ -296,10 +295,7 @@ export function TradeoffMap() {
   );
   const tick = "font-mono text-[11px]";
 
-  const select = (id: string) => {
-    void showRun(id);
-    setScorecardRunId(id);
-  };
+  const select = (id: string) => void showRun(id);
 
   return (
     <div>

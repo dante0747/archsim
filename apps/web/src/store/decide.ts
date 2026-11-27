@@ -1,6 +1,7 @@
 /**
- * Decide workspace state: which section is open (shared so the rest of the app can deep-link),
- * which run the scorecard shows, and the breaking-point sweep runner.
+ * Decide workspace state: which section is open (shared so the rest of the app can deep-link)
+ * and the breaking-point sweep runner. The run Results shows is the runs store's current run, the
+ * one on the canvas: there is no second pointer here.
  */
 import { toast } from "sonner";
 import { create } from "zustand";
@@ -65,15 +66,12 @@ export interface DecideState {
   section: DecideSection;
   compareView: CompareView;
   detailsView: DetailsView;
-  /** Run shown by the scorecard (null = the run currently on the canvas). */
-  scorecardRunId: string | null;
   sweep: SweepState;
   setSection: (s: DecideSection) => void;
   setCompareView: (v: CompareView) => void;
   setDetailsView: (v: DetailsView) => void;
   /** Open the place an old "results drawer" tab maps to. */
   goToDrawerTab: (tab: DrawerTab) => void;
-  setScorecardRunId: (id: string | null) => void;
   startSweep: (doc: ArchitectureDocument, cfg: SweepConfig) => Promise<void>;
   cancelSweep: () => Promise<void>;
   clearSweep: () => void;
@@ -166,7 +164,6 @@ export const useDecide = create<DecideState>()((set, get) => {
     section: "answer",
     compareView: "map",
     detailsView: "summary",
-    scorecardRunId: null,
     sweep: IDLE_SWEEP,
     setSection: (section) => set({ section }),
     setCompareView: (compareView) => set({ compareView, section: "compare" }),
@@ -175,7 +172,6 @@ export const useDecide = create<DecideState>()((set, get) => {
       const p = placeForDrawerTab(tab);
       set({ section: p.section, ...(p.compare ? { compareView: p.compare } : {}), ...(p.details ? { detailsView: p.details } : {}) });
     },
-    setScorecardRunId: (scorecardRunId) => set({ scorecardRunId }),
 
     startSweep: async (doc, cfg) => {
       const projectId = useRuns.getState().projectId;
