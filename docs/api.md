@@ -39,12 +39,14 @@ Domain errors use one shape:
 | 400 | Contradictory request (e.g. both `document` and `exampleId`). |
 | 400 | Also: a request Spring Security's request firewall refuses (a method other than `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` and `OPTIONS`, a path that is not normalized or holds an encoded `%`, `.` or backslash), answered `{"detail": "Bad Request"}`. |
 | 401 | Sign-in is on, and the request has no valid session cookie or API token where the endpoint needs someone, or carries a wrong API token wherever it goes, public endpoints and unknown paths included (`WWW-Authenticate: Bearer`). A token sent to the sign-in paths of a provider set up here is not read. |
-| 403 | Your role in the workspace is too weak (a viewer editing), a change a session cookie signs in without the right `X-ArchSim-CSRF` header (wherever it is sent), or an API token doing what only a signed-in person may. |
+| 403 | Your role in the workspace is too weak (a viewer editing), a change a session cookie signs in without the right `X-ArchSim-CSRF` header (wherever it is sent), or an API token doing what only a signed-in person may. Without sign-in: a request addressed to a host that is neither this machine nor one `ARCHSIM_ALLOWED_HOSTS` lists, or a change whose `Origin` is neither the page it was addressed to nor one `ARCHSIM_CORS_ORIGINS` lists. |
 | 404 | Unknown project, run, example or workspace, **or one in a workspace you are not a member of** (the same answer, so ids reveal nothing). |
 | 409 | Revision conflict on save; report requested for an unfinished run; comparing unfinished runs; a workspace's last owner leaving; a project past a workspace's project limit; a new project, design, run or share link in a workspace that stores its quota or more. |
-| 413 | Request body larger than `ARCHSIM_MAX_BODY_BYTES`. |
+| 413 | Request body larger than `ARCHSIM_MAX_BODY_BYTES`, than 256 KB from a sandbox's guest, or than 64 KB on a route that takes no design. |
+| 415 | Without sign-in, a body that is not `application/json` (or an `application/*+json` type): send `Content-Type: application/json` with every body. |
 | 422 | Document invalid (with `issues`), run too large, a calibration that cannot be done, or a request body or query that does not fit (a `detail` list with one error per problem: its `type`, where it is (`loc`), the message (`msg`) and the value sent (`input`)). |
 | 429 | A rate limit (runs per hour, sign-in attempts, ...): wait the `Retry-After` seconds. |
+| 503 | The server has no room for the request now (the request slots in [Limits](#limits) are all taken, every sandbox place is, or the server is stopping): wait the `Retry-After` seconds when it is given. |
 
 ## Meta
 
@@ -93,7 +95,7 @@ document. Schema-invalid documents (unknown keys, out-of-range link settings, wr
 | --- | --- | --- |
 | POST | `/projects/{id}/runs` | Body `{scenarioId?, label?, document?, seeds?, mode?}`. Validates, then enqueues. `202` with the run. `document` simulates unsaved edits; it is stored with the run. `seeds` (1-10, default 1) above 1 starts a seed group: one run per seed from the document's seed (base) to base + seeds - 1, all of one stored document, each with `groupId` and `seedIndex`; the answer is the first run. A workspace runs at most 5 seeds at once when hosted (10 without sign-in), and the group counts as that many runs against the hourly limits. `mode: "sampled"` is a quick check: the run is answered from a steady sample when it can be (see `/analyze` `quickCheck`; `422` with the reason when the design does not qualify), and its report carries `simulationMode`. Seed and mode are stored with each run. |
 | POST | `/projects/{id}/runs/batch` | Body `{scenarioIds: [..], document?}` (1-10 entries; `null` = base document). Validates all before enqueueing any. `202` with a list. |
-| GET | `/projects/{id}/runs` | Recent runs (newest first, up to `ARCHSIM_RUN_HISTORY_LIMIT`, default 200), without reports. |
+| GET | `/projects/{id}/runs` | The project's runs, newest first, up to `ARCHSIM_RUN_HISTORY_LIMIT` (default 200), without reports. |
 | GET | `/runs/{runId}` | Status, `progress` (0-1), `error`, seed, digests, and a small `summary` once finished. Poll this. |
 | GET | `/runs/{runId}/report` | Full report (`409` unless `succeeded`). See below. |
 | GET | `/runs/{runId}/input` | The exact document submitted for the run (re-importable). |
@@ -106,6 +108,11 @@ Run `status`: `queued`, `running`, `succeeded`, `failed`, `cancelled`. A failed 
 `error.message` and, for document problems, `error.issues`. `progress` is read from the
 database, where the worker simulating the run writes it at most once a second, so every API
 instance reports the same value.
+
+A project keeps its newest `ARCHSIM_RUN_HISTORY_LIMIT` runs, the ones its list shows. When the API
+starts and every hour after, it deletes the older ones, except runs still queued or running, runs
+with a sign-off or a comment, and the other runs of their seed group; a seed group goes with its
+last run. A share link of a deleted run keeps its copy.
 
 ### Background runs and several instances
 
@@ -210,8 +217,9 @@ makes a guest account (named "Guest", no email) that owns a new sandbox workspac
 browser in as the guest: `201` with what `GET /auth/me` answers, and the session and CSRF cookies,
 which last until the sandbox is deleted, 24 hours later, with the guest and everything in it. A
 guest uses the sandbox as its owner, within its [limits](#limits), but makes no team workspaces,
-API tokens, invitations or share links and accepts no invitation (`403`). Signing in from a
-sandbox starts a normal personal workspace; the sandbox's projects are not moved.
+API tokens, invitations or share links, accepts no invitation and does not rename the sandbox
+(`403`). Signing in from a sandbox starts a normal personal workspace; the sandbox's projects are
+not moved.
 
 **API tokens (CLI, CI, MCP).** Send `Authorization: Bearer asim_pat_...`; no cookie and no CSRF
 header. A token acts as you, as a viewer if its scope is `read`, and only in its workspace if
@@ -248,8 +256,9 @@ so the document is served at the public address it names.
 | POST | `/tokens` | `{name, scope: read|write, workspaceId?, expiresInDays? (default 90; null: never)}`. The answer has the `token` once. |
 | DELETE | `/tokens/{id}` | Revoke at once. |
 
-Tokens cannot manage tokens, workspaces or invitations (403): do that signed in. Neither can a
-sandbox's guest, who also makes no share links.
+Tokens cannot manage access (403): tokens, workspaces (making, renaming, deleting), who belongs to
+a workspace and their roles (leaving included), or invitations (making, revoking, accepting). Do
+that signed in. Neither can a sandbox's guest, who also makes no share links.
 
 ```bash
 export ARCHSIM_TOKEN=asim_pat_...        # Settings → API tokens
@@ -270,28 +279,46 @@ workspace's own `maxConcurrentRuns`/`maxRunsPerHour` replace:
 Without sign-in a seed group may run 10 seeds (5 in a sandbox). A visitor's sandbox
 (`POST /auth/sandbox`) has the sandbox's limits, and is deleted 24 hours after it starts.
 
-"Stored" counts a workspace's projects' designs, its runs' designs and reports, and its share
-links' copies, as PostgreSQL stores them. A workspace that stores its quota or more cannot make a
-project, save a design, start runs or make a share link (409) until runs, projects or share links
-are deleted; renaming a project still works. Each check comes before its write, with the workspace
-locked (a share link's without), so a workspace can pass its quota by what the writes under way
-store, up to about 100 MB, and by the reports of runs it had queued
-([ADR-0109](adr/0109-give-each-workspace-a-project-cap-and-a-quota-of-stored-bytes.md)).
+"Stored" counts a workspace's projects' designs, the designs its runs simulate (each once, however
+many of its runs simulate it), its runs' reports and its share links' copies, as PostgreSQL stores
+them. A workspace that stores its quota or more cannot make a project, save a design, start runs or
+make a share link (409) until runs, projects or share links are deleted; renaming a project still
+works. Each check comes before its write, with the workspace locked, so a workspace can pass its
+quota only by the one write that found it below it (about 5 MB at most) and by the reports of runs
+it had queued ([ADR-0109](adr/0109-give-each-workspace-a-project-cap-and-a-quota-of-stored-bytes.md)).
 
 Runs at once are counted across every worker (a run waits in the queue until its workspace has
-room; workers take each workspace's oldest run before anyone's second). A person may also start
-300 runs an hour. Starting runs past a limit answers 429 with `Retry-After`, and a batch is
-refused whole. The counters live in the database (`rate_limits`), so every API instance shares
-them. Without sign-in the counters are off, and only sandboxes keep their other limits.
+room; workers take every other workspace's queued runs before a sandbox's, and each workspace's
+oldest run before anyone's second). A person may also start 300 runs an hour, and sandboxes' runs
+count against their address's 40 an hour and all sandboxes' 300 an hour. A limit per address
+counts an IPv6 address by its /64. Starting runs past a limit answers 429 with `Retry-After`, and
+a batch is refused whole. The counters live in the database (`rate_limits`), so every API
+instance shares them. Without sign-in the counters are off, and only sandboxes keep their other
+limits.
+
+The routes that make the engine work on a design answer a few requests at once, each with a
+design in memory: `/validate`, `/analyze`, `/export`, `/import`, creating, importing, saving,
+duplicating or copying a project, and starting or rerunning runs. Their number is
+`ARCHSIM_MAX_ENGINE_REQUESTS`, by default as many as the API's heap holds (one on a 512 MB heap,
+three on 1 GB with four processors). Another request waits a second for one to finish, then gets
+503 with `Retry-After: 1`. `/calibrate` replays on a thread of its own, one per processor less one,
+and is answered 503 with `Retry-After: 10` when every one is busy. Every other route that reads a
+body takes up to 64 KB (413 beyond), and 32 such requests are answered at once. With the counters
+on, a person may send the engine's routes 600 requests a minute, and a sandbox's guest sends bodies
+of up to 256 KB to any route ([ADR-0108](adr/0108-bound-the-engines-routes-by-slots-per-person-limits-and-a-sandbox-body-cap.md)).
 
 ## Share links
 
 A share link is a frozen, read-only copy of one finished run's results that anyone with the
 link can open on the web app at `/r/<slug>`, without signing in. It holds the report without
-request traces (calibration addresses hidden), the objectives from the run's input document,
-the project name and that document (for "Open a copy"; the public answer leaves it out). It
+request traces, the objectives from the run's input document, the project name and that
+document (for "Open a copy"; the public answer leaves it out), with every address
+(`scheme://...`) in a calibration or a measured input's provenance record, where a calibration
+names its telemetry source, written `(address hidden)`. It
 does not change when the design does and stays when the run or project is deleted, until it
-expires or is revoked. Slugs are 128 random bits in base62 (22 characters).
+expires or is revoked. Revoking deletes the copy at once, and the API deletes an expired link's
+copy within about an hour; the link stays in the lists, `expired`. Slugs are 128 random bits in
+base62 (22 characters).
 
 | Method | Path | Description |
 | --- | --- | --- |
@@ -322,7 +349,8 @@ workspace get 404, as for its projects.
 
 Every change to a project, its runs, comments and sign-offs, and to a workspace's members and
 invitations, writes its history row in the same transaction as the change. A project's history
-outlives the project, in its workspace's history.
+outlives the project, in its workspace's history. Each row is kept `ARCHSIM_HISTORY_DAYS` (365)
+days, then deleted.
 
 ## Compare
 

@@ -8,6 +8,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import io.archsim.app.support.FullWorkspaces;
 import io.archsim.app.support.HostedTestSupport;
+import io.archsim.app.support.StoredDesigns;
 import io.archsim.app.web.ApiException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -15,9 +16,9 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 
 /**
- * What a workspace stores, as PostgreSQL stores it: its projects' designs, its runs'
- * designs and reports, and its share links' copies, and no other workspace's; the quota
- * of its kind, and the lock a check in turn holds (ADR-0109).
+ * What a workspace stores, as PostgreSQL stores it: its projects' designs, the designs
+ * its runs simulate, its runs' reports, and its share links' copies, and no other
+ * workspace's; the quota of its kind, and the lock a check in turn holds (ADR-0109).
  */
 class WorkspaceStorageTests extends HostedTestSupport {
 
@@ -163,7 +164,7 @@ class WorkspaceStorageTests extends HostedTestSupport {
 	 * A finished run of a project, as a worker leaves it.
 	 * @param workspace the project's workspace
 	 * @param project the project
-	 * @param design the design the run stores, as SQL
+	 * @param design the design the run simulates, as SQL
 	 * @param report its report, as SQL
 	 * @return the run's id
 	 */
@@ -172,14 +173,24 @@ class WorkspaceStorageTests extends HostedTestSupport {
 		jdbc()
 			.sql("""
 					INSERT INTO simulation_runs (id, project_id, workspace_id, label, status, progress, seed,
-					                             engine_version, input_document, report, created_at)
-					VALUES (:id, :project, :workspace, 'Baseline', 'succeeded', 1, 7, '1.6.0', %s, %s, now())"""
-				.formatted(design, report))
+					                             engine_version, design_digest, report, created_at)
+					VALUES (:id, :project, :workspace, 'Baseline', 'succeeded', 1, 7, '1.6.0', :design, %s, now())"""
+				.formatted(report))
 			.param("id", id)
 			.param("project", project)
 			.param("workspace", workspace)
+			.param("design", StoredDesigns.store(jdbc(), designJson(design)))
 			.update();
 		return id;
+	}
+
+	/**
+	 * The JSON of a design given as SQL.
+	 * @param design the design, as SQL
+	 * @return its JSON
+	 */
+	private String designJson(String design) {
+		return jdbc().sql("SELECT CAST(%s AS text)".formatted(design)).query(String.class).single();
 	}
 
 }

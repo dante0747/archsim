@@ -16,13 +16,15 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import tools.jackson.databind.json.JsonMapper;
 
+import io.archsim.app.limits.WorkspaceLimits;
 import io.archsim.engine.simulator.SimulationMode;
 
 /**
- * The queue as a claim reads and takes it, in {@code simulation_runs} and
- * {@code workspaces}: the queued runs in fair order, the workspaces' caps and the runs
- * they have running, and the runs a worker takes under its lease. Each step is meant to
- * run in the claim's transaction, after {@link #takeTurn()}.
+ * The queue as a claim reads and takes it, in {@code simulation_runs}, the designs its
+ * runs simulate ({@code run_designs}) and {@code workspaces}: the queued runs in fair
+ * order, the workspaces' caps and the runs they have running, and the runs a worker takes
+ * under its lease. Each step is meant to run in the claim's transaction, after
+ * {@link #takeTurn()}.
  */
 @Repository
 @Profile("worker")
@@ -55,8 +57,10 @@ class ClaimRepository {
 	}
 
 	/**
-	 * The queued runs a claim may take: each workspace's oldest first, then their second
-	 * oldest, and so on, no more than the claim's limit from any one workspace.
+	 * The queued runs a claim may take, no more than the claim's limit from any one
+	 * workspace: every other workspace's before any sandbox's (ADR-0106), and among each,
+	 * every workspace's oldest first, then their second oldest, and so on. A queued
+	 * sandbox run thus comes after every other workspace's queued run.
 	 * @param limit the claim's limit
 	 * @param exclude runs to leave out
 	 * @return the runs, in that order
@@ -69,11 +73,13 @@ class ClaimRepository {
 					          row_number() OVER (PARTITION BY q.workspace_id ORDER BY q.created_at, q.id) AS position
 					      FROM simulation_runs AS q
 					      WHERE q.status = 'queued' %s) AS ranked
+					JOIN workspaces AS w ON w.id = ranked.workspace_id
 					WHERE ranked.position <= :limit
-					ORDER BY ranked.position, ranked.created_at, ranked.id"""
+					ORDER BY w.kind = :sandbox, ranked.position, ranked.created_at, ranked.id"""
 				.formatted(exclude.isEmpty() ? "" : NOT_EXCLUDED))
 			.param("limit", limit)
 			.param("exclude", exclude)
+			.param("sandbox", WorkspaceLimits.SANDBOX)
 			.query((row, number) -> new Candidate(row.getString("id"), row.getString("workspace_id")))
 			.list();
 	}
@@ -136,9 +142,10 @@ class ClaimRepository {
 	 */
 	List<ClaimedRun> claimed(List<String> runIds, String workerId) {
 		return this.jdbc.sql("""
-				SELECT id, CAST(input_document AS text) AS document, scenario_id, attempts, max_requests,
-				    max_wall_seconds, seed, mode
-				FROM simulation_runs WHERE id IN (:ids) AND lease_owner = :worker""")
+				SELECT run.id, CAST(design.document AS text) AS document, run.scenario_id, run.attempts,
+				    run.max_requests, run.max_wall_seconds, run.seed, run.mode
+				FROM simulation_runs AS run JOIN run_designs AS design ON design.digest = run.design_digest
+				WHERE run.id IN (:ids) AND run.lease_owner = :worker""")
 			.param("ids", runIds)
 			.param("worker", workerId)
 			.query(this::claimedRun)

@@ -71,6 +71,26 @@ put them in `.env.docker` (git ignores it): the API and worker containers read i
 
 The endpoints are in [api.md](api.md#sign-in-workspaces-and-tokens).
 
+## How long the server keeps things
+
+The API deletes what it no longer keeps when it starts and every hour after, in short batches that
+any number of API instances share
+([ADR-0111](adr/0111-prune-the-runs-past-a-projects-limit-and-expired-rows-every-hour.md)):
+
+| What | Kept | Setting |
+| --- | --- | --- |
+| A project's runs | Its newest 200, the ones its list shows, and older runs still queued or running, signed off or commented on, with the rest of their seed group | `ARCHSIM_RUN_HISTORY_LIMIT` |
+| A sign-in session | Until its person signs out, or it expires, 30 days after signing in | `ARCHSIM_SESSION_DAYS` |
+| An invitation | Until it expires (7 days by default, 30 at most), accepted or not | |
+| A share link's copy of the results | Until the link expires or is revoked; the link stays listed, expired | |
+| The history of each workspace | 365 days | `ARCHSIM_HISTORY_DAYS` |
+
+Rate-limit counters go within a minute of the end of their window, and sandboxes 24 hours after
+they start. Designs, comments, sign-offs, accounts and workspaces stay until someone deletes them,
+and API tokens, revoked and expired ones included, for as long as their person's account.
+Before upgrading a server whose projects should keep more runs, raise `ARCHSIM_RUN_HISTORY_LIMIT`:
+the first prune, as the API starts, deletes the runs past it.
+
 ## Before you expose a server
 
 - Use PostgreSQL with a password of your own: the Compose file's `archsim` / `archsim` is a local
@@ -123,10 +143,24 @@ server, give the JVMs more in `hosted.env` (a container's memory limit is its he
 | `ARCHSIM_API_HEAP` | `512m` | `1g` |
 | `ARCHSIM_API_MEMORY` | `896m` | `1408m` |
 
+The API's heap also sets how many requests the engine's routes answer at once, each with a design
+in memory: one on 512 MB with two cores, three on 1 GB with four (`ARCHSIM_MAX_ENGINE_REQUESTS`
+overrides it; [ADR-0108](adr/0108-bound-the-engines-routes-by-slots-per-person-limits-and-a-sandbox-body-cap.md)).
+
 The worker's heap on a big server is the one [archsim-app's README](../archsim-app/README.md#the-workers-heap)
 asks: 512 MB a run and 256 MB besides. The default gives each run less, about 384 MB, because runs
 here stop at 1,000,000 requests instead of 2,000,000, and a run's heap shrinks by about 128 MB a
 million. More workers (`--scale worker=2`) need more cores still, each with its own heap.
+
+Each API instance and each worker keeps at most ten connections to PostgreSQL
+(`SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE`,
+[ADR-0105](adr/0105-charge-every-rate-limit-before-its-transaction-begins.md)). A request holds one
+at a time; in a burst, a request waits up to 10 s for one to come free, then fails. The kit's API
+and worker keep 20 of PostgreSQL's 100, room for more workers and the nightly dump.
+
+The disk holds the images, the database and its seven nightly dumps (step 11). The database's
+largest rows are runs, each with its design and report, and a project keeps its newest 200
+([How long the server keeps things](#how-long-the-server-keeps-things)).
 
 ### 2. Docker
 
@@ -258,8 +292,8 @@ nc -zv -w 5 <server address> 5432                          # from elsewhere: ref
 
 Then sign in with GitHub with the email in `ARCHSIM_ADMIN_EMAILS`, open a template and simulate it.
 To see that rate limits count visitors and not the proxy, list the addresses the sign-in limit has
-counted, a few minutes after signing in at most (ended windows are cleared); yours should be there,
-not a `172.` address of Docker's:
+counted, a few minutes after signing in at most (ended windows are cleared); yours (over IPv6, its
+/64) should be there, not a `172.` address of Docker's:
 
 ```bash
 docker compose --env-file hosted.env exec backup psql -Atc "select key from rate_limits where key like 'ip:%'"
@@ -272,7 +306,7 @@ Take a backup (below), then move the kit to the release's tag:
 ```bash
 cd ~/archsim/deploy
 docker compose --env-file hosted.env exec backup archsim-backup now
-./update.sh v1.4.0
+./update.sh v1.5.0
 ```
 
 `update.sh` checks the kit out at the tag, pulls its images, migrates the database and restarts what
@@ -354,17 +388,22 @@ address, and the app links to it. A server from this kit stores:
 
 - **For each person who signs in:** the name, email and picture address their GitHub or Google
   account gives, that account's id (and GitHub user name), and what they make in their workspaces
-  (designs, runs, comments, sign-offs, share links) until it is deleted.
+  (designs, runs, comments, sign-offs, share links) until it is deleted: by them, or by the server
+  for the runs past a project's newest 200 and an expired share link's copy
+  ([How long the server keeps things](#how-long-the-server-keeps-things)).
 - **For each sign-in session:** the IP address and browser (user agent) it started from, until
-  the person signs out of it, or out everywhere; an expired session's row stays until then.
+  the person signs out of it, or out everywhere, or about an hour after it expires.
+- **For each invitation:** the email it was sent to, if it names one, until about an hour after it
+  expires (7 days by default, 30 at most), accepted or not.
 - **In each workspace's history:** every change to its projects, runs, reviews and members, who
-  made it and from which IP address (only owners see the address), for as long as the workspace
-  lasts.
+  made it and from which IP address (only owners see the address), for 365 days, or until the
+  workspace is deleted.
 - **With sandboxes on** (`ARCHSIM_SANDBOXES=true`): a guest account with no name of its own and no
   email, its session's address and browser, and everything made in the sandbox, all deleted 24
   hours after the sandbox starts.
-- **Rate-limit counters by IP address** (sign-ins, sandbox starts and public share views), deleted
-  within a minute of the end of their window, which lasts an hour at most.
+- **Rate-limit counters by IP address**, an IPv6 address's /64 rather than the address (sign-ins,
+  sandbox starts, sandboxes' runs and public share views), deleted within a minute of the end of
+  their window, which lasts an hour at most.
 - **In the nightly backups:** all of the above as it was that night. The newest seven dumps are
   kept (`ARCHSIM_BACKUP_KEEP`), so whatever is deleted from the database, an expired sandbox
   included, stays in them for up to 7 days, and in any copies you keep elsewhere for as long as

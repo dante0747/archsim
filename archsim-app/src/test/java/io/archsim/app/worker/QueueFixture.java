@@ -16,6 +16,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import io.archsim.app.database.TestDatabases;
+import io.archsim.app.support.StoredDesigns;
 
 /**
  * A run queue of its own for a test: a migrated database, runs queued in it with the
@@ -59,21 +60,11 @@ final class QueueFixture {
 	 * @return their ids, oldest first
 	 */
 	List<String> queue(String workspace, String kind, int count) {
-		this.jdbc.sql("""
-				INSERT INTO workspaces (id, name, kind, created_at) VALUES (:id, :id, :kind, :at)
-				ON CONFLICT (id) DO NOTHING""")
-			.param("id", workspace)
-			.param("kind", kind)
-			.param("at", at(QUEUED))
-			.update();
-		this.jdbc.sql("""
-				INSERT INTO projects (id, name, document, schema_version, revision, created_at, updated_at,
-				    workspace_id)
-				VALUES (:id, 'p', '{}', '1.7', 1, :at, :at, :id) ON CONFLICT (id) DO NOTHING""")
-			.param("id", workspace)
-			.param("at", at(QUEUED))
-			.update();
-		return IntStream.range(0, count).mapToObj((index) -> queueOne(workspace)).toList();
+		addWorkspace(workspace, kind);
+		return IntStream.range(0, count).mapToObj((_) -> {
+			int place = this.queued.getAndIncrement();
+			return queueOne(workspace, place, "{\"n\": " + place + "}");
+		}).toList();
 	}
 
 	/**
@@ -84,16 +75,11 @@ final class QueueFixture {
 	 * @return the run's id
 	 */
 	String queueDesign(String design, long seed, String mode) {
-		String run = queue("designs", 1).getFirst();
+		addWorkspace("designs", "team");
+		String run = queueOne("designs", this.queued.getAndIncrement(), design);
 		this.jdbc.sql("""
-				UPDATE simulation_runs SET input_document = CAST(:design AS jsonb), seed = :seed, mode = :mode,
-				    max_requests = NULL, max_wall_seconds = NULL
-				WHERE id = :id""")
-			.param("design", design)
-			.param("seed", seed)
-			.param("mode", mode)
-			.param("id", run)
-			.update();
+				UPDATE simulation_runs SET seed = :seed, mode = :mode, max_requests = NULL, max_wall_seconds = NULL
+				WHERE id = :id""").param("seed", seed).param("mode", mode).param("id", run).update();
 		return run;
 	}
 
@@ -194,19 +180,45 @@ final class QueueFixture {
 				FROM simulation_runs WHERE id = :id""").param("id", runId).query(QueueFixture::runRow).single();
 	}
 
-	private String queueOne(String workspace) {
-		int index = this.queued.getAndIncrement();
-		String id = "%s-%02d".formatted(workspace, index);
+	// adds a workspace of a kind with a project of the same id, unless they are there
+	// already
+	private void addWorkspace(String workspace, String kind) {
+		this.jdbc.sql("""
+				INSERT INTO workspaces (id, name, kind, created_at) VALUES (:id, :id, :kind, :at)
+				ON CONFLICT (id) DO NOTHING""")
+			.param("id", workspace)
+			.param("kind", kind)
+			.param("at", at(QUEUED))
+			.update();
+		this.jdbc.sql("""
+				INSERT INTO projects (id, name, document, schema_version, revision, created_at, updated_at,
+				    workspace_id)
+				VALUES (:id, 'p', '{}', '1.7', 1, :at, :at, :id) ON CONFLICT (id) DO NOTHING""")
+			.param("id", workspace)
+			.param("at", at(QUEUED))
+			.update();
+	}
+
+	/**
+	 * Queues a run in a workspace's project.
+	 * @param workspace the workspace
+	 * @param place its place in the queue, from 0: its seed, and a millisecond after the
+	 * run before
+	 * @param design its design, as JSON
+	 * @return the run's id
+	 */
+	private String queueOne(String workspace, int place, String design) {
+		String id = "%s-%02d".formatted(workspace, place);
 		this.jdbc.sql("""
 				INSERT INTO simulation_runs (id, project_id, workspace_id, status, progress, seed, engine_version,
-				    input_document, max_requests, max_wall_seconds, mode, attempts, created_at)
-				VALUES (:id, :workspace, :workspace, 'queued', 0, :seed, '0.16.0', CAST(:document AS jsonb), 1000,
-				    20.0, 'full', 0, :at)""")
+				    design_digest, max_requests, max_wall_seconds, mode, attempts, created_at)
+				VALUES (:id, :workspace, :workspace, 'queued', 0, :seed, '0.16.0', :design, 1000, 20.0, 'full', 0,
+				    :at)""")
 			.param("id", id)
 			.param("workspace", workspace)
-			.param("seed", index)
-			.param("document", "{\"n\": " + index + "}")
-			.param("at", at(QUEUED.plusMillis(index)))
+			.param("seed", place)
+			.param("design", StoredDesigns.store(this.jdbc, design))
+			.param("at", at(QUEUED.plusMillis(place)))
 			.update();
 		return id;
 	}

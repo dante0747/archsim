@@ -155,6 +155,22 @@ abstract class RunTestSupport {
 		return post("/api/v1/projects/" + projectId + "/runs", body);
 	}
 
+	/**
+	 * Starts runs as a request from an address does.
+	 * @param address the address the request comes from
+	 * @param projectId the project
+	 * @param body the request's body
+	 * @return the answer
+	 */
+	MvcTestResult startFrom(String address, String projectId, String body) {
+		return this.mvc.post()
+			.uri("/api/v1/projects/" + projectId + "/runs")
+			.remoteAddress(address)
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(body)
+			.exchange();
+	}
+
 	MvcTestResult post(String uri, String body) {
 		return this.mvc.post().uri(uri).contentType(MediaType.APPLICATION_JSON).content(body).exchange();
 	}
@@ -241,7 +257,17 @@ abstract class RunTestSupport {
 	 * @return the count
 	 */
 	int personsRunsCounted() {
-		return this.jdbc.sql("SELECT coalesce(sum(count), 0) FROM rate_limits WHERE key = 'user:local:runs'")
+		return counted("user:local:runs");
+	}
+
+	/**
+	 * Returns how many hits a rate limit's key has been counted for, in every window.
+	 * @param key the key, such as {@code user:local:runs}
+	 * @return the count
+	 */
+	int counted(String key) {
+		return this.jdbc.sql("SELECT coalesce(sum(count), 0) FROM rate_limits WHERE key = :key")
+			.param("key", key)
 			.query(Integer.class)
 			.single();
 	}

@@ -134,6 +134,23 @@ class ShareRepository {
 	}
 
 	/**
+	 * Deletes the frozen copies of some links that have expired, the first to expire
+	 * first; the links stay. Links another transaction holds are left to it.
+	 * @param now the time it is
+	 * @param limit how many copies to delete at most
+	 * @return how many it deleted
+	 */
+	int clearExpiredPayloads(Instant now, int limit) {
+		return this.jdbc.sql("""
+				UPDATE shared_reports SET payload = NULL WHERE id IN (
+				    SELECT id FROM shared_reports WHERE expires_at <= :now AND payload IS NOT NULL
+				    ORDER BY expires_at LIMIT :limit FOR UPDATE SKIP LOCKED)""")
+			.param("now", Timestamp.from(now))
+			.param("limit", limit)
+			.update();
+	}
+
+	/**
 	 * Counts one more opening of a link.
 	 * @param id the share
 	 */

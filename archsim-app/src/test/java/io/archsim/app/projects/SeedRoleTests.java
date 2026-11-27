@@ -89,7 +89,7 @@ class SeedRoleTests {
 
 		assertThatException().isThrownBy(() -> seed(database))
 			.havingRootCause()
-			.withMessage("the database has no schema history yet, this seed needs V2; start the API first");
+			.withMessage("the database has no schema history yet, this seed needs V4; start the API first");
 	}
 
 	@Test

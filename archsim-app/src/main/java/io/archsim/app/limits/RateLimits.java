@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.OptionalInt;
 
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import io.archsim.app.config.ArchsimProperties;
 import io.archsim.app.web.ApiException;
@@ -16,6 +18,13 @@ import io.archsim.app.web.ApiException;
  * even if the request then fails, and only while the count stays within the limit, so a
  * refused request costs nothing; hits against several keys are counted together or not at
  * all. Off without limits ({@code ARCHSIM_RATE_LIMITS}).
+ *
+ * <p>
+ * A request charges before its own transaction begins, never inside one, so it holds one
+ * database connection at a time: a charge from inside a transaction would hold one
+ * connection and wait for a second, and enough requests at once would hold them all
+ * (ADR-0105). A charge made inside one is refused with
+ * {@link org.springframework.transaction.IllegalTransactionStateException}.
  */
 @Component
 public class RateLimits {
@@ -50,20 +59,23 @@ public class RateLimits {
 	 * @throws ApiException {@code 429} with {@code Retry-After} when the key is over its
 	 * limit
 	 */
+	@Transactional(propagation = Propagation.NEVER)
 	public void enforce(String key, RateLimit limit, String message) {
 		enforceAll(List.of(new Charge(key, limit, message)), 1);
 	}
 
 	/**
 	 * Counts some hits against several keys at once, all or none: when one key is over
-	 * its limit, no key is counted. The keys' counters are locked in the order given, so
-	 * callers that charge the same keys must list them in the same order (a person's
-	 * before a workspace's): two requests locking them in opposite orders could deadlock.
+	 * its limit, no key is counted. The keys' counters are locked in the order given, and
+	 * two requests locking them in opposite orders could deadlock, so every caller lists
+	 * at most one key of each kind, in one order of kinds: a person's, an address's, all
+	 * sandboxes', a workspace's.
 	 * @param charges the keys, in that order
 	 * @param cost how many hits against each
 	 * @throws ApiException {@code 429} with {@code Retry-After}, in the words of the
 	 * first key the hits do not fit and for when its window ends
 	 */
+	@Transactional(propagation = Propagation.NEVER)
 	public void enforceAll(List<Charge> charges, int cost) {
 		if (!this.properties.limitsOn()) {
 			return;

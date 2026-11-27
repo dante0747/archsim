@@ -13,6 +13,19 @@ import org.springframework.stereotype.Repository;
 @Repository
 class StorageRepository {
 
+	/**
+	 * A workspace's stored bytes. {@code IN} matches a design once however many of the
+	 * workspace's runs simulate it, so each counts once.
+	 */
+	private static final String STORED_BYTES = """
+			SELECT coalesce((SELECT sum(pg_column_size(document)) FROM projects WHERE workspace_id = :id), 0)
+			     + coalesce((SELECT sum(coalesce(pg_column_size(report), 0) + coalesce(pg_column_size(summary), 0))
+			                 FROM simulation_runs WHERE workspace_id = :id), 0)
+			     + coalesce((SELECT sum(pg_column_size(document)) FROM run_designs
+			                 WHERE digest IN (SELECT design_digest FROM simulation_runs WHERE workspace_id = :id)), 0)
+			     + coalesce((SELECT sum(pg_column_size(payload))
+			                 FROM shared_reports WHERE workspace_id = :id), 0)""";
+
 	private final JdbcClient jdbc;
 
 	StorageRepository(JdbcClient jdbc) {
@@ -32,22 +45,17 @@ class StorageRepository {
 	}
 
 	/**
-	 * The bytes a workspace stores: its projects' designs, its runs' designs, reports and
-	 * summaries, and its share links' copies.
+	 * The bytes a workspace stores: its projects' designs, its runs' reports and
+	 * summaries, the designs its runs simulate, and its share links' copies. A design is
+	 * stored once however many runs simulate it (ADR-0110), and counts once in each
+	 * workspace whose runs simulate it, in full: what a workspace stores then depends on
+	 * its own rows only, says nothing of other workspaces, and falls when its own runs
+	 * go.
 	 * @param workspaceId the workspace
 	 * @return the bytes
 	 */
 	long storedBytes(String workspaceId) {
-		return this.jdbc.sql("""
-				SELECT coalesce((SELECT sum(pg_column_size(document)) FROM projects WHERE workspace_id = :id), 0)
-				     + coalesce((SELECT sum(pg_column_size(input_document) + coalesce(pg_column_size(report), 0)
-				                            + coalesce(pg_column_size(summary), 0))
-				                 FROM simulation_runs WHERE workspace_id = :id), 0)
-				     + coalesce((SELECT sum(pg_column_size(payload))
-				                 FROM shared_reports WHERE workspace_id = :id), 0)""")
-			.param("id", workspaceId)
-			.query(Long.class)
-			.single();
+		return this.jdbc.sql(STORED_BYTES).param("id", workspaceId).query(Long.class).single();
 	}
 
 }

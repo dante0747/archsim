@@ -6,9 +6,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Which queued runs a claim takes: in the candidates' order, which puts every workspace's
- * oldest run before anyone's second, skipping a workspace at its cap of runs at once, up
- * to the claim's limit. One busy workspace cannot hold every slot.
+ * Which queued runs a claim takes: in the candidates' order, which puts every other
+ * workspace's runs before a sandbox's and every workspace's oldest run before anyone's
+ * second, skipping a workspace at its cap of runs at once, up to the claim's limit. One
+ * busy workspace cannot hold every slot.
  */
 final class FairPick {
 
@@ -17,8 +18,8 @@ final class FairPick {
 
 	/**
 	 * Picks the runs to take.
-	 * @param candidates the queued runs, each workspace's oldest first, then their second
-	 * oldest, and so on
+	 * @param candidates the queued runs: other workspaces' before sandboxes', and among
+	 * each, every workspace's oldest first, then their second oldest, and so on
 	 * @param caps the cap of runs at once of each workspace that has one
 	 * @param running the runs each workspace has running now, on every worker
 	 * @param limit the most runs to take

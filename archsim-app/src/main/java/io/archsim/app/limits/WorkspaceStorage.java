@@ -1,6 +1,7 @@
 package io.archsim.app.limits;
 
 import java.util.OptionalLong;
+import java.util.function.Supplier;
 
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -11,12 +12,12 @@ import io.archsim.app.web.ApiException;
 
 /**
  * Each workspace's stored bytes against its kind's quota (ADR-0109): its projects'
- * designs, its runs' designs and reports, and its share links' copies, as PostgreSQL
- * stores them. A workspace that stores its quota or more takes nothing new that would
- * store more (a project, a design, a run, a share link) until something is deleted. The
- * check comes before the write, so the write that finds a workspace below its quota may
- * take it past by what it stores; checked in turn, with the workspace locked, the next
- * write sees that and is refused.
+ * designs, the designs its runs simulate, each once, its runs' reports, and its share
+ * links' copies, as PostgreSQL stores them. A workspace that stores its quota or more
+ * takes nothing new that would store more (a project, a design, a run, a share link)
+ * until something is deleted. The check comes before the write, so the write that finds a
+ * workspace below its quota may take it past by what it stores; checked in turn, with the
+ * workspace locked, the next write sees that and is refused.
  */
 @Component
 public class WorkspaceStorage {
@@ -80,6 +81,23 @@ public class WorkspaceStorage {
 	@Transactional(propagation = Propagation.MANDATORY)
 	public void requireRoomInTurn(String workspaceId) {
 		this.access.lockWorkspace(workspaceId).ifPresent((workspace) -> requireRoom(workspace.id(), workspace.kind()));
+	}
+
+	/**
+	 * Makes a write that stores more in a transaction that first checks the workspace's
+	 * quota with the workspace locked until it ends, so the write sees what writes made
+	 * at once stored before it. Its callers charge their rate limits before they call it
+	 * (ADR-0105).
+	 * @param <T> what the write makes
+	 * @param workspaceId the workspace
+	 * @param write the write, which joins the transaction
+	 * @return what the write made
+	 * @throws ApiException {@code 409} when the workspace stores its quota or more
+	 */
+	@Transactional
+	public <T> T writeInTurn(String workspaceId, Supplier<T> write) {
+		requireRoomInTurn(workspaceId);
+		return write.get();
 	}
 
 }

@@ -38,6 +38,22 @@ final class Shares {
 		return document;
 	}
 
+	/**
+	 * The starter, calibrated by the engine through {@code POST /calibrate} from
+	 * Prometheus responses recorded from the server at {@link #PROMETHEUS}, as the CLI's
+	 * calibrate command saves them with its record option: the engine names that source
+	 * in the design's calibration and in every measured input's provenance.
+	 */
+	static ObjectNode calibratedByTheEngine(ApiClient client) {
+		ObjectNode recording = Json.copy(Json.read(Examples.fixture("calibration/starter-prometheus.json")));
+		recording.put("source", PROMETHEUS);
+		ApiResponse calibrated = client.post("/calibrate",
+				Json.object("document", Examples.starter(4, 1), "source", "prometheus", "mapping",
+						Examples.text(Examples.fixture("calibration/starter-mapping.yaml")), "recorded", recording,
+						"replay", false));
+		return (ObjectNode) calibrated.expectStatus(200).json().path("document");
+	}
+
 	/** A project of {@link #calibrated()} in the client's workspace; returns its id. */
 	static String calibratedProject(ApiClient client) {
 		return Json.id(Runs.createProject(client, calibrated()));

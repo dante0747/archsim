@@ -144,4 +144,12 @@ what the repository shows.
 | [0100](0100-give-the-website-a-stylesheet-of-its-own-built-from-the-files-it-renders.md) | Give the website a stylesheet of its own, built from the files it renders | Proposed | 2026-11-25 |
 | [0101](0101-show-the-held-out-runs-against-the-simple-estimates-on-the-accuracy-page.md) | Show the held-out runs against the simple estimates on the accuracy page, each experiment one vote | Proposed | 2026-11-25 |
 | [0102](0102-lead-each-screen-with-the-answer-and-make-every-input-explain-itself.md) | Lead each screen with the answer, and make every input explain itself | Proposed | 2026-11-26 |
+| [0103](0103-refuse-a-number-that-is-not-finite-when-a-design-is-read.md) | Refuse a number that is not finite when a design is read, where the frozen engine took it | Proposed | 2026-11-27 |
+| [0104](0104-restart-a-worker-whose-run-outlives-its-hard-deadline.md) | Restart a worker whose run outlives its hard deadline | Proposed | 2026-11-27 |
+| [0105](0105-charge-every-rate-limit-before-its-transaction-begins.md) | Charge every rate limit before its transaction begins, and size the connection pool explicitly | Proposed | 2026-11-27 |
+| [0106](0106-count-addresses-by-network-and-give-sandboxes-runs-a-budget.md) | Count addresses by network, and give sandboxes' runs a budget and the back of the queue | Proposed | 2026-11-27 |
+| [0107](0107-without-sign-in-answer-only-this-machines-own-clients.md) | Without sign-in, answer only this machine's own clients | Proposed | 2026-11-27 |
+| [0108](0108-bound-the-engines-routes-by-slots-per-person-limits-and-a-sandbox-body-cap.md) | Bound the engine's routes with slots, a limit per person and a sandbox body cap | Proposed | 2026-11-27 |
 | [0109](0109-give-each-workspace-a-project-cap-and-a-quota-of-stored-bytes.md) | Give each workspace a project cap and a quota of stored bytes | Proposed | 2026-11-27 |
+| [0110](0110-store-a-runs-design-once-per-digest-and-delete-it-with-its-last-run.md) | Store a run's design once per digest, and delete it with its last run | Proposed | 2026-11-27 |
+| [0111](0111-prune-the-runs-past-a-projects-limit-and-expired-rows-every-hour.md) | Prune the runs past a project's limit, and the rows that expired, every hour | Proposed | 2026-11-27 |

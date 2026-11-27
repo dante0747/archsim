@@ -55,7 +55,7 @@ class Sandboxes {
 		if (this.sessions.signsIn(sessionCookie)) {
 			throw ApiException.conflict("You are signed in already: sign out first to try a sandbox.");
 		}
-		this.limits.enforce("ip:" + visitor.ipOrUnknown() + ":sandboxes", RateLimit.SANDBOXES_PER_IP,
+		this.limits.enforce("ip:" + visitor.countedAddress() + ":sandboxes", RateLimit.SANDBOXES_PER_IP,
 				"Too many sandboxes from your address.");
 		return this.admissions.admit(visitor);
 	}

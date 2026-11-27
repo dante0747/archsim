@@ -3,6 +3,7 @@ package io.archsim.app.reviews;
 import org.springframework.http.HttpMethod;
 
 import io.archsim.app.support.HostedTestSupport;
+import io.archsim.app.support.StoredDesigns;
 
 /**
  * What the tests of comments, sign-offs and the history share: a project with a node and
@@ -49,13 +50,14 @@ abstract class ReviewTestSupport extends HostedTestSupport {
 		this.jdbc()
 			.sql("""
 					INSERT INTO simulation_runs (id, project_id, workspace_id, label, status, progress, seed,
-					                             engine_version, input_digest, result_digest, input_document,
+					                             engine_version, input_digest, result_digest, design_digest,
 					                             created_at)
 					SELECT :id, p.id, p.workspace_id, 'Baseline', :status, 1, 7, '0.16.0', 'in-digest', 'out-digest',
-					       p.document, now()
+					       :design, now()
 					FROM projects p WHERE p.id = :project""")
 			.param("id", id)
 			.param("status", status)
+			.param("design", StoredDesigns.storeProjectsDesign(this.jdbc(), projectId))
 			.param("project", projectId)
 			.update();
 		return id;

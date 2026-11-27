@@ -16,9 +16,13 @@ import tools.jackson.databind.json.JsonMapper;
 import io.archsim.engine.version.EngineVersions;
 
 /**
- * The {@code simulation_runs} table: each row is a run and its own job. The API queues
- * runs and asks for them to stop; the workers claim them, record their progress and
- * outcome.
+ * The {@code simulation_runs} table, with the designs its runs simulate in
+ * {@code run_designs}: each run is a row and its own job, and each design is stored once,
+ * under its digest, however many runs simulate it. The API queues runs, asks for them to
+ * stop and prunes the runs a project no longer keeps; the workers claim them, record
+ * their progress and outcome. Whatever deletes runs, here or with their project or
+ * workspace, the schema deletes with them the designs no run refers to any more (V4's
+ * trigger, ADR-0110).
  */
 @Repository
 class RunRepository {
@@ -27,6 +31,62 @@ class RunRepository {
 			id, project_id, workspace_id, label, scenario_id, scenario_name, status, progress, error, seed,
 			engine_version, input_digest, result_digest, summary, wall_seconds, created_at, started_at, finished_at,
 			group_id, seed_index, mode""";
+
+	/**
+	 * Stores a run and its design in one statement. A new design is stored under the
+	 * digest of its JSON as PostgreSQL writes {@code jsonb} out, as V4 computed it for
+	 * the designs it moved. A stored one is updated to itself instead, which locks its
+	 * row until the transaction ends: under READ COMMITTED, the deletion of the design's
+	 * last other run waits for this run, then keeps the design for it (V4's trigger). So
+	 * any statement that makes a run refer to a design stores the design this way: one
+	 * that only copied a digest would lock the design only in its foreign-key check,
+	 * after its row is written, and would then fail on the foreign key where this stores
+	 * the design again.
+	 */
+	private static final String QUEUE_WITH_DESIGN = """
+			WITH design AS (
+			    INSERT INTO run_designs (digest, document)
+			    SELECT encode(sha256(convert_to(document::text, 'UTF8')), 'hex'), document
+			    FROM (SELECT CAST(:document AS jsonb) AS document) AS given
+			    ON CONFLICT (digest) DO UPDATE SET digest = EXCLUDED.digest
+			    RETURNING digest)
+			INSERT INTO simulation_runs (id, project_id, workspace_id, created_by, label, scenario_id,
+			    scenario_name, status, progress, seed, engine_version, design_digest, max_requests,
+			    max_wall_seconds, mode, group_id, seed_index, attempts, created_at)
+			VALUES (:id, :project, :workspace, :createdBy, :label, :scenarioId, :scenarioName, 'queued', 0,
+			    :seed, :engine, (SELECT digest FROM design), :maxRequests, :maxWallSeconds, :mode, :group,
+			    :index, 0, :now)""";
+
+	/** Runs, each with the design it simulates. */
+	private static final String RUNS_WITH_DESIGNS = """
+			simulation_runs AS run JOIN run_designs AS design ON design.digest = run.design_digest""";
+
+	/**
+	 * Deletes, oldest first, a project's runs older than its newest {@code :keep} (in the
+	 * order its list shows them) whose unit, the run itself or its seed group, has no run
+	 * it keeps: one among its newest, one a worker has yet to finish, or one a review
+	 * refers to. The review's tables are read here, in the statement that deletes, as the
+	 * reviews build on runs and cannot be asked, and so that a sign-off or comment
+	 * already written is seen.
+	 */
+	private static final String PRUNE_PAST_LIMIT = """
+			WITH oldest_kept AS (
+			    SELECT created_at, id FROM simulation_runs WHERE project_id = :project
+			    ORDER BY created_at DESC, id DESC OFFSET :keep - 1 LIMIT 1)
+			DELETE FROM simulation_runs WHERE id IN (
+			    SELECT run.id FROM simulation_runs run
+			    WHERE run.project_id = :project
+			      AND (run.created_at, run.id) < (SELECT created_at, id FROM oldest_kept)
+			      AND NOT EXISTS (
+			          SELECT 1 FROM simulation_runs kept
+			          WHERE (kept.id = run.id OR kept.group_id = run.group_id)
+			            AND ((kept.created_at, kept.id) >= (SELECT created_at, id FROM oldest_kept)
+			                 OR kept.status IN ('queued', 'running')
+			                 OR EXISTS (SELECT 1 FROM review_signoffs WHERE review_signoffs.run_id = kept.id)
+			                 OR EXISTS (SELECT 1 FROM comments WHERE comments.run_id = kept.id)))
+			    ORDER BY run.created_at, run.id
+			    LIMIT :limit
+			    FOR UPDATE OF run SKIP LOCKED)""";
 
 	private final JdbcClient jdbc;
 
@@ -38,19 +98,14 @@ class RunRepository {
 	}
 
 	/**
-	 * Queues a run: any worker may claim it from now on.
+	 * Queues a run: any worker may claim it from now on. Its design is stored with it,
+	 * unless a run of the same design stored it already.
 	 * @param queued the run, who starts it and when
 	 */
 	void add(QueuedRun queued) {
 		NewRun run = queued.run();
 		GroupPlace group = queued.group();
-		this.jdbc.sql("""
-				INSERT INTO simulation_runs (id, project_id, workspace_id, created_by, label, scenario_id,
-				    scenario_name, status, progress, seed, engine_version, input_document, max_requests,
-				    max_wall_seconds, mode, group_id, seed_index, attempts, created_at)
-				VALUES (:id, :project, :workspace, :createdBy, :label, :scenarioId, :scenarioName, 'queued', 0,
-				    :seed, :engine, CAST(:document AS jsonb), :maxRequests, :maxWallSeconds, :mode, :group,
-				    :index, 0, :now)""")
+		this.jdbc.sql(QUEUE_WITH_DESIGN)
 			.param("id", queued.id())
 			.param("project", run.destination().projectId())
 			.param("workspace", run.destination().workspaceId())
@@ -121,7 +176,7 @@ class RunRepository {
 	 * @return the design's JSON
 	 */
 	String input(String id) {
-		return this.jdbc.sql("SELECT input_document::text FROM simulation_runs WHERE id = :id")
+		return this.jdbc.sql("SELECT design.document::text FROM " + RUNS_WITH_DESIGNS + " WHERE run.id = :id")
 			.param("id", id)
 			.query(String.class)
 			.single();
@@ -160,8 +215,45 @@ class RunRepository {
 		return this.json.readTree(input(id));
 	}
 
+	/**
+	 * Deletes a run, and with it its design when no other run simulates it (V4's
+	 * trigger).
+	 * @param id the run
+	 */
 	void delete(String id) {
 		this.jdbc.sql("DELETE FROM simulation_runs WHERE id = :id").param("id", id).update();
+	}
+
+	/**
+	 * The projects with more runs than they keep.
+	 * @param kept the runs a project keeps
+	 * @return their ids
+	 */
+	List<String> projectsWithMoreRunsThan(int kept) {
+		return this.jdbc.sql("SELECT project_id FROM simulation_runs GROUP BY project_id HAVING count(*) > :kept")
+			.param("kept", kept)
+			.query((rows, number) -> rows.getString("project_id"))
+			.list();
+	}
+
+	/**
+	 * Deletes some of a project's runs past its newest, oldest first: those it no longer
+	 * needs ({@link RunRetention} says which), and with them the designs no other run
+	 * simulates (V4's trigger). Runs another transaction holds, as another instance's
+	 * prune does, are left to it; the designs of the runs it deletes are not, so it waits
+	 * for one that another transaction queueing or deleting runs of it holds, until that
+	 * transaction ends.
+	 * @param projectId the project
+	 * @param kept how many runs it keeps
+	 * @param limit how many runs to delete at most
+	 * @return how many it deleted
+	 */
+	int prunePastLimit(String projectId, int kept, int limit) {
+		return this.jdbc.sql(PRUNE_PAST_LIMIT)
+			.param("project", projectId)
+			.param("keep", kept)
+			.param("limit", limit)
+			.update();
 	}
 
 	/**
@@ -185,8 +277,8 @@ class RunRepository {
 	 */
 	Optional<JsonNode> objectives(String id) {
 		return this.jdbc
-			.sql("SELECT (input_document -> 'objectives')::text FROM simulation_runs WHERE id = :id "
-					+ "AND jsonb_typeof(input_document -> 'objectives') = 'object'")
+			.sql("SELECT (design.document -> 'objectives')::text FROM " + RUNS_WITH_DESIGNS + " WHERE run.id = :id "
+					+ "AND jsonb_typeof(design.document -> 'objectives') = 'object'")
 			.param("id", id)
 			.query(String.class)
 			.optional()

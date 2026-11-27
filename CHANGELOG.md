@@ -8,8 +8,90 @@ for when that version changes.
 
 ## [Unreleased]
 
+### Security
+
+- **Limits per address count an IPv6 address by its /64, and sandboxes' runs have budgets of
+  their own** ([ADR-0106](docs/adr/0106-count-addresses-by-network-and-give-sandboxes-runs-a-budget.md),
+  proposed). An IPv4 address mapped into IPv6 counts as itself. Sandboxes' runs count against
+  their address's 40 an hour and all sandboxes' 300 an hour, and workers take every other
+  workspace's queued runs before a sandbox's.
+- **The engine's routes answer a bounded number of requests at once
+  ([ADR-0108](docs/adr/0108-bound-the-engines-routes-by-slots-per-person-limits-and-a-sandbox-body-cap.md), proposed).**
+  Validating, analyzing, exporting, importing, saving, duplicating or copying a design, and starting
+  or rerunning runs share `ARCHSIM_MAX_ENGINE_REQUESTS` slots, by default sized from the API's heap,
+  and calibrations one per replay thread; other routes with a body take up to 64 KB, 32 at once. A
+  request that finds no slot free gets 503 with `Retry-After`. With the hosted limits on, each
+  person may send the engine's routes 600 requests a minute, and a sandbox's guest sends bodies of
+  up to 256 KB.
+- **A design is stored once, however many runs simulate it
+  ([ADR-0110](docs/adr/0110-store-a-runs-design-once-per-digest-and-delete-it-with-its-last-run.md),
+  proposed).** Each run stored a copy of its design, so the database grew with every run of the
+  same design. Runs now refer to one stored copy, which is deleted with the last run that refers to
+  it, however the runs are deleted. A migration moves the copies runs stored before, keeping one of
+  each; it rewrites the table of runs, so on a database with many runs the upgrade takes a while.
+- **Each workspace has a project cap and a quota of stored bytes
+  ([ADR-0109](docs/adr/0109-give-each-workspace-a-project-cap-and-a-quota-of-stored-bytes.md), proposed).**
+  A sandbox stores 10 MB; with the hosted limits a personal workspace holds 100 projects and stores
+  100 MB, and a team 500 projects and 250 MB, counting its projects' designs, the designs its runs
+  simulate (each once), its runs' reports and its share links' copies. A workspace at its quota
+  gets 409 for a new project, design, run or share link until something is deleted. The editor
+  titles a refused save "Changed elsewhere" only when another save got there first.
+
+## [1.5.0] - 2026-11-27
+
+Security fixes for a server other people can reach, and screens that lead with the answer. Results
+do not change: the engine stays 1.6.0 and designs stay on schema 1.11. Upgrade a shared server;
+the entries under Security say what each fix changes. Four things to know first: the database gets
+one migration, which rewrites the copies share links keep; the API now deletes a project's runs
+past its newest `ARCHSIM_RUN_HISTORY_LIMIT` (200), so raise it before upgrading a server that
+should keep more; an API token no longer changes a workspace's members, roles, invitations or
+name; and without sign-in the API answers only requests addressed to this machine or to a name
+`ARCHSIM_ALLOWED_HOSTS` lists.
+
+### Security
+
+- **A design's numbers must be finite
+  ([ADR-0103](docs/adr/0103-refuse-a-number-that-is-not-finite-when-a-design-is-read.md),
+  proposed).** Such a number was read as a float and could get past the checks that bound a run;
+  it is now refused where it stands, with "Input should be a finite number". The schema version
+  stays 1.11.
+- **After signing in, the web app goes back only to a page of its own site.** The sign-in page
+  resolves the page to go back to as the browser will, and keeps it only when it stays on the
+  site, as the server already checks it.
+- **The web server caps a request body at the API's limit, and waits at most five minutes for the
+  API.** Its proxy refuses a larger body before buffering it (413) and answers 504 when the API
+  does not answer in time; the hosting kit's Caddy caps bodies at the same 5 MB.
+- **An API token cannot change a workspace's members, their roles or its invitations, or rename
+  it.** These take the person signed in to the web app, as making a workspace or an invitation
+  already did; a sandbox's guest cannot rename the sandbox either.
+- **A share link hides a calibrated design's telemetry address wherever the design names it.** It
+  was hidden in the design's calibration only; it is now hidden in every measured input's
+  provenance and in the report's assumptions too, and links already made are rewritten by a
+  migration.
+- **A request holds one database connection at a time
+  ([ADR-0105](docs/adr/0105-charge-every-rate-limit-before-its-transaction-begins.md), proposed).**
+  Comments, sign-offs, share links, invitations and team workspaces charge their rate limit before
+  their transaction begins, as sandbox starts do, and a charge made inside a transaction is
+  refused. The connection pool stays at ten connections, for the API and the worker alike, now set
+  explicitly.
+- **Without sign-in, the API answers only this machine's own clients
+  ([ADR-0107](docs/adr/0107-without-sign-in-answer-only-this-machines-own-clients.md), proposed).**
+  It refuses a request addressed to a host name other than this machine's or one
+  `ARCHSIM_ALLOWED_HOSTS` lists, a change from another site's page, and a body that is not JSON.
+  The web app's proxy passes the browser's host and origin on, so requests made through it are
+  checked the same way. Compose's API allows `api`, the name the web container calls it by.
+
 ### Changed
 
+- **The API deletes what it no longer keeps, when it starts and every hour after
+  ([ADR-0111](docs/adr/0111-prune-the-runs-past-a-projects-limit-and-expired-rows-every-hour.md),
+  proposed).** A project keeps its newest `ARCHSIM_RUN_HISTORY_LIMIT` runs (200), the ones its
+  list shows; older runs are deleted, except runs still queued or running, runs with a sign-off or
+  a comment, and the other runs of their seed group. Expired sessions and invitations are deleted,
+  and so are expired share links' copies of the results (the links stay, listed as expired). The
+  history keeps each change `ARCHSIM_HISTORY_DAYS` (365) days. Before upgrading a server that set
+  `ARCHSIM_RUN_HISTORY_LIMIT` low to shorten the list, raise it: the first prune deletes the runs
+  past it.
 - **Results lead with the answer, and every caveat explains itself on demand
   ([ADR-0102](docs/adr/0102-lead-each-screen-with-the-answer-and-make-every-input-explain-itself.md),
   proposed).** Results → Answer is one card: what the verdict rests on ("Misses 2 of 2
@@ -28,23 +110,21 @@ for when that version changes.
   under one line, and its facts from the run read one a line.
 - **The parts library lists parts by their full names**, with what each is beneath, instead of a
   grid of tiles that cut long names short.
+- **archsim.io loads one stylesheet of its own
+  ([ADR-0100](docs/adr/0100-give-the-website-a-stylesheet-of-its-own-built-from-the-files-it-renders.md),
+  proposed).** Every page waited for the app's stylesheet, with Tailwind's classes from every file
+  of the web app and React Flow's styles, which the site never shows. The site's own sheet holds
+  only the classes its pages render. It was 12 KB gzipped when it replaced the three sheets every
+  page loaded (the app's, the site's and the fonts'), which were 22 KB, and on a throttled phone
+  the home page's first contentful paint fell from 4.6 s to 3.6 s.
 
 ### Fixed
-
-- **Each workspace has a project cap and a quota of stored bytes
-  ([ADR-0109](docs/adr/0109-give-each-workspace-a-project-cap-and-a-quota-of-stored-bytes.md), proposed).**
-  A sandbox stores 10 MB; with the hosted limits a personal workspace holds 100 projects and stores
-  100 MB, and a team 500 projects and 250 MB, counting designs, runs' designs and reports, and share
-  links' copies. A workspace at its quota gets 409 for a new project, design, run or share link until
-  something is deleted. The editor titles a refused save "Changed elsewhere" only when another save
-  got there first.
 
 - **No label is cut short on the canvas or the timeline.** The chaos pads clipped their titles
   ("Lose Catalog…"); they have two columns and room for three lines. A part's card cut a label
   when its value was long ("Max connections per instan…"); the value now wraps under it. The Test
   timeline printed the traffic scale on top of the drain band's label ("2K/sdrain"); the scale
   ends where the band starts. The lanes' legend sits above the playhead.
-
 - **The run picker in Results and on the Dashboard shows the whole label of its run.** Since a
   run's label names its short id ("Current design · run 3f9a2c1d · seed 42 · 43s ago"), the picker
   cut it off mid-word at common desktop widths ("· 12s a"), in the app and in the README's and
@@ -606,7 +686,8 @@ cost, and publishes how accurate it is. Start with [Getting started](docs/gettin
 - Exports are scaffolding to review, not production configuration.
 - The editor is designed for desktop screens.
 
-[Unreleased]: https://github.com/dante0747/archsim/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/dante0747/archsim/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/dante0747/archsim/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/dante0747/archsim/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/dante0747/archsim/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/dante0747/archsim/compare/v1.1.0...v1.2.0

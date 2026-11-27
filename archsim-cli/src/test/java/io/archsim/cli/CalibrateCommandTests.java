@@ -39,7 +39,13 @@ class CalibrateCommandTests {
 	 * over four lines, with the bound's words on the third.
 	 */
 	private static final List<String> STEPS_REFUSED = List.of("aStepOfZero", "aNegativeStep", "aStepAboveADay",
-			"aStepThatIsNan", "aStepThatIsInfinite", "aRecordingWhoseStepIsRefused");
+			"aRecordingWhoseStepIsRefused");
+
+	/**
+	 * Steps that are not finite numbers: Python read them as floats and refused them by
+	 * the bound; Java refuses them as not finite, before any bound (ADR-0103).
+	 */
+	private static final List<String> STEPS_NOT_FINITE = List.of("aStepThatIsNan", "aStepThatIsInfinite");
 
 	/** Recordings that are not objects, which Python failed to read (AttributeError). */
 	private static final List<String> RECORDINGS_NOT_OBJECTS = List.of("aRecordingThatIsAList", "aRecordingThatIsNull");
@@ -49,6 +55,7 @@ class CalibrateCommandTests {
 		List<String> departures = new ArrayList<>(NOT_YAML);
 		departures.addAll(NOT_JSON);
 		departures.addAll(STEPS_REFUSED);
+		departures.addAll(STEPS_NOT_FINITE);
 		return Replays.of("calibrate", folder, departures.toArray(String[]::new));
 	}
 
@@ -64,6 +71,16 @@ class CalibrateCommandTests {
 
 			assertThat(List.of(java.exitCode(), java.out())).containsExactly(1, "");
 			assertThat(java.err()).isEqualTo("Cannot calibrate: step: " + bound + "\n");
+		}));
+	}
+
+	@TestFactory
+	Stream<DynamicTest> calibrate_aStepThatIsNotFinite_isRefusedAsNotFiniteOnOneLine(@TempDir Path folder) {
+		return STEPS_NOT_FINITE.stream().map((name) -> DynamicTest.dynamicTest(name, () -> {
+			Ran java = run(name, folder);
+
+			assertThat(List.of(java.exitCode(), java.out(), java.err())).containsExactly(1, "",
+					"Cannot calibrate: step: Input should be a finite number\n");
 		}));
 	}
 

@@ -104,7 +104,12 @@ final class IpText {
 		return mapped;
 	}
 
-	private static boolean isMapped(byte[] bytes) {
+	/**
+	 * Whether an IPv6 address maps an IPv4 one: {@code ::ffff:a.b.c.d}.
+	 * @param bytes the address's 16 bytes
+	 * @return {@code true} when its first 80 bits are zeros and the next 16 are ones
+	 */
+	static boolean isMapped(byte[] bytes) {
 		for (int at = 0; at < MAPPED_MARK; at++) {
 			if (bytes[at] != 0) {
 				return false;
@@ -113,7 +118,12 @@ final class IpText {
 		return bytes[MAPPED_MARK] == (byte) BYTE && bytes[MAPPED_MARK + 1] == (byte) BYTE;
 	}
 
-	private static String dotted(byte[] bytes) {
+	/**
+	 * Writes the IPv4 address a mapped IPv6 address holds.
+	 * @param bytes the mapped address's 16 bytes
+	 * @return its last four bytes in dots, such as {@code 10.0.0.1}
+	 */
+	static String dotted(byte[] bytes) {
 		StringBuilder text = new StringBuilder();
 		for (int at = MAPPED_MARK + 2; at < IPV6_BYTES; at++) {
 			text.append((at > MAPPED_MARK + 2) ? "." : "").append(bytes[at] & BYTE);
@@ -121,7 +131,12 @@ final class IpText {
 		return text.toString();
 	}
 
-	private static String compressed(byte[] bytes) {
+	/**
+	 * Writes an IPv6 address in its shortest form, as RFC 5952 says.
+	 * @param bytes the address's 16 bytes
+	 * @return its text, such as {@code 2001:db8::1}
+	 */
+	static String compressed(byte[] bytes) {
 		int[] groups = new int[GROUPS];
 		for (int at = 0; at < GROUPS; at++) {
 			groups[at] = ((bytes[2 * at] & BYTE) << BITS_PER_BYTE) + (bytes[2 * at + 1] & BYTE);

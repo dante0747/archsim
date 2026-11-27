@@ -313,6 +313,10 @@ refuse what they cannot read in the Python engine's words, with these difference
 - A number Python's runtime could not turn into a whole number (`int(float("inf"))`), or into a
   float (`float(10**400)`, `10**400 / 1024`), is refused in Python's words, where the Python
   failed with an error the API answered `500` for.
+- A figure Python's `float()` reads as infinity (a CPU limit of 10,000 digits) leaves its setting
+  unset, as in Python, and the import's issue says the setting `input should be a finite number`,
+  where Python's named the setting's bound
+  ([ADR-0103](../docs/adr/0103-refuse-a-number-that-is-not-finite-when-a-design-is-read.md)).
 - Terraform text that is not JSON is refused in `json`'s words where no value starts (`Expecting
   value: line 1 column 1 (char 0)`); past that, with Jackson's description of the problem in
   `json`'s form. The Java reads up to 1,000 levels of nesting, where Python's limit was its C

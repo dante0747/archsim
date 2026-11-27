@@ -65,4 +65,16 @@ class PrincipalTests {
 		assertThatNoException().isThrownBy(Principal.local(null)::requirePerson);
 	}
 
+	@Test
+	void countedAddress_aGuestsIpv6Address_isItsSlash64() {
+		Principal guest = Principal.guest("g1", "s1", "2001:db8:1:2:aaaa:bbbb:cccc:dddd");
+
+		assertThat(guest.countedAddress()).isEqualTo("2001:db8:1:2::/64");
+	}
+
+	@Test
+	void countedAddress_noAddress_isUnknown() {
+		assertThat(Principal.session("u1", "s1", null).countedAddress()).isEqualTo("unknown");
+	}
+
 }

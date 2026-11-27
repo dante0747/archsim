@@ -1,7 +1,6 @@
 package io.archsim.app.shares;
 
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 
 import io.archsim.app.access.Principal;
@@ -40,8 +39,10 @@ class ShareLinks {
 
 	/**
 	 * A share link to a finished run. It stores a copy of the results, so a workspace
-	 * that stores its quota or more makes none (ADR-0109); that is checked before the
-	 * person's daily limit is charged.
+	 * that stores its quota or more makes none (ADR-0109). The checks come first, then
+	 * the person's limit, charged before the link's own transaction begins, so the
+	 * request holds one connection at a time (ADR-0105), then the link is made in a
+	 * transaction that checks the quota again ({@link ShareAdmission}).
 	 * @param principal who makes it
 	 * @param runId the run
 	 * @param request its title and how long it works
@@ -51,7 +52,6 @@ class ShareLinks {
 	 * for a run without a report or a workspace that stores its quota or more,
 	 * {@code 429} after many links in a day
 	 */
-	@Transactional
 	StoredShare create(Principal principal, String runId, ShareCreate request) {
 		principal.requireAccount();
 		RunResults run = this.runs.withResults(principal, runId, WorkspaceRole.EDITOR);
@@ -60,14 +60,13 @@ class ShareLinks {
 			throw ApiException.conflict("Run is " + run.facts().status() + "; only finished runs can be shared");
 		}
 		ProjectDesign project = this.projects.design(principal, run.facts().projectId(), WorkspaceRole.VIEWER);
-		this.admission.admit(principal, project.workspaceId());
 		String projectName = project.name();
 		String title = (request.title() != null) ? Text.strip(request.title()) : "";
 		NewShare share = new NewShare(project.workspaceId(), run.facts(),
 				Text.cut(title.isEmpty() ? projectName : title, ShareCreate.MAX_TITLE),
 				SharePayloads.of(projectName, run, report), Text.cut(reportVersion(report), MAX_REPORT_VERSION),
 				request.expiresInDays());
-		return this.records.add(share, principal);
+		return this.admission.admit(principal, project.workspaceId(), () -> this.records.add(share, principal));
 	}
 
 	/**

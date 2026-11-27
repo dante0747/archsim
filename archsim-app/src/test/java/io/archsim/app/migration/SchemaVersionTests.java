@@ -55,7 +55,7 @@ class SchemaVersionTests {
 
 		assertThatIllegalStateException()
 			.isThrownBy(() -> SchemaVersion.requireCurrent(flyway(database, LATER_BUILD), Role.WORKER))
-			.withMessage("the database is at V2, this worker needs V9999; start the API first");
+			.withMessage("the database is at V4, this worker needs V9999; start the API first");
 	}
 
 	@Test
@@ -65,7 +65,7 @@ class SchemaVersionTests {
 
 		assertThatIllegalStateException()
 			.isThrownBy(() -> SchemaVersion.requireCurrent(flyway(database, MIGRATIONS), Role.WORKER))
-			.withMessage("the database is at V9999, this worker needs V2; start a worker of the API's release");
+			.withMessage("the database is at V9999, this worker needs V4; start a worker of the API's release");
 	}
 
 	@Test
@@ -75,7 +75,7 @@ class SchemaVersionTests {
 
 		assertThatIllegalStateException()
 			.isThrownBy(() -> SchemaVersion.requireCurrent(flyway(database, MIGRATIONS), Role.SEED))
-			.withMessage("the database is at V9999, this seed needs V2; start a seed of the API's release");
+			.withMessage("the database is at V9999, this seed needs V4; start a seed of the API's release");
 	}
 
 	@Test
@@ -84,7 +84,7 @@ class SchemaVersionTests {
 
 		assertThatIllegalStateException()
 			.isThrownBy(() -> SchemaVersion.requireCurrent(flyway(database, MIGRATIONS), Role.WORKER))
-			.withMessage("the database has no schema history yet, this worker needs V2; start the API first");
+			.withMessage("the database has no schema history yet, this worker needs V4; start the API first");
 	}
 
 	private static DataSource freshDatabase() {

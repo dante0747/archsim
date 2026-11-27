@@ -22,6 +22,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import io.archsim.app.ArchsimApplication;
 import io.archsim.app.Role;
 import io.archsim.app.database.TestDatabases;
+import io.archsim.app.support.StoredDesigns;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
@@ -65,6 +66,19 @@ class SandboxPruningTests extends SandboxTestSupport {
 		assertThat(count("workspaces", "id", guest.workspaceId())).isZero();
 		assertThat(count("projects", "id", project)).isZero();
 		assertThat(count("simulation_runs", "project_id", project)).isZero();
+	}
+
+	@Test
+	void prune_expiredSandbox_deletesTheDesignsOfItsRuns() {
+		SignedIn guest = guest();
+		String project = created(send(guest, HttpMethod.POST, "/api/v1/projects", "{}")).path("id").asString();
+		run(guest, project);
+		String design = designOfTheRunOf(project);
+		expire(guest);
+
+		new SandboxPruning(this.guests).prune();
+
+		assertThat(count("run_designs", "digest", design)).isZero();
 	}
 
 	@Test
@@ -195,17 +209,28 @@ class SandboxPruningTests extends SandboxTestSupport {
 			.update();
 	}
 
-	/** A run waiting in the queue, as starting one leaves it. */
+	/**
+	 * A run waiting in the queue, as starting one leaves it, of a design no other
+	 * project's run has.
+	 */
 	private void run(SignedIn guest, String projectId) {
 		jdbc().sql("""
 				INSERT INTO simulation_runs (id, project_id, status, progress, seed, engine_version, created_at,
-				                             input_document, workspace_id, created_by)
-				VALUES (:id, :project, 'queued', 0, 1, 'test', now(), '{}', :workspace, :user)""")
+				                             design_digest, workspace_id, created_by)
+				VALUES (:id, :project, 'queued', 0, 1, 'test', now(), :design, :workspace, :user)""")
 			.param("id", newId())
 			.param("project", projectId)
+			.param("design", StoredDesigns.store(jdbc(), "{\"metadata\": {\"name\": \"" + projectId + "\"}}"))
 			.param("workspace", guest.workspaceId())
 			.param("user", guest.userId())
 			.update();
+	}
+
+	private String designOfTheRunOf(String projectId) {
+		return jdbc().sql("SELECT design_digest FROM simulation_runs WHERE project_id = :project")
+			.param("project", projectId)
+			.query(String.class)
+			.single();
 	}
 
 	private int count(String table, String column, String value) {

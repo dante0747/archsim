@@ -1,10 +1,22 @@
 package io.archsim.app.support;
 
+import java.time.Duration;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
+
+import javax.sql.DataSource;
+
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import static org.awaitility.Awaitility.await;
 
 /**
  * Workspaces that store as much as a test needs: a project's design padded with text
- * PostgreSQL cannot compress, so it stores every byte of it.
+ * PostgreSQL cannot compress, so it stores every byte of it, also while a write waits for
+ * the workspace.
  */
 public final class FullWorkspaces {
 
@@ -18,7 +30,28 @@ public final class FullWorkspaces {
 	/** The characters of one block of padding, an MD5 in hex. */
 	private static final int BLOCK = 32;
 
+	/** Longer than a request takes to reach a lock it waits for. */
+	private static final Duration A_WHILE = Duration.ofSeconds(30);
+
 	private FullWorkspaces() {
+	}
+
+	/**
+	 * Makes a request while another transaction holds a sandbox, as a write does, and
+	 * fills the sandbox once the request waits for it, before that transaction lets go: a
+	 * request that checks the quota with the sandbox locked finds it full.
+	 * @param <T> what the request answers
+	 * @param jdbc the test database, which sees the request wait
+	 * @param other connections of the other transaction's own
+	 * @param projectId a project of the sandbox, whose design has {@code metadata}
+	 * @param request the request
+	 * @return its answer
+	 */
+	public static <T> T fillWhileWaiting(JdbcClient jdbc, DataSource other, String projectId, Supplier<T> request) {
+		TransactionTemplate transaction = new TransactionTemplate(new DataSourceTransactionManager(other));
+		CompletableFuture<T> answered = transaction
+			.execute((status) -> fillOnceWaiting(jdbc, JdbcClient.create(other), projectId, request));
+		return Objects.requireNonNull(answered).join();
 	}
 
 	/**
@@ -59,6 +92,44 @@ public final class FullWorkspaces {
 	 */
 	public static String incompressible(long bytes) {
 		return "(SELECT string_agg(md5(random()::text), '') FROM generate_series(1, %d))".formatted(bytes / BLOCK + 1);
+	}
+
+	/**
+	 * Holds a project's workspace, makes a request, and fills the workspace once the
+	 * request waits for it.
+	 * @param <T> what the request answers
+	 * @param jdbc the test database, which sees the request wait
+	 * @param holder the connection that holds the workspace, in its transaction
+	 * @param projectId the project
+	 * @param request the request
+	 * @return the request, made
+	 */
+	private static <T> CompletableFuture<T> fillOnceWaiting(JdbcClient jdbc, JdbcClient holder, String projectId,
+			Supplier<T> request) {
+		holder
+			.sql("SELECT w.id FROM workspaces w JOIN projects p ON p.workspace_id = w.id "
+					+ "WHERE p.id = :id FOR NO KEY UPDATE OF w")
+			.param("id", projectId)
+			.query(String.class)
+			.single();
+		int holding = holder.sql("SELECT pg_backend_pid()").query(Integer.class).single();
+		CompletableFuture<T> made = CompletableFuture.supplyAsync(request);
+		await().atMost(A_WHILE).until(() -> made.isDone() || waitsFor(jdbc, holding));
+		fillSandbox(holder, projectId);
+		return made;
+	}
+
+	/**
+	 * Whether a connection waits for a lock another one holds.
+	 * @param jdbc the test database
+	 * @param holder the backend that holds it
+	 * @return {@code true} while one waits
+	 */
+	private static boolean waitsFor(JdbcClient jdbc, int holder) {
+		return jdbc.sql("SELECT count(*) FROM pg_stat_activity WHERE :holder = ANY(pg_blocking_pids(pid))")
+			.param("holder", holder)
+			.query(Integer.class)
+			.single() > 0;
 	}
 
 }

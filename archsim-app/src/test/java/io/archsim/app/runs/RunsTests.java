@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 
 import io.archsim.app.support.SameInstant;
+import io.archsim.app.support.StoredDesigns;
 import io.archsim.engine.run.SimulationLimitException;
 import io.archsim.model.issue.DocumentInvalidException;
 import io.archsim.model.issue.Issue;
@@ -216,10 +217,11 @@ class RunsTests extends RunTestSupport {
 		this.jdbc()
 			.sql("""
 					INSERT INTO simulation_runs (id, project_id, workspace_id, label, status, progress, seed,
-					                             engine_version, input_document, created_at)
-					SELECT :id, p.id, p.workspace_id, 'Baseline', 'queued', 0, 7, '0.16.0', p.document, :at
+					                             engine_version, design_digest, created_at)
+					SELECT :id, p.id, p.workspace_id, 'Baseline', 'queued', 0, 7, '0.16.0', :design, :at
 					FROM projects p WHERE p.id = :project""")
 			.param("id", runId)
+			.param("design", StoredDesigns.storeProjectsDesign(this.jdbc(), projectId))
 			.param("project", projectId)
 			.param("at", Timestamp.from(SameInstant.NINE))
 			.update();

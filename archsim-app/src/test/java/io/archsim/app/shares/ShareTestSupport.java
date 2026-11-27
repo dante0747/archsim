@@ -4,6 +4,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 import io.archsim.app.support.HostedTestSupport;
+import io.archsim.app.support.StoredDesigns;
 
 /**
  * What the tests of share links share: a project with a finished run, whose report has
@@ -56,14 +57,15 @@ abstract class ShareTestSupport extends HostedTestSupport {
 		this.jdbc()
 			.sql("""
 					INSERT INTO simulation_runs (id, project_id, workspace_id, label, scenario_name, status, progress,
-					                             seed, engine_version, input_digest, result_digest, input_document,
+					                             seed, engine_version, input_digest, result_digest, design_digest,
 					                             report, created_at)
 					SELECT :id, p.id, p.workspace_id, 'Baseline', 'Peak', :status, 1, 7, '0.16.0', 'in-digest',
-					       'out-digest', p.document,
+					       'out-digest', :design,
 					       CASE WHEN :status = 'succeeded' THEN CAST(:report AS jsonb) END, now()
 					FROM projects p WHERE p.id = :project""")
 			.param("id", id)
 			.param("status", status)
+			.param("design", StoredDesigns.storeProjectsDesign(this.jdbc(), projectId))
 			.param("report", "{\"reportVersion\": \"1.4\", \"summary\": {\"latencyP95Ms\": 120}, \"traces\": [1]}")
 			.param("project", projectId)
 			.update();
