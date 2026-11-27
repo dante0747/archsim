@@ -93,7 +93,7 @@ describe("Results: the answer", () => {
   beforeEach(() => {
     useEditor.getState().load(structuredClone(project), catalog);
     useEditor.getState().setObjectives({ latencyP95Ms: 500, availability: 0.995 });
-    useDecide.setState({ scorecardRunId: null, section: "answer" });
+    useDecide.setState({ section: "answer" });
     useTeam.setState({ projectId: "p1", comments: [], signoffs: [], loaded: true, error: null });
     useRuns.setState({ projectId: "p1", runs: [RUN], reports: { r1: report() }, activeRunId: "r1" });
   });

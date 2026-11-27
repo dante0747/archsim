@@ -8,6 +8,17 @@ for when that version changes.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Results shows one run, the one on the canvas.** The Results header's run picker kept a choice
+  of its own, which outranked the run on the canvas. After picking a run once and simulating
+  again, Answer, the picker, Calculations, Request traces, the error budget, the Report and Share
+  stayed on the old run while the canvas, the Dashboard and Details' Summary, Over time, Per
+  component and Assumptions showed the new one, as if the change had done nothing. There is one
+  current run now: a picker, "View" in the list of runs and a followed run that finishes all move
+  it, for every view. Deleting the current run makes the newest run left the current one. A
+  picker shows the run just picked while its results load.
+
 ## [1.6.0] - 2026-11-27
 
 The second half of the security fixes 1.5.0 began for a server other people can reach: limits on

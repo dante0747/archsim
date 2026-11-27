@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { Run } from "@/lib/types";
 import { useRuns } from "@/store/runs";
@@ -31,5 +32,21 @@ describe("the run picker", () => {
     render(<RunPicker value={shown.id} onChange={() => {}} />);
 
     expect(screen.getByRole("combobox", { name: "Run" })).toHaveAttribute("title", runOptionText(shown));
+  });
+
+  it("shows the run just picked while its results load, then the run it is given", async () => {
+    const shown = run("3f9a2c1d00000000000000000000aaaa", { status: "succeeded" });
+    const other = run("77b0e41200000000000000000000bbbb", { status: "succeeded" });
+    useRuns.setState({ runs: [other, shown] });
+    let loaded!: () => void;
+    render(<RunPicker value={shown.id} onChange={() => new Promise<void>((resolve) => (loaded = resolve))} />);
+    const picker = screen.getByRole("combobox", { name: "Run" });
+
+    await userEvent.selectOptions(picker, other.id);
+
+    // not back on the run it showed, though that is still the one it is given
+    expect(picker).toHaveValue(other.id);
+    loaded();
+    await waitFor(() => expect(picker).toHaveValue(shown.id));
   });
 });

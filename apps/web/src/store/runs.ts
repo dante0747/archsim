@@ -56,6 +56,14 @@ export interface RunsState {
   selectScenario: (id: string | null) => void;
 }
 
+/**
+ * The newest finished run of a design (runs come newest first). Breaking-point sweep steps are
+ * measurements, not designs: one is never shown unasked.
+ */
+function latestDesignRun(runs: Run[]): Run | undefined {
+  return runs.find((r) => r.status === "succeeded" && !(r.scenarioId ?? "").startsWith(SWEEP_SCENARIO_PREFIX));
+}
+
 function upsert(runs: Run[], run: Run): Run[] {
   const i = runs.findIndex((r) => r.id === run.id);
   if (i === -1) return [run, ...runs];
@@ -185,8 +193,7 @@ export const useRuns = create<RunsState>()((set, get) => {
         const active = runs.filter((r) => r.status === "queued" || r.status === "running").map((r) => r.id);
         set({ runs, pending: active });
         if (active.length) ensurePolling();
-        // Breaking-point sweep steps are measurements, not designs: never open one by default.
-        const latest = runs.find((r) => r.status === "succeeded" && !(r.scenarioId ?? "").startsWith(SWEEP_SCENARIO_PREFIX));
+        const latest = latestDesignRun(runs);
         if (latest) await get().showRun(latest.id);
       } catch (e) {
         toast.error(`Could not load runs: ${errorMessage(e)}`);
@@ -265,6 +272,7 @@ export const useRuns = create<RunsState>()((set, get) => {
     remove: async (runId) => {
       try {
         await api.deleteRun(runId);
+        const wasCurrent = get().activeRunId === runId;
         set((s) => {
           const reports = { ...s.reports };
           delete reports[runId];
@@ -277,6 +285,9 @@ export const useRuns = create<RunsState>()((set, get) => {
             comparison: s.compareA === runId || s.compareB === runId ? null : s.comparison,
           };
         });
+        // the current run is gone: the newest one left takes its place, as when the project opens
+        const next = wasCurrent ? latestDesignRun(get().runs) : undefined;
+        if (next) await get().showRun(next.id);
       } catch (e) {
         toast.error(`Delete failed: ${errorMessage(e)}`);
       }

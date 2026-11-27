@@ -96,7 +96,7 @@ describe("Results across seeds", () => {
     useEditor.getState().load(structuredClone(project), catalog);
     useEditor.getState().setAnalysis(structuredClone(analysis));
     useEditor.getState().setObjectives({ latencyP95Ms: 120, availability: 0.999 });
-    useDecide.setState({ scorecardRunId: null, section: "answer" });
+    useDecide.setState({ section: "answer" });
   });
   afterEach(() => {
     cleanup();
