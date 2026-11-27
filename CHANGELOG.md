@@ -8,27 +8,45 @@ for when that version changes.
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-11-27
+
+The second half of the security fixes 1.5.0 began for a server other people can reach: limits on
+what one visitor can ask, send and store. Results do not change: the engine stays 1.6.0, the number
+this release happens to share, and designs stay on schema 1.11. Five things to know before upgrading
+a shared server. The database gets one migration, which moves each run's design to a table of its
+own and writes every run again under a lock: on a database with many runs the upgrade takes a while,
+and going back to 1.5.0 afterwards means restoring the backup taken before it. A workspace that
+stores its quota or more (10 MB for a sandbox; with the hosted limits, 100 MB for a personal
+workspace and 250 MB for a team) gets 409 for a new save or run until something is deleted, and one
+at its cap of projects (100 and 500) for a new project. The engine's routes answer a bounded number
+of requests at once, one on the hosting kit's 512 MB heap, and a request that finds no slot free
+within a second gets 503. A sandbox's guest sends bodies of 256 KB at most. And the hosting kit now
+passes on from `hosted.env` the settings its guide names, three of which it ignored before: read
+what yours says for them, because the API's first prune deletes the runs past the limit and the
+history older than its days (under Fixed).
+
 ### Security
 
 - **Limits per address count an IPv6 address by its /64, and sandboxes' runs have budgets of
-  their own** ([ADR-0106](docs/adr/0106-count-addresses-by-network-and-give-sandboxes-runs-a-budget.md)).
-  An IPv4 address mapped into IPv6 counts as itself. Sandboxes' runs count against
-  their address's 40 an hour and all sandboxes' 300 an hour, and workers take every other
-  workspace's queued runs before a sandbox's.
+  their own
+  ([ADR-0106](docs/adr/0106-count-addresses-by-network-and-give-sandboxes-runs-a-budget.md)).**
+  An IPv4 address mapped into IPv6 counts as itself. Sandboxes' runs count against their
+  address's 40 an hour and all sandboxes' 300 an hour, and workers take every other workspace's
+  queued runs before a sandbox's.
 - **The engine's routes answer a bounded number of requests at once
   ([ADR-0108](docs/adr/0108-bound-the-engines-routes-by-slots-per-person-limits-and-a-sandbox-body-cap.md)).**
   Validating, analyzing, exporting, importing, saving, duplicating or copying a design, and starting
   or rerunning runs share `ARCHSIM_MAX_ENGINE_REQUESTS` slots, by default sized from the API's heap,
   and calibrations one per replay thread; other routes with a body take up to 64 KB, 32 at once. A
   request that finds no slot free gets 503 with `Retry-After`. With the hosted limits on, each
-  person may send the engine's routes 600 requests a minute, and a sandbox's guest sends bodies of
-  up to 256 KB.
+  person may send the engine's routes 600 requests a minute. A sandbox's guest sends bodies of up
+  to 256 KB, whatever the limits.
 - **A design is stored once, however many runs simulate it
   ([ADR-0110](docs/adr/0110-store-a-runs-design-once-per-digest-and-delete-it-with-its-last-run.md)).**
-  Each run stored a copy of its design, so the database grew with every run of the
-  same design. Runs now refer to one stored copy, which is deleted with the last run that refers to
-  it, however the runs are deleted. A migration moves the copies runs stored before, keeping one of
-  each; it rewrites the table of runs, so on a database with many runs the upgrade takes a while.
+  Each run stored a copy of its design, so the database grew with every run of the same design.
+  Runs now refer to one stored copy, which is deleted with the last run that refers to it, however
+  the runs are deleted. A migration moves the copies runs stored before, keeping one of each; it
+  rewrites the table of runs, so on a database with many runs the upgrade takes a while.
 - **Each workspace has a project cap and a quota of stored bytes
   ([ADR-0109](docs/adr/0109-give-each-workspace-a-project-cap-and-a-quota-of-stored-bytes.md)).**
   A sandbox stores 10 MB; with the hosted limits a personal workspace holds 100 projects and stores
@@ -696,7 +714,8 @@ cost, and publishes how accurate it is. Start with [Getting started](docs/gettin
 - Exports are scaffolding to review, not production configuration.
 - The editor is designed for desktop screens.
 
-[Unreleased]: https://github.com/dante0747/archsim/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/dante0747/archsim/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/dante0747/archsim/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/dante0747/archsim/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/dante0747/archsim/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/dante0747/archsim/compare/v1.2.0...v1.3.0
