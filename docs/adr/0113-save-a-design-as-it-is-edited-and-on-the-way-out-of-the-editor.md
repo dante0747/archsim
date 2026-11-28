@@ -23,8 +23,9 @@ How does the editor keep unsaved work, and what happens when its author leaves w
 - The author can always read whether the design on screen is the saved one.
 - Leaving is not made slower or noisier for someone whose work can simply be saved.
 - The API's limits hold. Saving is one of the engine's routes: they answer a bounded number of
-  requests at once (one on the hosting kit's heap) and, with the hosted limits, 600 a minute for
-  each person
+  requests at once (five on the hosting kit's heap,
+  [ADR-0116](0116-give-the-hosting-kits-api-a-1-gb-heap.md)) and, with the hosted limits, 600 a
+  minute for each person
   ([ADR-0108](0108-bound-the-engines-routes-by-slots-per-person-limits-and-a-sandbox-body-cap.md)).
 - No API change.
 

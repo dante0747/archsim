@@ -6,6 +6,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -44,6 +46,15 @@ class ComposeFileTests {
 
 	/** The services that run archsim-app, each in its role. */
 	private static final List<String> APP_SERVICES = List.of("migrate", "api", "worker");
+
+	/** A size at the end of a setting, before the brace that may close its default. */
+	private static final Pattern SIZE = Pattern.compile("(\\d+)([mg])}?$");
+
+	/** A JVM's heap in its options: {@code -Xmx}, then a size or a setting's default. */
+	private static final Pattern HEAP = Pattern.compile("-Xmx(?:\\$\\{\\w+:-)?(\\d+)([mg])");
+
+	/** What a JVM's container holds besides its heap, by the kit's rule. */
+	private static final long BEYOND_HEAP_MB = 384;
 
 	@ParameterizedTest
 	@ValueSource(strings = { RELEASE, HOSTED })
@@ -204,6 +215,40 @@ class ComposeFileTests {
 		String build = Files.readString(ROOT.resolve("archsim-app/build.gradle.kts"));
 
 		assertThat(build).contains("image = \"" + LOCAL_APP_IMAGE + "\"");
+	}
+
+	// a 1 GB heap holds five of the engine's requests at once on the kit's two cores
+	// (ADR-0108), and a JVM's container holds its heap and 384 MB besides
+	@Test
+	void hostedCompose_theApi_hasA1GbHeapInA1408MbContainer() throws IOException {
+		JsonNode api = services(HOSTED).path("api");
+
+		assertThat(List.of(api.at("/environment/JAVA_TOOL_OPTIONS").asString(), api.path("mem_limit").asString()))
+			.containsExactly("-Xmx${ARCHSIM_API_HEAP:-1g}", "${ARCHSIM_API_MEMORY:-1408m}");
+	}
+
+	// a JVM's container holds its heap and 384 MB besides, at the kit's defaults
+	@Test
+	void hostedCompose_eachJvm_hasItsHeapAnd384MbBesidesInItsContainer() throws IOException {
+		JsonNode services = services(HOSTED);
+
+		assertThat(APP_SERVICES).allSatisfy(
+				(name) -> assertThat(beyondHeapMegabytes(services.path(name))).as(name).isEqualTo(BEYOND_HEAP_MB));
+	}
+
+	// what a JVM's container holds besides its heap, at the kit's defaults
+	private static long beyondHeapMegabytes(JsonNode service) {
+		String options = service.at("/environment/JAVA_TOOL_OPTIONS").asString();
+		return megabytes(service.path("mem_limit").asString(), SIZE) - megabytes(options, HEAP);
+	}
+
+	// a size the kit gives, at its default where a setting may override it:
+	// "-Xmx${NAME:-1g}" is 1,024 MB and "${NAME:-1408m}" 1,408 MB
+	private static long megabytes(String setting, Pattern where) {
+		Matcher size = where.matcher(setting);
+		assertThat(size.find()).as(setting).isTrue();
+		long number = Long.parseLong(size.group(1));
+		return "g".equals(size.group(2)) ? number * 1024 : number;
 	}
 
 	private static JsonNode services(String file) throws IOException {

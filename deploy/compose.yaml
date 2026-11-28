@@ -21,8 +21,9 @@
 # as in docker-compose.yml: the release's check fails while this file runs another (CheckRelease,
 # ADR-0077). ./update.sh moves the kit to another release.
 #
-# The defaults fit the smallest server it is meant for, 2 cores and 4 GB: the memory limits add up
-# to 3.3 GB, and the worker simulates two runs at once. A JVM's limit is its heap and 384 MB. On a
+# The defaults fit the smallest server it is meant for, 2 cores and 4 GB, with little to spare:
+# the memory limits add up to 3.8 GB, the worker simulates two runs at once, and the API answers
+# five of the engine's requests at once (ADR-0116). A JVM's limit is its heap and 384 MB. On a
 # bigger server, raise the worker's and the API's in hosted.env (docs/deployment.md says how).
 name: archsim-hosted
 
@@ -112,7 +113,7 @@ services:
       ARCHSIM_TRUSTED_PROXIES: web
       ARCHSIM_OUTBOUND: "off"
       # requests the engine's routes answer at once: left out of hosted.env, as many as the heap
-      # holds, one at 512 MB (ADR-0108)
+      # holds, five at 1 GB on two cores (ADR-0108)
       ARCHSIM_MAX_ENGINE_REQUESTS: ${ARCHSIM_MAX_ENGINE_REQUESTS:-}
       # how many of a project's runs the server keeps, and for how many days a sign-in and each
       # workspace's history (docs/deployment.md); the defaults are the application's own
@@ -120,12 +121,12 @@ services:
       ARCHSIM_SESSION_DAYS: ${ARCHSIM_SESSION_DAYS:-30}
       ARCHSIM_HISTORY_DAYS: ${ARCHSIM_HISTORY_DAYS:-365}
       # calibrations replay in the API's process, as many at once as the cores less one
-      JAVA_TOOL_OPTIONS: -Xmx${ARCHSIM_API_HEAP:-512m}
+      JAVA_TOOL_OPTIONS: -Xmx${ARCHSIM_API_HEAP:-1g}
     depends_on:
       migrate:
         condition: service_completed_successfully
     networks: [app, data]
-    mem_limit: ${ARCHSIM_API_MEMORY:-896m}
+    mem_limit: ${ARCHSIM_API_MEMORY:-1408m}
     healthcheck:
       # the image has bash but no HTTP client
       test:

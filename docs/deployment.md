@@ -132,21 +132,26 @@ any template needs. Before you open it to the public, publish a privacy notice:
 ### 1. A server
 
 Linux with 2 cores and 4 GB of memory or more, amd64 or arm64 (every image is built for both), and
-20 GB of disk; Ubuntu 24.04 LTS is a good choice. The defaults fit that smallest size: the memory
-limits add up to 3.3 GB, and one worker simulates two runs at once, with a 1 GB heap. On a bigger
-server, give the JVMs more in `hosted.env` (a container's memory limit is its heap and 384 MB):
+20 GB of disk; Ubuntu 24.04 LTS is a good choice. The defaults fit that smallest size, with little
+to spare: the memory limits add up to 3.8 GB, one worker simulates two runs at once with a 1 GB
+heap, and the API has a 1 GB heap. On a 4 GB server without swap, add a swap file, or set the
+API back to `512m` and `896m` and accept one of the engine's requests at a time. On a bigger
+server, give the worker more in `hosted.env` (a container's memory limit is its heap and 384 MB):
 
 | Setting | 2 cores, 4 GB (default) | 4 cores, 8 GB or more |
 | --- | --- | --- |
 | `ARCHSIM_MAX_CONCURRENT_RUNS` (the worker's runs at once) | `2` | `3`, leaving a core to the rest |
 | `ARCHSIM_WORKER_HEAP` | `1g` | `2g` |
 | `ARCHSIM_WORKER_MEMORY` | `1408m` | `2432m` |
-| `ARCHSIM_API_HEAP` | `512m` | `1g` |
-| `ARCHSIM_API_MEMORY` | `896m` | `1408m` |
+| `ARCHSIM_API_HEAP` | `1g` | `1536m` |
+| `ARCHSIM_API_MEMORY` | `1408m` | `1920m` |
 
 The API's heap also sets how many requests the engine's routes answer at once, each with a design
-in memory: one on 512 MB with two cores, three on 1 GB with four (`ARCHSIM_MAX_ENGINE_REQUESTS`
-in `hosted.env` overrides it; [ADR-0108](adr/0108-bound-the-engines-routes-by-slots-per-person-limits-and-a-sandbox-body-cap.md)).
+in memory, beside the calibration replays it holds, one a core less one: five on 1 GB with two
+cores, eight on 1,536 MB with four, and one on 512 MB. `ARCHSIM_MAX_ENGINE_REQUESTS` in
+`hosted.env` overrides it
+([ADR-0108](adr/0108-bound-the-engines-routes-by-slots-per-person-limits-and-a-sandbox-body-cap.md),
+[ADR-0116](adr/0116-give-the-hosting-kits-api-a-1-gb-heap.md)).
 
 The worker's heap on a big server is the one [archsim-app's README](../archsim-app/README.md#the-workers-heap)
 asks: 512 MB a run and 256 MB besides. The default gives each run less, about 384 MB, because runs
