@@ -139,18 +139,17 @@ The parts find each other with their defaults: PostgreSQL at
    **Report** gives you a Markdown write-up; **Ctrl/⌘ K → Export** gives docker-compose,
    Kubernetes or Mermaid scaffolding.
 
-The numbers are engine 1.6.0's for the shipped template with its seed, 42; the template's inputs
+The numbers are engine 1.6.1's for the shipped template with its seed, 42; the template's inputs
 are illustrative assumptions. Every workspace is described in [features.md](features.md).
 
 ## Two version numbers
 
 ArchSim's version names the release; the engine has a version of its own. `archsim --version` prints
-both (release 1.6.0's says `archsim 1.6.0, engine 1.6.0`: the two happen to match in this release),
-and a run's report says which engine made it. The engine's version changes only when the same design
-and seed could give different results: a release that changes a page, the API or a template leaves
-it alone. Every report records it, a run simulated again on the same engine gives the same result
-digest, and comparisons warn when two runs had different engines
-([ADR-0076](adr/0076-version-archsim-apart-from-its-engine.md)).
+both (release 1.7.0's says `archsim 1.7.0, engine 1.6.1`), and a run's report says which engine made
+it. The engine's version changes only when the same design and seed could give different results: a
+release that changes a page, the API or a template leaves it alone. Every report records it, a run
+simulated again on the same engine gives the same result digest, and comparisons warn when two runs
+had different engines ([ADR-0076](adr/0076-version-archsim-apart-from-its-engine.md)).
 
 ## The command line
 
