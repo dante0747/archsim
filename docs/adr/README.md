@@ -155,4 +155,5 @@ what the repository shows.
 | [0111](0111-prune-the-runs-past-a-projects-limit-and-expired-rows-every-hour.md) | Prune the runs past a project's limit, and the rows that expired, every hour | Accepted | 2026-11-27 |
 | [0112](0112-end-a-save-conflict-with-a-choice-their-version-this-one-or-a-copy.md) | End a save conflict with a choice: their version, this one or a copy | Proposed | 2026-11-27 |
 | [0113](0113-save-a-design-as-it-is-edited-and-on-the-way-out-of-the-editor.md) | Save a design as it is edited and on the way out of the editor | Proposed | 2026-11-27 |
+| [0114](0114-take-a-run-of-steps-that-finish-at-once-in-a-loop-not-on-the-stack.md) | Take a run of steps that finish at once in a loop, not on the stack | Proposed | 2026-11-27 |
 | [0116](0116-give-the-hosting-kits-api-a-1-gb-heap.md) | Give the hosting kit's API a 1 GB heap | Proposed | 2026-11-28 |
