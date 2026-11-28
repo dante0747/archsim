@@ -362,7 +362,13 @@ rejects publishes with `queue_full`) until a consumer picks them up, spends `con
 and calls the queue's outgoing links in order (like a service's dependencies). A failed
 delivery is retried up to `maxDeliveries` times, then dead-lettered. The run keeps going until
 the backlog drains or the drain limit is reached. Client latency and success do not include
-background processing.
+background processing. A queue's slots are its consumers': a delivery holds one from its start
+to its end, its consumer's time and the calls its message makes, and a publish holds none, so
+the queue's holding time, its capacity and the formulas that use them count its deliveries
+alone (engine 1.6.2,
+[ADR-0117](adr/0117-count-a-queues-holding-time-from-its-consumers-alone.md)). A queue that
+published in the window but finished no delivery in it has no holding time or capacity, and none
+of the formulas or the sentence on what it can sustain that need them.
 
 Technology behaviour (settings with `auto` defaults):
 
@@ -768,7 +774,7 @@ Per-node summary (events counted by the time they happen inside the window):
 | `cpuUtilization` | Services only: time-weighted share of slots executing `serviceTimeMs`. |
 | `meanQueue`, `peakQueue`, `meanInSystem` | Time-weighted queue length, peak queue, and mean requests at the node (queued + executing + waiting on dependencies). |
 | `meanQueueWaitMs`, `p95QueueWaitMs`, `p99QueueWaitMs` | Waiting time of requests that were granted a slot. |
-| `meanHoldMs`, `meanServiceMs` | Mean slot holding time and mean sampled service time. |
+| `meanHoldMs`, `meanServiceMs` | Mean slot holding time and mean sampled service time. A queue's slots are its consumers', held by its deliveries alone; its service time is its publishes'. |
 | `capacityRps` | The lowest of `slots / meanHoldMs` (the rate at the observed holding time) and any CPU or memory ceiling from resource specs (derived, not assumed). |
 | `capacityLimit` | Which ceiling sets `capacityRps`: `slots`, `cpu` or `memory`. |
 | `cpuCapacityRps` | CPU ceiling from the CPU spec: cores x instances / CPU ms per request; for a database of several instances, cores x 1000 / its busiest instance's CPU work per request, the operations it refused included (ADR-0083) (null when CPU is not set). |

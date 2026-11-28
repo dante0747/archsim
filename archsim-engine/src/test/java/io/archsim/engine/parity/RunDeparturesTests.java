@@ -1,5 +1,7 @@
 package io.archsim.engine.parity;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -65,6 +67,24 @@ class RunDeparturesTests {
 		assertThat(read.at("/nodes/0/summary/busiestInstanceCpuUtilization").doubleValue()).isEqualTo(0.85);
 	}
 
+	// the Java's topic held its 600 deliveries 240 ms each and its 600 publishes
+	// 10 ms, so the frozen engine's 125 ms, which counted both, writes its formulas
+	@Test
+	void asRecorded_aQueueOfTheFrozenEnginesFigures_hasItsFormulasAtTheFrozenHoldingTime() {
+		JsonNode read = RunDepartures.asRecorded(topic(), figures("""
+				{"orders": {"arrivals": 600, "arrivalRps": 60.0, "slots": 16, "completed": 600, "meanServiceMs": 10.0,
+				            "meanHoldMs": 125.0, "capacityRps": 128.0, "capacityLimit": "slots", "meanInSystem": 0.6,
+				            "meanQueueWaitMs": 100.0, "utilization": 0.9}}"""), MissingNode.getInstance());
+
+		assertThat(List.of(formula(read, "drain_rate").path("substituted").stringValue(),
+				formula(read, "drain_rate").path("result").doubleValue(),
+				formula(read, "slot_capacity").path("result").doubleValue(),
+				formula(read, "utilization").path("result").doubleValue()))
+			.containsExactly("16 × 1000 ÷ 125 ms", 128.0, 128.0, 0.4688);
+		assertThat(formula(read, "mmc_wait").path("substituted").stringValue()).startsWith("C(16, 7.5) = ");
+		assertThat(read.at("/nodes/0/summary/meanHoldMs").doubleValue()).isEqualTo(125.0);
+	}
+
 	@Test
 	void unread_aRunWhereACacheRefusedLookups_namesTheDeparture() {
 		JsonNode java = JSON.readTree("""
@@ -108,6 +128,35 @@ class RunDeparturesTests {
 		return """
 				{"search": {"capacityRps": 3919.0872, "capacityLimit": "cpu", "cpuCapacityRps": 3919.0872,
 				            "serviceOnlyCapacityRps": 3919.0872%s}}""".formatted(more);
+	}
+
+	// a topic of 16 consumer slots whose deliveries the Java held 240 ms each, its
+	// formulas at that holding time
+	private static JsonNode topic() {
+		return JSON.readTree("""
+				{"summary": {}, "window": {"warmupS": 5.0, "durationS": 15.0, "measuredS": 10.0},
+				 "timeseries": {"t": []},
+				 "nodes": [{"id": "orders", "type": "message_queue", "category": "messaging", "label": "orders",
+				  "summary": {"arrivals": 600, "arrivalRps": 60.0, "slots": 16, "completed": 600,
+				              "counters": {"processed": 600}, "meanServiceMs": 10.0, "meanHoldMs": 240.0,
+				              "capacityRps": 66.6667, "capacityLimit": "slots", "meanInSystem": 0.6,
+				              "latencyMs": {"mean": 10.0}, "meanQueueWaitMs": 100.0, "utilization": 0.9},
+				  "explain": [{"id": "arrival_rate", "result": 60.0}, {"id": "slot_capacity", "result": 66.6667},
+				              {"id": "utilization", "result": 0.9}, {"id": "littles_law", "result": 0.6},
+				              {"id": "mmc_wait", "result": 1.0}, {"id": "consumers", "result": 16.0},
+				              {"id": "drain_rate", "title": "Consumer throughput",
+				               "formula": "messages/s = effective consumers × 1000 ÷ mean processing time",
+				               "substituted": "16 × 1000 ÷ 240 ms", "result": 66.6667, "unit": "msg/s",
+				               "note": null, "source": null, "metric": "lag"}]}]}""");
+	}
+
+	// a part's formula in a report, by its id
+	private static JsonNode formula(JsonNode report, String id) {
+		return report.at("/nodes/0/explain")
+			.valueStream()
+			.filter((formula) -> formula.path("id").stringValue("").equals(id))
+			.findFirst()
+			.orElseThrow(() -> new AssertionError("no formula " + id));
 	}
 
 	// the baselines' figures of a run, its parts' values as given

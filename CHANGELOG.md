@@ -8,6 +8,20 @@ for when that version changes.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A queue's capacity counts its consumers alone (engine 1.6.2,
+  [ADR-0117](docs/adr/0117-count-a-queues-holding-time-from-its-consumers-alone.md), proposed).**
+  A queue's holding time also counted each publish, from its start to its acknowledgement, which
+  holds no consumer. On the Kafka template the orders topic's consumers held a message for 238 ms,
+  but it reported 118 ms and said it "can sustain about 135 req/s" while 85% busy at 57 messages a
+  second; its consumer throughput said 135 msg/s, its M/M/c formula gave it a 0.5% chance to wait
+  with a backlog of hundreds, and the instant estimate said 67. A queue's holding time now counts
+  its deliveries alone, so its capacity, its formulas and its finding agree with the estimate and
+  with how busy its consumers were; a queue that finished no delivery in the window shows no
+  capacity. Every event of a run is as it was: rates, latencies, costs and how busy a queue's
+  consumers were do not change.
+
 ## [1.7.0] - 2026-11-28
 
 The editor saves a design as it is edited, Results follows the run on the canvas, and the engine

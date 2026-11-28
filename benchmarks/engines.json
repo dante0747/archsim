@@ -42,5 +42,14 @@
     "tag": null,
     "tunedOn": ["pg-mixed", "pg-hot-row", "cache-aside", "kafka", "java-mixed", "go-mixed", "python-mixed", "chain", "cache-ttl"],
     "note": "1.6.1 places evenly spaced arrivals where the offered rate, added up since the last, reaches one more request, where 1.6.0 took the gap to the next from the rate at the last arrival, so a ramp or a trace that starts at 0 now sends its requests from the start. The benchmark designs run at constant rates, where the gaps are 1.6.0's to the bit, so no simulated knee moves; the inputs, the range and the host fit stay 1.6.0's, and so does tunedOn. Not frozen."
+  },
+  {
+    "version": "1.6.2",
+    "engine": "java",
+    "engineTree": null,
+    "frozenAt": null,
+    "tag": null,
+    "tunedOn": ["pg-mixed", "pg-hot-row", "cache-aside", "kafka", "java-mixed", "go-mixed", "python-mixed", "chain", "cache-ttl"],
+    "note": "1.6.2 counts a queue's deliveries alone in its holding time, where 1.6.1 also counted each publish from its start to its acknowledgement, so a queue's capacity, its formulas and its finding on what it can sustain follow from how long a message holds a consumer (ADR-0117). Every event of a simulation is as it was, so no simulated knee moves; the inputs, the range and the host fit stay 1.6.0's, and so does tunedOn. Not frozen."
   }
 ]
