@@ -14,7 +14,8 @@ import io.archsim.app.store.Ids;
  * @param workspaceId the workspace to make it in
  * @param design its design, normalized; its name is the project's
  * @param description its description; the design's when {@code null}
- * @param sourceExample the example it is an unrenamed copy of, if any
+ * @param sourceExample the example it was copied from without a name of its own, if any;
+ * a rename keeps it
  */
 record NewProject(String workspaceId, ObjectNode design, @Nullable String description, @Nullable String sourceExample) {
 

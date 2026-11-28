@@ -105,7 +105,10 @@ export const api = {
     description?: string;
     document?: ArchitectureDocument;
     exampleId?: string;
-    /** With exampleId and no name: reopen the copy made last time if it was never saved. */
+    /**
+     * With exampleId and no name: reopen the copy made last time if it was never saved, or in a
+     * sandbox the visitor's copy of it updated last, changes and all.
+     */
     reuseUnedited?: boolean;
   }) => request<Project>("/projects", { method: "POST", body: json(body) }),
   importProject: (document: unknown) =>

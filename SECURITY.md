@@ -101,7 +101,7 @@ server at `https://<host>/api/v1`.
   anything in it, exactly like something that does not exist, so ids reveal nothing; a role too
   weak for an action gets 403. Runs of the same design share one stored copy of it, whatever
   their workspaces; it is read only through a run, so only by members of that run's workspace.
-  Opening a template only ever reuses your own unedited copy.
+  Opening a template only ever reuses your own copy (in a sandbox, edits and all).
   Invitations are single-use links (256-bit tokens stored as hashes) that can be bound to a
   verified email and expire in at most 30 days, after which they are deleted within about an
   hour; a workspace always keeps an owner.

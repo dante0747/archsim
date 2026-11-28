@@ -30,7 +30,10 @@ export function useProjectActions(onChanged?: () => void) {
     }
   };
 
-  /** Open a template: reuses the copy made last time unless it has been saved since. */
+  /**
+   * Open a template: reuses the copy made last time unless it has been saved since, or in a
+   * sandbox the visitor's copy of it updated last, changes and all.
+   */
   const openTemplate = (exampleId: string) => create({ exampleId, reuseUnedited: true }, exampleId);
 
   const importFile = async (file: File) => {

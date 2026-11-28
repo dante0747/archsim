@@ -15,7 +15,8 @@ import tools.jackson.databind.node.ObjectNode;
  * @param description what it is for, if said
  * @param document the design, normalized to the current schema
  * @param revision how many times it was saved, from 1
- * @param sourceExample the example it is an unrenamed copy of, if any
+ * @param sourceExample the example it was copied from without a name of its own, if any;
+ * a rename keeps it
  * @param createdAt when it was made
  * @param updatedAt when it was last saved
  */

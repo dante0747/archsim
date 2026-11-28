@@ -33,6 +33,12 @@ for when that version changes.
   failed. Three things follow from saving without being asked: every pause in editing is a
   revision, so undo is the only way back from an experiment; a review goes stale at the first
   edit after it; and an agent's edits are saved without its `save_design` tool.
+- **In a sandbox, opening a template again opens the visitor's own copy of it, with their changes
+  ([ADR-0115](docs/adr/0115-in-a-sandbox-reopen-the-visitors-own-copy-of-a-template.md),
+  proposed).** With the editor saving as it goes (above), a template's copy counts as saved at its
+  first change, and a saved copy was never opened again: each return to a template would have made
+  another project, against a sandbox's cap of five. A visitor who wants a fresh copy deletes theirs
+  and opens the template again. Signed-in workspaces still get a fresh copy once theirs was saved.
 - **A save no longer marks as saved what it did not send, and a save conflict is no longer a dead
   end
   ([ADR-0112](docs/adr/0112-end-a-save-conflict-with-a-choice-their-version-this-one-or-a-copy.md),

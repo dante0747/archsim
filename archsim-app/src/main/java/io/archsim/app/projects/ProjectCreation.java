@@ -14,6 +14,7 @@ import io.archsim.app.access.Principal;
 import io.archsim.app.access.RequestedWorkspace;
 import io.archsim.app.access.WorkspaceAccess;
 import io.archsim.app.access.WorkspaceRole;
+import io.archsim.app.limits.WorkspaceLimits;
 import io.archsim.app.web.ApiException;
 
 /**
@@ -42,7 +43,9 @@ public class ProjectCreation {
 	 * Makes a project from a design, an example or nothing. With {@code reuseUnedited},
 	 * an example and no name, opening the same example twice hands back the copy the
 	 * asker made in this workspace the first time, as long as it was never saved and the
-	 * example has not changed since; someone else's copy is never handed back.
+	 * example has not changed since. In a sandbox, which holds five projects, it hands
+	 * back the copy the visitor updated last, edits and all, so reopening a template
+	 * makes no more projects (ADR-0115). Someone else's copy is never handed back.
 	 * @param principal who is asking
 	 * @param workspace the workspace the request names
 	 * @param request what to make it from
@@ -64,13 +67,20 @@ public class ProjectCreation {
 		}
 		ObjectNode example = this.examples.example(exampleId);
 		if (request.reuseUnedited() && request.name() == null) {
-			Optional<Project> copy = this.examples.uneditedCopy(where.workspace().id(), principal.userId(), exampleId);
+			Optional<Project> copy = reusableCopy(where, principal, exampleId);
 			if (copy.isPresent()) {
 				return new Created(ProjectView.of(copy.get()), true);
 			}
 		}
 		String source = (request.name() == null) ? exampleId : null;
 		return new Created(make(principal, newProject(where, example, request, source)), false);
+	}
+
+	private Optional<Project> reusableCopy(WorkspaceAccess where, Principal principal, String exampleId) {
+		String workspaceId = where.workspace().id();
+		return WorkspaceLimits.isSandbox(where.workspace().kind())
+				? this.examples.latestCopy(workspaceId, principal.userId(), exampleId)
+				: this.examples.uneditedCopy(workspaceId, principal.userId(), exampleId);
 	}
 
 	/**
@@ -112,7 +122,8 @@ public class ProjectCreation {
 	 * A project {@code POST /projects} made, or found.
 	 *
 	 * @param project the project
-	 * @param reused {@code true} when it is an existing, never-saved copy of the example
+	 * @param reused {@code true} when it is an existing copy of the example: one never
+	 * saved, or in a sandbox the visitor's copy updated last
 	 */
 	record Created(ProjectView project, boolean reused) {
 
