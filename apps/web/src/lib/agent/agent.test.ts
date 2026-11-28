@@ -6,6 +6,7 @@ import starterJson from "@/test/fixtures/starter.json";
 import type { Analysis, ArchitectureDocument, Catalog, Project } from "@/lib/types";
 import { useEditor } from "@/store/editor";
 import { useUi } from "@/store/ui";
+import { appTools } from "./app-tools";
 import { editorTools } from "./editor-tools";
 import { type AgentTool, modelContext, registerAgentTools } from "./webmcp";
 
@@ -198,5 +199,30 @@ describe("editor tools", () => {
 
     expect(useEditor.getState()).toMatchObject({ conflict: true, dirty: true, revision: 1 });
     expect(useUi.getState().saveConflictOpen).toBe(true);
+  });
+});
+
+describe("app tools", () => {
+  const navigate = vi.fn();
+  const tools = Object.fromEntries(appTools(navigate).map((t) => [t.name, t]));
+  afterEach(() => vi.restoreAllMocks());
+
+  it("opens a template's copy that was never saved as the template", async () => {
+    const create = vi.spyOn(api, "createProject").mockResolvedValue(project);
+
+    const opened = await tools.open_template.execute({ id: "starter" });
+
+    expect(opened).toEqual({ projectId: "p1", name: "Starter", summary: 'opened the "Starter" template' });
+    expect(create).toHaveBeenCalledWith({ exampleId: "starter", reuseUnedited: true });
+    expect(navigate).toHaveBeenCalledWith("/projects/p1");
+  });
+
+  // in a sandbox the visitor's copy comes back with what they saved in it
+  it("says when the copy it opens holds the user's saved changes", async () => {
+    vi.spyOn(api, "createProject").mockResolvedValue({ ...project, revision: 3 });
+
+    const opened = await tools.open_template.execute({ id: "starter" });
+
+    expect(opened).toMatchObject({ summary: `opened "Starter", the user's copy of the template, with the changes they saved` });
   });
 });

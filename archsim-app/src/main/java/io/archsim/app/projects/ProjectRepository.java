@@ -31,10 +31,9 @@ class ProjectRepository {
 	 */
 	private static final String MOST_RECENTLY_UPDATED_FIRST = " ORDER BY updated_at DESC, id DESC";
 
-	/** The latest never-saved copy of an example someone made in a workspace. */
-	private static final String UNEDITED_COPY = """
-			WHERE workspace_id = :workspace AND created_by = :user AND source_example = :example AND revision = 1"""
-			+ MOST_RECENTLY_UPDATED_FIRST + " LIMIT 1";
+	/** Someone's copies of an example in a workspace. */
+	private static final String COPIES_OF_EXAMPLE = """
+			WHERE workspace_id = :workspace AND created_by = :user AND source_example = :example""";
 
 	private final JdbcClient jdbc;
 
@@ -92,7 +91,24 @@ class ProjectRepository {
 	 * @return the copy, if there is one
 	 */
 	Optional<Project> uneditedCopy(String workspaceId, String userId, String exampleId) {
-		return this.jdbc.sql("SELECT " + COLUMNS + " FROM projects " + UNEDITED_COPY)
+		return latest(COPIES_OF_EXAMPLE + " AND revision = 1", workspaceId, userId, exampleId);
+	}
+
+	/**
+	 * The copy of an example a user made in a workspace that was updated last, saved
+	 * since or not.
+	 * @param workspaceId the workspace
+	 * @param userId the user
+	 * @param exampleId the example
+	 * @return the copy, if there is one
+	 */
+	Optional<Project> latestCopy(String workspaceId, String userId, String exampleId) {
+		return latest(COPIES_OF_EXAMPLE, workspaceId, userId, exampleId);
+	}
+
+	// the copy that matches and was updated last
+	private Optional<Project> latest(String where, String workspaceId, String userId, String exampleId) {
+		return this.jdbc.sql("SELECT " + COLUMNS + " FROM projects " + where + MOST_RECENTLY_UPDATED_FIRST + " LIMIT 1")
 			.param("workspace", workspaceId)
 			.param("user", userId)
 			.param("example", exampleId)

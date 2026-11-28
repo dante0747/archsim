@@ -36,8 +36,8 @@ class ProjectCreationController {
 	 * @param principal who is asking
 	 * @param request what to make it from
 	 * @param workspace the workspace the request names
-	 * @return {@code 201} with the project, or {@code 200} with an unedited copy of the
-	 * example
+	 * @return {@code 201} with the project, or {@code 200} with an existing copy of the
+	 * example: an unedited one, or in a sandbox the visitor's copy updated last
 	 */
 	@PostMapping
 	@EngineRoute

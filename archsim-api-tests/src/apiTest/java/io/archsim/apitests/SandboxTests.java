@@ -15,7 +15,8 @@ import static org.assertj.core.api.Assertions.within;
  * Trying ArchSim without signing in (ADR-0079): where a hosted server offers sandboxes, a
  * browser holding the CSRF token {@code GET /auth/config} gives it starts one with
  * {@code POST /auth/sandbox}, and is signed in as the sandbox's guest for a day. A server
- * without sign-in offers none.
+ * without sign-in offers none. In a sandbox, opening a template again hands back the
+ * guest's copy of it, changes and all (ADR-0115).
  */
 @ApiTest(Profile.HOSTED)
 class SandboxTests {
@@ -108,9 +109,29 @@ class SandboxTests {
 		assertThat(List.of(refused.status(), refused.message())).containsExactly(403, GUESTS_CANNOT);
 	}
 
+	// the editor saves a copy at its first change, and a sandbox holds five projects
+	@Test
+	void openTemplate_afterTheGuestChangedTheirCopy_reopensIt(ApiServer server) {
+		ApiClient guest = server.guest();
+		guest.header("X-ArchSim-Workspace", Workspaces.first(guest));
+		String copy = Json.id(openTemplate(guest).expectStatus(201).json());
+		guest.put("/projects/" + copy, Json.object("description", "With a bigger cache", "expectedRevision", 1))
+			.expectStatus(200);
+
+		ApiResponse again = openTemplate(guest);
+
+		assertThat(List.of(again.status(), Json.id(again.json()), again.json().path("revision").asInt()))
+			.containsExactly(200, copy, 2);
+	}
+
 	@Test
 	void start_withoutSignInOnTheServer_isNotFound(@On(Profile.LOCAL) ApiClient client) {
 		assertThat(client.post("/auth/sandbox").status()).isEqualTo(404);
+	}
+
+	// as the web app opens a template
+	private static ApiResponse openTemplate(ApiClient client) {
+		return client.post("/projects", Json.object("exampleId", "cache-aside-starter", "reuseUnedited", true));
 	}
 
 }

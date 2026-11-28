@@ -17,7 +17,7 @@ import io.archsim.model.codec.MinLength;
  * @param document the design
  * @param exampleId the example to copy instead
  * @param reuseUnedited with an example and no name: hand back the asker's copy of it that
- * was never saved, instead of making another
+ * was never saved, or in a sandbox their latest copy, instead of making another
  */
 @IgnoreUnknownKeys
 record ProjectCreate(@MinLength(1) @MaxLength(120) @Nullable String name, @MaxLength(4000) @Nullable String description,

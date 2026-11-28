@@ -155,3 +155,4 @@ what the repository shows.
 | [0111](0111-prune-the-runs-past-a-projects-limit-and-expired-rows-every-hour.md) | Prune the runs past a project's limit, and the rows that expired, every hour | Accepted | 2026-11-27 |
 | [0112](0112-end-a-save-conflict-with-a-choice-their-version-this-one-or-a-copy.md) | End a save conflict with a choice: their version, this one or a copy | Proposed | 2026-11-27 |
 | [0113](0113-save-a-design-as-it-is-edited-and-on-the-way-out-of-the-editor.md) | Save a design as it is edited and on the way out of the editor | Proposed | 2026-11-27 |
+| [0115](0115-in-a-sandbox-reopen-the-visitors-own-copy-of-a-template.md) | In a sandbox, reopen the visitor's own copy of a template | Proposed | 2026-11-27 |

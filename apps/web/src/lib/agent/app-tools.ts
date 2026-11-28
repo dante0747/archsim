@@ -21,12 +21,16 @@ export function appTools(navigate: (path: string) => void): AgentTool[] {
       name: "open_template",
       title: "Open a template",
       description:
-        "Open a template in the editor (reusing the user's unedited copy of it, else creating one), where the design tools (get_design, add_part, simulate...) become available.",
+        "Open a template in the editor (reusing the user's unedited copy of it, or in a sandbox their copy of it updated last, changes and all, else creating one), where the design tools (get_design, add_part, simulate...) become available.",
       inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
       execute: async (input) => {
         const p = await api.createProject({ exampleId: String(input.id), reuseUnedited: true });
         navigate(`/projects/${p.id}`);
-        return { projectId: p.id, name: p.name, summary: `opened the "${p.name}" template` };
+        // a copy saved since it was made (revision 2 on) holds the user's changes, and may
+        // have a name of its own
+        const summary =
+          p.revision > 1 ? `opened "${p.name}", the user's copy of the template, with the changes they saved` : `opened the "${p.name}" template`;
+        return { projectId: p.id, name: p.name, summary };
       },
     },
     {

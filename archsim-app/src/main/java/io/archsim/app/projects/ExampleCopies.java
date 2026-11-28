@@ -10,8 +10,8 @@ import tools.jackson.databind.node.ObjectNode;
 import io.archsim.app.examples.ExampleService;
 
 /**
- * Projects copied from the examples: the example to copy, and the copy someone already
- * made of it and never saved.
+ * Projects copied from the examples: the example to copy, the copy someone already made
+ * of it and never saved, and the copy of it someone updated last.
  */
 @Component
 class ExampleCopies {
@@ -58,6 +58,18 @@ class ExampleCopies {
 		ObjectNode current = this.designs.normalize(example(exampleId), null);
 		return this.projects.uneditedCopy(workspaceId, userId, exampleId)
 			.filter((copy) -> copy.document().equals(NUMBERS_BY_VALUE, current));
+	}
+
+	/**
+	 * The copy of an example someone made in a workspace that was updated last, edits and
+	 * all.
+	 * @param workspaceId the workspace
+	 * @param userId who made the copy
+	 * @param exampleId the example
+	 * @return the copy, if there is one
+	 */
+	Optional<Project> latestCopy(String workspaceId, String userId, String exampleId) {
+		return this.projects.latestCopy(workspaceId, userId, exampleId);
 	}
 
 }

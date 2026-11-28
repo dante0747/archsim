@@ -70,7 +70,7 @@ Domain errors use one shape:
 | Method | Path | Description |
 | --- | --- | --- |
 | GET | `/projects` | The workspace's projects (most recently updated first) with node and scenario counts. |
-| POST | `/projects` | Create in the workspace (editors) from `{document}`, `{exampleId}`, or blank. Optional `name`, `description`. `201`. With `{exampleId, reuseUnedited: true}` and no `name`, returns the most recent copy of that example **you** made in this workspace that was never saved and still matches it (`200`) instead of creating another; the web app opens templates this way. Someone else's copy is never handed back. |
+| POST | `/projects` | Create in the workspace (editors) from `{document}`, `{exampleId}`, or blank. Optional `name`, `description`. `201`. With `{exampleId, reuseUnedited: true}` and no `name`, returns the most recent copy of that example **you** made in this workspace that was never saved and still matches it (`200`) instead of creating another; in a sandbox, your copy of it updated most recently, edits and all ([ADR-0115](adr/0115-in-a-sandbox-reopen-the-visitors-own-copy-of-a-template.md)). The web app opens templates this way. Someone else's copy is never handed back. |
 | POST | `/projects/import` | Body: a raw document (older schema versions are migrated). Optional `?name=`. `201`. |
 | GET | `/projects/{id}` | Project with its document and `revision`. |
 | PUT | `/projects/{id}` | Body `{name?, description?, document?, expectedRevision?}`. Increments `revision`; `409` if `expectedRevision` is stale, or for a `document` in a workspace that stores its quota or more (see [Limits](#limits)). |
