@@ -8,6 +8,21 @@ for when that version changes.
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-11-28
+
+The editor saves a design as it is edited, Results follows the run on the canvas, and the engine
+gets three fixes. A run's results change only for designs with evenly spaced arrivals
+(`arrivalProcess: deterministic`) on a ramp, a burst or a trace: the engine moves from 1.6.0 to
+1.6.1, and those runs now send the requests their rate adds up to. Every other run gives the result
+it gave on 1.6.0, and no published accuracy figure moves: the benchmark designs run evenly spaced
+arrivals at a constant rate, and the held-out results stay engine 1.6.0's. Designs stay on schema
+1.11, and the database gets no migration. Three things to know before upgrading a shared server.
+The hosting kit gives the API a 1 GB heap in a container that may use 1,408 MB, so the kit's memory
+limits add up to 3.8 GB on the smallest server it fits, which then needs swap; a `hosted.env` that
+sets the API's heap and memory keeps them: set both or neither. The editor saves after each pause in
+editing, so every pause is a revision and a review goes stale at the first edit after it. And in a
+sandbox, opening a template again opens the visitor's own copy of it, with their changes.
+
 ### Changed
 
 - **The hosting kit gives the API a 1 GB heap, which answers five of the engine's requests at
@@ -783,7 +798,8 @@ cost, and publishes how accurate it is. Start with [Getting started](docs/gettin
 - Exports are scaffolding to review, not production configuration.
 - The editor is designed for desktop screens.
 
-[Unreleased]: https://github.com/dante0747/archsim/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/dante0747/archsim/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/dante0747/archsim/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/dante0747/archsim/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/dante0747/archsim/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/dante0747/archsim/compare/v1.3.0...v1.4.0
