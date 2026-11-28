@@ -60,6 +60,13 @@ for when that version changes.
   deeper than the last, so 20,000 messages a second with a 250 ms fetch overhead, or a poll from
   2,000 partitions, overflowed the stack and the run failed. It now takes them in a loop; results
   do not change.
+- **The SLO label in the Test timeline reads whole wherever the p95 curve goes.** The latency lane
+  named the objective's dashed line at its right end, under the curve, so a p95 that climbed through
+  it there struck the label through: as Black Friday's run drains, its p95 spike made "SLO 500 ms"
+  read "SLO 500/ms" in the README's and archsim.io's main screenshot. The label now sits at
+  whichever end of its line, above or below it, the curve leaves clear, and over the curve with a
+  halo when the curve crosses every such place. That screenshot and its renditions for the website
+  are retaken.
 
 ## [1.6.0] - 2026-11-27
 

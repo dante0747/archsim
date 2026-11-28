@@ -241,20 +241,107 @@ export function EventRow({ events, endS, onHover }: { events: RecorderEvent[]; e
 // System strips
 // ---------------------------------------------------------------------------------------------
 
-function linePath(series: Series, x: (t: number) => number, y: (v: number) => number, b: number): string {
+/** A point of a strip's curve, in the strip's pixels. */
+type Point = readonly [x: number, y: number];
+
+/** A series' curve, left to right: a point in the middle of each bucket, null where it has no value. */
+function curvePoints(series: Series, x: (t: number) => number, y: (v: number) => number, b: number): (Point | null)[] {
+  return series.map((v, i) => (finite(v) ? ([x(i * b + b / 2), y(v)] as const) : null));
+}
+
+/** The SVG path through a curve's points, lifting the pen at each gap. */
+function pathThrough(points: readonly (Point | null)[]): string {
   let d = "";
   let pen = false;
-  series.forEach((v, i) => {
-    if (!finite(v)) {
+  for (const p of points) {
+    if (!p) {
       pen = false;
-      return;
+      continue;
     }
-    const px = x(i * b + b / 2).toFixed(1);
-    const py = y(v).toFixed(1);
-    d += `${pen ? "L" : "M"}${px},${py}`;
+    d += `${pen ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`;
     pen = true;
-  });
+  }
   return d;
+}
+
+function linePath(series: Series, x: (t: number) => number, y: (v: number) => number, b: number): string {
+  return pathThrough(curvePoints(series, x, y, b));
+}
+
+/** The latency strip's SLO label, 9 px text. */
+const SLO_FONT = 9;
+/** The room its text takes, at most: Geist's characters average under 0.65 em (0.57 in "SLO 500 ms"). */
+const sloTextWidth = (text: string) => text.length * SLO_FONT * 0.65;
+/** Its line box above and below the baseline: Geist's 1.005 and 0.295 em, which a browser may round to 9 and 3 px. */
+const SLO_ASCENT = 9.1;
+const SLO_DESCENT = 3;
+/** How far its capitals and figures rise above the baseline. */
+const SLO_CAPS = 7;
+/** From either end of the strip to the label, and from the SLO line to the label's text. */
+const SLO_INSET = 4;
+const SLO_GAP = 3;
+/** Room kept between the label's line box and the p95 curve's centre line: half the curve's 1.5 px stroke and its anti-aliasing, with a pixel to spare. */
+const SLO_CLEAR = 2.5;
+/** A halo in the strip's colour, wide enough to close the gaps between the label's words: the curve passes behind the label. */
+const SLO_HALO = { stroke: "var(--surface)", strokeWidth: 4, strokeLinejoin: "round", paintOrder: "stroke" } as const;
+
+/** Where the SLO label's text is anchored (`y` is its baseline), and whether it needs a halo to read over the curve. */
+export interface SloLabelPlace {
+  x: number;
+  y: number;
+  anchor: "start" | "end";
+  halo: boolean;
+}
+
+interface Box {
+  x0: number;
+  x1: number;
+  y0: number;
+  y1: number;
+}
+
+/** Whether the curve, a line from each point to the next and a gap at each null, passes through the box. */
+function crosses(curve: readonly (Point | null)[], box: Box): boolean {
+  for (let i = 1; i < curve.length; i++) {
+    const [a, b] = [curve[i - 1], curve[i]];
+    if (!a || !b) continue;
+    const x0 = Math.max(a[0], box.x0);
+    const x1 = Math.min(b[0], box.x1);
+    if (x0 > x1) continue;
+    const yAt = (x: number) => a[1] + ((x - a[0]) / (b[0] - a[0])) * (b[1] - a[1]);
+    const [ya, yb] = [yAt(x0), yAt(x1)];
+    if (Math.max(ya, yb) >= box.y0 && Math.min(ya, yb) <= box.y1) return true;
+  }
+  return false;
+}
+
+/**
+ * Where the latency strip's SLO label goes. Above its line at the right end; else above it at the
+ * left end; else below it at the right end, then the left: the first of these places inside the
+ * strip that the p95 curve leaves clear. Where the curve crosses every place, the label stays above
+ * its line at the right end, over the curve with a halo, so it reads whole wherever the curve goes.
+ */
+export function placeSloLabel(
+  text: string,
+  lineY: number,
+  curve: readonly (Point | null)[],
+  strip: { width: number; height: number },
+): SloLabelPlace {
+  const width = sloTextWidth(text);
+  const [right, left] = [strip.width - SLO_INSET, SLO_INSET];
+  const [above, below] = [lineY - SLO_GAP, lineY + SLO_GAP + SLO_CAPS];
+  const places: SloLabelPlace[] = [
+    { x: right, y: above, anchor: "end", halo: false },
+    { x: left, y: above, anchor: "start", halo: false },
+    { x: right, y: below, anchor: "end", halo: false },
+    { x: left, y: below, anchor: "start", halo: false },
+  ];
+  const clear = places.find(({ x, y, anchor }) => {
+    const [x0, top, bottom] = [anchor === "start" ? x : x - width, y - SLO_ASCENT, y + SLO_DESCENT];
+    const inside = top >= 0 && bottom <= strip.height;
+    return inside && !crosses(curve, { x0: x0 - SLO_CLEAR, x1: x0 + width + SLO_CLEAR, y0: top - SLO_CLEAR, y1: bottom + SLO_CLEAR });
+  });
+  return clear ?? { ...places[0], halo: true };
 }
 
 function StripLabel({ title, max, hint }: { title: string; max?: string; hint?: string }) {
@@ -336,20 +423,31 @@ const LatencyStrip = memo(function LatencyStrip({
   const y = (v: number) => H - 3 - (Math.min(v, max) / max) * (H - 8);
   const compliance = useMemo(() => sloTimeline(objectives, ts), [objectives, ts]);
   const cw = x(b);
+  const curve = curvePoints(ts.latencyP95Ms, x, y, b);
+  const sloText = slo != null ? `SLO ${fmtMs(slo)}` : "";
+  const label = slo != null ? placeSloLabel(sloText, y(slo), curve, { width: plotWidth, height: H }) : null;
   return (
     <svg width={plotWidth} height={H} className="absolute inset-0" aria-hidden>
       {compliance.map((ok, i) =>
         ok === false ? <rect key={i} x={x(i * b)} y={0} width={Math.max(1, cw)} height={H} fill="var(--status-critical)" fillOpacity={0.12} /> : null,
       )}
       {slo != null && (
-        <>
-          <line x1={0} x2={plotWidth} y1={y(slo)} y2={y(slo)} stroke="var(--status-critical)" strokeOpacity={0.7} strokeWidth={1} strokeDasharray="5 4" />
-          <text x={plotWidth - 4} y={y(slo) - 3} textAnchor="end" fontSize={9} fontFamily="var(--font-mono)" fill="var(--ink-3)">
-            SLO {fmtMs(slo)}
-          </text>
-        </>
+        <line x1={0} x2={plotWidth} y1={y(slo)} y2={y(slo)} stroke="var(--status-critical)" strokeOpacity={0.7} strokeWidth={1} strokeDasharray="5 4" />
       )}
-      <path d={linePath(ts.latencyP95Ms, x, y, b)} fill="none" stroke="var(--ink)" strokeWidth={1.5} strokeLinejoin="round" />
+      <path d={pathThrough(curve)} fill="none" stroke="var(--ink)" strokeWidth={1.5} strokeLinejoin="round" />
+      {label && (
+        <text
+          x={label.x}
+          y={label.y}
+          textAnchor={label.anchor}
+          fontSize={SLO_FONT}
+          fontFamily="var(--font-mono)"
+          fill="var(--ink-3)"
+          {...(label.halo ? SLO_HALO : {})}
+        >
+          {sloText}
+        </text>
+      )}
     </svg>
   );
 });
