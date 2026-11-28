@@ -296,16 +296,17 @@ a batch is refused whole. The counters live in the database (`rate_limits`), so 
 instance shares them. Without sign-in the counters are off, and only sandboxes keep their other
 limits.
 
-The routes that make the engine work on a design answer a few requests at once, each with a
-design in memory: `/validate`, `/analyze`, `/export`, `/import`, creating, importing, saving,
-duplicating or copying a project, and starting or rerunning runs. Their number is
-`ARCHSIM_MAX_ENGINE_REQUESTS`, by default as many as the API's heap holds (one on a 512 MB heap,
-three on 1 GB with four processors). Another request waits a second for one to finish, then gets
+The routes that make the engine work on a design answer a few requests at once, each with a design
+in memory: `/validate`, `/analyze`, `/export`, `/import`, creating, importing, saving, duplicating
+or copying a project, and starting or rerunning runs. Their number is `ARCHSIM_MAX_ENGINE_REQUESTS`,
+by default as many as the API's heap holds (five on the hosting kit's 1 GB heap with two processors,
+three on 1 GB with four, one on 512 MB). Another request waits a second for one to finish, then gets
 503 with `Retry-After: 1`. `/calibrate` replays on a thread of its own, one per processor less one,
 and is answered 503 with `Retry-After: 10` when every one is busy. Every other route that reads a
 body takes up to 64 KB (413 beyond), and 32 such requests are answered at once. With the counters
 on, a person may send the engine's routes 600 requests a minute, and a sandbox's guest sends bodies
-of up to 256 KB to any route ([ADR-0108](adr/0108-bound-the-engines-routes-by-slots-per-person-limits-and-a-sandbox-body-cap.md)).
+of up to 256 KB to any route
+([ADR-0108](adr/0108-bound-the-engines-routes-by-slots-per-person-limits-and-a-sandbox-body-cap.md)).
 
 ## Share links
 

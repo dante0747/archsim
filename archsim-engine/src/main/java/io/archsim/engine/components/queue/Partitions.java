@@ -5,8 +5,11 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import io.archsim.engine.kernel.Signal;
 import io.archsim.engine.kernel.Simulation;
+import io.archsim.engine.kernel.Steps;
 import io.archsim.engine.metrics.Timeline;
 import io.archsim.engine.runtime.KeyShards;
 
@@ -157,20 +160,25 @@ final class Partitions implements Holding {
 			this.owned = owned;
 		}
 
-		// the next message from the first of its partitions, from where it left off, that
-		// has one; or a wait for one
+		// message after message, in a loop while each is processed at once, then a wait
+		// for the next
 		void takeNext() {
+			Steps.each(this::removeNext, this.consuming.deliveries()::process,
+					() -> waitForMessages(this.index).then(this::takeNext));
+		}
+
+		// the next message from the first of its partitions, from where it left off, that
+		// has one; null when none has
+		private @Nullable Message removeNext() {
 			int count = this.owned.length;
 			for (int step = 0; step < count; step++) {
 				Deque<Message> log = Partitions.this.logs.get(this.owned[(this.turn + step) % count]);
 				if (!log.isEmpty()) {
-					Message message = log.removeFirst();
 					this.turn = (this.turn + step + 1) % count;
-					this.consuming.deliveries().process(message, this::takeNext);
-					return;
+					return log.removeFirst();
 				}
 			}
-			waitForMessages(this.index).then(this::takeNext);
+			return null;
 		}
 
 	}

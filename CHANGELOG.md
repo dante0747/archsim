@@ -8,6 +8,16 @@ for when that version changes.
 
 ## [Unreleased]
 
+### Changed
+
+- **The hosting kit gives the API a 1 GB heap, which answers five of the engine's requests at
+  once on two cores
+  ([ADR-0116](docs/adr/0116-give-the-hosting-kits-api-a-1-gb-heap.md), proposed).** With 512 MB it
+  answered one, and the editor now saves after each pause in editing, which asks the engine's
+  routes to validate, analyze and save. The API's container may use 1,408 MB, so the kit's memory
+  limits add up to 3.8 GB on the smallest server it fits (2 cores, 4 GB), which needs swap, or the
+  old sizes. A `hosted.env` keeps the API's heap and memory it sets: set both or neither.
+
 ### Fixed
 
 - **The editor saves a design as it is edited and on the way out
@@ -59,6 +69,13 @@ for when that version changes.
   through the API the worker stopped such a run 30 s past the limit and failed it. The sample and
   the whole run now share one clock, so such a quick check can be stopped where a full run of the
   same design finishes, and its report's wall time counts the sample too.
+- **A consumer that works no time on a message no longer crashes the run
+  ([ADR-0114](docs/adr/0114-take-a-run-of-steps-that-finish-at-once-in-a-loop-not-on-the-stack.md),
+  proposed).** A consumer whose consumer time is 0 took the messages of a poll, the batches of a
+  poll from its partitions and the messages of a backlog it drained one at a time, each one call
+  deeper than the last, so 20,000 messages a second with a 250 ms fetch overhead, or a poll from
+  2,000 partitions, overflowed the stack and the run failed. It now takes them in a loop; results
+  do not change.
 
 ## [1.6.0] - 2026-11-27
 
