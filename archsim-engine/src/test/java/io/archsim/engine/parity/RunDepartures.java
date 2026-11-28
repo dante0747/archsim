@@ -10,6 +10,7 @@ import tools.jackson.databind.node.ObjectNode;
 import io.archsim.engine.explain.Formula;
 import io.archsim.engine.text.NumberText;
 import io.archsim.model.codec.RecordCodec;
+import io.archsim.model.component.queue.MessageQueueSpec;
 import io.archsim.parity.SchemaDepartures;
 
 /**
@@ -28,6 +29,10 @@ import io.archsim.parity.SchemaDepartures;
  * its instances at its work per request, from the frozen engine's figures.</li>
  * <li>A cache that refused lookups has the frozen engine's hit ratio, which left them out
  * (engine 1.2.1, ADR-0082: {@link CacheDepartures#hitRatiosAsRecorded}).</li>
+ * <li>A queue has the frozen engine's holding time, which counted its publishes too, and
+ * the capacity, the queueing formulas and the consumer throughput that follow from it,
+ * written again from the frozen engine's figures (engine 1.6.2, ADR-0117:
+ * {@link QueueHoldDepartures}).</li>
  * <li>Its design and parts' settings are as the frozen engine wrote them at schema 1.7
  * ({@link SchemaDepartures}), an API's price of 0, which the upgrade to 1.9 unsets
  * (ADR-0081), put back where the frozen engine's report of the design has it.</li>
@@ -70,9 +75,9 @@ final class RunDepartures {
 	 * @return a copy of the Java's report
 	 */
 	static JsonNode asRecorded(JsonNode java, JsonNode python, JsonNode frozen) {
-		JsonNode kept = keptReport(java, python.path(NODES));
+		JsonNode kept = keptReport(java, python.path(NODES), java.at("/window/measuredS").asDouble());
 		JsonNode read = CacheDepartures.hitRatiosAsRecorded(java, python.path(NODES));
-		read = BusiestInstanceDepartures.asRecorded(read, kept);
+		read = QueueHoldDepartures.asRecorded(BusiestInstanceDepartures.asRecorded(read, kept), kept);
 		read = IdleConsumerDepartures.asRecorded(MessageDepartures.asRecorded(read), kept);
 		return SchemaDepartures.asRecorded(read, frozen);
 	}
@@ -92,17 +97,25 @@ final class RunDepartures {
 
 	// the frozen engine's report of the run as far as the baselines keep it: each part's
 	// summary values, in the order of the Java's parts, and its formulas, the Java's but
-	// for its CPU ceiling's, which the frozen engine wrote from those values
-	private static JsonNode keptReport(JsonNode java, JsonNode python) {
+	// for those the frozen engine wrote from those values: a CPU ceiling's, and a queue's
+	// that use its holding time
+	private static JsonNode keptReport(JsonNode java, JsonNode python, double windowS) {
 		ObjectNode kept = JsonNodeFactory.instance.objectNode();
 		ArrayNode nodes = kept.putArray(NODES);
 		for (JsonNode node : java.path(NODES)) {
 			JsonNode values = python.path(node.path("id").stringValue(""));
 			ObjectNode part = nodes.addObject();
 			part.set(SUMMARY, values.isObject() ? values : JsonNodeFactory.instance.objectNode());
-			part.set(EXPLAIN, frozenFormulas(node.path(EXPLAIN), values));
+			part.set(EXPLAIN,
+					isQueueWithHoldingTime(node, values) ? QueueHoldDepartures.frozenFormulas(node, values, windowS)
+							: frozenFormulas(node.path(EXPLAIN), values));
 		}
 		return kept;
+	}
+
+	// a queue whose holding time the baselines keep
+	private static boolean isQueueWithHoldingTime(JsonNode node, JsonNode values) {
+		return MessageQueueSpec.TYPE.equals(node.path("type").stringValue("")) && values.path("meanHoldMs").isNumber();
 	}
 
 	// a part's formulas with the frozen engine's CPU ceiling's, or none where its figures

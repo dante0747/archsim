@@ -158,3 +158,4 @@ what the repository shows.
 | [0114](0114-take-a-run-of-steps-that-finish-at-once-in-a-loop-not-on-the-stack.md) | Take a run of steps that finish at once in a loop, not on the stack | Proposed | 2026-11-27 |
 | [0115](0115-in-a-sandbox-reopen-the-visitors-own-copy-of-a-template.md) | In a sandbox, reopen the visitor's own copy of a template | Proposed | 2026-11-27 |
 | [0116](0116-give-the-hosting-kits-api-a-1-gb-heap.md) | Give the hosting kit's API a 1 GB heap | Proposed | 2026-11-28 |
+| [0117](0117-count-a-queues-holding-time-from-its-consumers-alone.md) | Count a queue's holding time from its consumers alone | Proposed | 2026-11-28 |

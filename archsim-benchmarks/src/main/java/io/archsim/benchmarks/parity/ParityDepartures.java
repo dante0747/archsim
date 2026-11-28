@@ -39,8 +39,11 @@ final class ParityDepartures {
 			+ "consumers (" + adr("0085", "size-a-kafka-broker-as-measured-and-name-idle-consumers") + "); a "
 			+ "database of several instances with the frozen engine's CPU ceiling, capacity and the formula it "
 			+ "wrote from the part's work per request ("
-			+ adr("0083", "name-each-utilisation-and-compare-like-with-like") + "); and a cache that refused "
-			+ "lookups with the frozen engine's hit ratio (" + REFUSED_LOOKUPS_ADR + "). Each is read only where "
+			+ adr("0083", "name-each-utilisation-and-compare-like-with-like") + "); a queue with the frozen "
+			+ "engine's holding time, which counted its publishes too, and the capacity and formulas that follow "
+			+ "from it (" + adr("0117", "count-a-queues-holding-time-from-its-consumers-alone") + "); and a cache "
+			+ "that refused lookups with the frozen engine's hit ratio (" + REFUSED_LOOKUPS_ADR
+			+ "). Each is read only where "
 			+ "it follows from the run's own figures, and the result digest is taken over the result so read: it "
 			+ "is the frozen engine's only where the rest of the result, every series and formula included, is "
 			+ "its.";

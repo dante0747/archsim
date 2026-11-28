@@ -95,7 +95,7 @@ class SimulationCasesTests {
 		JsonNode provenance = report.get("provenance");
 		assertThat(List.of(provenance.get("engineVersion").stringValue(), report.get("reportVersion").stringValue(),
 				provenance.get("reportVersion").stringValue(), provenance.get("java").stringValue()))
-			.containsExactly("1.6.1", "1.21", "1.21", System.getProperty("java.version"));
+			.containsExactly("1.6.2", "1.21", "1.21", System.getProperty("java.version"));
 		assertThat(provenance.get("wallSeconds").doubleValue()).isNotNegative();
 	}
 

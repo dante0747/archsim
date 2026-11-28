@@ -28,8 +28,10 @@ import io.archsim.parity.SchemaDepartures;
  * ceilings as the frozen engine set them ({@link BusiestInstanceDepartures}), its
  * summary's message figures left out ({@link MessageDepartures}), its idle consumers left
  * out ({@link IdleConsumerDepartures}), its Kafka brokers' sizes as the frozen engine
- * sized them ({@link KafkaSizingDepartures}), its estimate of the databases that flush
- * their commits and of the caches as the frozen engine counted their slots and CPU
+ * sized them ({@link KafkaSizingDepartures}), its queues' holding times, which the frozen
+ * engine counted with their publishes, and what follows from them
+ * ({@link QueueHoldDepartures}), its estimate of the databases that flush their commits
+ * and of the caches as the frozen engine counted their slots and CPU
  * ({@link EstimateDepartures}), and Python's findings as the Java words a count of one
  * request ({@link WordingDepartures}).
  */
@@ -207,7 +209,7 @@ public final class ReportComparison {
 		JsonNode departed = EstimateDepartures.asRecorded(report, python);
 		departed = BusiestInstanceDepartures.asRecorded(CacheDepartures.asRecorded(departed, python), python);
 		departed = IdleConsumerDepartures.asRecorded(MessageDepartures.asRecorded(departed), python);
-		departed = KafkaSizingDepartures.asRecorded(departed, python);
+		departed = QueueHoldDepartures.asRecorded(KafkaSizingDepartures.asRecorded(departed, python), python);
 		return SchemaDepartures.asRecorded(departed, python);
 	}
 

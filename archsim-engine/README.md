@@ -25,7 +25,7 @@ which an ArchUnit rule checks, and the digests keep the Python engine's definiti
 ([ADR-0050](../docs/adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)).
 The app simulates on it: a calibration's replay, through `ReplaySimulator.of`, and the runs its
 worker role claims ([ADR-0053](../docs/adr/0053-simulate-runs-in-the-java-apps-worker-role.md)).
-It is engine 1.6.1, and stage 4 is done: its exit is checked off in the port plan.
+It is engine 1.6.2, and stage 4 is done: its exit is checked off in the port plan.
 
 ## Packages
 
@@ -70,7 +70,7 @@ It is engine 1.6.1, and stage 4 is done: its exit is checked off in the port pla
 | `yaml` | YAML from anyone (imported files, calibration mappings): `YamlDocuments` (read as PyYAML reads it through SnakeYAML, within the Python engine's bounds; [ADR-0043](../docs/adr/0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md)), what is wrong with a text is one of four exceptions, as Python told them apart: `InvalidYamlException` (not valid YAML), `YamlValueException` (a value Python refuses, or beyond the bounds), `YamlKeyException` (a scalar Python looks up in vain) and `YamlScalarException` (another scalar Python fails to read) |
 | `calibration` | calibration, as the Python engine's `calibration` package, deterministic but for its HTTP client (`prometheus.http`): `mapping` (`MappingLoader`: the mapping file read into a `CalibrationMapping` of each part's, link's and the workload's sources, refused in the Python engine's words without the text or its values; `TimeRange.parse`), `prometheus` (`PrometheusSeries`: a range query's series as a `Histogram`, one figure, or summed per timestamp; `RecordingPrometheus`: a client's responses kept, written as the Python engine's `RecordingPrometheus` saved them for `--recorded` to replay), `prometheus.http` (`HttpPrometheus`: range queries over HTTP, each pinned to the address it checks, under one deadline and a size cap, failing in the Python engine's words; `PrometheusServer`, the server and how it is called, and `PrometheusUrls`, what a policy asks of a URL: [ADR-0046](../docs/adr/0046-call-prometheus-with-apache-httpclient-5.md), [ADR-0057](../docs/adr/0057-move-the-prometheus-client-into-the-engine.md)), `fit` (`LatencyFits`: a histogram's or samples' latencies fitted to a lognormal or an empirical table, with the fit's error; `NormalQuantile`, Python's `NormalDist().inv_cdf`), `resources` (`CpuFits`: `cpuShare` from CPU in use against the request rate; `LoadCurves`: CPU per request against load, fitted never rising; `CurveExtensions`: how that curve continues above its top rate; `MemoryFits`: the working set against the request rate and requests held, by non-negative least squares), `otlp` (`OtlpSpans`: the spans of an OTLP JSON export; `TraceSummaries`: each service's own time, each database's reads and writes, the call graph and CPU time; `OtlpMappings`: services and databases to parts) `ReplaySummary` (the line on how well a calibrated model reproduces what was observed), and the whole calibrations: `PrometheusCalibration` (a design calibrated from a `PrometheusClient`'s range queries: `RecordedPrometheus` reads recorded responses, `Matrices` checks a response as the Python engine did) and `OtlpCalibration` (from an OTLP export, named in the result by its `OtlpRequest`'s source: `UNNAMED_SOURCE`, `OpenTelemetry traces`, for the app, and `sourceNamed(file)`, `OpenTelemetry traces file.json`, for the CLI), each giving a `CalibrationOutcome` and replaying the calibrated design through a `ReplaySimulator`, with the time it stamps from a `Clock`; a range's times are read as Python 3.12's C `datetime.fromisoformat` reads them (`IsoFormat`, checked against Python on 120,000 generated texts) |
 | `assumptions` | `AssumptionsPage`: `docs/assumptions.md`, every number ArchSim uses without the user typing it (technology tiers and defaults, preset numbers, the defaults of a new part, from the catalog the editor reads) and where each comes from, documented or illustrative; `EngineConstants`: the engine-wide constants behind sizing, prices and the component models, read from the code that uses them, each an `EngineConstant` named as the Python engine named it |
-| `version` | `ArchsimVersion`: ArchSim's own version, the release's, which the build writes from `gradle.properties` (ADR-0076). `EngineVersions`: the engine's version (1.6.1) and its reports' (1.21), which every run and `GET /meta` record; runs the Python worker stored name the frozen Python engine (0.16.0, report 1.14), runs the Java worker stored before 1.0.0 name 0.16.0 with report 1.15, runs before ADR-0074 name 1.0.0 with report 1.15, runs from then until 1.1.1 name 1.1.0, and runs from then until ADR-0081 name 1.1.1 with report 1.16, runs from then until 1.2.1 name 1.2.0, runs from then until ADR-0083 name 1.2.1 with report 1.17, runs from then until ADR-0084 name 1.3.0 with report 1.18, runs from then until ADR-0085 name 1.4.0 with report 1.19, runs from then until ADR-0089 name 1.5.0 with report 1.20, runs from then until ADR-0092 name 1.5.1 with report 1.20, runs from then until ADR-0091 name 1.5.2 with report 1.20, and runs from then until 1.6.1 name 1.6.0 with report 1.21 |
+| `version` | `ArchsimVersion`: ArchSim's own version, the release's, which the build writes from `gradle.properties` (ADR-0076). `EngineVersions`: the engine's version (1.6.2) and its reports' (1.21), which every run and `GET /meta` record; runs the Python worker stored name the frozen Python engine (0.16.0, report 1.14), runs the Java worker stored before 1.0.0 name 0.16.0 with report 1.15, runs before ADR-0074 name 1.0.0 with report 1.15, runs from then until 1.1.1 name 1.1.0, and runs from then until ADR-0081 name 1.1.1 with report 1.16, runs from then until 1.2.1 name 1.2.0, runs from then until ADR-0083 name 1.2.1 with report 1.17, runs from then until ADR-0084 name 1.3.0 with report 1.18, runs from then until ADR-0085 name 1.4.0 with report 1.19, runs from then until ADR-0089 name 1.5.0 with report 1.20, runs from then until ADR-0092 name 1.5.1 with report 1.20, runs from then until ADR-0091 name 1.5.2 with report 1.20, runs from then until 1.6.1 name 1.6.0 with report 1.21, and runs from then until ADR-0117 name 1.6.1 with report 1.21 |
 | `report` | reading a run's report: `RunReport` and its parts, records of what the engine reads, each read by its own `read` ([ADR-0039](../docs/adr/0039-engine-reads-reports-as-partial-records.md)); `ReportDigest`; the words a report is written with: `ModelNotes`, `FailureReason` |
 
 Where a Python function parses a node's config, the Java reads it as its type's record; where it
@@ -125,16 +125,16 @@ Java gives a result instead (the owner's decision):
   strictly; every other table is the Python's
   (`LatencyFitsTests.fitHistogram_empiricalSharesThatRoundAlike_keepTheLastOfEachSoTheTableIsValid`).
 
-A report differs from the Python engine's in nineteen ways, which leave its result digest as Python
+A report differs from the Python engine's in twenty ways, which leave its result digest as Python
 defined it ([ADR-0050](../docs/adr/0050-one-report-per-seed-with-pythons-digest-definitions.md)) and
-change its value only where the last eight say:
+change its value only where the last nine say:
 
-- it names its own engine, 1.6.1, where Python's named 0.16.0, so the golden files' `ENGINE_VERSION` is
+- it names its own engine, 1.6.2, where Python's named 0.16.0, so the golden files' `ENGINE_VERSION` is
   not checked (the assumptions page names the engine too, and the golden page is checked
   rendered for 0.16.0, the version its file records; the page also names the command that writes
   it, `./gradlew :archsim-engine:generate` where Python's named `scripts/gen_assumptions.py`, and
   the golden page is checked with those two lines put back to Python's);
-- it is report 1.20, where Python's were 1.14, so the golden files' `REPORT_VERSION` is not
+- it is report 1.21, where Python's were 1.14, so the golden files' `REPORT_VERSION` is not
   checked;
 - its provenance names the Java runtime (`java`, the `java.version` property) where Python's
   named `python` and `simpy`;
@@ -284,6 +284,17 @@ change its value only where the last eight say:
   departs. Two recorded runs do, `aTracedPattern` and `aSetDrainAndAQuietStart`:
   `departed-runs.json` lists, for each, the parts of its report its requests make, which are the
   Java's own and pinned by their digest, and the rest of the report is compared with Python's;
+- a queue's holding time counts its deliveries alone, where Python also counted each publish
+  from its start to its acknowledgement (engine 1.6.2, ADR-0117), so wherever a queue published
+  in the window its `meanHoldMs`, `capacityRps` and `capacityLimit`, its slot, utilization,
+  M/M/c and consumer throughput formulas and a finding's sentence on what it can sustain depart.
+  `QueueHoldDepartures` reads them as Python's once Python's holding time is, to the report's
+  rounding, the mean of the Java's deliveries, at its holding time, and of its publishes, each at
+  the mean publish time and the mean time the memory alarm blocked the publishes acknowledged in
+  each of the window's buckets; where the alarm blocked publishers, the series give each block to
+  the bucket its publish was released in, so the deliveries' holding time Python's implies may lie
+  within 1% of the Java's (0.62% at most over the baselines' blocked runs). Where the baselines
+  keep a queue's figures and not its formulas, it writes those formulas again from them;
 - its design is schema 1.11, which adds `workload.peakHoursPerMonth` (ADR-0074) and leaves it
   out while it is 0, lets an API's price be left unset (ADR-0081), adds
   `objectives.messageAgeP95Ms` (ADR-0084), left out while it is unset, and counts a vCPU as a
@@ -300,7 +311,7 @@ change its value only where the last eight say:
   read recorded documents themselves, and the calibration replays, do the same.
 
 A run comparison of a Python run and a Java run names the two engines, and their two versions
-(0.16.0 and 1.6.1), as it names any two engine versions.
+(0.16.0 and 1.6.2), as it names any two engine versions.
 
 The importers read YAML as PyYAML reads it
 ([ADR-0043](../docs/adr/0043-read-imported-yaml-with-snakeyaml-as-pyyaml-resolves-it.md)), and

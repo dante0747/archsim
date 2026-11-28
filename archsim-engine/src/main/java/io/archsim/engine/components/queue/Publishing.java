@@ -20,7 +20,8 @@ import io.archsim.model.component.queue.MessageQueueConfig;
  * delivered at most once, dropped), blocked while the memory alarm is up, then
  * acknowledged after its publish time, the producer's linger and the replicas' copy. The
  * producer's request succeeds once the publish is acknowledged; consumers take the
- * message later.
+ * message later. A publish holds no consumer slot, so the queue's holding time, which its
+ * capacity counts, is its consumers' alone ({@link Deliveries}).
  */
 final class Publishing {
 
@@ -131,7 +132,6 @@ final class Publishing {
 		else {
 			this.state.backlog().add(new Message(request, now, publish.start()), now);
 		}
-		metrics().hold().record(now, now - publish.start());
 		metrics().depart(now, Outcome.OK, request);
 		done.accept(Outcome.OK);
 	}
