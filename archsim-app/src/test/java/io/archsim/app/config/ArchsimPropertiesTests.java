@@ -36,22 +36,25 @@ class ArchsimPropertiesTests {
 		assertThat(properties.engineRequests()).isEqualTo(3);
 	}
 
-	// the heaps as JDK 25 reports -Xmx512m and -Xmx1g with the serial collector, which a
-	// container of the hosting kit's size gets, then round sizes and a larger body cap
+	// the heaps as JDK 25 reports -Xmx1g and -Xmx512m with the serial collector, which a
+	// container of the hosting kit's size gets (its 1 GB on two cores, one replay slot,
+	// first), the guide's 1,536 MB on four cores, which G1 reports whole in a 1,920 MB
+	// container, then round sizes and a larger body cap
 	@ParameterizedTest
-	@CsvSource({ "518979584, 1, 5000000, 1", "1037959168, 3, 5000000, 3", "536870912, 1, 5000000, 1",
-			"2147483648, 3, 5000000, 12", "4294967296, 7, 5000000, 16", "268435456, 1, 5000000, 1",
-			"1073741824, 3, 50000000, 1" })
+	@CsvSource({ "1037959168, 1, 5000000, 5", "1610612736, 3, 5000000, 8", "518979584, 1, 5000000, 1",
+			"1037959168, 3, 5000000, 3", "536870912, 1, 5000000, 1", "2147483648, 3, 5000000, 12",
+			"4294967296, 7, 5000000, 16", "268435456, 1, 5000000, 1", "1073741824, 3, 50000000, 1" })
 	void engineRequestsFor_heapReplaysAndBodyCap_isWhatTheHeapHoldsWithinBounds(long heap, int replays, long body,
 			int requests) {
 		assertThat(ArchsimProperties.engineRequestsFor(heap, replays, body)).isEqualTo(requests);
 	}
 
-	// the kit (two cores), four or eight cores on its 512 MB or 1 GB heap, and a small
-	// heap
+	// the kit's 1 GB heap on two cores, two, four or eight cores on 512 MB or 1 GB, and a
+	// small heap
 	@ParameterizedTest
-	@CsvSource({ "518979584, 1, 5000000, 1", "518979584, 3, 5000000, 1", "1037959168, 3, 5000000, 3",
-			"1037959168, 7, 5000000, 5", "268435456, 3, 5000000, 1", "4294967296, 7, 5000000, 7" })
+	@CsvSource({ "1037959168, 1, 5000000, 1", "518979584, 1, 5000000, 1", "518979584, 3, 5000000, 1",
+			"1037959168, 3, 5000000, 3", "1037959168, 7, 5000000, 5", "268435456, 3, 5000000, 1",
+			"4294967296, 7, 5000000, 7" })
 	void replaySlotsFor_heapThreadsAndBodyCap_isWhatTheHeapHoldsUpToTheThreads(long heap, int threads, long body,
 			int slots) {
 		assertThat(ArchsimProperties.replaySlotsFor(heap, threads, body)).isEqualTo(slots);

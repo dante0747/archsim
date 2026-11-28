@@ -192,6 +192,8 @@ trust boundaries, and neither way in leaves a certificate to renew.
 
 ## More Information
 
+- [ADR-0116](0116-give-the-hosting-kits-api-a-1-gb-heap.md): the API's heap, now 1 GB, which amends
+  "Sized for 2 cores and 4 GB".
 - [ADR-0014](0014-one-deployable-application-with-roles.md): one image, started as `migrate`, `api`
   or `worker`.
 - [ADR-0053](0053-simulate-runs-in-the-java-apps-worker-role.md): the workers and their heap.

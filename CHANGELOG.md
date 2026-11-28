@@ -8,6 +8,16 @@ for when that version changes.
 
 ## [Unreleased]
 
+### Changed
+
+- **The hosting kit gives the API a 1 GB heap, which answers five of the engine's requests at
+  once on two cores
+  ([ADR-0116](docs/adr/0116-give-the-hosting-kits-api-a-1-gb-heap.md), proposed).** With 512 MB it
+  answered one, and the editor now saves after each pause in editing, which asks the engine's
+  routes to validate, analyze and save. The API's container may use 1,408 MB, so the kit's memory
+  limits add up to 3.8 GB on the smallest server it fits (2 cores, 4 GB), which needs swap, or the
+  old sizes. A `hosted.env` keeps the API's heap and memory it sets: set both or neither.
+
 ### Fixed
 
 - **The editor saves a design as it is edited and on the way out

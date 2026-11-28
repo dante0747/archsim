@@ -134,6 +134,8 @@ The slot, limit, guest and replay-queue behaviours fail against the code before.
 
 ## More Information
 
+- [ADR-0116](0116-give-the-hosting-kits-api-a-1-gb-heap.md): the kit's API, now on a 1 GB heap, answers five
+  of the engine's requests at once on two cores.
 - [ADR-0054](0054-replay-calibrations-on-a-pool-of-platform-threads.md): the replay threads.
 - [docs/api.md](../api.md), "Errors" and "Limits", and [SECURITY.md](../../SECURITY.md) list the
   numbers.
