@@ -8,6 +8,7 @@ import java.util.function.DoubleSupplier;
 
 import io.archsim.engine.kernel.Routine;
 import io.archsim.engine.kernel.Signal;
+import io.archsim.engine.kernel.Steps;
 
 /**
  * A consumer that polls in cycles, as Kafka's consumers do: it takes a poll's batches,
@@ -43,7 +44,7 @@ final class PollingConsumer {
 		int slots = Math.min(this.consuming.concurrency(), work.size());
 		List<Routine> running = new ArrayList<>(slots);
 		for (int slot = 0; slot < slots; slot++) {
-			running.add(this.consuming.simulation().start((finish) -> takeBatch(work, finish)));
+			running.add(this.consuming.simulation().start((finish) -> takeBatches(work, finish)));
 		}
 		this.consuming.simulation().allOf(running).then(() -> {
 			DoubleSupplier overhead = this.consuming.fetchOverheadMs();
@@ -55,21 +56,15 @@ final class PollingConsumer {
 		});
 	}
 
-	// a slot takes the poll's batches in turn until none is left
-	private void takeBatch(Deque<List<Message>> work, Runnable finish) {
-		if (work.isEmpty()) {
-			finish.run();
-			return;
-		}
-		process(work.removeFirst().iterator(), () -> takeBatch(work, finish));
+	// a slot takes the poll's batches in turn until none is left, in a loop while each is
+	// processed at once
+	private void takeBatches(Deque<List<Message>> work, Runnable finish) {
+		Steps.each(work::pollFirst, (batch, next) -> process(batch.iterator(), next), finish);
 	}
 
+	// a batch's messages one after another, in a loop while each is processed at once
 	private void process(Iterator<Message> batch, Runnable next) {
-		if (!batch.hasNext()) {
-			next.run();
-			return;
-		}
-		this.consuming.deliveries().process(batch.next(), () -> process(batch, next));
+		Steps.each(() -> batch.hasNext() ? batch.next() : null, this.consuming.deliveries()::process, next);
 	}
 
 	/**

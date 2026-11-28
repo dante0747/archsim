@@ -53,6 +53,13 @@ for when that version changes.
   through the API the worker stopped such a run 30 s past the limit and failed it. The sample and
   the whole run now share one clock, so such a quick check can be stopped where a full run of the
   same design finishes, and its report's wall time counts the sample too.
+- **A consumer that works no time on a message no longer crashes the run
+  ([ADR-0114](docs/adr/0114-take-a-run-of-steps-that-finish-at-once-in-a-loop-not-on-the-stack.md),
+  proposed).** A consumer whose consumer time is 0 took the messages of a poll, the batches of a
+  poll from its partitions and the messages of a backlog it drained one at a time, each one call
+  deeper than the last, so 20,000 messages a second with a 250 ms fetch overhead, or a poll from
+  2,000 partitions, overflowed the stack and the run failed. It now takes them in a loop; results
+  do not change.
 - **The SLO label in the Test timeline reads whole wherever the p95 curve goes.** The latency lane
   named the objective's dashed line at its right end, under the curve, so a p95 that climbed through
   it there struck the label through: as Black Friday's run drains, its p95 spike made "SLO 500 ms"
